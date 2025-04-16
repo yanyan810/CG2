@@ -10,9 +10,13 @@
 #include <cassert>
 #include <locale>
 #include <codecvt>
+#include <strsafe.h>
+#include <DbgHelp.h> // Add this include to define MINIDUMP_EXCEPTION_INFORMATION  
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "Dbghelp.lib") // Link with Dbghelp.lib to use MiniDumpWriteDump
+
 
 //クライアント領域サイズ
 const int32_t kClientWidth = 1280;
@@ -23,17 +27,17 @@ RECT wrc = { 0, 0, kClientWidth, kClientHeight };
 
 //ウィンドウプロシージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-    //メッセージに応じてゲーム固有の処理を行う
-    switch (msg) {
-        //ウィンドウが破棄された
+	//メッセージに応じてゲーム固有の処理を行う
+	switch (msg) {
+		//ウィンドウが破棄された
 	case WM_DESTROY:
 		//OSに対して,アプリの終了を伝える 
 		PostQuitMessage(0);
 		return 0;
 
-    }
+	}
 
-    //標準メッセージ処理を行う
+	//標準メッセージ処理を行う
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
@@ -65,29 +69,65 @@ std::wstring ConvertString(const std::string& str) {
 	return result;
 }
 
+// ダンプファイルを生成する関数
+LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
+	// 時刻を取得して、時刻付き名称にしたファイルを作成。Dumpsディレクトリに出力
+	SYSTEMTIME time;
+	GetLocalTime(&time);
+	TCHAR filePath[MAX_PATH] = { 0 };
+	CreateDirectory(L"./Dumps", nullptr);
+	StringCchPrintfW(filePath, MAX_PATH, L"./Dumps/%04d-%02d%02d-%02d%02d.dmp",
+		time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute);
+	HANDLE dumpFileHandle = CreateFile(filePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
+
+	// processId に GetCurrentProcessId() を渡し、threadId には GetCurrentThreadId() を渡す
+	DWORD processId = GetCurrentProcessId();
+	DWORD threadId = GetCurrentThreadId();
+
+	// MiniDumpWriteDump に渡す構造体
+	MINIDUMP_EXCEPTION_INFORMATION minidumpInformation = { 0 };
+	minidumpInformation.ThreadId = threadId;
+	minidumpInformation.ExceptionPointers = exception;
+	minidumpInformation.ClientPointers = TRUE;
+
+	// MiniDumpWriteDump 関数を呼び出してダンプを作成
+	MiniDumpWriteDump(GetCurrentProcess(),
+		processId, dumpFileHandle,
+		MiniDumpNormal, &minidumpInformation,
+		nullptr, nullptr);
+
+	return EXCEPTION_EXECUTE_HANDLER;
+
+
+}
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
+	
+
+	// CrashHandlerを登録
+	SetUnhandledExceptionFilter(ExportDump);
+
 	WNDCLASS wc{};
 
-    //ウィンドプロシージャ
+	//ウィンドプロシージャ
 	wc.lpfnWndProc = WindowProc;
 
-    //ウィンドウクラス名
+	//ウィンドウクラス名
 	wc.lpszClassName = L"CG2WindowClass";
 
-    //インスタンスハンドル
+	//インスタンスハンドル
 	wc.hInstance = GetModuleHandle(nullptr);
 
-    //カーソル
+	//カーソル
 	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 
-    //ウィンドウクラスを登録する
+	//ウィンドウクラスを登録する
 	RegisterClass(&wc);
 
-    //クライアント領域をもとに実際のサイズにwcrを変更してもらう
-    AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, FALSE);
+	//クライアント領域をもとに実際のサイズにwcrを変更してもらう
+	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, FALSE);
 
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName, //ウィンドウクラス名
@@ -114,7 +154,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 
 	//ログファイルの名前にコンマ何秒はいらないので削って秒にする
-	std::chrono::time_point <std::chrono::system_clock,std::chrono::seconds>
+	std::chrono::time_point <std::chrono::system_clock, std::chrono::seconds>
 		nowSecond = std::chrono::time_point_cast<std::chrono::seconds>(now);
 
 	//日本時間(PCの設定時間)に変換
@@ -163,7 +203,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D_FEATURE_LEVEL featureLevels[] = {
 		D3D_FEATURE_LEVEL_12_2,D3D_FEATURE_LEVEL_12_1,D3D_FEATURE_LEVEL_12_0
 	};
-	const char* featureLevelStrings[] = {"12.2","12.1","12.0"};
+	const char* featureLevelStrings[] = { "12.2","12.1","12.0" };
 	//高い順に生成できるか試していく
 	for (size_t i = 0; i < _countof(featureLevels); i++) {
 		//採用したアダプターでデバイス生成
@@ -178,6 +218,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n");//初期化のログを出す
 
+	uint32_t* p = nullptr;
+	*p = 100;
+
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
 		//windowにメッセージが来てたら最優先で処理させる
@@ -191,5 +234,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 	}
-    return 0;
+	return 0;
 }
+
