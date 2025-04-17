@@ -11,12 +11,13 @@
 #include <locale>
 #include <codecvt>
 #include <strsafe.h>
-#include <DbgHelp.h> // Add this include to define MINIDUMP_EXCEPTION_INFORMATION  
+#include <DbgHelp.h>   
+#include <dxgidebug.h>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "Dbghelp.lib") // Link with Dbghelp.lib to use MiniDumpWriteDump
-
+#pragma comment(lib, "Dbghelp.lib") 
+#pragma comment(lib, "dxguid.lib")
 
 //クライアント領域サイズ
 const int32_t kClientWidth = 1280;
@@ -249,7 +250,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE
 		};
 
-		D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
+		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
 		D3D12_INFO_QUEUE_FILTER filter{};
 		filter.DenyList.NumIDs = _countof(denyIds);
 		filter.DenyList.pIDList = denyIds;
@@ -360,10 +361,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
 
+
+
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
 		//windowにメッセージが来てたら最優先で処理させる
-       
+
 		/*hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
 		assert(SUCCEEDED(hr));*/
 		hr = swapChain->GetBuffer(1, IID_PPV_ARGS(&swapChainResources[1]));
@@ -429,8 +432,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 
 
-			
-		
+
+
 			hr = commandAllocator->Reset();
 			assert(SUCCEEDED(hr));
 
@@ -445,6 +448,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 	}
+	
+
+	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+	CloseHandle(fenceEvent);
+	fence->Release();
+	rtvDescriptorHeap->Release();
+	swapChainResources[0]->Release();
+	swapChainResources[1]->Release();
+	swapChain->Release();
+	commandList->Release();
+	commandAllocator->Release();
+	commandQueue->Release();
+	device->Release();
+	useAdapter->Release();
+	dxgiFactory->Release();
+#ifdef _Debug
+	debugController->Release();
+#endif
+	CloseWindow(hwnd);
+
+	//リソースチェック
+	IDXGIDebug1* debug = nullptr;
+	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
+		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+		debug->Release();
+	}
+
 	return 0;
 }
 
