@@ -20,6 +20,7 @@
 #pragma comment(lib, "Dbghelp.lib") 
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxcompiler.lib")
 
 //クライアント領域サイズ
 const int32_t kClientWidth = 1280;
@@ -43,6 +44,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	//標準メッセージ処理を行う
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
+
+struct Vector4 {
+	float x; // X座標
+	float y; // Y座標
+	float z; // Z座標
+	float w; // W座標 (用途に応じて異なる意味を持つ)
+};
+
 
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
@@ -107,7 +116,7 @@ LONG WINAPI ExportDump(EXCEPTION_POINTERS* exception) {
 //CompileShader関数
 IDxcBlob* CompilesSharder(
 	//CompilerするSharderファイルへのパス
-	const std::wstring& shaderFilePath,
+	const std::wstring& filePath,
 	//Compilerにする使用するProfile
 	const wchar_t* profile,
 	//初期化で生成したものを3つ
@@ -115,12 +124,12 @@ IDxcBlob* CompilesSharder(
 	IDxcCompiler3* dxcCompiler,
 	IDxcIncludeHandler* includeHandler) {
 	//これからシェーダーをコンパイルする旨をログにだす
-	Log(ConvertString(std::format(L"Compile Shader: {}\n", shaderFilePath)));
+	Log(ConvertString(std::format(L"Compile Shader: {}\n", filePath)));
 
 	//hlslファイルを読む
 	IDxcBlobEncoding* shaderSource = nullptr;
-	HRESULT hr = dxcUtils->LoadFile(shaderFilePath.c_str(), nullptr, &shaderSource);
-	
+	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
+
 	//読めなかったら止める
 	assert(SUCCEEDED(hr));
 
@@ -129,6 +138,45 @@ IDxcBlob* CompilesSharder(
 	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
 	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
 	shaderSourceBuffer.Encoding = DXC_CP_UTF8;//UTF8の文字コードであることを通知
+	LPCWSTR arguments[] = {
+	filePath.c_str(),///コンパイル対象のhlslファイル名
+	L"-E", L"main",//エントリーポイントの指定。基本的にmain以外にはしない
+	L"-T", profile,//ShaderProfileの設定
+	L"-Zi",L"-Qembed_debug",//デバッグ用の情報を埋め込む
+	L"-Od",//最適化を外しておく
+	L"-Zpr",//メモリレイアウトは行優先
+	};
+
+	//実際にshederをコンパイルする
+	IDxcResult* shaderResult = nullptr;
+	hr = dxcCompiler->Compile(&shaderSourceBuffer,//読み込んだファイル
+		arguments,//コンパイルオプション
+		_countof(arguments),//コンパイルオプションの数
+		includeHandler,//includeが含まれた諸々
+		IID_PPV_ARGS(&shaderResult));//コンパイル結果
+	//コンパイルエラーではなくdxcが起動できないなどの致命的な状況
+	assert(SUCCEEDED(hr));
+
+	//警告・エラーが出てたらログに出す
+	IDxcBlobUtf8* shaderError = nullptr;
+	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
+	if (shaderError != nullptr && shaderError->GetStringLength() > 0) {
+		Log(shaderError->GetStringPointer());
+		assert(false); // ← 本当にエラーがある時だけ止まる
+	}
+
+	//コンパイル結果から実行用のバイナリ部分を取得
+	IDxcBlob* shaderBlob = nullptr;
+	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
+	assert(SUCCEEDED(hr));
+	//成功したログを出す
+	Log(ConvertString(std::format(L"Compile Succeded,path:{},profile\n", filePath, profile)));
+	//もう使わないリソースを解放
+	shaderSource->Release();
+	shaderSource->Release();
+	//実行用のバイナリを返却
+	return shaderBlob;
+
 }
 
 // Windowsアプリでのエントリーポイント(main関数)
@@ -390,7 +438,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
 
-	//dxCompiを初期化
+	//dxCompireを初期化
 	IDxcUtils* dxcUtils = nullptr;
 	IDxcCompiler3* dxcCompiler = nullptr;
 	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
@@ -402,6 +450,164 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	IDxcIncludeHandler* includeHandler = nullptr;
 	hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
 	assert(SUCCEEDED(hr));
+
+	//RootSignature作成
+	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
+	descriptionRootSignature.Flags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	//シリアライズしてバイナリする
+	ID3DBlob* signatureBlob = nullptr;
+	ID3DBlob* errorBlob = nullptr;
+	hr = D3D12SerializeRootSignature(&descriptionRootSignature,
+		D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+
+	if (FAILED(hr)) {
+		Log(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
+		assert(false);
+	}
+
+	//バイナリをもとに生成
+	ID3D12RootSignature* rootSignature = nullptr;
+	hr = device->CreateRootSignature(0,
+		signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(),
+		IID_PPV_ARGS(&rootSignature));
+	assert(SUCCEEDED(hr));
+
+	//InputLayout
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[1] = {};
+	inputElementDescs[0].SemanticName = "POSITION";
+	inputElementDescs[0].SemanticIndex = 0;
+	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
+	inputLayoutDesc.pInputElementDescs = inputElementDescs;
+	inputLayoutDesc.NumElements = _countof(inputElementDescs);
+
+	//BlendStateの設定
+	D3D12_BLEND_DESC blendDesc{};
+	//全ての色要素を書き込む
+	blendDesc.RenderTarget[0].RenderTargetWriteMask =
+		D3D12_COLOR_WRITE_ENABLE_ALL;
+	//RasiterzerStateの設定
+	D3D12_RASTERIZER_DESC rasterizerDesc{};
+	//裏面を表示しない
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	//三角形の中を塗りつぶす
+	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+	//shaderをコンパイルする
+	IDxcBlob* vertexShaderBlob = CompilesSharder(L"Object3D.VS.hlsl",
+		L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
+	assert(vertexShaderBlob != nullptr);
+
+	IDxcBlob* pixelShaderBlob = CompilesSharder(L"Object3D.PS.hlsl",
+		L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
+	assert(pixelShaderBlob != nullptr);
+
+	//PSOを生成する
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
+	graphicsPipelineStateDesc.pRootSignature = rootSignature;//RootSignature
+	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;//InputLayout
+	graphicsPipelineStateDesc.VS = { vertexShaderBlob->GetBufferPointer(),
+	vertexShaderBlob->GetBufferSize() };//VertexShader
+	graphicsPipelineStateDesc.PS = { pixelShaderBlob->GetBufferPointer(),
+	pixelShaderBlob->GetBufferSize() };//PixelShader
+	graphicsPipelineStateDesc.BlendState = blendDesc;//BlendState
+	graphicsPipelineStateDesc.RasterizerState = rasterizerDesc;//RasterizerState
+	//書き込むRTVの情報
+	graphicsPipelineStateDesc.NumRenderTargets = 1;
+	graphicsPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	//利用するトロポジ(形状)のタイプ。三角形
+	graphicsPipelineStateDesc.PrimitiveTopologyType =
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	//どのように画面に色を打ち込むかの設定(気にしなくていい)
+	graphicsPipelineStateDesc.SampleDesc.Count = 1;
+	graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+	//実際に生成
+	ID3D12PipelineState* graphicsPipelineState = nullptr;
+	hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc,
+		IID_PPV_ARGS(&graphicsPipelineState));
+	assert(SUCCEEDED(hr));
+
+	if (FAILED(hr)) {
+		char errorMsg[256];
+		sprintf_s(errorMsg, "PSO作成に失敗しました: 0x%08X\n", hr);
+		OutputDebugStringA(errorMsg);
+		assert(false);  // 強制停止（そのままでもOK）
+	}
+
+
+	//======================
+	//VertexResourceの作成
+	//======================
+
+	//頂点リソース用のピープの設定
+	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
+	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;//UploadHeapを使う
+	//頂点リソースの決定
+	D3D12_RESOURCE_DESC vertexResourcesDesc{};
+	//バッファリソース。テクスチャの場合はまた別の設定をする
+	vertexResourcesDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	vertexResourcesDesc.Width = sizeof(Vector4) * 3;//リソースのサイズ。今回はVector4を3頂点分
+
+	//バッファの場合これらは1にする決まり
+	vertexResourcesDesc.Height = 1;
+	vertexResourcesDesc.DepthOrArraySize = 1;
+	vertexResourcesDesc.MipLevels = 1;
+	vertexResourcesDesc.SampleDesc.Count = 1;
+	//バッファの場合はこれにする決まり
+	vertexResourcesDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	//実際に頂点リソースを作る
+	ID3D12Resource* vertexResource = nullptr;
+	hr = device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE,
+		&vertexResourcesDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		IID_PPV_ARGS(&vertexResource));
+	assert(SUCCEEDED(hr));
+
+	//頂点バッファビューを作成する
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+	//リソースの先頭アドレスから使う
+	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+	//使用するリソースのサイズは頂点3つ分のサイズ
+	vertexBufferView.SizeInBytes = sizeof(Vector4) * 3;
+	//1頂点当たりのサイズ
+	vertexBufferView.StrideInBytes = sizeof(Vector4);
+
+	//==========================
+	//Resourceにデータを書き込む
+	//==========================
+	//頂点リソースにデータを書き込む
+	Vector4* vertexData = nullptr;
+	//書き込むためのアドレスを取得
+	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	//左下
+	vertexData[0] = { -0.5f,-0.5f,0.0f,1.0f };
+	//上
+	vertexData[1] = { 0.0f,0.5f,0.0f,1.0f };
+	//右下
+	vertexData[2] = { 0.5f,-0.5f,0.0f,1.0f };
+
+	//=========================
+	//ViewportとScissor(シザー)
+	//=========================
+	//ビューポート
+	D3D12_VIEWPORT viewport{};
+	//クラアント領域のサイズと一緒にして画面全体に表示
+	viewport.Width = kClientWidth;
+	viewport.Height = kClientHeight;
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+
+	//シザー矩形
+	D3D12_RECT scissorRect{};
+	//基本的にビューポートと同じ矩形が構成される
+	scissorRect.left = 0;
+	scissorRect.right = kClientWidth;
+	scissorRect.top = 0;
+	scissorRect.bottom = kClientHeight;
+
 
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
@@ -444,6 +650,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				clearColor,
 				0, nullptr);
 
+			//ゲームの描画処理
+			commandList->RSSetViewports(1, &viewport);//Viewportを設定
+			commandList->RSSetScissorRects(1, &scissorRect);//Scirssor
+			//RootSignatureを設定。PSOに設定していると別途設定が必要
+			commandList->SetGraphicsRootSignature(rootSignature);
+			commandList->SetPipelineState(graphicsPipelineState);//PSOを設定
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);//VBVCを設定
+			//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけばいい
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			//行がQ(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
+			commandList->DrawInstanced(3, 1, 0, 0);
+
 			// === リソースバリア: RenderTarget → Present ===
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -471,24 +689,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				WaitForSingleObject(fenceEvent, INFINITE);
 			}
 
-
-
-
 			hr = commandAllocator->Reset();
 			assert(SUCCEEDED(hr));
 
 			hr = commandList->Reset(commandAllocator, nullptr);
 			assert(SUCCEEDED(hr));
 
-			//ゲームの描画処理
-
-
-
+			
 		}
 
 
 	}
-	
+
 
 	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 	CloseHandle(fenceEvent);
@@ -507,6 +719,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	debugController->Release();
 #endif
 	CloseWindow(hwnd);
+
+	vertexResource->Release();
+	graphicsPipelineState->Release();
+	signatureBlob->Release();
+	if (errorBlob) {
+		errorBlob->Release();
+	}
+	rootSignature->Release();
+	pixelShaderBlob->Release();
+	vertexShaderBlob->Release();
 
 	//リソースチェック
 	IDXGIDebug1* debug = nullptr;
