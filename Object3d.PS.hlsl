@@ -1,3 +1,8 @@
+cbuffer gMaterial : register(b0)
+{
+    float4 color;
+};
+
 struct PixelSharderOutput
 {
     float4 color : SV_TARGET0;
@@ -6,6 +11,6 @@ struct PixelSharderOutput
 PixelSharderOutput main()
 {
     PixelSharderOutput output;
-    output.color = float4(1.0f, 1.0f, 1.0f, 1.0f); // Red color
+    output.color = color; // ← ここはそのままでOK
     return output;
 }
