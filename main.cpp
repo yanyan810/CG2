@@ -16,6 +16,9 @@
 #include <dxcapi.h>
 #include "Matrix4x4.h"
 #include "Vector3.h"
+#include "externals/imgui/imgui.h"
+#include"externals/imgui/imgui_impl_dx12.h"
+#include "externals/imgui/imgui_impl_win32.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -23,6 +26,9 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "dxcompiler.lib")
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 
 //クライアント領域サイズ
 const int32_t kClientWidth = 1280;
@@ -33,6 +39,11 @@ RECT wrc = { 0, 0, kClientWidth, kClientHeight };
 
 //ウィンドウプロシージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+		return true;
+	}
+
 	//メッセージに応じてゲーム固有の処理を行う
 	switch (msg) {
 		//ウィンドウが破棄された
@@ -211,6 +222,25 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
 		IID_PPV_ARGS(&buffer));
 	assert(SUCCEEDED(hr));
 	return buffer;
+}
+
+//DescriptorHeapの作成関数
+ID3D12DescriptorHeap* CreateDescriptorHeap(
+	ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType,
+	UINT numDescripters, bool shaderVisible) {
+
+	//ディスクリプタヒープの生成
+	ID3D12DescriptorHeap* descriptorHeap = nullptr;
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc{};
+	descriptorHeapDesc.Type = heapType; // レンダーターゲットビュー用
+	descriptorHeapDesc.NumDescriptors = numDescripters; // ダブルバッファように2つ。多くても別に損はない
+	descriptorHeapDesc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	HRESULT hr = device->CreateDescriptorHeap(
+		&descriptorHeapDesc, IID_PPV_ARGS(&descriptorHeap));
+	//ディスクリプタヒープが作れなかったので起動できない
+	assert(SUCCEEDED(hr));
+
+	return descriptorHeap;
 }
 
 
@@ -421,24 +451,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		commandQueue, &swapChainDesc, reinterpret_cast<IDXGISwapChain**>(&swapChain));
 	assert(SUCCEEDED(hr));
 
-	//ディスクリプタヒープの生成
-	ID3D12DescriptorHeap* rtvDescriptorHeap = nullptr;
-	D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc{};
-	rtvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV; // レンダーターゲットビュー用
-	rtvDescriptorHeapDesc.NumDescriptors = 2; // ダブルバッファように2つ。多くても別に損はない
-	hr = device->CreateDescriptorHeap(
-		&rtvDescriptorHeapDesc, IID_PPV_ARGS(&rtvDescriptorHeap));
-	//ディスクリプタヒープが作れなかったので起動できない
-	assert(SUCCEEDED(hr));
-
-	//SwapChainからResourcesを取得する
-	// SwapChainからResourcesを取得する
-	ID3D12Resource* swapChainResources[2] = { nullptr };
-	for (int i = 0; i < 2; i++) {
-		hr = swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainResources[i]));
-		assert(SUCCEEDED(hr));
-	}
-
+	//RTV用のヒープでディスクリプタの数は2。RTVはshader内で触るものではないので、ShaderVisibleはfalse
+	ID3D12DescriptorHeap* rtvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	//SRV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
+	ID3D12DescriptorHeap* srvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 
 	// RTVの設定
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
@@ -447,6 +463,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// ディスクリプタの先頭を取得する
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	// SwapChainからResourcesを取得する
+	ID3D12Resource* swapChainResources[2] = { nullptr };
+	for (int i = 0; i < 2; i++) {
+		hr = swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainResources[i]));
+		assert(SUCCEEDED(hr));
+	}
 
 	// RTVを2つ作るのでディスクリプタを2つ用意
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
@@ -676,8 +699,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
 	Transform cameraTransform({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, { 0.0f,0.0f,-10.0f });
 
+	//ImGuiの初期化。
+	//こういうもの
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(hwnd);
+	ImGui_ImplDX12_Init(device,
+		swapChainDesc.BufferCount,
+		rtvDesc.Format,
+		srvDescriptorHeap,
+		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
+
 		//windowにメッセージが来てたら最優先で処理させる
 
 		/*hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
@@ -686,18 +723,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		assert(SUCCEEDED(hr));
 
 
+
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		} else {
+
+			ImGui_ImplDX12_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+
+			// ImGuiウィンドウ表示
+			ImGui::ShowDemoWindow();
+
 			//ゲームの更新処理
 			transform.rotate.y += 0.03f;
-			Matrix4x4 worldMatrix = Matrix4x4::MakeAffineMatrix(transform.scale,transform.rotate,transform.translate);
+			Matrix4x4 worldMatrix = Matrix4x4::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 cameraMatrix = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix = Matrix4x4::Inverse(cameraMatrix);
 			Matrix4x4 projectionMatrix = Matrix4x4::PerspectiveFov(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrix = Matrix4x4::Multiply(worldMatrix, Matrix4x4::Multiply(viewMatrix, projectionMatrix));
 			*wvpData = worldViewProjectionMatrix;
+
+
+
+			ImGui::Render();
 
 			//ゲームの描画処理
 			// バッファのインデックスを取得
@@ -725,6 +775,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				clearColor,
 				0, nullptr);
 
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap };
+			commandList->SetDescriptorHeaps(1, descriptorHeaps);
+
 			commandList->RSSetViewports(1, &viewport);//Viewportを設定
 			commandList->RSSetScissorRects(1, &scissorRect);//Scirssor
 			//RootSignatureを設定。PSOに設定していると別途設定が必要
@@ -739,6 +792,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//行がQ(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
 			commandList->DrawInstanced(3, 1, 0, 0);
 
+			//実際のcommandListの	ImGuiの描画コマンドを挟む
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+
 			// === リソースバリア: RenderTarget → Present ===
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -748,9 +804,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			hr = commandList->Close();
 			assert(SUCCEEDED(hr));
 
+
+
 			// GPUにコマンドを送る
 			ID3D12CommandList* commandLists[] = { commandList };
 			commandQueue->ExecuteCommandLists(1, commandLists);
+
+
+
 			//GPUとOSに画面の交換を行うように通知する
 			swapChain->Present(1, 0);
 
@@ -778,8 +839,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	}
 
+	//リソースチェック
+	IDXGIDebug1*  debug = nullptr;
+	 //hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug));
+	if (SUCCEEDED(hr) && debug) {
+		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+		debug->Release();
+	}
 
-	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+	//ImGuiの終了処理。
+	//初期化とは逆順に行う
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
+	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 	CloseHandle(fenceEvent);
 	fence->Release();
 	rtvDescriptorHeap->Release();
@@ -808,15 +884,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexShaderBlob->Release();
 
 	materialResource->Release();
-
-	//リソースチェック
-	IDXGIDebug1* debug = nullptr;
-	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
-		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
-		debug->Release();
-	}
 
 	return 0;
 }
