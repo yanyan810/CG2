@@ -918,43 +918,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	scissorRect.bottom = kClientHeight;
 
 	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	ID3D12Resource* materialResource1 = CreateBufferResource(device, sizeof(Vector4));
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Vector4));
 	//マテリアルにデータを書き込む
-	Vector4* materialData1 = nullptr;
+	Vector4* materialData = nullptr;
 	//書き込むためのアドレスを取得
-	materialResource1->Map(0, nullptr, reinterpret_cast<void**>(&materialData1));
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	//今回は赤
-	*materialData1 = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	*materialData = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
-	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	ID3D12Resource* materialResource2 = CreateBufferResource(device, sizeof(Vector4));
-	//マテリアルにデータを書き込む
-	Vector4* materialData2 = nullptr;
-	//書き込むためのアドレスを取得
-	materialResource2->Map(0, nullptr, reinterpret_cast<void**>(&materialData2));
-	//今回は赤
-	*materialData2 = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// WVP用の定数バッファを作成
 	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
-	Matrix4x4* wvpData1 = nullptr;
+	Matrix4x4* wvpData = nullptr;
 	//書き込むためのアドレスを取得
-	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData1));
+	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
 	// 単位行列を代入（とりあえず変形しない）
-	*wvpData1 = Matrix4x4::MakeIdentity4x4();
+	*wvpData = Matrix4x4::MakeIdentity4x4();
 
-	Transform transform1{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
+	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
 	Transform cameraTransform({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, { 0.0f,0.0f,-3.0f });
 
-	// WVP用の定数バッファを作成
-	ID3D12Resource* wvpResource2 = CreateBufferResource(device, sizeof(Matrix4x4));
-	Matrix4x4* wvpData2 = nullptr;
-	//書き込むためのアドレスを取得
-	wvpResource2->Map(0, nullptr, reinterpret_cast<void**>(&wvpData2));
-	// 単位行列を代入（とりあえず変形しない）
-	*wvpData2 = Matrix4x4::MakeIdentity4x4();
-
-	Transform transform2{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
+	
 
 	//ImGuiの初期化。
 	//こういうもの
@@ -1049,61 +1033,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//ゲームの更新処理
 
 			//ImGuiの表示
-			static int selectedTexture1 = 0;
-			static int selectedTexture2 = 0;
-			const char* textureNames[] = { "UV", "Sample", "Axis" };
-
-
-			if (ImGui::CollapsingHeader("Triangle 1")) {
-				ImGui::PushID(1);
-
-				ImGui::ColorEdit4("Material Color", &materialData1->x);
-
-				// 位置のスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Position", &transform1.translate.x, -2.0f, 2.0f);
-
-				// スケールのスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Scale", &transform1.scale.x, 0.1f, 5.0f);
-
-				// 回転のスライダー
-				ImGui::SliderFloat3("Rotation", &transform1.rotate.x, -3.14f*10.0f, 3.14f*10.0f);
-				//ImGui::Combo("Texture Triangle 1", &selectedTexture1, textureNames, IM_ARRAYSIZE(textureNames));
-				ImGui::PopID();
-			}
-
-			if (ImGui::CollapsingHeader("Triangle 2")) {
-				ImGui::PushID(2);
-
-				ImGui::ColorEdit4("Material Color", &materialData2->x);
-
-				// 位置のスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Position##2", &transform2.translate.x, -2.0f, 2.0f);
-
-				// スケールのスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Scale##2", &transform2.scale.x, 0.1f, 5.0f);
-
-				// 回転のスライダー
-				ImGui::SliderFloat3("Rotation##2", &transform2.rotate.x, -3.14f * 10.0f, 3.14f * 10.0f);
-				//ImGui::Combo("Texture Triangle 2", &selectedTexture2, textureNames, IM_ARRAYSIZE(textureNames));
-				ImGui::PopID();
-			}
-
 			//3Dの表示させる処理
-			//transform.rotate.y += 0.03f;
-			Matrix4x4 worldMatrix1 = Matrix4x4::MakeAffineMatrix(transform1.scale, transform1.rotate, transform1.translate);
-			Matrix4x4 cameraMatrix1 = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-			Matrix4x4 viewMatrix1 = Matrix4x4::Inverse(cameraMatrix1);
-			Matrix4x4 projectionMatrix1 = Matrix4x4::PerspectiveFov(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
-			Matrix4x4 worldViewProjectionMatrix1 = Matrix4x4::Multiply(worldMatrix1, Matrix4x4::Multiply(viewMatrix1, projectionMatrix1));
-			*wvpData1 = worldViewProjectionMatrix1;
-
-            //2個目
-			Matrix4x4 worldMatrix2 = Matrix4x4::MakeAffineMatrix(transform2.scale, transform2.rotate, transform2.translate);
-			Matrix4x4 cameraMatrix2 = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-			Matrix4x4 viewMatrix2 = Matrix4x4::Inverse(cameraMatrix2);
-			Matrix4x4 projectionMatrix2 = Matrix4x4::PerspectiveFov(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
-			Matrix4x4 worldViewProjectionMatrix2 = Matrix4x4::Multiply(worldMatrix2, Matrix4x4::Multiply(viewMatrix2, projectionMatrix2));
-			*wvpData2 = worldViewProjectionMatrix2;
+			transform.rotate.y += 0.03f;
+			Matrix4x4 worldMatrix = Matrix4x4::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			Matrix4x4 cameraMatrix = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrix = Matrix4x4::Inverse(cameraMatrix);
+			Matrix4x4 projectionMatrix = Matrix4x4::PerspectiveFov(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
+			Matrix4x4 worldViewProjectionMatrix = Matrix4x4::Multiply(worldMatrix, Matrix4x4::Multiply(viewMatrix, projectionMatrix));
+			*wvpData = worldViewProjectionMatrix;
 
 			//スプライトの表示させる計算
 			Matrix4x4 worldMatrixSprite = Matrix4x4::MakeAffineMatrix(
@@ -1156,7 +1093,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけばいい
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			//マテリアルCBufferの場所を指定
-			commandList->SetGraphicsRootConstantBufferView(0, materialResource1->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			
 			//SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
@@ -1164,18 +1101,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//指定した深度で画面全体をクリアする
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 			//行がQ(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
-			commandList->DrawInstanced(3, 1, 0, 0);
+			commandList->DrawInstanced(6, 1, 0, 0);
 
-			// === 三角形② ===
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
-			commandList->SetGraphicsRootConstantBufferView(0, materialResource2->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource2->GetGPUVirtualAddress());
-			commandList->DrawInstanced(3, 1, 3, 0); // 3頂点目から描画
-
+			
 			// スプライト用のCBVとVBVを設定して描画
-			/*commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-			commandList->DrawInstanced(6, 1, 0, 0);*/
+			commandList->DrawInstanced(6, 1, 0, 0);
 
 
 			//実際のcommandListの	ImGuiの描画コマンドを挟む
@@ -1269,8 +1201,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	pixelShaderBlob->Release();
 	vertexShaderBlob->Release();
 
-	materialResource1->Release();
-	materialResource2->Release();
+	materialResource->Release();
 
 	return 0;
 }
