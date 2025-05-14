@@ -186,3 +186,35 @@ Matrix4x4 Matrix4x4::Inverse(const Matrix4x4& m) {
 
     return result;
 }
+
+Matrix4x4 Matrix4x4::MakePerspectivFovMatrix(float fovY, float aspect, float nearZ, float farZ) {
+    Matrix4x4 mat = {};
+    float f = 1.0f / tanf(fovY / 2.0f);
+
+    mat.m[0][0] = f / aspect;
+    mat.m[1][1] = f;
+    mat.m[2][2] = farZ / (farZ - nearZ);  
+    mat.m[2][3] = 1.0f;
+    mat.m[3][2] = (-nearZ * farZ) / (farZ - nearZ);
+    return mat;
+}
+
+Matrix4x4 Matrix4x4::MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
+    Matrix4x4 mat = {};
+
+    // 横幅・縦幅・奥行き
+  /*  float width = right - left;
+    float height = bottom - top;
+    float depth = farClip - nearClip;*/
+
+    mat.m[0][0] = 2.0f / (right-left);
+    mat.m[1][1] = 2.0f / (top-bottom);
+    mat.m[2][2] = -2.0f / (farClip-nearClip);
+
+    mat.m[3][0] = -(right + left) / (right - left);
+    mat.m[3][1] = -(top + bottom) / (top - bottom);
+    mat.m[3][2] = -(farClip+nearClip) / (farClip - nearClip);
+    mat.m[3][3] = 1.0f;
+
+    return mat;
+}

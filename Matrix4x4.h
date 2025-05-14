@@ -19,4 +19,8 @@ public:
     static Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);
     static Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translation);
     static Matrix4x4 Inverse(const Matrix4x4& m);
+
+    static Matrix4x4 MakePerspectivFovMatrix(float fovY, float aspect, float nearZ, float farZ);
+    static Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip);
+
 };
