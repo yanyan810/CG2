@@ -202,18 +202,18 @@ Matrix4x4 Matrix4x4::MakePerspectivFovMatrix(float fovY, float aspect, float nea
 Matrix4x4 Matrix4x4::MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
     Matrix4x4 mat = {};
 
-    // 横幅・縦幅・奥行き
-  /*  float width = right - left;
-    float height = bottom - top;
-    float depth = farClip - nearClip;*/
+    float width = right - left;
+    float height = top - bottom;
+    float depth = farClip - nearClip;
 
-    mat.m[0][0] = 2.0f / (right-left);
-    mat.m[1][1] = 2.0f / (top-bottom);
-    mat.m[2][2] = -2.0f / (farClip-nearClip);
+    if (depth == 0.0f) { depth = 0.0001f; }  // ゼロ除算回避
 
-    mat.m[3][0] = -(right + left) / (right - left);
-    mat.m[3][1] = -(top + bottom) / (top - bottom);
-    mat.m[3][2] = -(farClip+nearClip) / (farClip - nearClip);
+    mat.m[0][0] = 2.0f / width;
+    mat.m[1][1] = 2.0f / height;
+    mat.m[2][2] = -2.0f / depth;
+    mat.m[3][0] = -(right + left) / width;
+    mat.m[3][1] = -(top + bottom) / height;
+    mat.m[3][2] = -(farClip + nearClip) / depth;
     mat.m[3][3] = 1.0f;
 
     return mat;
