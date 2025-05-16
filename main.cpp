@@ -214,6 +214,7 @@ IDxcBlob* CompilesSharder(
 
 }
 
+//クリエイトバッファ
 ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
 	// ヒープの設定
 	D3D12_HEAP_PROPERTIES heapProps{};
@@ -259,7 +260,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(
 
 	return descriptorHeap;
 }
-
+//テクスチャを読み込む
 DirectX::ScratchImage LoadTexture(const std::string filePath) {
 	//テクスチャファイルを読んでプログラムで扱えるようにする
 	DirectX::ScratchImage image{};
@@ -280,6 +281,7 @@ DirectX::ScratchImage LoadTexture(const std::string filePath) {
 
 }
 
+//GPUに配置するテクスチャリソースを作成
 ID3D12Resource* CreateTextureResource(ID3D12Device* device, const DirectX::TexMetadata& metadata) {
 
 	//metadataをもとにResourceの設定
@@ -311,6 +313,7 @@ ID3D12Resource* CreateTextureResource(ID3D12Device* device, const DirectX::TexMe
 	return resource;
 }
 
+//ミニマップ付きテクスチャデータをGPUにアップロードする関数
 [[nodiscard]]
 ID3D12Resource* UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages,ID3D12Device* device,
 	ID3D12GraphicsCommandList* commandList) {
@@ -1039,25 +1042,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//ゲームの更新処理
 
 			//ImGuiの表示
-			static int selectedTexture1 = 0;
-			static int selectedTexture2 = 0;
-			const char* textureNames[] = { "UV", "Sample", "Axis" };
-
 
 			if (ImGui::CollapsingHeader("Triangle 1")) {
 				ImGui::PushID(1);
 
-				ImGui::ColorEdit4("Material Color", &materialData[0]->x);
+				ImGui::ColorEdit4("Material Color", &materialData[0]->x);//色変更
 
 				// 位置のスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Position", &transform[0].translate.x, -2.0f, 2.0f);
+				ImGui::SliderFloat3("Position", &transform[0].translate.x, -2.0f, 2.0f);//座標変更
 
 				// スケールのスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Scale", &transform[0].scale.x, 0.1f, 5.0f);
+				ImGui::SliderFloat3("Scale", &transform[0].scale.x, 0.1f, 5.0f);//大きさ変更
 
 				// 回転のスライダー
-				ImGui::SliderFloat3("Rotation", &transform[0].rotate.x, -3.14f * 10.0f, 3.14f * 10.0f);
-				//ImGui::Combo("Texture Triangle 1", &selectedTexture1, textureNames, IM_ARRAYSIZE(textureNames));
+				ImGui::SliderFloat3("Rotation", &transform[0].rotate.x, -3.14f * 10.0f, 3.14f * 10.0f);//回転させる
+				
 				ImGui::PopID();
 			}
 
@@ -1074,12 +1073,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 				// 回転のスライダー
 				ImGui::SliderFloat3("Rotation##2", &transform[1].rotate.x, -3.14f * 10.0f, 3.14f * 10.0f);
-				//ImGui::Combo("Texture Triangle 2", &selectedTexture2, textureNames, IM_ARRAYSIZE(textureNames));
+				
 				ImGui::PopID();
 			}
 
-			//3Dの表示させる処理
-			//transform.rotate.y += 0.03f;
+			//=======================
+			//レンダリングパイプの処理
+			//=======================
+			//一つ目の三角形
 			Matrix4x4 worldMatrix1 = Matrix4x4::MakeAffineMatrix(transform[0].scale, transform[0].rotate, transform[0].translate);
 			Matrix4x4 cameraMatrix1 = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix1 = Matrix4x4::Inverse(cameraMatrix1);
@@ -1095,7 +1096,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 worldViewProjectionMatrix2 = Matrix4x4::Multiply(worldMatrix2, Matrix4x4::Multiply(viewMatrix2, projectionMatrix2));
 			*wvpData[1] = worldViewProjectionMatrix2;
 
-			//スプライトの表示させる計算
+			//スプライト
 			Matrix4x4 worldMatrixSprite = Matrix4x4::MakeAffineMatrix(
 				transformSprite.scale, transformSprite.rotate, transformSprite.translate);
 			Matrix4x4 viewMatrixSprite = Matrix4x4::MakeIdentity4x4();
