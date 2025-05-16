@@ -943,7 +943,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 単位行列を代入（とりあえず変形しない）
 	*wvpData1 = Matrix4x4::MakeIdentity4x4();
 
-	Transform transform1{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
+	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
 	Transform cameraTransform({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, { 0.0f,0.0f,-3.0f });
 
 	// WVP用の定数バッファを作成
@@ -987,13 +987,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//SRVを作成するDescriptorHeapの場所を決める
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU1 = srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+//	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
 	//先頭はImGuiが使っているのでその次を使う
 	textureSrvHandleCPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	textureSrvHandleGPU1.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	textureSrvHandleGPU2.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	textureSrvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	
 	//SRVの生成
 	device->CreateShaderResourceView(
 		textureResource, // SRVを作成するリソース
@@ -1060,13 +1060,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::ColorEdit4("Material Color", &materialData1->x);
 
 				// 位置のスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Position", &transform1.translate.x, -2.0f, 2.0f);
+				ImGui::SliderFloat3("Position", &transform.translate.x, -2.0f, 2.0f);
 
 				// スケールのスライダー（X,Y,Z）
-				ImGui::SliderFloat3("Scale", &transform1.scale.x, 0.1f, 5.0f);
+				ImGui::SliderFloat3("Scale", &transform.scale.x, 0.1f, 5.0f);
 
 				// 回転のスライダー
-				ImGui::SliderFloat3("Rotation", &transform1.rotate.x, -3.14f*10.0f, 3.14f*10.0f);
+				ImGui::SliderFloat3("Rotation", &transform.rotate.x, -3.14f*10.0f, 3.14f*10.0f);
 				//ImGui::Combo("Texture Triangle 1", &selectedTexture1, textureNames, IM_ARRAYSIZE(textureNames));
 				ImGui::PopID();
 			}
@@ -1089,21 +1089,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 
 			//3Dの表示させる処理
-			//transform.rotate.y += 0.03f;
-			Matrix4x4 worldMatrix1 = Matrix4x4::MakeAffineMatrix(transform1.scale, transform1.rotate, transform1.translate);
-			Matrix4x4 cameraMatrix1 = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-			Matrix4x4 viewMatrix1 = Matrix4x4::Inverse(cameraMatrix1);
-			Matrix4x4 projectionMatrix1 = Matrix4x4::PerspectiveFov(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
-			Matrix4x4 worldViewProjectionMatrix1 = Matrix4x4::Multiply(worldMatrix1, Matrix4x4::Multiply(viewMatrix1, projectionMatrix1));
-			*wvpData1 = worldViewProjectionMatrix1;
+			transform.rotate.y += 0.03f;
+			Matrix4x4 worldMatrix = Matrix4x4::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			Matrix4x4 cameraMatrix = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrix = Matrix4x4::Inverse(cameraMatrix);
+			Matrix4x4 projectionMatrix = Matrix4x4::PerspectiveFov(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
+			Matrix4x4 worldViewProjectionMatrix = Matrix4x4::Multiply(worldMatrix, Matrix4x4::Multiply(viewMatrix, projectionMatrix));
+			*wvpData1 = worldViewProjectionMatrix;
 
             //2個目
-			Matrix4x4 worldMatrix2 = Matrix4x4::MakeAffineMatrix(transform2.scale, transform2.rotate, transform2.translate);
+			/*Matrix4x4 worldMatrix2 = Matrix4x4::MakeAffineMatrix(transform2.scale, transform2.rotate, transform2.translate);
 			Matrix4x4 cameraMatrix2 = Matrix4x4::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix2 = Matrix4x4::Inverse(cameraMatrix2);
 			Matrix4x4 projectionMatrix2 = Matrix4x4::PerspectiveFov(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrix2 = Matrix4x4::Multiply(worldMatrix2, Matrix4x4::Multiply(viewMatrix2, projectionMatrix2));
-			*wvpData2 = worldViewProjectionMatrix2;
+			*wvpData2 = worldViewProjectionMatrix2;*/
 
 			//スプライトの表示させる計算
 			Matrix4x4 worldMatrixSprite = Matrix4x4::MakeAffineMatrix(
@@ -1160,17 +1160,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			
 			//SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU1);
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			//指定した深度で画面全体をクリアする
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 			//行がQ(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
-			commandList->DrawInstanced(3, 1, 0, 0);
+			commandList->DrawInstanced(6, 1, 0, 0);
 
 			// === 三角形② ===
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
-			commandList->SetGraphicsRootConstantBufferView(0, materialResource2->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource2->GetGPUVirtualAddress());
-			commandList->DrawInstanced(3, 1, 3, 0); // 3頂点目から描画
+			//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
+			//commandList->SetGraphicsRootConstantBufferView(0, materialResource2->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(1, wvpResource2->GetGPUVirtualAddress());
+			//commandList->DrawInstanced(3, 1, 3, 0); // 3頂点目から描画
 
 			// スプライト用のCBVとVBVを設定して描画
 			/*commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
