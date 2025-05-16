@@ -415,7 +415,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName, //ウィンドウクラス名
-		L"CG2", //ウィンドウ名
+		L"CG2_評価課題", //ウィンドウ名
 		WS_OVERLAPPEDWINDOW, //ウィンドウスタイル
 		CW_USEDEFAULT, //x座標
 		CW_USEDEFAULT, //y座標
@@ -1037,8 +1037,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::NewFrame();
 
 			// ImGuiウィンドウ表示
-			ImGui::ShowDemoWindow();
-
+			//ImGui::ShowDemoWindow();
+			ImGui::Begin("Setting");
 			//ゲームの更新処理
 
 			//ImGuiの表示
