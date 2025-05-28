@@ -1264,9 +1264,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//commandList->DrawInstanced(3, 1, 3, 0); // 3頂点目から描画
 
 			// スプライト用のCBVとVBVを設定して描画
-			/*commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-			commandList->DrawInstanced(6, 1, 0, 0);*/
+			commandList->DrawInstanced(6, 1, 0, 0);
 
 
 			//実際のcommandListの	ImGuiの描画コマンドを挟む
