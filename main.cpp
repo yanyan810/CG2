@@ -87,7 +87,7 @@ struct VertexData {
 
 	Vector4 position;
 	Vector2 texcoord;
-
+	Vector3 normal;
 };
 
 void Log(const std::string& message) {
@@ -730,7 +730,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr));
 
 	//InputLayout
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = {};
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
 	inputElementDescs[0].SemanticIndex = 0;
 	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -739,6 +739,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	inputElementDescs[1].SemanticIndex = 0;
 	inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
 	inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+	inputElementDescs[2].SemanticName = "NORMAL";
+	inputElementDescs[2].SemanticIndex = 0;
+	inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
@@ -931,6 +935,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexDataSprite[5].position = { 640.0f,300.0f,0.0f,1.0f };//右下
 	vertexDataSprite[5].texcoord = { 1.0f,1.0f };
 
+	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };//法線はZ軸方向
+
 	//Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
 	//データを書き込む
@@ -991,6 +997,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const float kLatEvery = float(M_PI) / float(kSubdivision);
 
 	// 頂点データの書き込み
+	// 頂点データの書き込み
 	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
 		// 各バンドの南端緯度と北端緯度
 		float lat = -0.5f * float(M_PI) + kLatEvery * float(latIndex);
@@ -1032,8 +1039,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			vertexDataSphere[base + 3].position = { cosLatN * cosLonN, sinLatN, cosLatN * sinLonN, 1.0f };
 			vertexDataSphere[base + 3].texcoord = { uN, vN };
 
-			vertexDataSphere[base + 4] = vertexDataSphere[base + 2];
+			//法線情報を追加
+			vertexDataSphere[base + 0].normal =
+			{ vertexDataSphere[base + 0].position.x,
+			  vertexDataSphere[base + 0].position.y,
+			  vertexDataSphere[base + 0].position.z };
+
+			vertexDataSphere[base + 1].normal =
+			{ vertexDataSphere[base + 1].position.x,
+			  vertexDataSphere[base + 1].position.y,
+			  vertexDataSphere[base + 1].position.z };
+
+
+			vertexDataSphere[base + 2].normal =
+			{ vertexDataSphere[base + 2].position.x,
+			  vertexDataSphere[base + 2].position.y,
+			  vertexDataSphere[base + 2].position.z };
+
+			vertexDataSphere[base + 3].normal =
+			{ vertexDataSphere[base + 3].position.x,
+		  vertexDataSphere[base + 3].position.y,
+		  vertexDataSphere[base + 3].position.z };
+
+			vertexDataSphere[base + 4] = vertexDataSphere[base + 2]; // normal もコピー済み
 			vertexDataSphere[base + 5] = vertexDataSphere[base + 1];
+
+
+
+
 
 		}
 	}
