@@ -90,6 +90,13 @@ struct VertexData {
 	Vector3 normal;
 };
 
+struct Material {
+
+	Vector4 color;
+	int32_t enableLighting;
+
+};
+
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
@@ -937,6 +944,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };//法線はZ軸方向
 
+	//Sprite用のマテリアルを作成
+	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
+	//マテリアルにデータを書き込む
+	Material* materialDataSprite = nullptr;
+	//書き込むためのアドレスを取得
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+	//今回は赤
+	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	//spriyteはライティングしないのでfalse
+	materialDataSprite->enableLighting = false;
+
 	//Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
 	//データを書き込む
@@ -948,6 +966,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	*transformationMatrixDataSprite = Matrix4x4::MakeIdentity4x4();
 	//CPUで動かす用のTransformを作る
 	Transform transformSprite{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f}, { 0.0f,0.0f,0.0f } };
+
 
 
 	//=========================
@@ -972,16 +991,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	scissorRect.bottom = kClientHeight;
 
 	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Vector4));
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Material));
 	//マテリアルにデータを書き込む
-	Vector4* materialData = nullptr;
+	Material* materialData = nullptr;
 	//書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	//今回は赤
-	*materialData = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// WVP用の定数バッファを作成
-	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
+	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Material));
 	Matrix4x4* wvpData = nullptr;
 	//書き込むためのアドレスを取得
 	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
@@ -1330,8 +1349,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//commandList->DrawInstanced(3, 1, 3, 0); // 3頂点目から描画
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			// スプライト用のCBVとVBVを設定して描画
-			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);//VBVCを設定
+			// ── マテリアル (PixelShader 用) ──
+			commandList->SetGraphicsRootConstantBufferView(
+				0, materialResourceSprite->GetGPUVirtualAddress());
+
+			// ── 行列 (VertexShader 用) ──
+			commandList->SetGraphicsRootConstantBufferView(
+				1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+
+			// ── テクスチャ (SRV) ──
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			commandList->DrawInstanced(6, 1, 0, 0);
 
 
