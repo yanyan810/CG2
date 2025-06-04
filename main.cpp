@@ -97,6 +97,33 @@ struct Material {
 
 };
 
+struct TransformationMatrix {
+	Matrix4x4 WVP;     // ワールド・ビュー・プロジェクション行列
+	Matrix4x4 World;   // ワールド変換行列（モデルローカル → ワールド座標系）
+};
+
+
+//平行光源
+struct DirectionalLight {
+	Vector3 direction; // 光の方向
+	Vector4 color;     // 光の色
+	float intensity;   // 光の強度
+};
+
+//正規化
+Vector3 Normalize(const Vector3& vector) {
+	Vector3 result;
+	float length = sqrtf(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+	if (length == 0.0f) {
+		return { 0.0f, 0.0f, 0.0f };
+	}
+	result.x = vector.x / length;
+	result.y = vector.y / length;
+	result.z = vector.z / length;
+	return result;
+}
+
+
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
@@ -688,7 +715,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.Flags =
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	//RootParameter作成。複数設定できるので配列。今回は結果一つなので長さ1つの配列
-	D3D12_ROOT_PARAMETER rootParameters[3] = {};
+	D3D12_ROOT_PARAMETER rootParameters[4] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;//VBVを使う
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;//PixelShaderで使う
 	rootParameters[0].Descriptor.ShaderRegister = 0;//レジスタ番号0とバインド
@@ -699,6 +726,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;//PixelShaderで使う
 	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;//Tableの中身の配列を指定
 	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);//Tableで使用する数
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;//CBVを使う
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;//PixelShaderで使う
+	rootParameters[3].Descriptor.ShaderRegister = 1;//レジスタ番号1を使う
 	descriptionRootSignature.pParameters = rootParameters;//ルートパラメータ配列へのポインタ
 	descriptionRootSignature.NumParameters = _countof(rootParameters);//配列の長さ
 
@@ -892,6 +922,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 書き込むためのアドレスを取得
 	vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
 
+	//===========================
+	//ライト用のリソース作成
+	//===========================
+
+	ID3D12Resource* lightResource = CreateBufferResource(device, sizeof(DirectionalLight));
+	//頂点バッファビューを作成する
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewLight{};
+	//リソースの先頭のアドレスから使う
+	vertexBufferViewLight.BufferLocation = lightResource->GetGPUVirtualAddress();
+	//使用するリソースのサイズは頂点6つ分のサイズ
+	vertexBufferViewLight.SizeInBytes = sizeof(VertexData) * 6;
+	//1頂点当たりのサイズ
+	vertexBufferViewLight.StrideInBytes = sizeof(VertexData);
+
 
 	//==========================
 	//Resourceにデータを書き込む
@@ -967,6 +1011,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//CPUで動かす用のTransformを作る
 	Transform transformSprite{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f}, { 0.0f,0.0f,0.0f } };
 
+	//ライト用
+	DirectionalLight* directionLightData=nullptr;
+	lightResource->Map(0, nullptr,
+		reinterpret_cast<void**>(&directionLightData));
 
 
 	//=========================
@@ -998,14 +1046,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	//今回は赤
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	materialData->enableLighting = false; // ライティングを有効にする
 
 	// WVP用の定数バッファを作成
-	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Material));
-	Matrix4x4* wvpData = nullptr;
+	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(TransformationMatrix));
+	TransformationMatrix* transformData = nullptr;
 	//書き込むためのアドレスを取得
-	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
+	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&transformData));
 	// 単位行列を代入（とりあえず変形しない）
-	*wvpData = Matrix4x4::MakeIdentity4x4();
+	transformData->WVP = Matrix4x4::MakeIdentity4x4();
+	transformData->World = Matrix4x4::MakeIdentity4x4();
 
 	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
 
@@ -1105,7 +1155,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//レンダリングパイプ用のカメラ
 	Transform cameraTransform({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, { 0.0f,0.0f,-10.0f });
-
+	//materialData->enableLighting=false;
+	//ライトに値を入力
+	directionLightData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);//色は白
+	directionLightData->direction = Vector3(0.0f, -1.0f, 0.0f);//下方向に光を当てる
+	directionLightData->intensity = 1.0f;
+	
 
 	//ImGuiの初期化。
 	//こういうもの
@@ -1222,7 +1277,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//if (ImGui::CollapsingHeader("Triangle 1")) {
 			//	ImGui::PushID(1);
 
-			//	ImGui::ColorEdit4("Material Color", &materialData1->x);
+				ImGui::ColorEdit4("Material Color", &materialData->color.x);
 
 			//	// 位置のスライダー（X,Y,Z）
 			//	ImGui::SliderFloat3("Position", &transform.translate.x, -2.0f, 2.0f);
@@ -1263,7 +1318,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			*wvpData = worldViewProjectionMatrix;*/
 
 			ImGui::Checkbox("useSample", &useSample);
-
+			//ImGui::Checkbox("Enable Lighting", &materialData->enableLighting);
 			//スプライトの表示させる計算
 			Matrix4x4 worldMatrixSprite = Matrix4x4::MakeAffineMatrix(
 				transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -1334,6 +1389,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSphere->GetGPUVirtualAddress());
+			// ライト用定数バッファをGPUに積む（レジスタ b1）
+			commandList->SetGraphicsRootConstantBufferView(3, lightResource->GetGPUVirtualAddress());
 
 			//SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
 			commandList->SetGraphicsRootDescriptorTable(2, useSample?textureSrvHandleGPU2:textureSrvHandleGPU);

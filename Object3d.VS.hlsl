@@ -1,8 +1,5 @@
 #include "Object3d.hlsli"
-cbuffer gTransformationMatrix : register(b0)
-{
-    float4x4 WVP;
-};
+
 
 struct VertexShaderInput
 {
@@ -11,11 +8,20 @@ struct VertexShaderInput
     float3 normal : NORMAL0;
 };
 
+struct TransformationMatrix
+{
+    float4x4 WVP;
+    float4x4 World;
+};
+
+ConstantBuffer<TransformationMatrix> gTransformation : register(b0);
+
 VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
-    output.position = mul(input.position, WVP);
+    output.position = mul(input.position, gTransformation.WVP);
     output.texcoord = input.texcoord;
+    output.normal = normalize(mul(input.normal, (float3x3) gTransformation.World));
     return output;
 }
 
