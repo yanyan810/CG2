@@ -87,7 +87,12 @@ struct VertexData {
 
 	Vector4 position;
 	Vector2 texcoord;
+	Vector3 normal;
+};
 
+struct Material {
+	Vector4 color; // 色
+	int32_t enableLighting;
 };
 
 void Log(const std::string& message) {
@@ -730,7 +735,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(hr));
 
 	//InputLayout
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = {};
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
 	inputElementDescs[0].SemanticIndex = 0;
 	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -739,6 +744,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	inputElementDescs[1].SemanticIndex = 0;
 	inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
 	inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+	inputElementDescs[2].SemanticName = "NORMAL";
+	inputElementDescs[2].SemanticIndex = 0;
+	inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
@@ -848,7 +857,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//スプライト(画像)
 	//====================
 
-	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
+	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData)*6);
 	//頂点バッファビューを作成する
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
 	//リソースの先頭のアドレスから使う
@@ -931,6 +940,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexDataSprite[5].position = { 640.0f,300.0f,0.0f,1.0f };//右下
 	vertexDataSprite[5].texcoord = { 1.0f,1.0f };
 
+	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };//法線
+
 	//Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
 	//データを書き込む
@@ -966,13 +977,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	scissorRect.bottom = kClientHeight;
 
 	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Vector4));
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Material));
 	//マテリアルにデータを書き込む
-	Vector4* materialData = nullptr;
+	Material* materialData = nullptr;
 	//書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	//今回は赤
-	*materialData = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// WVP用の定数バッファを作成
 	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
@@ -984,6 +995,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
 
+	//スプライト用のマテリアル
+	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
+	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
+	//マテリアルにデータを書き込む
+	Material* materialDataSprite = nullptr;
+	//書き込むためのアドレスを取得
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+	//今回は赤
+	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	materialDataSprite->enableLighting = false; // ライティングを無効化
 	//======================
 	//球の計算
 	//======================
@@ -1020,8 +1041,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// 頂点位置を構築
 			// BL (Bottom-Left)
-			vertexDataSphere[base + 0].position = { cosLat * cosLon,  sinLat,  cosLat * sinLon, 1.0f };
-			vertexDataSphere[base + 0].texcoord = { u,  v };
+			vertexDataSphere[base].position = { cosLat * cosLon,  sinLat,  cosLat * sinLon, 1.0f };
+			vertexDataSphere[base].texcoord = { u,  v };
 			// TL (Top-Left)
 			vertexDataSphere[base + 1].position = { cosLatN * cosLon,  sinLatN, cosLatN * sinLon, 1.0f };
 			vertexDataSphere[base + 1].texcoord = { u,  vN };
@@ -1034,6 +1055,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			vertexDataSphere[base + 4] = vertexDataSphere[base + 2];
 			vertexDataSphere[base + 5] = vertexDataSphere[base + 1];
+
+			// 法線ベクトルを計算
+			vertexDataSphere[base].normal.x = vertexDataSphere[base + 0].position.x;
+			vertexDataSphere[base].normal.y = vertexDataSphere[base + 0].position.y;
+			vertexDataSphere[base].normal.z = vertexDataSphere[base + 0].position.z;
+
+			vertexDataSphere[base + 1].normal.x = vertexDataSphere[base + 1].position.x;
+			vertexDataSphere[base + 1].normal.y = vertexDataSphere[base + 1].position.y;
+			vertexDataSphere[base + 1].normal.z = vertexDataSphere[base + 1].position.z;
+
+			vertexDataSphere[base + 2].normal.x = vertexDataSphere[base + 2].position.x;
+			vertexDataSphere[base + 2].normal.y = vertexDataSphere[base + 2].position.y;
+			vertexDataSphere[base + 2].normal.z = vertexDataSphere[base + 2].position.z;
+
+			vertexDataSphere[base + 3].normal.x = vertexDataSphere[base + 3].position.x;
+			vertexDataSphere[base + 3].normal.y = vertexDataSphere[base + 3].position.y;
+			vertexDataSphere[base + 3].normal.z = vertexDataSphere[base + 3].position.z;
+
+			vertexDataSphere[base + 4].normal = vertexDataSphere[base + 2].normal;
+			vertexDataSphere[base + 5].normal = vertexDataSphere[base + 1].normal;
+
 
 		}
 	}
@@ -1295,6 +1337,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//commandList->SetGraphicsRootConstantBufferView(0, materialResource2->GetGPUVirtualAddress());
 			//commandList->SetGraphicsRootConstantBufferView(1, wvpResource2->GetGPUVirtualAddress());
 			//commandList->DrawInstanced(3, 1, 3, 0); // 3頂点目から描画
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			// スプライト用のCBVとVBVを設定して描画
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
