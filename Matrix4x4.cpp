@@ -218,3 +218,88 @@ Matrix4x4 Matrix4x4::MakeOrthographicMatrix(float left, float top, float right, 
 
     return mat;
 }
+
+//クロス積
+Vector3 Matrix4x4::Cross(const Vector3& v1, const Vector3& v2) {
+    Vector3 result;
+    result.x = v1.y * v2.z - v1.z * v2.y;
+    result.y = v1.z * v2.x - v1.x * v2.z;
+    result.z = v1.x * v2.y - v1.y * v2.x;
+    return result;
+}
+
+
+//正規化
+Vector3 Matrix4x4::Normalize(const Vector3& vector) {
+    Vector3 result;
+    float length = sqrtf(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+    if (length == 0.0f) {
+        return { 0.0f, 0.0f, 0.0f };
+    }
+    result.x = vector.x / length;
+    result.y = vector.y / length;
+    result.z = vector.z / length;
+    return result;
+}
+
+//ベクトルの減法
+Vector3 Matrix4x4::Subtract(const Vector3& v1, const Vector3& v2) {
+    Vector3 result;
+    result.x = v1.x - v2.x;
+    result.y = v1.y - v2.y;
+    result.z = v1.z - v2.z;
+    return result;
+}
+
+float Dot(const Vector3& a, const Vector3& b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+Matrix4x4 Matrix4x4::MakeViewMatrix(const Vector3& eye, const Vector3& target, const Vector3& up) {
+    // カメラの各軸を計算
+    Vector3 zAxis = Normalize(Subtract(target, eye)); // forward（逆方向にしない）
+    Vector3 xAxis = Normalize(Cross(up, zAxis));      // right
+    Vector3 yAxis = Cross(zAxis, xAxis);              // up
+
+    Matrix4x4 viewMatrix;
+
+    // 回転部分（逆行列の転置）
+    viewMatrix.m[0][0] = xAxis.x;
+    viewMatrix.m[0][1] = yAxis.x;
+    viewMatrix.m[0][2] = zAxis.x;
+    viewMatrix.m[0][3] = 0.0f;
+
+    viewMatrix.m[1][0] = xAxis.y;
+    viewMatrix.m[1][1] = yAxis.y;
+    viewMatrix.m[1][2] = zAxis.y;
+    viewMatrix.m[1][3] = 0.0f;
+
+    viewMatrix.m[2][0] = xAxis.z;
+    viewMatrix.m[2][1] = yAxis.z;
+    viewMatrix.m[2][2] = zAxis.z;
+    viewMatrix.m[2][3] = 0.0f;
+
+    // 平行移動（内積による逆移動）
+    viewMatrix.m[3][0] = -Dot(xAxis, eye);
+    viewMatrix.m[3][1] = -Dot(yAxis, eye);
+    viewMatrix.m[3][2] = -Dot(zAxis, eye);
+    viewMatrix.m[3][3] = 1.0f;
+
+    return viewMatrix;
+}
+
+Matrix4x4 Matrix4x4::MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearZ, float farZ) {
+    float yScale = 1.0f / tanf(fovY / 2.0f);
+    float xScale = yScale / aspectRatio;
+
+    Matrix4x4 result{};
+
+    result.m[0][0] = xScale;
+    result.m[1][1] = yScale;
+    result.m[2][2] = farZ / (farZ - nearZ);                // LH用（RHだと符号が逆）
+    result.m[2][3] = 1.0f;
+    result.m[3][2] = -nearZ * farZ / (farZ - nearZ);       // LH用（RHだと負符号）
+    result.m[3][3] = 0.0f;
+
+    return result;
+}
