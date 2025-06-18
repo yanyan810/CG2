@@ -922,9 +922,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	indexDataSprite[4] = 3; // 右上
 	indexDataSprite[5] = 2; // 右下
 
-	
-
-
 	//=================
 	//   球
 	//=================
@@ -983,22 +980,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	VertexData* vertexDataSprite = nullptr;
 	vertexResourceSprite->Map(0, nullptr,
 		reinterpret_cast<void**>(&vertexDataSprite));
-	//1枚目の三角形
-	vertexDataSprite[0].position = { 0.0f,300.0f,0.0f,1.0f };//左下
-	vertexDataSprite[0].texcoord = { 0.0f,1.0f };
-	vertexDataSprite[1].position = { 0.0f,0.0f,0.0f,1.0f };//上
-	vertexDataSprite[1].texcoord = { 0.0f,0.0f };
-	vertexDataSprite[2].position = { 640.0f,300.0f,0.0f,1.0f };//右下
-	vertexDataSprite[2].texcoord = { 1.0f,1.0f };
-	//2枚目の三角形
-	vertexDataSprite[3].position = { 0.0f,0.0f,0.0f,1.0f };//左↑
-	vertexDataSprite[3].texcoord = { 0.0f,0.0f };
-	vertexDataSprite[4].position = { 640.0f,0.0f,0.0f,1.0f };//右上
-	vertexDataSprite[4].texcoord = { 1.0f,0.0f };
-	vertexDataSprite[5].position = { 640.0f,300.0f,0.0f,1.0f };//右下
-	vertexDataSprite[5].texcoord = { 1.0f,1.0f };
+	// 0: 左下
+	vertexDataSprite[0].position = { 0.0f, 300.0f, 0.0f, 1.0f };
+	vertexDataSprite[0].texcoord = { 0.0f, 1.0f };
 
-	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };//法線
+	// 1: 左上
+	vertexDataSprite[1].position = { 0.0f, 0.0f, 0.0f, 1.0f };
+	vertexDataSprite[1].texcoord = { 0.0f, 0.0f };
+
+	// 2: 右下
+	vertexDataSprite[2].position = { 640.0f, 300.0f, 0.0f, 1.0f };
+	vertexDataSprite[2].texcoord = { 1.0f, 1.0f };
+
+	// 3: 右上
+	vertexDataSprite[3].position = { 640.0f, 0.0f, 0.0f, 1.0f };
+	vertexDataSprite[3].texcoord = { 1.0f, 0.0f };
+
+//	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };//法線
 
 	//Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	ID3D12Resource* transformationMatrixResourceSprite = CreateBufferResource(device, sizeof(TransformationMatrix));
@@ -1113,14 +1111,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			vertexDataSphere[base + 3].texcoord = { uN, vN };
 
 			// 法線：ポジションの XYZ を正規化（外向きの放射ベクトル）
-				for (int i = 0; i < 4; ++i) {
-					Vector3 pos = {
-						vertexDataSphere[base + i].position.x,
-						vertexDataSphere[base + i].position.y,
-						vertexDataSphere[base + i].position.z,
-					};
-					vertexDataSphere[base + i].normal = Normalize(pos);
-				}
+			for (int i = 0; i < 4; ++i) {
+				Vector3 pos = {
+					vertexDataSphere[base + i].position.x,
+					vertexDataSphere[base + i].position.y,
+					vertexDataSphere[base + i].position.z,
+				};
+				vertexDataSphere[base + i].normal = Normalize(pos);
+			}
 
 			// 2枚目の三角形（法線もきちんと引き継ぐ）
 			vertexDataSphere[base + 4] = vertexDataSphere[base + 2]; // BR
@@ -1227,7 +1225,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
 
-	
+
 	//SRVの生成
 	device->CreateShaderResourceView(
 		textureResource, // SRVを作成するリソース
@@ -1470,18 +1468,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//commandList->SetGraphicsRootConstantBufferView(0, materialResource2->GetGPUVirtualAddress());
 			//commandList->SetGraphicsRootConstantBufferView(1, wvpResource2->GetGPUVirtualAddress());
 			//commandList->DrawInstanced(3, 1, 3, 0); // 3頂点目から描画
-			//commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+				// インデックスバッファ使用の描画
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+			commandList->IASetIndexBuffer(&indexBufferViewSprite); // ←これを追加
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+			
 			// スプライト用のCBVとVBVを設定して描画
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 			//commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
 			//commandList->DrawInstanced(6, 1, 0, 0);
-
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			// スプライトの描画（Indexあり）
-			// インデックスバッファ使用の描画
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-			commandList->IASetIndexBuffer(&indexBufferViewSprite); // ←これを追加
-			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		
+			//commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0); // ←これで描画
 
 
