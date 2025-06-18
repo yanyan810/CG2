@@ -40,6 +40,15 @@ Matrix4x4 Matrix4x4::RotateY(float angleRad) {
     return mat;
 }
 
+Matrix4x4 Matrix4x4::MakeRotateZMatrix(float angleRad) {
+	Matrix4x4 mat = MakeIdentity4x4();
+	mat.m[0][0] = cosf(angleRad);
+	mat.m[0][1] = -sinf(angleRad);
+	mat.m[1][0] = sinf(angleRad);
+	mat.m[1][1] = cosf(angleRad);
+	return mat;
+}
+
 Matrix4x4 Matrix4x4::RotateXYZ(float angleX, float angleY, float angleZ) {
     float cx = cosf(angleX), sx = sinf(angleX);
     float cy = cosf(angleY), sy = sinf(angleY);
@@ -302,4 +311,12 @@ Matrix4x4 Matrix4x4::MakePerspectiveFovMatrix(float fovY, float aspectRatio, flo
     result.m[3][3] = 0.0f;
 
     return result;
+}
+
+Matrix4x4 Matrix4x4::MakeScaleMatrix(const Matrix4x4& m) {
+	Matrix4x4 scaleMatrix = MakeIdentity4x4();
+	scaleMatrix.m[0][0] = m.m[0][0];
+	scaleMatrix.m[1][1] = m.m[1][1];
+	scaleMatrix.m[2][2] = m.m[2][2];
+	return scaleMatrix;
 }
