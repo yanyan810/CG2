@@ -77,6 +77,10 @@ struct Vector2 {
 	float y; // Y座標
 };
 
+struct Matrix3x3 {
+	float m[3][3]; // 3x3行列を表す
+};
+
 struct Transform {
 	Vector3 scale;
 	Vector3 rotate;
@@ -93,6 +97,8 @@ struct VertexData {
 struct Material {
 	Vector4 color; // 色
 	int32_t enableLighting;
+	float padding[3];
+	Matrix4x4 uvTransform;
 };
 
 struct TransformationMatrix {
@@ -1049,6 +1055,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 単位行列を代入（とりあえず変形しない）
 	*wvpData = Matrix4x4::MakeIdentity4x4();
 
+	materialData->uvTransform = Matrix4x4::MakeIdentity4x4(); // UV変換行列も単位行列
+
 	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
 
 	//スプライト用のマテリアル
@@ -1058,9 +1066,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Material* materialDataSprite = nullptr;
 	//書き込むためのアドレスを取得
 	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+
+	materialDataSprite->uvTransform = Matrix4x4::MakeIdentity4x4(); // UV変換行列も単位行列
+
 	//今回は赤
 	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	materialDataSprite->enableLighting = false; // ライティングを無効化
+
+	Transform uvTransformSprite{
+        {1.0f,1.0f,1.0f},
+		{0.0f,0.0f,0.0f },
+		{0.0f,0.0f,0.0f} };
 
 	//======================
 	//球の計算
@@ -1351,7 +1367,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat3("LightDir", &directionalLightData->direction.x, 0.005f, -1.0f, 1.0f);
 			ImGui::DragFloat3("rotateSpehre", &transformSphere.rotate.x, 0.1f, -10.0f, 10.0f);
 			ImGui::Begin("WorldMatrix");
-
+			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 
 
 			//スプライトの表示させる計算
@@ -1363,6 +1381,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 wvpSprite = Matrix4x4::Multiply(worldMatrixSprite,
 				Matrix4x4::Multiply(viewMatrixSprite, projectionMatrixSprite));
 			*transformationMatrixDataSprite = wvpSprite;
+
+			Matrix4x4 uvTransformMatrix = Matrix4x4::Scale(uvTransformSprite.scale);
+			uvTransformMatrix = Matrix4x4::Multiply(
+				uvTransformMatrix,Matrix4x4::MakeRotateZMatrix(uvTransformSprite.rotate.z));
+
+			uvTransformMatrix = Matrix4x4::Multiply(
+				uvTransformMatrix, Matrix4x4::Translation(uvTransformSprite.translate));
+			materialDataSprite->uvTransform = uvTransformMatrix;
 
 			//=================
 			//球に関する処理

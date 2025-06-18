@@ -15,7 +15,10 @@ public:
 	static Matrix4x4 RotateY(float angleRad);
 	static Matrix4x4 RotateXYZ(float angleX, float angleY, float angleZ);
 	static Matrix4x4 PerspectiveFov(float fovY, float aspect, float nearZ, float farZ);
+	static Matrix4x4 MakeScaleMatrix(const Matrix4x4& m);
 
+	static Matrix4x4 MakeRotateZMatrix(float angleRad);
+		
 	static Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);
 	static Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translation);
 	static Matrix4x4 Inverse(const Matrix4x4& m);
