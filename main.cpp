@@ -450,10 +450,32 @@ private:
 
 };
 
+struct D3DResourceLeakChecker {
+	~D3DResourceLeakChecker()
+	{
+		//リソースロークチェック
+		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
+
+		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
+			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+			debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+			debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+			debug->Release();
+		}
+
+
+	}
+
+};
 
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+
+	//リークチェック
+	D3DResourceLeakChecker leakCheck;
+	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory;
+	Microsoft::WRL::ComPtr<ID3D12Device> device;
 
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 
@@ -530,9 +552,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//ファイルを作って書き込み準備
 	std::ofstream logStream(localFilePath);
 
-	//DXGIファクトリーの生成
-	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
-
 	//HRESULTWindows系のエラーコードであり、
 	// 関数が成功したかどうかをSUCCEEDEDマクロで判定できる
 	HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
@@ -560,8 +579,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//適切なアダプタが見つからなかったので起動できない
 	assert(useAdapter != nullptr);
 
-	//D3D12Deviceの生成
-	Microsoft::WRL::ComPtr<ID3D12Device> device = nullptr;
 	//機能レベルとログ出力用の文字列
 	D3D_FEATURE_LEVEL featureLevels[] = {
 		D3D_FEATURE_LEVEL_12_2,D3D_FEATURE_LEVEL_12_1,D3D_FEATURE_LEVEL_12_0
@@ -1544,7 +1561,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 			// GPUにコマンドを送る
-			ID3D12CommandList* commandLists[] = { commandList.Get()};
+			ID3D12CommandList* commandLists[] = { commandList.Get() };
 			commandQueue->ExecuteCommandLists(1, commandLists);
 
 
@@ -1574,16 +1591,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 
 
-	}
-
-	//リソースチェック
-	Microsoft::WRL::ComPtr<IDXGIDebug1> debug = nullptr;
-	//hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug));
-	if (SUCCEEDED(hr) && debug) {
-		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
-		debug->Release();
 	}
 
 	//ImGuiの終了処理。
