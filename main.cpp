@@ -572,6 +572,126 @@ struct D3DResourceLeakChecker {
 
 };
 
+//チャンクヘッダー
+struct ChunkHeader {
+	char id[4]; // チャンクID
+	uint32_t size; // チャンクのサイズ（ヘッダーを除く）
+};
+
+struct RiffHeader {
+	ChunkHeader chunk;//"RIFF"
+	char type[4]; // "WAVE"
+
+};
+
+struct  FormatChunk
+{
+	ChunkHeader chunk;//"fmt"
+	WAVEFORMATEX fmt;//波形フォーマット
+};
+
+struct SoundData {
+	//波形フォーマット
+	WAVEFORMATEX wfex;
+	//バッファの先頭アドレス
+	BYTE* pBuffer;
+	//バッファのサイズ
+	unsigned int bufferSize;
+
+
+};
+
+SoundData SoundLoadWave(const char* filename) {
+	//HRESULT result;
+	//ファイル入力ストリームのインスタンス
+	std::ifstream file;
+	//.waveファイルをバイナリモードで開く
+	file.open(filename, std::ios_base::binary);
+	//ファイルオープン失敗を検出する
+	assert(file.is_open());
+
+	//RIFFヘッダーの読み込み
+	RiffHeader riff;
+	file.read((char*)&riff, sizeof(riff));
+	//ファイル化RIFFかチェック
+	if (strncmp(riff.chunk.id, "RIFF", 4) != 0) {
+		assert(0);
+	}
+
+	if (strncmp(riff.type, "WAVE", 4) != 0) {
+		assert(0);
+	}
+
+	//Formatチャンクの読み込み
+	FormatChunk format = {};
+
+	file.read((char*)&format, sizeof(ChunkHeader));
+	if (strncmp(format.chunk.id, "fmt ", 4) != 0) {
+		assert(0);
+	}
+
+	//チャンク本体の読み込み
+	assert(format.chunk.size <= sizeof(format.fmt));
+	file.read((char*)&format.fmt, format.chunk.size);
+
+	//Dataチャンクの読み込み
+	ChunkHeader data;
+	file.read((char*)&data, sizeof(data));
+	//JUNKチャンクを検出した場合
+	if (strncmp(data.id, "JUNK", 4) == 0) {
+		//JUNKチャンクのサイズを読み飛ばす
+		file.seekg(data.size, std::ios_base::cur);
+		//Dataチャンクの再読み込み
+		file.read((char*)&data, sizeof(data));
+	}
+
+	if (strncmp(data.id, "data", 4) != 0) {
+		//Dataチャンクがない場合はエラー
+		assert(0);
+	}
+	//Dataチャンクのデータ部（波形データ）の読み込み
+	char* pBuffer = new char[data.size];
+	file.read(pBuffer, data.size);
+	//waveファイルを閉じる
+	file.close();
+
+	//returnする場合の音声データ
+	SoundData soundData = {};
+	soundData.wfex = format.fmt; // 波形フォーマットを設定
+	soundData.pBuffer = reinterpret_cast<BYTE*>(pBuffer); // バッファの先頭アドレスを設定
+	soundData.bufferSize = data.size; // バッファのサイズを設定
+
+	return soundData;
+
+}
+
+void SoundUnload(SoundData* soundData) {
+	delete[] soundData->pBuffer; // バッファの解放
+	soundData->pBuffer = 0; // ポインタをnullptrに設定
+	soundData->bufferSize = 0; // サイズを0に設定
+	soundData->wfex = {}; // 波形フォーマットを初期化
+}
+
+//音声再生
+void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData) {
+	HRESULT result;
+	//波形フォーマットをもとにSourceVoiceの生成
+	IXAudio2SourceVoice* pSourceVoice = nullptr;
+	result = xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
+	assert(SUCCEEDED(result));
+	
+	//再生する波形データの設定
+	XAUDIO2_BUFFER buf{};
+	buf.pAudioData = soundData.pBuffer;
+	buf.AudioBytes = soundData.bufferSize;
+	buf.Flags = XAUDIO2_END_OF_STREAM;
+
+	//波形データの再生
+	result = pSourceVoice->SubmitSourceBuffer(&buf);
+	result = pSourceVoice->Start();
+
+}
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -699,9 +819,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			break;
 		}
 	}
-	//デバイスの精がうまくいかなかった場合
+	//デバイスの生成がうまくいかなかった場合
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n");//初期化のログを出す
+
+	//=========================
+	//音を入れる
+	//=========================
+	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
+	IXAudio2MasteringVoice* masterVoice = nullptr;
+
+	//Xaudioエンジンのインスタンスの生成
+	hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+
+	//マスターボイスを実装
+	hr = xAudio2->CreateMasteringVoice(&masterVoice);
 
 #ifdef _DEBUG
 
@@ -1462,7 +1594,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool useSample = true;
 
-	
+	SoundData soundData1 = SoundLoadWave("resources/fanfare.wav");
 
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
@@ -1550,7 +1682,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 			ImGui::DragFloat3("rotateModel", &transformModel.rotate.x, 0.1f);
+			if(ImGui::Button("soundWav")) {
+				SoundPlayerWave(xAudio2.Get(), soundData1);
 
+			}
 			//スプライトの表示させる計算
 			Matrix4x4 worldMatrixSprite = Matrix4x4::MakeAffineMatrix(
 				transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -1792,6 +1927,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
+	xAudio2.Reset();
+	SoundUnload(&soundData1);
 	CloseHandle(fenceEvent);
 	
 #ifdef _Debug
