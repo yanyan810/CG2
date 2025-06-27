@@ -28,6 +28,9 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <xaudio2.h>
+#define DIRECTINPUT_VERSION 0x0800//DIrectInputバージョンの指定
+#include <dinput.h>
+#include "Input.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -37,6 +40,8 @@
 #pragma comment(lib, "dxcompiler.lib")
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "xaudio2.lib")
+#pragma comment(lib, "dinput8.lib")
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
@@ -692,6 +697,8 @@ void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData) {
 
 }
 
+
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -739,6 +746,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//ウィンドウを表示する
 	ShowWindow(hwnd, SW_SHOW);
+
+
 
 #ifdef _DEBUG
 
@@ -822,6 +831,40 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//デバイスの生成がうまくいかなかった場合
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n");//初期化のログを出す
+
+	////DIrectInputの初期化
+	//IDirectInput8* directInput = nullptr;
+	//hr = DirectInput8Create(
+	//	wc.hInstance, // インスタンスハンドル
+	//	DIRECTINPUT_VERSION, // DirectInputのバージョン
+	//	IID_IDirectInput8, // インターフェースID
+	//	reinterpret_cast<void**>(&directInput), // 出力ポインタ
+	//	nullptr // 予約済み
+
+	//);
+	//assert(SUCCEDED(result));
+
+	////キーボードデバイスの生成
+	//IDirectInputDevice8* keyboardDevice = nullptr;
+	//hr = directInput->CreateDevice(
+	//	GUID_SysKeyboard, // キーボードのGUID
+	//	&keyboardDevice, // 出力ポインタ
+	//	NULL // 予約済み
+	//);
+
+	//assert(SUCCEEDED(hr));
+
+	//hr = keyboardDevice->SetDataFormat(&c_dfDIKeyboard);//標準形式
+	//assert(SUCCEEDED(hr));
+	////排他制御レベルのセット
+	//hr = keyboardDevice->SetCooperativeLevel(
+	//	hwnd, // ウィンドウハンドル
+	//	DISCL_FOREGROUND | DISCL_NONEXCLUSIVE|DISCL_NOWINKEY // フォアグラウンドで排他制御なし
+	//);
+	//assert(SUCCEEDED(hr));
+
+	Input input;
+	input.Initialize(wc.hInstance, hwnd);
 
 	//=========================
 	//音を入れる
@@ -1611,6 +1654,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			DispatchMessage(&msg);
 		} else {
 
+			input.Update();
+
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
@@ -1686,6 +1731,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				SoundPlayerWave(xAudio2.Get(), soundData1);
 
 			}
+
+			
+
+			if (input.IsKeyPressed(DIK_SPACE)) {
+				// スペースキーが押された瞬間
+				ImGui::Text("Space key pressed!");
+			}
+
 			//スプライトの表示させる計算
 			Matrix4x4 worldMatrixSprite = Matrix4x4::MakeAffineMatrix(
 				transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -1914,6 +1967,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			assert(SUCCEEDED(hr));
 
 			CoUninitialize();
+
+			if (input.IsKeyTrigger(DIK_ESCAPE)) {
+				//ESCキーが押されたら終了
+				break;
+			}
+
 		}
 
 
