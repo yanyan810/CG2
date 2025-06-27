@@ -27,6 +27,7 @@
 #include <wrl.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <xaudio2.h>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -35,7 +36,7 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "dxcompiler.lib")
 #pragma comment(lib, "DirectXTex.lib")
-
+#pragma comment(lib, "xaudio2.lib")
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
@@ -394,7 +395,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(const Microsoft::WRL::C
 
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height) {
+static ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, int32_t height) {
 	//生成するResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;//Textureの幅
@@ -415,7 +416,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilResource(const Microsof
 	depthClearValue.DepthStencil.Depth = 1.0f;//1.0f(最大値)でクリア
 	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//DepthStencilとして利用可能なフォーマット
 	//Resourceの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
+	ID3D12Resource* resource = nullptr;
 	HRESULT hr = device->CreateCommittedResource(
 		&heapProperties,//Heapの設定
 		D3D12_HEAP_FLAG_NONE,//Heapの特殊な設定。特になし
@@ -536,9 +537,10 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 
 class ResourceObject {
 public:
-	ResourceObject(Microsoft::WRL::ComPtr<ID3D12Resource> resource)
+	ResourceObject(ID3D12Resource* resource)
 		:resource_(resource)
-	{}
+	{
+	}
 
 	//オブジェクトの寿命が尽きたら呼ばれる
 	~ResourceObject() {
@@ -546,16 +548,37 @@ public:
 			resource_->Release();
 		}
 	}
-	Microsoft::WRL::ComPtr<ID3D12Resource> Get() { return resource_; }
+	ID3D12Resource* Get() { return resource_; }
 private:
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
+	ID3D12Resource* resource_;
 
 };
 
+struct D3DResourceLeakChecker {
+
+	~D3DResourceLeakChecker() {
+
+		//リソースチェック
+		Microsoft::WRL::ComPtr <IDXGIDebug1> debug = nullptr;
+		//hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug));
+		if (SUCCEEDED(DXGIGetDebugInterface1(0,IID_PPV_ARGS(&debug)))) {
+			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+			debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+			debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+		
+		}
+
+	}
+
+};
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
+	D3DResourceLeakChecker leakCheck;
+	//DXGIファクトリーの生成
+	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Device> device;
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	// CrashHandlerを登録
@@ -631,9 +654,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//ファイルを作って書き込み準備
 	std::ofstream logStream(localFilePath);
 
-	//DXGIファクトリーの生成
-	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
-
+	
 	//HRESULTWindows系のエラーコードであり、
 	// 関数が成功したかどうかをSUCCEEDEDマクロで判定できる
 	HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
@@ -662,7 +683,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(useAdapter != nullptr);
 
 	//D3D12Deviceの生成
-	Microsoft::WRL::ComPtr<ID3D12Device> device = nullptr;
+	
 	//機能レベルとログ出力用の文字列
 	D3D_FEATURE_LEVEL featureLevels[] = {
 		D3D_FEATURE_LEVEL_12_2,D3D_FEATURE_LEVEL_12_1,D3D_FEATURE_LEVEL_12_0
@@ -1422,7 +1443,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;//2Dテクスチャ
 
 
-	ResourceObject depthStencilResouce = CreateDepthStencilResource(device, kClientWidth, kClientHeight);
+	ResourceObject depthStencilResouce = CreateDepthStencilResource(device.Get(), kClientWidth, kClientHeight);
 
 	//DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので、ShaderVisibleはfalse
 	Microsoft::WRL::ComPtr < ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
@@ -1441,6 +1462,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool useSample = true;
 
+	
 
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
@@ -1730,7 +1752,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 			// GPUにコマンドを送る
-			Microsoft::WRL::ComPtr < ID3D12CommandList> commandLists[] = { commandList.Get()};
+			Microsoft::WRL::ComPtr < ID3D12CommandList> commandLists[] = { commandList.Get() };
 			commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
 
 
@@ -1762,15 +1784,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	}
 
-	//リソースチェック
-	Microsoft::WRL::ComPtr < IDXGIDebug1> debug = nullptr;
-	//hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug));
-	if (SUCCEEDED(hr) && debug) {
-		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
-		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
-		debug->Release();
-	}
+	
 
 	//ImGuiの終了処理。
 	//初期化とは逆順に行う
@@ -1779,43 +1793,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ImGui::DestroyContext();
 
 	CloseHandle(fenceEvent);
-	fence->Release();
-	rtvDescriptorHeap->Release();
-	swapChainResources[0]->Release();
-	swapChainResources[1]->Release();
-	swapChain->Release();
-	commandList->Release();
-	commandAllocator->Release();
-	commandQueue->Release();
-	device->Release();
-	useAdapter->Release();
-	dxgiFactory->Release();
+	
 #ifdef _Debug
 	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 	debugController->Release();
 #endif
 	CloseWindow(hwnd);
-
-	vertexResource->Release();
-	graphicsPipelineState->Release();
-	signatureBlob->Release();
-	if (errorBlob) {
-		errorBlob->Release();
-	}
-	rootSignature->Release();
-	pixelShaderBlob->Release();
-	vertexShaderBlob->Release();
-
-	materialResource->Release();
-	directionalLightResource->Release();
-	transformationMatrixResourceSprite->Release();
-	transformationMatrixResourceSphere->Release();
-	textureResource->Release();
-	textureResource2->Release();
-	srvDescriptorHeap->Release();
-	//スプライト用のリソースを解放
-	transformationMatrixResourceSprite->Release();
-	materialResourceSprite->Release();
 
 	return 0;
 }
