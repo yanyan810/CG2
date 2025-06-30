@@ -25,17 +25,71 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
     keyboardDevice_->Acquire();
 }
 
+void Input::UpdateMouseDelta() {
+    POINT currentMousePos;
+    GetCursorPos(&currentMousePos);
+    ScreenToClient(GetActiveWindow(), &currentMousePos);
+
+    if (firstMouseUpdate_) {
+        // 初回は差分をゼロにしておく
+        mouseDelta_ = { 0, 0 };
+        firstMouseUpdate_ = false;
+    } else {
+        mouseDelta_.x = currentMousePos.x - prevMousePos_.x;
+        mouseDelta_.y = currentMousePos.y - prevMousePos_.y;
+    }
+
+    prevMousePos_ = currentMousePos;
+
+    if (cameraControlEnabled_) {
+        // ウィンドウの中央座標を取得して固定
+        HWND hwnd = GetActiveWindow();
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        POINT center;
+        center.x = (rect.right - rect.left) / 2;
+        center.y = (rect.bottom - rect.top) / 2;
+
+        // 現在位置を取得
+        POINT currentMousePos;
+        GetCursorPos(&currentMousePos);
+        ScreenToClient(hwnd, &currentMousePos);
+
+        // 差分計算
+        mouseDelta_.x = currentMousePos.x - center.x;
+        mouseDelta_.y = currentMousePos.y - center.y;
+
+        // マウスを中央に戻す
+        ClientToScreen(hwnd, &center);
+        SetCursorPos(center.x, center.y);
+    } else {
+        mouseDelta_ = { 0, 0 };
+    }
+
+}
+
+
 void Input::Update() {
     // 前フレームの状態を保存
     memcpy(prevKeys_, keys_, sizeof(keys_));
 
-    // 現在のキー状態を取得
     HRESULT hr = keyboardDevice_->GetDeviceState(sizeof(keys_), keys_);
     if (FAILED(hr)) {
-        // フォーカスが外れたなどで取得に失敗したら再取得
         keyboardDevice_->Acquire();
         keyboardDevice_->GetDeviceState(sizeof(keys_), keys_);
     }
+
+    UpdateMouseDelta();
+
+    // === 修正済み：トグル処理は1回だけ ===
+    bool toggleKey = keys_[DIK_TAB];
+    if (toggleKey && !prevToggleKeyState_) {
+        cameraControlEnabled_ = !cameraControlEnabled_;
+        justEnteredCameraMode_ = cameraControlEnabled_; // 初回だけtrue
+
+        ShowCursor(!cameraControlEnabled_);
+    }
+    prevToggleKeyState_ = toggleKey;
 }
 
 bool Input::IsKeyTrigger(BYTE keyCode) const {

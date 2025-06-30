@@ -40,6 +40,15 @@ Matrix4x4 Matrix4x4::RotateY(float angleRad) {
     return mat;
 }
 
+Matrix4x4 Matrix4x4::RotateX(float angleRad) {
+	Matrix4x4 mat = MakeIdentity4x4();
+	mat.m[1][1] = cosf(angleRad);
+	mat.m[1][2] = sinf(angleRad);
+	mat.m[2][1] = -sinf(angleRad);
+	mat.m[2][2] = cosf(angleRad);
+	return mat;
+}
+
 Matrix4x4 Matrix4x4::MakeRotateZMatrix(float angleRad) {
 	Matrix4x4 mat = MakeIdentity4x4();
 	mat.m[0][0] = cosf(angleRad);

@@ -31,7 +31,7 @@
 #define DIRECTINPUT_VERSION 0x0800//DIrectInputバージョンの指定
 #include <dinput.h>
 #include "Input.h"
-
+#include "DebugCamera.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "Dbghelp.lib") 
@@ -566,11 +566,11 @@ struct D3DResourceLeakChecker {
 		//リソースチェック
 		Microsoft::WRL::ComPtr <IDXGIDebug1> debug = nullptr;
 		//hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug));
-		if (SUCCEEDED(DXGIGetDebugInterface1(0,IID_PPV_ARGS(&debug)))) {
+		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))) {
 			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
 			debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
 			debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
-		
+
 		}
 
 	}
@@ -684,7 +684,7 @@ void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData) {
 	IXAudio2SourceVoice* pSourceVoice = nullptr;
 	result = xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
 	assert(SUCCEEDED(result));
-	
+
 	//再生する波形データの設定
 	XAUDIO2_BUFFER buf{};
 	buf.pAudioData = soundData.pBuffer;
@@ -783,7 +783,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//ファイルを作って書き込み準備
 	std::ofstream logStream(localFilePath);
 
-	
+
 	//HRESULTWindows系のエラーコードであり、
 	// 関数が成功したかどうかをSUCCEEDEDマクロで判定できる
 	HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
@@ -812,7 +812,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(useAdapter != nullptr);
 
 	//D3D12Deviceの生成
-	
+
 	//機能レベルとログ出力用の文字列
 	D3D_FEATURE_LEVEL featureLevels[] = {
 		D3D_FEATURE_LEVEL_12_2,D3D_FEATURE_LEVEL_12_1,D3D_FEATURE_LEVEL_12_0
@@ -865,6 +865,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Input input;
 	input.Initialize(wc.hInstance, hwnd);
+
+
+	DebugCamera debugCamera;
+	debugCamera.Initialize();
+	debugCamera.SetInput(&input);
+
 
 	//=========================
 	//音を入れる
@@ -1639,6 +1645,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	SoundData soundData1 = SoundLoadWave("resources/fanfare.wav");
 
+
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
 
@@ -1655,6 +1662,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		} else {
 
 			input.Update();
+
+			debugCamera.Update();
 
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
@@ -1727,12 +1736,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 			ImGui::DragFloat3("rotateModel", &transformModel.rotate.x, 0.1f);
-			if(ImGui::Button("soundWav")) {
+			if (ImGui::Button("soundWav")) {
 				SoundPlayerWave(xAudio2.Get(), soundData1);
 
 			}
 
-			
+
 
 			if (input.IsKeyPressed(DIK_SPACE)) {
 				// スペースキーが押された瞬間
@@ -1796,9 +1805,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				transformModel.translate
 			);
 
-			Matrix4x4 cameraMatrixModel = Matrix4x4::MakeAffineMatrix(
+		/*	Matrix4x4 cameraMatrixModel = Matrix4x4::MakeAffineMatrix(
 				cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-			Matrix4x4 viewMatrixModel = Matrix4x4::Inverse(cameraMatrixModel);
+			Matrix4x4 viewMatrixModel = Matrix4x4::Inverse(cameraMatrixModel);*/
+
+			Matrix4x4 viewMatrixModel = debugCamera.GetViewMatrix();
+
 
 			Matrix4x4 projectionMatrixModel = Matrix4x4::PerspectiveFov(
 				0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
@@ -1834,7 +1846,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::TreePop();
 			}
 
-
+		
 
 
 			ImGui::End();
@@ -1978,7 +1990,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	}
 
-	
+
 
 	//ImGuiの終了処理。
 	//初期化とは逆順に行う
@@ -1989,7 +2001,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	xAudio2.Reset();
 	SoundUnload(&soundData1);
 	CloseHandle(fenceEvent);
-	
+
 #ifdef _Debug
 	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 	debugController->Release();

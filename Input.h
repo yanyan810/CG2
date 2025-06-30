@@ -20,9 +20,22 @@ public:
     // 離した瞬間
     bool IsKeyReleased(BYTE keyCode) const;
 
+    POINT prevMousePos_{};
+    POINT mouseDelta_{};
+
+    void UpdateMouseDelta();
+    POINT GetMouseDelta() const { return mouseDelta_; }
+
+
 private:
     IDirectInput8* directInput_ = nullptr;
     IDirectInputDevice8* keyboardDevice_ = nullptr;
     BYTE keys_[256]{};
     BYTE prevKeys_[256]{};
+    bool firstMouseUpdate_ = true;
+    bool cameraControlEnabled_ = false;
+    bool prevToggleKeyState_ = false; // トグル用
+    bool justEnteredCameraMode_ = false;
+
+
 };
