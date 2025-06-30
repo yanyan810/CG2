@@ -5,3 +5,9 @@ struct Vector3 {
 	float z;
 };
 
+class Math {
+public:
+
+
+
+};
