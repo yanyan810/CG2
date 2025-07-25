@@ -1575,6 +1575,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//transformationMatrixData->WVP = Matrix4x4::Multiply(worldMatrix, Matrix4x4::Multiply(viewMatrix, projectionMatrix));
 	//transformationMatrixData->World = worldMatrix;
 
+	vertexResourceModel->Unmap(0, nullptr);
+	transformationMatrixResourceModel->Unmap(0, nullptr);
+	vertexResourceSprite->Unmap(0, nullptr);
+	indexResourceSprite->Unmap(0, nullptr);
+	transformationMatrixResourceSprite->Unmap(0, nullptr);
+	vertexResourceSphere->Unmap(0, nullptr);
+	transformationMatrixResourceSphere->Unmap(0, nullptr);
+
 
 	//ImGuiの初期化。
 	//こういうもの
