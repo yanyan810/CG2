@@ -885,20 +885,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = xAudio2->CreateMasteringVoice(&masterVoice);
 
 #ifdef _DEBUG
-
 	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
-	if (SUCCEEDED(device->QueryInterface(
-		IID_PPV_ARGS(&infoQueue)))) {
-		//やばいエラーの時止まる
+	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-		//エラー時に止まる
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-		//警告時に止まる
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-		//解放
-		infoQueue->Release();
+		// 警告で止めるかどうかは必要に応じて
+		//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 
-		//抑制するメッセージのID
 		D3D12_MESSAGE_ID denyIds[] = {
 			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE
 		};
@@ -909,13 +902,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		filter.DenyList.pIDList = denyIds;
 		filter.DenyList.NumSeverities = _countof(severities);
 		filter.DenyList.pSeverityList = severities;
-		//指定したメッセージの表示を抑制する
+
 		infoQueue->PushStorageFilter(&filter);
-
 	}
-
-
-#endif 
+#endif
 
 
 	//コマンドキューを生成する
@@ -1761,8 +1751,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			*wvpData = worldViewProjectionMatrix;*/
 
 		/*	ImGui::Checkbox("useSample", &useSample);
-			ImGui::Checkbox("directionalLighting", reinterpret_cast<bool*>(&materialData->enableLighting));
-			ImGui::DragFloat3("LightDir", &directionalLightData->direction.x, 0.005f, -1.0f, 1.0f);
+		
 			ImGui::DragFloat3("rotateSpehre", &transformSphere.rotate.x, 0.1f, -10.0f, 10.0f);
 			ImGui::Begin("WorldMatrix");
 			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
@@ -1774,12 +1763,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			}*/
 
-			if (materialData) {
-				ImGui::Checkbox("directionalLighting", reinterpret_cast<bool*>(&materialData->enableLighting));
-			}
-			if (directionalLightData) {
-				ImGui::DragFloat3("LightDir", &directionalLightData->direction.x, 0.005f);
-			}
+			ImGui::Checkbox("directionalLighting", reinterpret_cast<bool*>(&materialData->enableLighting));
+			ImGui::DragFloat3("LightDir", &directionalLightData->direction.x, 0.005f, -1.0f, 1.0f);
 
 			ImGui::Begin("Draw Options");
 			ImGui::Checkbox("Draw Sphere", &isDrawSphere);
@@ -2038,8 +2023,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	SoundUnload(&soundData1);
 	CloseHandle(fenceEvent);
 
-#ifdef _Debug
-	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+#ifdef _DEBUG
+	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 	debugController->Release();
 #endif
 	CloseWindow(hwnd);
