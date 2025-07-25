@@ -1646,7 +1646,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;//2Dテクスチャ
 
 
-	ResourceObject depthStencilResouce = CreateDepthStencilResource(device.Get(), kClientWidth, kClientHeight);
+	Microsoft::WRL::ComPtr<ID3D12Resource>  depthStencilResouce = CreateDepthStencilResource(device.Get(), kClientWidth, kClientHeight);
 
 	//DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので、ShaderVisibleはfalse
 	Microsoft::WRL::ComPtr < ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
