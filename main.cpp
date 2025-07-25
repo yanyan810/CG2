@@ -1392,7 +1392,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	//今回は赤
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-	materialData->enableLighting = true; // ライティングを有効化
+	materialData->enableLighting = 2; // ライティングを有効化
 	// WVP用の定数バッファを作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
 	Matrix4x4* wvpData = nullptr;
@@ -1757,32 +1757,61 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
-			ImGui::DragFloat3("rotateModel", &transformModel.rotate.x, 0.1f);
-			if (ImGui::Button("soundWav")) {
-				SoundPlayerWave(xAudio2.Get(), soundData1);
+			ImGui::DragFloat3("rotateModel", &transformModel.rotate.x, 0.1f);*/
 
-			}*/
-
-			ImGui::Checkbox("directionalLighting", reinterpret_cast<bool*>(&materialData->enableLighting));
-			ImGui::DragFloat3("LightDir", &directionalLightData->direction.x, 0.005f, -1.0f, 1.0f);
-
+		
+		
 			ImGui::Begin("Draw Options");
 			ImGui::Checkbox("Draw Sphere", &isDrawSphere);
 			ImGui::Checkbox("Draw Model", &isDrawModel);
 			ImGui::Checkbox("Draw Sprite", &isDrawSprite);
 		
-
-			ImGui::Begin("Sphere Transform");
-
-			ImGui::DragFloat3("Scale", &transformSphere.scale.x, 0.01f, 0.0f, 10.0f);
-			ImGui::DragFloat3("Rotate", &transformSphere.rotate.x, 0.1f, -360.0f, 360.0f);
-			ImGui::DragFloat3("Translate", &transformSphere.translate.x, 0.1f, -10.0f, 10.0f);
+			// 0: Unlit, 1: Lambert, 2: Half-Lambert
+			const char* lightingModes[] = { "Not", "Lambert", "Half-Lambert" };
+			ImGui::Combo("Lighting Mode", &materialData->enableLighting, lightingModes, IM_ARRAYSIZE(lightingModes));
 
 
-		
+
+			ImGui::Begin("Editor");
+
+			// モデル
+			ImGui::Text("Model Transform");
+			ImGui::DragFloat3("Model Position", &transformModel.translate.x, 0.1f);
+			ImGui::DragFloat3("Model Rotation", &transformModel.rotate.x, 0.1f);
+			ImGui::DragFloat3("Model Scale", &transformModel.scale.x, 0.1f);
+
+			// スフィア
+			ImGui::Separator();
+			ImGui::Text("Sphere Transform");
+			ImGui::DragFloat3("Sphere Position", &transformSphere.translate.x, 0.1f);
+			ImGui::DragFloat3("Sphere Rotation", &transformSphere.rotate.x, 0.1f);
+			ImGui::DragFloat3("Sphere Scale", &transformSphere.scale.x, 0.1f);
+
+			// スプライト
+			ImGui::Separator();
+			ImGui::Text("Sprite UV Transform");
+			ImGui::DragFloat2("UV Translate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat2("UV Scale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+			ImGui::SliderAngle("UV Rotate", &uvTransformSprite.rotate.z);
+
+			// ==== ライト ====
+			ImGui::Separator();
+			ImGui::Text("Light Settings");
+			ImGui::ColorEdit3("Light Color", &directionalLightData->color.x);
+			ImGui::DragFloat("Light Intensity", &directionalLightData->intensity, 0.01f, 0.0f, 10.0f);
+			ImGui::DragFloat3("Light Direction", &directionalLightData->direction.x, 0.01f, -1.0f, 1.0f);
+
+
+			//音
+			ImGui::Separator();
+			ImGui::Text("Sound");
+			if (ImGui::Button("soundWav")) {
+				SoundPlayerWave(xAudio2.Get(), soundData1);
+			}
 
 
 			ImGui::End();
+
 
 			
 			//スプライトの表示させる計算
