@@ -1286,6 +1286,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::memcpy(vertexDataModel, modelData.vertices.data(),
 		sizeof(VertexData) * modelData.vertices.size());
 
+
+	////モデル読み込み
+	//ModelData modelData2 = LoadObjFile("resources", "plane.obj");
+	////頂点リソースを作る
+	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceModel = CreateBufferResource(device, sizeof(VertexData) * modelData2.vertices.size());
+	////頂点バッファビューを作成する
+	//D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModel{};
+	////リソースの先頭アドレスから使う
+	//vertexBufferViewModel.BufferLocation = vertexResourceModel->GetGPUVirtualAddress();
+	////使用するリソースのサイズは頂点の数分
+	//vertexBufferViewModel.SizeInBytes = UINT(sizeof(VertexData) * modelData2.vertices.size());
+	////1頂点当たりのサイズ
+	//vertexBufferViewModel.StrideInBytes = sizeof(VertexData);
+	////頂点リソースにデータを書き込む
+	//VertexData* vertexDataModel = nullptr;
+	////書き込むためのアドレスを取得
+	//vertexResourceModel->Map(0, nullptr,
+	//	reinterpret_cast<void**>(&vertexDataModel));
+	////頂点データをコピー
+	//std::memcpy(vertexDataModel, modelData2.vertices.data(),
+	//	sizeof(VertexData)* modelData2.vertices.size());
+
 	//モデル用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModel = CreateBufferResource(device, sizeof(TransformationMatrix));
 	//データを書き込む
@@ -1663,11 +1685,70 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool useSample = true;
 
+
+	//ウサギ用の描画
+	ModelData modelDataBunny = LoadObjFile("resources", "bunny.obj");
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceModelBunny =
+		CreateBufferResource(device, sizeof(VertexData) * modelDataBunny.vertices.size());
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModelBunny{};
+	vertexBufferViewModelBunny.BufferLocation = vertexResourceModelBunny->GetGPUVirtualAddress();
+	vertexBufferViewModelBunny.SizeInBytes = UINT(sizeof(VertexData) * modelDataBunny.vertices.size());
+	vertexBufferViewModelBunny.StrideInBytes = sizeof(VertexData);
+	VertexData* vertexDataModelBuuny = nullptr;
+	vertexResourceModelBunny->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataModelBuuny));
+	std::memcpy(vertexDataModelBuuny, modelDataBunny.vertices.data(),
+		sizeof(VertexData) * modelDataBunny.vertices.size());
+	vertexResourceModelBunny->Unmap(0, nullptr);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModelBunny =
+		CreateBufferResource(device, sizeof(TransformationMatrix));
+	TransformationMatrix* transformationMatrixDataModelBunny = nullptr;
+	transformationMatrixResourceModelBunny->Map(0, nullptr,
+		reinterpret_cast<void**>(&transformationMatrixDataModelBunny));
+	transformationMatrixDataModelBunny->WVP = Matrix4x4::MakeIdentity4x4();
+	transformationMatrixDataModelBunny->World = Matrix4x4::MakeIdentity4x4();
+
+	Transform transformModelBunny{ {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {2.0f,0.0f,0.0f} };
+
+	//ティーポット用の描画
+
+	ModelData modelDataTea = LoadObjFile("resources", "teapot.obj");
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceModelTea =
+		CreateBufferResource(device, sizeof(VertexData) * modelDataTea.vertices.size());
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModelTea{};
+	vertexBufferViewModelTea.BufferLocation = vertexResourceModelTea->GetGPUVirtualAddress();
+	vertexBufferViewModelTea.SizeInBytes = UINT(sizeof(VertexData) * modelDataTea.vertices.size());
+	vertexBufferViewModelTea.StrideInBytes = sizeof(VertexData);
+	VertexData* vertexDataModelTea = nullptr;
+	vertexResourceModelTea->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataModelTea));
+	std::memcpy(vertexDataModelTea, modelDataTea.vertices.data(),
+		sizeof(VertexData) * modelDataTea.vertices.size());
+	vertexResourceModelTea->Unmap(0, nullptr);
+
+	DirectX::ScratchImage mipImagesTea = LoadTexture(modelDataTea.material.textureFilePath);
+	//DirectX::ScratchImage mipImagesTea = LoadTexture("resources/axis.jpg");
+	const DirectX::TexMetadata& metadataTea = mipImagesTea.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> textureResourceTea = CreateTextureResource(device, metadataTea);
+	Microsoft::WRL::ComPtr<ID3D12Resource> valTea = UploadTextureData(textureResourceTea, mipImagesTea, device, commandList);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModelTea =
+		CreateBufferResource(device, sizeof(TransformationMatrix));
+	TransformationMatrix* transformationMatrixDataModelTea = nullptr;
+	transformationMatrixResourceModelTea->Map(0, nullptr,
+		reinterpret_cast<void**>(&transformationMatrixDataModelTea));
+	transformationMatrixDataModelTea->WVP = Matrix4x4::MakeIdentity4x4();
+	transformationMatrixDataModelTea->World = Matrix4x4::MakeIdentity4x4();
+
+	Transform transformModelTea{ {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {2.0f,0.0f,0.0f} };
+
+
 	SoundData soundData1 = SoundLoadWave("resources/fanfare.wav");
 
 	bool isDrawSphere = true;
 	bool isDrawModel = true;
+	bool isDrawBunny = false;
 	bool isDrawSprite = true;
+	bool isDrawTea = false;
 
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
@@ -1750,22 +1831,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 worldViewProjectionMatrix = Matrix4x4::Multiply(worldMatrix, Matrix4x4::Multiply(viewMatrix, projectionMatrix));
 			*wvpData = worldViewProjectionMatrix;*/
 
-		/*	ImGui::Checkbox("useSample", &useSample);
-		
-			ImGui::DragFloat3("rotateSpehre", &transformSphere.rotate.x, 0.1f, -10.0f, 10.0f);
-			ImGui::Begin("WorldMatrix");
-			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-			ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
-			ImGui::DragFloat3("rotateModel", &transformModel.rotate.x, 0.1f);*/
+			/*	ImGui::Checkbox("useSample", &useSample);
 
-		
-		
+				ImGui::DragFloat3("rotateSpehre", &transformSphere.rotate.x, 0.1f, -10.0f, 10.0f);
+				ImGui::Begin("WorldMatrix");
+				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+				ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+				ImGui::DragFloat3("rotateModel", &transformModel.rotate.x, 0.1f);*/
+
+
+
 			ImGui::Begin("Draw Options");
 			ImGui::Checkbox("Draw Sphere", &isDrawSphere);
 			ImGui::Checkbox("Draw Model", &isDrawModel);
 			ImGui::Checkbox("Draw Sprite", &isDrawSprite);
-		
+			ImGui::Checkbox("Draw Bunny", &isDrawBunny);
+			ImGui::Checkbox("Draw Tea", &isDrawTea);
+
 			// 0: Unlit, 1: Lambert, 2: Half-Lambert
 			const char* lightingModes[] = { "Not", "Lambert", "Half-Lambert" };
 			ImGui::Combo("Lighting Mode", &materialData->enableLighting, lightingModes, IM_ARRAYSIZE(lightingModes));
@@ -1774,11 +1857,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			ImGui::Begin("Editor");
 
+			if (isDrawModel) {
+
 			// モデル
 			ImGui::Text("Model Transform");
 			ImGui::DragFloat3("Model Position", &transformModel.translate.x, 0.1f);
 			ImGui::DragFloat3("Model Rotation", &transformModel.rotate.x, 0.1f);
 			ImGui::DragFloat3("Model Scale", &transformModel.scale.x, 0.1f);
+		}
+
+			if (isDrawBunny) {
+				ImGui::Text("Bunny Transform");
+				ImGui::DragFloat3("Bunny Position", &transformModelBunny.translate.x, 0.1f);
+				ImGui::DragFloat3("Bunny Rotation", &transformModelBunny.rotate.x, 0.1f);
+				ImGui::DragFloat3("Bunny Scale", &transformModelBunny.scale.x, 0.1f);
+		}
+
+			if (isDrawTea) {
+
+				ImGui::Text("Tea Transform");
+				ImGui::DragFloat3("Tea Position", &transformModelTea.translate.x, 0.1f);
+				ImGui::DragFloat3("Tea Rotation", &transformModelTea.rotate.x, 0.1f);
+				ImGui::DragFloat3("Tea Scale", &transformModelTea.scale.x, 0.1f);
+
+			}
 
 			// スフィア
 			ImGui::Separator();
@@ -1809,11 +1911,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				SoundPlayerWave(xAudio2.Get(), soundData1);
 			}
 
+			ImGui::Separator();
+			ImGui::Text("Model UV Transform");
+			static Transform uvTransformModel{ {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,0.0f} };
+			ImGui::DragFloat2("Model UV Translate", &uvTransformModel.translate.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat2("Model UV Scale", &uvTransformModel.scale.x, 0.01f, -10.0f, 10.0f);
+			ImGui::SliderAngle("Model UV Rotate", &uvTransformModel.rotate.z);
+
+			// UV変換マトリクスを組み立て
+			Matrix4x4 uvTransformMatrixModel = Matrix4x4::Scale(uvTransformModel.scale);
+			uvTransformMatrixModel = Matrix4x4::Multiply(
+				uvTransformMatrixModel, Matrix4x4::MakeRotateZMatrix(uvTransformModel.rotate.z));
+			uvTransformMatrixModel = Matrix4x4::Multiply(
+				uvTransformMatrixModel, Matrix4x4::Translation(uvTransformModel.translate));
+
+			// マテリアルへ転送
+			materialData->uvTransform = uvTransformMatrixModel;
+
 
 			ImGui::End();
 
 
-			
+
 			//スプライトの表示させる計算
 			Matrix4x4 worldMatrixSprite = Matrix4x4::MakeAffineMatrix(
 				transformSprite.scale, transformSprite.rotate, transformSprite.translate);
@@ -1871,9 +1990,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				transformModel.translate
 			);
 
-		/*	Matrix4x4 cameraMatrixModel = Matrix4x4::MakeAffineMatrix(
-				cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-			Matrix4x4 viewMatrixModel = Matrix4x4::Inverse(cameraMatrixModel);*/
+			/*	Matrix4x4 cameraMatrixModel = Matrix4x4::MakeAffineMatrix(
+					cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+				Matrix4x4 viewMatrixModel = Matrix4x4::Inverse(cameraMatrixModel);*/
 
 			Matrix4x4 viewMatrixModel = debugCamera.GetViewMatrix();
 
@@ -1890,7 +2009,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			transformationMatrixDataModel->WVP = wvpModel;
 			transformationMatrixDataModel->World = worldMatrixModel;
 
+			//ウサギ用の計算
+			Matrix4x4 worldMatrixModelBunny = Matrix4x4::MakeAffineMatrix(
+				transformModelBunny.scale,
+				transformModelBunny.rotate,
+				transformModelBunny.translate
+			);
+			Matrix4x4 wvpModelBunny = Matrix4x4::Multiply(
+				worldMatrixModelBunny,
+				Matrix4x4::Multiply(viewMatrixModel, projectionMatrixModel)
+			);
+			transformationMatrixDataModelBunny->WVP = wvpModelBunny;
+			transformationMatrixDataModelBunny->World = worldMatrixModelBunny;
 
+			//ティーポット用の計算
+
+			Matrix4x4 worldMatrixModelTea = Matrix4x4::MakeAffineMatrix(
+				transformModelTea.scale,
+				transformModelTea.rotate,
+				transformModelTea.translate
+			);
+			Matrix4x4 wvpModelTea = Matrix4x4::Multiply(
+				worldMatrixModelTea,
+				Matrix4x4::Multiply(viewMatrixModel, projectionMatrixModel)
+			);
+			transformationMatrixDataModelTea->WVP = wvpModelTea;
+			transformationMatrixDataModelTea->World = worldMatrixModelTea;
 
 
 			ImGui::End();
@@ -1948,7 +2092,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//行がQ(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
 			//commandList->DrawInstanced(6, 1, 0, 0);
 			//commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
-			 
+
 			if (isDrawSphere) {
 				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
 				commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSphere->GetGPUVirtualAddress());
@@ -1956,12 +2100,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				commandList->SetGraphicsRootDescriptorTable(2, useSample ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 				commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
 			}
-			
+
 			if (isDrawModel) {
 				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
 				commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
 				commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 			}
+
+			if (isDrawBunny) {
+
+				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModelBunny);
+				commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModelBunny->GetGPUVirtualAddress());
+				commandList->DrawInstanced(UINT(modelDataBunny.vertices.size()), 1, 0, 0);
+
+			}
+
+			if (isDrawTea) {
+
+				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModelTea);
+				commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModelTea->GetGPUVirtualAddress());
+				commandList->DrawInstanced(UINT(modelDataTea.vertices.size()), 1, 0, 0);
+
+			}
+
 			// === 三角形① ===
 			//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			//commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
