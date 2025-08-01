@@ -34,29 +34,25 @@ PixelSharderOutput main(VertexShaderOutput input)
     if (gMaterial.enableLighting != 0)
     {
         float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction);
-        float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
-        output.color = gMaterial.color * textureColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
+        float lighting = 1.0f;
 
-      //  output.color = float4(normalize(input.normal) * 0.5 + 0.5, 1.0f);
-        
-      //  output.color = float4((input.normal * 0.5f + 0.5f), 1.0f); // 可視化
-        
-        //output.color = gMaterial.color * gDirectionalLight.color * (cos * 0.8f + 0.2f);
-        
-        //float3 normal = normalize(input.normal);
-        //output.color= float4(normal * 0.5f + 0.5f, 1.0f); // 色で法線可視化
-        
-        //float3 n = normalize(input.normal);
-        //output.color= float4(abs(n), 1.0f); // 絶対値をとると全方向が見える
-        
-        //float3 L = normalize(-gDirectionalLight.direction);
-        //output.color= float4(L * 0.5f + 0.5f, 1.0f); // ライトベクトルを色に変換
-        
+        if (gMaterial.enableLighting == 1)
+        {
+        // Lambert
+            lighting = saturate(NdotL);
+        }
+        else if (gMaterial.enableLighting == 2)
+        {
+        // Half-Lambert
+            lighting = pow(NdotL * 0.5f + 0.5f, 2.0f);
+        }
+
+        output.color = gMaterial.color * textureColor * gDirectionalLight.color * lighting * gDirectionalLight.intensity;
     }
     else
     {
-        output.color *= gMaterial.color * textureColor;
-       
+    // Unlit: ライティング無し
+        output.color *= textureColor;
     }
     
     //float3 normal = normalize(input.normal);
