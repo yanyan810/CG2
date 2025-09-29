@@ -15,8 +15,8 @@
 #include <DbgHelp.h>   
 #include <dxgidebug.h>
 #include <dxcapi.h>
-#include "Matrix4x4.h"
-#include "Vector3.h"
+#include "math/Matrix4x4.h"
+#include "math/Vector3.h"
 #include "externals/imgui/imgui.h"
 #include"externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -30,7 +30,7 @@
 #include <xaudio2.h>
 #define DIRECTINPUT_VERSION 0x0800//DIrectInputバージョンの指定
 #include <dinput.h>
-#include "Input.h"
+#include "input/Input.h"
 #include "DebugCamera.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -1128,11 +1128,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//三角形の中を塗りつぶす
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 	//shaderをコンパイルする
-	IDxcBlob* vertexShaderBlob = CompilesSharder(L"Object3D.VS.hlsl",
+	IDxcBlob* vertexShaderBlob = CompilesSharder(L"resources/shaders/Object3D.VS.hlsl",
 		L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
 	assert(vertexShaderBlob != nullptr);
 
-	IDxcBlob* pixelShaderBlob = CompilesSharder(L"Object3D.PS.hlsl",
+	IDxcBlob* pixelShaderBlob = CompilesSharder(L"resources/shaders/Object3D.PS.hlsl",
 		L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
 	assert(pixelShaderBlob != nullptr);
 
