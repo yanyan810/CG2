@@ -1,6 +1,6 @@
 #include "DebugCamera.h"
 #include "Input.h"
-#include "Matrix4x4.h"
+#include "math/Matrix4x4.h"
 
 void DebugCamera::Initialize() {
 	viewMatrix_ = Matrix4x4::MakeIdentity4x4();
