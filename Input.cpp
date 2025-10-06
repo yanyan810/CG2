@@ -2,11 +2,14 @@
 #include <cassert>
 #include <cstring>
 
-void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
+void Input::Initialize  (WinApp* winApp) {
     HRESULT hr;
 
+    //借りてきたWinAppのインスタンスを記録
+    this->winApp_ = winApp;
+
     // DirectInputの初期化
-    hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput_, nullptr);
+    hr = DirectInput8Create(winApp->GetHInstance(), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput_, nullptr);
     assert(SUCCEEDED(hr));
 
     // キーボードデバイスの作成
@@ -18,7 +21,7 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
     assert(SUCCEEDED(hr));
 
     // 協調レベルの設定
-    hr = keyboardDevice_->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+    hr = keyboardDevice_->SetCooperativeLevel(winApp->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
     assert(SUCCEEDED(hr));
 
     // デバイスの取得開始

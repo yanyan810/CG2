@@ -2,11 +2,12 @@
 
 #include <dinput.h>
 #include <Windows.h>
+#include "WinApp.h"
 
 class Input {
 public:
     // 初期化
-    void Initialize(HINSTANCE hInstance, HWND hwnd);
+    void Initialize(WinApp* winApp);
 
     // 更新処理（毎フレーム呼び出し）
     void Update();
@@ -37,5 +38,6 @@ private:
     bool prevToggleKeyState_ = false; // トグル用
     bool justEnteredCameraMode_ = false;
 
+    WinApp* winApp_ = nullptr;
 
 };
