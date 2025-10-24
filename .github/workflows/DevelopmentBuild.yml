@@ -3,13 +3,12 @@ name: DevelopmentBuild
 on:
   push:
     branches:
-      - develop
-      - development
+      - master    # ← ここを追加（または develop を master に変更）
 
 env:
   # ソリューションのパス
   SOLUTION_FILE_PATH: CG2_Setup.sln
-  # Development は Release 構成を利用
+  # Development は Releaseベースでビルド
   CONFIGURATION: Release
 
 jobs:
@@ -30,7 +29,7 @@ jobs:
 
       - name: Build solution
         run: |
-          echo "Building Development (Release-based) version..."
+          echo "Building Development (Release-based) version on master..."
           msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }} /m /verbosity:minimal
 
       - name: Upload build artifacts
