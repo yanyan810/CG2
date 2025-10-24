@@ -316,7 +316,8 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 
 	//メンバ変数に記録
 	this->winApp_ = winApp;
-
+	//FPS固定初期化
+	InitializeFixFPS();
 
 	DeviceInitialize();
 	CommandInitialize();
@@ -649,6 +650,37 @@ void DirectXCommon::ImGuiInitialize() {
 		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 }
+
+void DirectXCommon::InitializeFixFPS() {
+
+	reference_ = std::chrono::steady_clock::now();
+
+}
+
+void DirectXCommon::UpdateFixFPS() {
+
+	//1/60秒ぴったりの時間
+	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+	//1/60秒よりわずかに短い時間
+	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+
+	//現在時間を取得する
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+	//前回記録から経過時間を取得する
+	std::chrono::microseconds elapsed =
+		std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
+
+	//1/60秒(よりわずかに短い時間)立っていない場合
+	if (elapsed < kMinCheckTime) {
+		//1?60秒経過するまで微小なスリープを繰り返す
+		while (std::chrono::steady_clock::now() - reference_ < kMinTime) {
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+
+		}	
+	}
+
+}
+
 void DirectXCommon::PreDraw() {
 	const UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -696,6 +728,8 @@ void DirectXCommon::PostDraw() {
 	HRESULT hr = commandList->Close(); assert(SUCCEEDED(hr));
 	ID3D12CommandList* lists[] = { commandList.Get() };
 	commandQueue->ExecuteCommandLists(1, lists);
+
+	UpdateFixFPS();
 
 	hr = swapChain->Present(1, 0);
 	if (FAILED(hr)) {

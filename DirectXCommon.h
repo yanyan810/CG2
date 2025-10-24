@@ -8,6 +8,8 @@
 #include "WinApp.h"
 #include <array>
 #include <dxcapi.h>
+#include <chrono>
+#include <thread>
 
 class DirectXCommon
 {
@@ -77,6 +79,11 @@ private:
 	void SizeringInitialize();
 	void DXCCompilierSpawn();
 	void ImGuiInitialize();
+
+	//FPS固定初期化
+	void InitializeFixFPS();
+	//FPS固定更新
+	void UpdateFixFPS();
 
 	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap>CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,
 		UINT numDescripters, bool shaderVisible);
@@ -152,6 +159,9 @@ private:
 	IDxcUtils* dxcUtils = nullptr;
 	IDxcCompiler3* dxcCompiler = nullptr;
 	IDxcIncludeHandler* includeHandler = nullptr;
+
+	//記録時間
+	std::chrono::steady_clock::time_point reference_;
 
 };
 

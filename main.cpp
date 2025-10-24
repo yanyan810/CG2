@@ -6,7 +6,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <chrono>
 
 #include <locale>
 #include <codecvt>
@@ -1351,6 +1350,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		materialData->uvTransform = uvTransformMatrixModel;
 
 
+		ImGui::End();
+
+		ImGui::Begin("Performance");
+		ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
 		ImGui::End();
 
 	
