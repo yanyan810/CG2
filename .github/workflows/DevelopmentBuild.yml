@@ -9,8 +9,8 @@ on:
 env:
   # ソリューションのパス
   SOLUTION_FILE_PATH: CG2_Setup.sln
-  # 構成（Debug構成を使う場合はDebugでもOK）
-  CONFIGURATION: Debug
+  # Development は Release 構成を利用
+  CONFIGURATION: Release
 
 jobs:
   build:
@@ -30,7 +30,7 @@ jobs:
 
       - name: Build solution
         run: |
-          echo "Building Development version..."
+          echo "Building Development (Release-based) version..."
           msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }} /m /verbosity:minimal
 
       - name: Upload build artifacts
