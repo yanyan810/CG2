@@ -57,6 +57,18 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)..\generated\outputs\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
+    <OutDir>$(SolutionDir)..\generated\outputs\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)..\generated\outputs\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -67,7 +79,7 @@
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -94,7 +106,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -125,7 +137,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
