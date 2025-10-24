@@ -1503,6 +1503,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->GetCommandList()->DrawInstanced(UINT(modelDataBunny.vertices.size()), 1, 0, 0);
 		}
 
+
 		// ---- Teapot ----
 		if (isDrawTea) {
 			dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewModelTea);
