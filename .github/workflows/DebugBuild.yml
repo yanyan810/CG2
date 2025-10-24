@@ -18,7 +18,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: List files for debug
-        run: dir /s
+        # PowerShellでは Get-ChildItem を使う
+        run: Get-ChildItem -Recurse
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -26,4 +27,4 @@ jobs:
           msbuild-architecture: x64
 
       - name: Build solution
-        run: msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }} /m
+        run: msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }}
