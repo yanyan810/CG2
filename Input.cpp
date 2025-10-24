@@ -2,6 +2,9 @@
 #include <cassert>
 #include <cstring>
 
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
+
 void Input::Initialize  (WinApp* winApp) {
     HRESULT hr;
 

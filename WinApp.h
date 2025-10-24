@@ -4,6 +4,8 @@
 #include"externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
 #include <cstdint>
+#include"externals/DirectXTex/DirectXTex.h"
+#include "externals/DirectXTex/d3dx12.h"
 
 class WinApp
 {
