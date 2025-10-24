@@ -313,6 +313,10 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 	DXCCompilierSpawn();
 	ImGuiInitialize();
 
+	HRESULT hr = commandList->Close();                                // いったん閉じる（開いていてもOK）
+	hr = commandAllocator->Reset();                                    // アロケータをリセット
+	hr = commandList->Reset(commandAllocator.Get(), nullptr);          // 開き直す（←重要）
+
 }
 
 DirectXCommon::~DirectXCommon() {
@@ -458,10 +462,14 @@ void DirectXCommon::SwapChainSpawn() {
 	swapChainDesc.BufferCount = 2;                   // ダブルバッファ            // ウィンドウモードで起動
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // フリップ後は破棄
 	//コマンドキュー,ウィンドウハンドル,設定を渡して生成する
+	Microsoft::WRL::ComPtr<IDXGISwapChain1> tempSwapChain;
 	hr = dxgiFactory_->CreateSwapChainForHwnd(
-		commandQueue.Get(), winApp_->GetHwnd(), &swapChainDesc, nullptr, nullptr, reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf()));
+		commandQueue.Get(), winApp_->GetHwnd(), &swapChainDesc, nullptr, nullptr, &tempSwapChain);
 	assert(SUCCEEDED(hr));
 
+	// IDXGISwapChain4 へアップキャスト
+	hr = tempSwapChain.As(&swapChain);
+	assert(SUCCEEDED(hr));
 
 
 }
@@ -547,7 +555,7 @@ void DirectXCommon::DepthStencilViewInitialize() {
 	// RTVとDSVをパイプラインに設定
 	dsvHandle = GetCPUDescriptorHandle(dsvDescriptorHeap_, descriptorSizeDSV, 0);
 
-	commandList->OMSetRenderTargets(1, &rtvHandles[0], FALSE, &dsvHandle);
+	//commandList->OMSetRenderTargets(1, &rtvHandles[0], FALSE, &dsvHandle);
 
 	Log("Depth Stencil View initialized successfully.\n");
 }
@@ -629,72 +637,70 @@ void DirectXCommon::PreDraw() {
 	// Present → RenderTarget
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get(); // ★必須
+	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	commandList->ResourceBarrier(1, &barrier);
 
-	// RTV/DSV をセット（必ず「今のインデックス」のRTVを使う）
+	// ★ “今の”バックバッファの RTV をセット（固定 0 を使わない）
 	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], FALSE, &dsvHandle);
 
 	// クリア
-	const float clearColor[4] = { 0.10f, 0.25f, 0.50f, 1.0f }; // 青系
+	const float clearColor[4] = { 0.10f, 0.25f, 0.50f, 1.0f };
 	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-	// ビューポート/シザー
+	// VP/Scissor
 	commandList->RSSetViewports(1, &viewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
+
 }
 
 
+// DirectXCommon::PostDraw()
+
 void DirectXCommon::PostDraw() {
+	const UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-	HRESULT hr;
+	// ← このログは誤解を招く名前なので移動＆名前修正（後述）
+	// OutputDebugStringA(std::format("[PreDraw] backBufferIndex = {}\n", backBufferIndex).c_str());
 
-	// バックバッファインデックスを取得
-	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
-
-	OutputDebugStringA(std::format("[PreDraw] backBufferIndex = {}\n", backBufferIndex).c_str());
-
-
-	// === リソースバリア: RenderTarget → Present ===
+	// RenderTarget → Present
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get(); // ← ★これが抜けてた
+	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	commandList->ResourceBarrier(1, &barrier);
 
-	// コマンドリストを閉じる
-	hr = commandList->Close();
-	assert(SUCCEEDED(hr));
+	HRESULT hr = commandList->Close(); assert(SUCCEEDED(hr));
+	ID3D12CommandList* lists[] = { commandList.Get() };
+	commandQueue->ExecuteCommandLists(1, lists);
 
-	// GPUにコマンドを送る
-	ID3D12CommandList* commandLists[] = { commandList.Get() };
-	commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-
-	// GPUとOSに画面の交換を通知
-	swapChain->Present(1, 0);
-
-	// --- GPUが完了するまで待機 ---
-	fenceValue++;
-	hr = commandQueue->Signal(fence.Get(), fenceValue);
-	assert(SUCCEEDED(hr));
-
-	if (fence->GetCompletedValue() < fenceValue) {
-		hr = fence->SetEventOnCompletion(fenceValue, fenceEvent);
-		assert(SUCCEEDED(hr));
-		WaitForSingleObject(fenceEvent, INFINITE);
+	hr = swapChain->Present(1, 0);
+	if (FAILED(hr)) {
+		char buf[256];
+		sprintf_s(buf, "[Present] hr=0x%08X\n", hr);
+		OutputDebugStringA(buf);
+	}
+	if (hr == DXGI_STATUS_OCCLUDED) {
+		// 画面が隠れている場合。インデックスが進まないのは正常なので待つ
+		Sleep(16);
 	}
 
-	// コマンドアロケータとコマンドリストをリセット
-	hr = commandAllocator->Reset();
-	assert(SUCCEEDED(hr));
-	hr = commandList->Reset(commandAllocator.Get(), nullptr);
-	assert(SUCCEEDED(hr));
+	// フェンス待ち → Reset
+	fenceValue++;
+	hr = commandQueue->Signal(fence.Get(), fenceValue); assert(SUCCEEDED(hr));
+	if (fence->GetCompletedValue() < fenceValue) {
+		hr = fence->SetEventOnCompletion(fenceValue, fenceEvent); assert(SUCCEEDED(hr));
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+	hr = commandAllocator->Reset();                           assert(SUCCEEDED(hr));
+	hr = commandList->Reset(commandAllocator.Get(), nullptr); assert(SUCCEEDED(hr));
 
-	Log("PostDraw completed.\n");
+	// ★ここで「今フレームの Present 後」の index をログ
+	const UINT idxAfter = swapChain->GetCurrentBackBufferIndex();
+	OutputDebugStringA(std::format("[After Present] backBufferIndex = {}\n", idxAfter).c_str());
 }
