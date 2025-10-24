@@ -6,23 +6,22 @@ on:
       - master
 
 env:
-  # リポジトリのルートディレクトリを起点としたソリューションファイルのパス
-  SOLUTION_FILE_PATH: project/CG2_Setup.sln
-  # Visual Studio の構成(Debug/Release)
+  # ソリューションファイルのパス（ルートからの相対）
+  SOLUTION_FILE_PATH: source/CG2/CG2_Setup/CG2_Setup.sln
   CONFIGURATION: Debug
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Add MSBuild to PATH
+      - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
         with:
           msbuild-architecture: x64
 
-      - name: Build
-        run: msbuild ${{ env.SOLUTION_FILE_PATH }} /p:Platform=x64,Configuration=${{ env.CONFIGURATION }}
+      - name: Build solution
+        run: msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }} /m
