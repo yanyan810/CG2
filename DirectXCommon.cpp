@@ -230,38 +230,56 @@ Microsoft::WRL::ComPtr<ID3D12Resource>DirectXCommon::CreateTextureResource(const
 	return resource;
 }
 
-void DirectXCommon::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages) {
-	//Meta情報を取得
-	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-	for (size_t mipLevel = 0; mipLevel < metadata.mipLevels; mipLevel++) {
-		//MipMapLevelを指定して書くImageを取得
-		const DirectX::Image* img = mipImages.GetImage(mipLevel, 0, 0);
-		//Textureに転送
-		HRESULT hr = texture->WriteToSubresource(
-			UINT(mipLevel),
-			nullptr,//全領域へコピー
-			img->pixels,//元データアドレス
-			UINT(img->rowPitch),//1ラインサイズ
-			UINT(img->slicePitch)//1枚サイズ
-		);
-		assert(SUCCEEDED(hr));
-	}
-
+// DirectXCommon.cpp
+void DirectXCommon::UploadTextureData(
+	const Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
+	const DirectX::ScratchImage& mipImages)
+{
+	// 1) subresource 配列を用意
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
-	DirectX::PrepareUpload(device_.Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
-	uint64_t intermediateSize = GetRequiredIntermediateSize(texture.Get(), 0, UINT(subresources.size()));
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = CreateBufferResource( intermediateSize);
-	UpdateSubresources(commandList.Get(), texture.Get(), intermediateResource.Get(), 0, 0, UINT(subresources.size()), subresources.data());
-	//Textureへの転送後は利用できるよう、D3D12_RESOURCE_STATE_COPY_DESTからD3D12_RESOURCE_STATE_GENERIC_READへResourcrStateを変更する
+	DirectX::PrepareUpload(device_.Get(),
+		mipImages.GetImages(),
+		mipImages.GetImageCount(),
+		mipImages.GetMetadata(),
+		subresources);
+
+	// 2) 中間バッファを作成（※この lifetime が超重要）
+	const UINT numSubresources = UINT(subresources.size());
+	const UINT64 intermediateSize = GetRequiredIntermediateSize(texture.Get(), 0, numSubresources);
+	Microsoft::WRL::ComPtr<ID3D12Resource> intermediate = CreateBufferResource(intermediateSize);
+
+	// 3) UpdateSubresources（リソースは COPY_DEST で作ってある想定）
+	UpdateSubresources(commandList.Get(),
+		texture.Get(),
+		intermediate.Get(),
+		0, 0,
+		numSubresources,
+		subresources.data());
+
+	// 4) GENERIC_READ へ遷移
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.Transition.pResource = texture.Get();
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
 	commandList->ResourceBarrier(1, &barrier);
 
+	// 5) ★ここが肝：実行してフェンス待ちするまで intermediate を解放しない
+	HRESULT hr = commandList->Close();                         assert(SUCCEEDED(hr));
+	ID3D12CommandList* lists[] = { commandList.Get() };
+	commandQueue->ExecuteCommandLists(1, lists);
+
+	fenceValue++;
+	hr = commandQueue->Signal(fence.Get(), fenceValue);        assert(SUCCEEDED(hr));
+	if (fence->GetCompletedValue() < fenceValue) {
+		hr = fence->SetEventOnCompletion(fenceValue, fenceEvent); assert(SUCCEEDED(hr));
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+
+	// 6) 実行完了後にようやく中間バッファが自動解放されても OK
+	hr = commandAllocator->Reset();                            assert(SUCCEEDED(hr));
+	hr = commandList->Reset(commandAllocator.Get(), nullptr);  assert(SUCCEEDED(hr));
 }
 
 
@@ -524,7 +542,7 @@ void DirectXCommon::RenderTargetViewInitialize() {
 
 	// ★ RTVフォーマットを「スワップチェインと揃える」
 	//    → DXGI_FORMAT_R8G8B8A8_UNORM が安全
-	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	// RTV作成
@@ -684,7 +702,12 @@ void DirectXCommon::PostDraw() {
 		char buf[256];
 		sprintf_s(buf, "[Present] hr=0x%08X\n", hr);
 		OutputDebugStringA(buf);
+
+		HRESULT reason = device_->GetDeviceRemovedReason();
+		sprintf_s(buf, "[DeviceRemovedReason] 0x%08X\n", reason);
+		OutputDebugStringA(buf);
 	}
+
 	if (hr == DXGI_STATUS_OCCLUDED) {
 		// 画面が隠れている場合。インデックスが進まないのは正常なので待つ
 		Sleep(16);
