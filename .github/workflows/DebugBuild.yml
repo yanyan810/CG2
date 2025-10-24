@@ -5,6 +5,11 @@ on:
     branches:
       - master
 
+env:
+  # ルート直下にあるためシンプルに指定
+  SOLUTION_FILE_PATH: CG2_Setup.sln
+  CONFIGURATION: Debug
+
 jobs:
   build:
     runs-on: windows-latest
@@ -13,13 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🔍 Find CG2_Setup.sln
-        run: Get-ChildItem -Recurse -Filter CG2_Setup.sln | Select-Object FullName
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
         with:
           msbuild-architecture: x64
 
       - name: Build solution
-        run: msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=Debug
+        run: msbuild "${{ env.SOLUTION_FILE_PATH }}" /p:Platform=x64 /p:Configuration=${{ env.CONFIGURATION }} /m
