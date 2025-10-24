@@ -7,7 +7,7 @@ on:
 
 env:
   # リポジトリのルートディレクトリを起点としたソリューションファイルのパス
-  SOLUTION_FILE_PATH: project/CG2_SetUp.sln
+  SOLUTION_FILE_PATH: project/CG2_Setup.sln
   # Visual Studio の構成(Debug/Release)
   CONFIGURATION: Debug
 
