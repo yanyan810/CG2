@@ -1,6 +1,6 @@
 #pragma once
-#include "math/Vector3.h"
-#include "math/Matrix4x4.h"
+#include "Vector3.h"
+#include "Matrix4x4.h"
 
 class Input;  // 前方宣言（Input.h をここでは include しない）
 
