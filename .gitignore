@@ -321,6 +321,18 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-#ログファイルをマージとかしないようにする
-*.log
-/logs
+# ==== Project-specific ignores ====
+# Logs
+log/
+[Ll]og/
+[Ll]ogs/
+
+# Crash dumps
+[Dd]umps/
+*.dmp
+*.mdmp
+*.rpt
+
+# ImGui per-user settings
+imgui.ini
+ImGui.ini
