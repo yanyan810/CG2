@@ -65,6 +65,9 @@ public:
 
 	static DirectX::ScratchImage LoadTexture(const std::string filePath);
 
+	//最大SRV数(最大テクスチャ枚数)
+	static const uint32_t kMaxSRVCount;
+
 private:
 
 	void DeviceInitialize();
@@ -162,6 +165,8 @@ private:
 
 	//記録時間
 	std::chrono::steady_clock::time_point reference_;
+
+
 
 };
 

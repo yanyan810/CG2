@@ -8,6 +8,8 @@
 using namespace Logger;
 using namespace StringUtility;
 
+const uint32_t DirectXCommon::kMaxSRVCount = 512;
+
 /// <summary>
 /// デスクリプタヒープの生成
 /// </summary>
@@ -529,7 +531,7 @@ void DirectXCommon::DethCriptorHeapSpawn() {
 	rtvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 
 	// SRVヒープ作成（128個）
-	srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+	srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSRVCount, true);
 }
 
 void DirectXCommon::RenderTargetViewInitialize() {
