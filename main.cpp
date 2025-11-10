@@ -425,12 +425,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
 	TextureManager::GetInstance()->LoadTexture("resources/sample.png");
 
+	const int spriteCount = 5; // 出したい数
 	std::vector<std::unique_ptr<Sprite>> sprites;
 	std::vector<Vector2> basePos;
-	const int spriteCount = 5;
 
 	for (int i = 0; i < spriteCount; ++i) {
-		// 偶数→uvChecker, 奇数→sample
+
+		// 1) テクスチャを交互に選択
 		std::string texturePath = (i % 2 == 0)
 			? "resources/uvChecker.png"
 			: "resources/sample.png";
@@ -438,18 +439,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		auto sprite = std::make_unique<Sprite>();
 		sprite->Initialize(spriteCommon, dxCommon, texturePath);
 
-		Vector2 p = { 50.0f + i * 150.0f, 100.0f };
+		// 2) 配置（X方向にずらして並べる）
+		Vector2 p = { 10.0f,10.0f };
 		sprite->SetPosition(p);
-		sprite->SetScale({ 1.0f, 1.0f, 1.0f });
+		sprite->SetScale({ 0.1f, 0.1f, 0.1f });
+
+		// 3) 色を少しずつ変える（任意）
 		sprite->SetColor({ 1.0f, 0.2f * i, 1.0f - 0.2f * i, 1.0f });
 
-		// アンカー左上（0,0）…スライドと同じ
-		sprite->SetAnchorPoint({ 0.5f, 0.5f });
+		// 4) UV設定（画像全体を使うならこれでOK）
+		sprite->SetTextureTopLeft({ 0.0f, 0.0f });
+		sprite->SetTextureCutSize({ 512.0f, 512.0f }); // 画像サイズに合わせる
 
+		// 5) アンカー（左上に固定）
+		sprite->SetAnchorPoint({ 0.0f, 0.0f });
 
+		// 6) 反転なし
+		sprite->SetFlipX(false);
+		sprite->SetFlipY(false);
+
+		// リストへ追加
 		basePos.push_back(p);
 		sprites.push_back(std::move(sprite));
 	}
+
 
 
 

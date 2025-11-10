@@ -56,9 +56,22 @@ public:
 
 	//getter
 	const Vector2& GetAnchorPoint() const { return anchorPoint; }
+	const bool GetFlipX() const { return isFlipX_; }
+	const bool GetFlipY() const { return isFlipY_; }
+	const Vector2& GetTextureTopLeft() const { return textureTopLeft_; }
+	const Vector2& GetTextureCutSize() const { return textureCutSize_; }
 
 	//setter
 	void SetAnchorPoint(const Vector2& ap) { this->anchorPoint = ap; }
+	void SetFlipX(const bool flipX) { this->isFlipX_ = flipX; }
+	void SetFlipY(const bool flipY) { this->isFlipY_ = flipY; }
+	void SetTextureTopLeft(const Vector2& ttl) { this->textureTopLeft_ = ttl; }
+	void SetTextureCutSize(const Vector2& tcs) { this->textureCutSize_ = tcs; }
+
+private:
+
+	//テクスチャサイズをイメージに合わせる
+	void AdjustTextureSize();
 
 private:
 	struct Material {
@@ -68,9 +81,17 @@ private:
 		Matrix4x4 uvTransform;
 	};
 
+	// シェーダの入力と合わせた簡易頂点
+	struct VertexData {
+		Vector4 position;
+		Vector2 texcoord;
+		Vector3 normal;
+	};
+
 	SpriteCommon* spriteCommon_ = nullptr;
 
 	// バッファ類（既存）
+	VertexData* vertexData = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
@@ -84,7 +105,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformResource_;
 	TransformationMatrix* transformData_ = nullptr;
 
-	// === New: 内部状態 ===
+	// === 内部状態 ===
 	Vector2 position_{ 0.0f, 0.0f };     // スライドの「座標」メンバ変数
 	Vector3 scale_{ 1.0f, 1.0f, 1.0f };  // 必要ならsetter追加してOK
 	Vector3 rotate_{ 0.0f, 0.0f, 0.0f }; // 必要ならsetter追加してOK
@@ -98,5 +119,16 @@ private:
 
 	Vector2 anchorPoint{ 0.0f,0.0f };
 	Vector2 size_{ 1.0f, 1.0f };
+
+	//左右フリップ
+	bool isFlipX_ = false;
+    //上下フリップ
+	bool isFlipY_ = false;
+
+	//テクスチャ左上座標
+	Vector2 textureTopLeft_{ 0.0f,0.0f };
+	//テクスチャ切り出しサイズ
+	Vector2 textureCutSize_{ 1.0f,1.0f };
+
 
 };

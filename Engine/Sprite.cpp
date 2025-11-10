@@ -61,23 +61,65 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
     transformData_->WVP = Matrix4x4::MakeIdentity4x4();
     transformData_->World = Matrix4x4::MakeIdentity4x4();
 
+    AdjustTextureSize();
+
 }
 
 // 座標-反映処理：position_ → transform.translate
 void Sprite::Update(const Matrix4x4& view, const Matrix4x4& proj) {
-    Matrix4x4 S = Matrix4x4::Scale(scale_);
+    // --- 1) アンカー反映で頂点を書き換え ---
+    SpriteVertex* v = nullptr;
+    vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&v));
+
+    const DirectX::TexMetadata& metadata =
+        TextureManager::GetInstance()->GetMetaData(textureIndex);
+
+    // (0,0)〜(1,1) の単位矩形を、anchor だけ平行移動
+    float left = 0.0f - anchorPoint.x;
+    float right = 1.0f - anchorPoint.x;
+    float top = 0.0f - anchorPoint.y;
+    float bottom = 1.0f - anchorPoint.y;
+
+
+    float texL = textureTopLeft_.x / metadata.width;
+    float texT = textureTopLeft_.y / metadata.height;
+    float texR = (textureTopLeft_.x + textureCutSize_.x) / metadata.width;
+    float texB = (textureTopLeft_.y + textureCutSize_.y) / metadata.height;
+
+    //左右反転
+	if (isFlipX_) {
+	
+        left = -left;
+        right = -right;
+	}
+
+	if (isFlipY_) {
+		top = -top;
+		bottom = -bottom;
+		
+	}
+
+    // 0: 左下 / 1: 左上 / 2: 右下 / 3: 右上（UVはそのまま）
+    v[0] = { left,  bottom, 0, 1,  texL, texB, 0,0,-1 };
+    v[1] = { left,  top,    0, 1,  texL, texT, 0,0,-1 };
+    v[2] = { right, bottom, 0, 1,  texR, texB, 0,0,-1 };
+    v[3] = { right, top,    0, 1,  texR, texT, 0,0,-1 };
+
+    // --- 2) 変換：サイズ→ユーザースケール→回転→配置 ---
+    // 頂点は単位矩形なので、サイズは行列のスケールで与える
+    Matrix4x4 Ssize = Matrix4x4::Scale({ size_.x, size_.y, 1.0f });
+    Matrix4x4 Suser = Matrix4x4::Scale(scale_);
     Matrix4x4 R = Matrix4x4::RotateXYZ(rotate_.x, rotate_.y, rotate_.z);
     Matrix4x4 T = Matrix4x4::Translation({ position_.x, position_.y, 0.0f });
 
-    Matrix4x4 world = Matrix4x4::Multiply(Matrix4x4::Multiply(S, R), T);
+    Matrix4x4 world = Matrix4x4::Multiply(Matrix4x4::Multiply(Matrix4x4::Multiply(Ssize, Suser), R), T);
     Matrix4x4 vp = Matrix4x4::Multiply(view, proj);
     Matrix4x4 wvp = Matrix4x4::Multiply(world, vp);
 
     transformData_->World = world;
     transformData_->WVP = wvp;
-
-
 }
+
 
 
 void Sprite::Draw() {
@@ -105,4 +147,15 @@ void Sprite::Draw() {
     cmd->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex));
 
     cmd->DrawIndexedInstanced(6, 1, 0, 0, 0);
+}
+
+// テクスチャサイズをイメージに合わせる
+void Sprite::AdjustTextureSize() {
+	const DirectX::TexMetadata& metadata =
+		TextureManager::GetInstance()->GetMetaData(textureIndex);
+    textureCutSize_.x = static_cast<float>(metadata.width);
+    textureCutSize_.y = static_cast<float>(metadata.height);
+
+    size_ = textureCutSize_;
+
 }
