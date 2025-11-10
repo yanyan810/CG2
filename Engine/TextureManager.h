@@ -1,7 +1,7 @@
 #pragma once
 #include "WinApp.h"
 #include "DirectXCommon.h"
-
+#include "StringUtility.h"
 
 class TextureManager
 {
@@ -11,8 +11,14 @@ public:
 	//終了
 	void Finalize();
 
-	void Initialize();
+	void Initialize(DirectXCommon* dxCommon);
 
+	void LoadTexture(const std::string& filePath);
+
+	uint32_t GetTextureIndexByFilePath(const std::string& filePath);
+
+	//テクスチャ番号からGPUハンドルを取得
+	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvHandleGPU(uint32_t textureIndex);
 
 private:
 	static TextureManager* instance;
@@ -21,6 +27,10 @@ private:
 	~TextureManager() = default;
 	TextureManager(TextureManager&) = delete;
 	TextureManager& operator=(TextureManager&) = delete;
+
+
+
+private:
 
 	//テクスチャ一枚のデータ
 	struct TextureData {
@@ -36,6 +46,11 @@ private:
 
 	//テクスチャデータ
 	std::vector<TextureData> textureDatas_;
+
+	DirectXCommon* dx_ = nullptr;
+
+	//SRVインデックスの開始番号
+	static uint32_t kSRVIndexTop;
 
 };
 

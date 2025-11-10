@@ -3,6 +3,7 @@
 #include <wrl.h>
 #include "Vector3.h"
 #include "Matrix4x4.h"
+#include "TextureManager.h"
 
 class SpriteCommon;
 class DirectXCommon;
@@ -14,7 +15,7 @@ class Sprite {
 	};
 
 public:
-	void Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx);
+	void Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx,std::string textureFilePath);
 
 	// === New: 位置と色（スライド準拠） ===
 	const Vector2& GetPosition() const { return position_; }
@@ -53,6 +54,12 @@ public:
 	// === 引数なし Draw（内部でPSOとSRVをセット） ===
 	void Draw();
 
+	//getter
+	const Vector2& GetAnchorPoint() const { return anchorPoint; }
+
+	//setter
+	void SetAnchorPoint(const Vector2& ap) { this->anchorPoint = ap; }
+
 private:
 	struct Material {
 		Vector4 color;
@@ -86,4 +93,10 @@ private:
 	DirectXCommon* dx_ = nullptr;
 	D3D12_GPU_DESCRIPTOR_HANDLE srv_{}; // Drawで使用
 	uint32_t srvSlot_ = UINT32_MAX; // UINT32_MAXなら未指定扱い
+
+	uint32_t textureIndex = 0;
+
+	Vector2 anchorPoint{ 0.0f,0.0f };
+	Vector2 size_{ 1.0f, 1.0f };
+
 };

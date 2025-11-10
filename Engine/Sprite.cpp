@@ -3,6 +3,7 @@
 #include "DirectXCommon.h"
 #include <cassert>
 
+
 // シェーダの入力と合わせた簡易頂点
 struct SpriteVertex {
     float px, py, pz, pw; // POSITION
@@ -10,13 +11,18 @@ struct SpriteVertex {
     float nx, ny, nz;     // NORMAL（使わないが入力合わせで保持）
 };
 
-void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx) {
+void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::string textureFilePath) {
     spriteCommon_ = spriteCommon;
     dx_ = dx;
+
+    //単位行列を書き込んでおく
+	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath);
 
     // === 頂点/インデックス ===
     vertexResource_ = dx->CreateBufferResource(sizeof(SpriteVertex) * 4);
     indexResource_ = dx->CreateBufferResource(sizeof(uint32_t) * 6);
+
+    size_ = { 128.0f, 128.0f };// デフォルトサイズ
 
     // 頂点データ（画面ピクセル座標のまま。WVPは main 側で正射影にする想定）
     SpriteVertex* v = nullptr;
@@ -96,7 +102,7 @@ void Sprite::Draw() {
     // Root 0=Material, 1=Transform, 2=Texture SRV（プロジェクトの順に合わせて）
     cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     cmd->SetGraphicsRootConstantBufferView(1, transformResource_->GetGPUVirtualAddress());
-    cmd->SetGraphicsRootDescriptorTable(2, srv_);
+    cmd->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex));
 
     cmd->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
