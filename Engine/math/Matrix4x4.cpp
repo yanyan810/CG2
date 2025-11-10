@@ -49,6 +49,15 @@ Matrix4x4 Matrix4x4::RotateX(float angleRad) {
 	return mat;
 }
 
+Matrix4x4 Matrix4x4::RotateZ(float radian) {
+    Matrix4x4 result = MakeIdentity4x4();
+    result.m[0][0] = std::cos(radian);
+    result.m[0][1] = std::sin(radian);
+    result.m[1][0] = -std::sin(radian);
+    result.m[1][1] = std::cos(radian);
+    return result;
+}
+
 Matrix4x4 Matrix4x4::MakeRotateZMatrix(float angleRad) {
 	Matrix4x4 mat = MakeIdentity4x4();
 	mat.m[0][0] = cosf(angleRad);
@@ -328,4 +337,13 @@ Matrix4x4 Matrix4x4::MakeScaleMatrix(const Matrix4x4& m) {
 	scaleMatrix.m[1][1] = m.m[1][1];
 	scaleMatrix.m[2][2] = m.m[2][2];
 	return scaleMatrix;
+}
+
+Matrix4x4 Matrix4x4::operator*(const Matrix4x4& rhs) const {
+    return Multiply(*this, rhs); // 既存のMultiplyを流用
+}
+
+Matrix4x4& Matrix4x4::operator*=(const Matrix4x4& rhs) {
+    *this = Multiply(*this, rhs);
+    return *this;
 }

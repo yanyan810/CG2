@@ -12,8 +12,9 @@ public:
 	static Matrix4x4 MakeIdentity4x4();
 	static Matrix4x4 Translation(const Vector3& translation);
 	static Matrix4x4 Scale(const Vector3& scale);
-	static Matrix4x4 RotateY(float angleRad);
 	static Matrix4x4 RotateX(float angleRad);
+	static Matrix4x4 RotateY(float angleRad);
+	static Matrix4x4 RotateZ(float angleRad);
 	static Matrix4x4 RotateXYZ(float angleX, float angleY, float angleZ);
 	static Matrix4x4 PerspectiveFov(float fovY, float aspect, float nearZ, float farZ);
 	static Matrix4x4 MakeScaleMatrix(const Matrix4x4& m);
@@ -38,5 +39,9 @@ public:
 
 	static Vector3 Subtract(const Vector3& v1, const Vector3& v2);
 	static Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearZ, float farZ);
+
+	// ★ 追加：行列の掛け算オペレータ
+	Matrix4x4 operator*(const Matrix4x4& rhs) const;
+	Matrix4x4& operator*=(const Matrix4x4& rhs);
 
 };
