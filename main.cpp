@@ -3,6 +3,8 @@
 #include "SpriteCommon.h"
 #include "Sprite.h"
 #include "TextureManager.h"
+#include "Object3dCommon.h"
+#include "Object3d.h"
 
 #include <format>
 
@@ -407,17 +409,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxCommon = new DirectXCommon();
 	dxCommon  ->Initialize(winApp);
 
-
-
-#pragma region 基礎システムの初期化
-
 	SpriteCommon* spriteCommon = nullptr;
 
 	//スプライト共通部分の初期化
 	spriteCommon = new SpriteCommon();
 	spriteCommon->Initialize(dxCommon);
-
-#pragma endregion 基礎システムの初期化
 
 	TextureManager::GetInstance()->Initialize(dxCommon);
 
@@ -463,8 +459,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		sprites.push_back(std::move(sprite));
 	}
 
+	//3Dオブジェクト共通部分の初期化
+	Object3dCommon* object3dCommon = nullptr;
+	//3dオブジェクトの初期化	
+	object3dCommon = new Object3dCommon();	
+	object3dCommon->Initialize();
 
-
+	Object3d* object3d = new Object3d();
+	object3d->Initialize();
 
 	MSG msg{};
 
@@ -1364,6 +1366,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	delete spriteCommon;
 	spriteCommon = nullptr;
+
+	delete object3dCommon;
+	object3dCommon = nullptr;
+
+	delete object3d;
+	object3d = nullptr;
+
 
 	return 0;
 }
