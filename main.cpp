@@ -14,11 +14,6 @@
 #include <DbgHelp.h>   
 #include <dxgidebug.h>
 
-#include "math/Matrix4x4.h"
-#include "math/Vector3.h"
-
-
-
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <xaudio2.h>
