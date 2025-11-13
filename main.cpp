@@ -5,6 +5,8 @@
 #include "TextureManager.h"
 #include "Object3dCommon.h"
 #include "Object3d.h"
+#include "Model.h"
+#include "ModelManager.h"
 
 #include <locale>
 #include <codecvt>
@@ -299,14 +301,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		sprites.push_back(std::move(sprite));
 	}
 
+	//3Dモデルマネージャの初期化
+	ModelManager::GetInstance()->Initialize(dxCommon);
+
 	//3Dオブジェクト共通部分の初期化
 	Object3dCommon* object3dCommon = nullptr;
 	//3dオブジェクトの初期化	
 	object3dCommon = new Object3dCommon();	
 	object3dCommon->Initialize(dxCommon);
 
-	Object3d* object3d = new Object3d();
-	object3d->Initialize(object3dCommon,dxCommon);
+	// 3Dオブジェクト（1個目）
+	Object3d* object3dA = new Object3d();
+	object3dA->Initialize(object3dCommon, dxCommon);
+	object3dA->SetModel("axis.obj");        // ← 同じ Model を共有
+	object3dA->SetTranslate({ 0.0f, 0.0f, 0.0f });   // 位置A
+
+	// 3Dオブジェクト（2個目）
+	Object3d* object3dB = new Object3d();
+	object3dB->Initialize(object3dCommon, dxCommon);
+	object3dB->SetModel("plane.obj");        // ← ここも同じ Model
+	object3dB->SetTranslate({ 3.0f, 0.0f, 0.0f });   // 位置B（少し右にずらす）
+
 
 	MSG msg{};
 
@@ -360,118 +375,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		{0.0f,0.0f,0.0f}
 	};
 
-	////=================
-	////   球
-	////=================
-	////頂点バッファビューを作成する
-	//const uint32_t kSubdivision = 16; // 分割数
-
-	//Microsoft::WRL::ComPtr < ID3D12Resource> vertexResourceSphere =  dxCommon->CreateBufferResource( sizeof(VertexData) * kSubdivision * kSubdivision * 6);
-
-	//// 頂点バッファビューを作成する
-	//D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere{};
-	//// リソースの先頭アドレスを使う
-	//vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
-	//// 使用するリソースのサイズは頂点3つ分のサイズ
-	//vertexBufferViewSphere.SizeInBytes = sizeof(VertexData) * kSubdivision * kSubdivision * 6;
-
-	//// 1頂点あたりのサイズ
-	//vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
-
-	//// 頂点リソースにデータを書き込む
-	//VertexData* vertexDataSphere = nullptr;
-	//// 書き込むためのアドレスを取得
-	//vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
-
-	////======================
-	////球の計算
-	////======================
-
-	//const float kLonEvery = 2.0f * float(M_PI) / float(kSubdivision);
-	//const float kLatEvery = float(M_PI) / float(kSubdivision);
-
-	//// 頂点データの書き込み
-	//for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
-	//	// 各バンドの南端緯度と北端緯度
-	//	float lat = -0.5f * float(M_PI) + kLatEvery * float(latIndex);
-	//	float latN = lat + kLatEvery;
-	//	// sin/cos を一度だけ計算
-	//	float cosLat = cosf(lat);
-	//	float sinLat = sinf(lat);
-	//	float cosLatN = cosf(latN);
-	//	float sinLatN = sinf(latN);
-
-	//	for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
-	//		float lon = kLonEvery * float(lonIndex);
-	//		float lonN = lon + kLonEvery;
-	//		float cosLon = cosf(lon);
-	//		float sinLon = sinf(lon);
-	//		float cosLonN = cosf(lonN);
-	//		float sinLonN = sinf(lonN);
-
-	//		// テクスチャ座標
-	//		float u = float(lonIndex) / float(kSubdivision);
-	//		float uN = float(lonIndex + 1) / float(kSubdivision);
-	//		float v = 1.0f - float(latIndex) / float(kSubdivision);
-	//		float vN = 1.0f - float(latIndex + 1) / float(kSubdivision);
-
-	//		// 6頂点分のベースオフセット
-	//		uint32_t base = (latIndex * kSubdivision + lonIndex) * 6;
-
-	//		// 頂点位置を構築
-	//		// BL (Bottom-Left)
-	//		vertexDataSphere[base].position = { cosLat * cosLon,  sinLat,  cosLat * sinLon, 1.0f };
-	//		vertexDataSphere[base].texcoord = { u,  v };
-	//		// TL (Top-Left)
-	//		vertexDataSphere[base + 1].position = { cosLatN * cosLon,  sinLatN, cosLatN * sinLon, 1.0f };
-	//		vertexDataSphere[base + 1].texcoord = { u,  vN };
-	//		// BR (Bottom-Right)
-	//		vertexDataSphere[base + 2].position = { cosLat * cosLonN, sinLat,  cosLat * sinLonN, 1.0f };
-	//		vertexDataSphere[base + 2].texcoord = { uN, v };
-	//		// TR (Top-Right)
-	//		vertexDataSphere[base + 3].position = { cosLatN * cosLonN, sinLatN, cosLatN * sinLonN, 1.0f };
-	//		vertexDataSphere[base + 3].texcoord = { uN, vN };
-
-	//		// 法線：ポジションの XYZ を正規化（外向きの放射ベクトル）
-	//		for (int i = 0; i < 4; ++i) {
-	//			Vector3 pos = {
-	//				vertexDataSphere[base + i].position.x,
-	//				vertexDataSphere[base + i].position.y,
-	//				vertexDataSphere[base + i].position.z,
-	//			};
-	//			vertexDataSphere[base + i].normal = Normalize(pos);
-	//		}
-
-	//		// 2枚目の三角形（法線もきちんと引き継ぐ）
-	//		vertexDataSphere[base + 4] = vertexDataSphere[base + 2]; // BR
-	//		vertexDataSphere[base + 5] = vertexDataSphere[base + 1]; // TL
-
-	//	}
-
-	//}
-
-	////球用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
-	//Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSphere =  dxCommon->CreateBufferResource( sizeof(TransformationMatrix));
-	////データを書き込む
-	//TransformationMatrix* transformationMatrixDataSphere = nullptr;
-	////書き込むためのアドレスを取得
-	//transformationMatrixResourceSphere->Map(0, nullptr,
-	//	reinterpret_cast<void**>(&transformationMatrixDataSphere));
-	////単位行列を書き込んでおく
-	//transformationMatrixDataSphere->WVP = Matrix4x4::MakeIdentity4x4();
-	//transformationMatrixDataSphere->World = Matrix4x4::MakeIdentity4x4();
-
-
-	//static Transform transformSphere{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f },{0.0f,0.0f,0.0f} };
-
-
-	////レンダリングパイプ用のカメラ
-	//Transform cameraTransform({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, { 0.0f,0.0f,-10.0f });
-
 	bool useSample = true;
-
-
-
 
 	SoundData soundData1 = SoundLoadWave("resources/fanfare.wav");
 
@@ -481,6 +385,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	bool isDrawSprite = true;
 	bool isDrawTea = false;
 
+	auto rotA = object3dA->GetRotate();
+	auto rotB = object3dB->GetRotate();
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT) {
 
@@ -516,36 +422,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sp->SetUVTransform(uvMatrix);    // ← 既存インスタンスへ反映
 		}
 
-		//=================
-		////球に関する処理
-		////=================
-		//// 回転
-		////transformSphere.rotate.y += 0.03f;
-
-		//// ワールド行列
-		//Matrix4x4 worldMatrixSphere = Matrix4x4::MakeAffineMatrix(
-		//	transformSphere.scale, transformSphere.rotate, transformSphere.translate);
-
-		//// カメラ
-		//Matrix4x4 cameraMatrixSphere = Matrix4x4::MakeAffineMatrix(
-		//	cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-		//Matrix4x4 viewMatrixSphere = Matrix4x4::Inverse(cameraMatrixSphere);
-
-		//// 射影行列
-		//Matrix4x4 projectionMatrixSphere = Matrix4x4::PerspectiveFov(
-		//	0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 360.0f);
-
-		//// WVP = World * View * Projection
-		//Matrix4x4 wvpSphere = Matrix4x4::Multiply(
-		//	worldMatrixSphere,
-		//	Matrix4x4::Multiply(viewMatrixSphere, projectionMatrixSphere));
-
-		//// TransformationMatrix へ代入
-		//transformationMatrixDataSphere->WVP = wvpSphere;
-		//transformationMatrixDataSphere->World = worldMatrixSphere;
-
-		//directionalLightData->direction = Normalize(directionalLightData->direction)
-
 		ImGui::End();
 
 		// ===== GPUコマンド発行開始 =====
@@ -556,21 +432,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		spriteCommon->SetGraphicsPipelineState();
 
 		// 共有設定（PSO/RootSig/トポロジ）
-		//dxCommon->GetCommandList()->SetGraphicsRootSignature(rootSignature.Get());
-		//dxCommon->GetCommandList()->SetPipelineState(graphicsPipelineState.Get());
+	
 		dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		//// ---- Sphere ----
-		//if (isDrawSphere) {
-		//	dxCommon->GetCommandList()->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
-		//	dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());                // Pixel用 Material
-		//	dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSphere->GetGPUVirtualAddress()); // Vertex用 WVP/World
-		//	dxCommon->GetCommandList()->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());        // Pixel用 Light
-		//	dxCommon->GetCommandList()->SetGraphicsRootDescriptorTable(2, useSample ? textureSrvHandleGPU2 : textureSrvHandleGPU);     // SRV
-		//	dxCommon->GetCommandList()->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
-		//}
-
-
+	
 		// ---- Sprite (Indexed) ----
 		if (isDrawSprite) {
 			// === ImGuiで全スプライト共通操作 ===
@@ -614,14 +479,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		}
 
+	
+		rotA.z += 0.02f;
+		object3dA->SetRotate(rotA);
+
+		
+		rotB.y += 0.02f;
+		object3dB->SetRotate(rotB);
 
 		//Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
 		object3dCommon->SetGraphicsPipelineState();
 
-		object3d->Update();
+		object3dA->Update();
+		object3dB->Update();
 
-		object3d->Draw();
-
+		object3dA->Draw();
+		object3dB->Draw();
 
 		// ---- ImGui ----
 		ImGui::Render();
@@ -662,6 +535,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	winApp->Finalize();
 
 	TextureManager::GetInstance()->Finalize();
+	ModelManager::GetInstance()->Finalize();
 
 	// WindowsApp解放
 	delete winApp;
@@ -676,8 +550,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete object3dCommon;
 	object3dCommon = nullptr;
 
-	delete object3d;
-	object3d = nullptr;
+	delete object3dA;
+	object3dA = nullptr;
+
+	delete object3dB;
+	object3dB = nullptr;
+
+
 
 
 	return 0;

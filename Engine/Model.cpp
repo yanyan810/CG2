@@ -5,11 +5,17 @@ void Model::Initialize(ModelCommon* modelCommon,
     const std::string& directoryPath,
     const std::string& filename) {
 
+	OutputDebugStringA("[Model] Initialize start\n");
+
     // 1) ModelCommon ポインタ保存
     modelCommon_ = modelCommon;
 
     // 2) dx を ModelCommon からもらう（GetDxCommon は自分の実装に合わせて）
     DirectXCommon* dx = modelCommon_->GetDxCommon();
+
+	OutputDebugStringA("[Model] Got dx\n");
+
+	OutputDebugStringA("[Model] Loaded OBJ\n");
 
     // 3) モデル読み込み
     modelData_ = LoadObjFile(directoryPath, filename);
@@ -17,6 +23,8 @@ void Model::Initialize(ModelCommon* modelCommon,
     // ===== 頂点バッファ作成 =====
     const size_t vtxCount = modelData_.vertices.size();
     assert(vtxCount > 0);
+
+	OutputDebugStringA("[Model] Created vertex buffer\n");
 
     vertexResource_ = dx->CreateBufferResource(sizeof(VertexData) * vtxCount);
 

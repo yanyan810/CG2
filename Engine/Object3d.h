@@ -8,6 +8,8 @@
 #include <fstream>
 #include "DirectXCommon.h"
 #include "TextureManager.h"
+#include "Model.h"
+#include "ModelManager.h"
 
 class Object3dCommon;
 
@@ -15,30 +17,6 @@ class Object3d
 {
 
 public:
-
-	struct VertexData {
-		Vector4 position;
-		Vector2 texcoord;
-		Vector3 normal;
-	};
-
-
-	struct MaterialData {
-		std::string textureFilePath; // テクスチャファイルのパス
-		uint32_t textureIndex=0;
-	};
-
-	struct ModelData {
-		std::vector<VertexData> vertices; // 頂点データ
-		MaterialData material;
-	};
-
-	struct Material {
-		Vector4 color; // 色
-		int32_t enableLighting;
-		float padding[3];
-		Matrix4x4 uvTransform;
-	};
 
 	struct TransformationMatrix {
 		Matrix4x4 WVP;
@@ -59,9 +37,19 @@ public:
 
 	void Draw();
 
-	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
+	void SetModel(Model* model) { this->model_ = model; }
 
-	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
+	void SetModel(const std::string& filePath);
+
+	// ===== Transform 用 setter =====
+	void SetScale(const Vector3& scale) { transform.scale = scale; }
+	void SetRotate(const Vector3& rotate) { transform.rotate = rotate; }
+	void SetTranslate(const Vector3& translate) { transform.translate = translate; }
+
+	// ===== Transform 用 getter =====
+	const Vector3& GetScale()     const { return transform.scale; }
+	const Vector3& GetRotate()    const { return transform.rotate; }
+	const Vector3& GetTranslate() const { return transform.translate; }
 
 private:
 
@@ -69,17 +57,7 @@ private:
 
 	Object3dCommon* object3dCommon = nullptr;
 
-	ModelData modelData;
-
-	// 頂点データ（バッファ）
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;   // 頂点リソース
-	Object3d::VertexData* vertexData_ = nullptr;              // 頂点データのCPU側ポインタ
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};             // 頂点バッファビュー
-
-	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
-	//マテリアルにデータを書き込む
-	Material* materialData_ = nullptr;
+	Model* model_ = nullptr;
 
 	//モデル用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModel;/* = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));*/

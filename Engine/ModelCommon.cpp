@@ -2,6 +2,6 @@
 
 void ModelCommon::Initialize(DirectXCommon* dxCommon) {
 
-	dxCommon = dxCommon_;
+	dxCommon_ = dxCommon;
 
 }

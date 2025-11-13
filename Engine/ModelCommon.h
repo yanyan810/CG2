@@ -7,7 +7,7 @@ public:
 	
 	void Initialize(DirectXCommon* dxCommon);
 
-	DirectXCommon* GetDxCommon() const { return dxCommon_;                             }
+	DirectXCommon* GetDxCommon() const { return dxCommon_;}
 
 private:
 
