@@ -1,17 +1,14 @@
 #pragma once
+#include "ModelCommon.h"
 #include "Vector3.h"
 #include "Matrix4x4.h"
-#include <string>
-#include <vector>
+#include "TextureManager.h"
 #include <format>
 #include <filesystem>
 #include <fstream>
-#include "DirectXCommon.h"
-#include "TextureManager.h"
 
-class Object3dCommon;
 
-class Object3d
+class Model
 {
 
 public:
@@ -22,10 +19,9 @@ public:
 		Vector3 normal;
 	};
 
-
 	struct MaterialData {
 		std::string textureFilePath; // テクスチャファイルのパス
-		uint32_t textureIndex=0;
+		uint32_t textureIndex = 0;
 	};
 
 	struct ModelData {
@@ -40,58 +36,34 @@ public:
 		Matrix4x4 uvTransform;
 	};
 
-	struct TransformationMatrix {
-		Matrix4x4 WVP;
-		Matrix4x4 World;
-	};
-
-	struct DirectionalLight {
-		Vector4 color;
-		Vector3 direction;
-		float intensity;
-	};
-
 public:
 
-	void Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx);
+	void Initialize(ModelCommon* modelCommon,
+		const std::string& directoryPath,
+		const std::string& filename);
 
-	void Update();
-
-	void Draw();
+	void Draw(ID3D12GraphicsCommandList* cmd);
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
 	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
 
+
 private:
 
-	DirectXCommon* dx_;
+	ModelCommon* modelCommon_;
 
-	Object3dCommon* object3dCommon = nullptr;
-
-	ModelData modelData;
+	ModelData modelData_;
 
 	// 頂点データ（バッファ）
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;   // 頂点リソース
-	Object3d::VertexData* vertexData_ = nullptr;              // 頂点データのCPU側ポインタ
+	VertexData* vertexData_ = nullptr;              // 頂点データのCPU側ポインタ
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};             // 頂点バッファビュー
 
 	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	//マテリアルにデータを書き込む
 	Material* materialData_ = nullptr;
-
-	//モデル用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModel;/* = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));*/
-	//データを書き込む
-	TransformationMatrix* transformationMatrixDataModel = nullptr;
-
-		//ライトのリソース作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
-	DirectionalLight* directionalLightData = nullptr;
-
-	Transform transform;
-	Transform cameraTransform;
 
 };
 
