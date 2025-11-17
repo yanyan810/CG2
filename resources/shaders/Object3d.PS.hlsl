@@ -47,7 +47,11 @@ PixelSharderOutput main(VertexShaderOutput input)
             lighting = pow(NdotL * 0.5f + 0.5f, 2.0f);
         }
 
-        output.color = gMaterial.color * textureColor * gDirectionalLight.color * lighting * gDirectionalLight.intensity;
+    // RGB：Lighting を適用
+        output.color.rgb = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * lighting * gDirectionalLight.intensity;
+
+// Alpha：Lighting を適用しない
+        output.color.a = gMaterial.color.a * textureColor.a;
     }
     else
     {

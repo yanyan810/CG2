@@ -51,6 +51,17 @@ public:
 	const Vector3& GetRotate()    const { return transform.rotate; }
 	const Vector3& GetTranslate() const { return transform.translate; }
 
+	//光源用
+	void SetColor(const Vector4& color) { directionalLightData->color = color; }
+	void SetDirection(const Vector3& direction) { directionalLightData->direction = direction; }
+	void SetIntensity(const float& intensity) { directionalLightData->intensity = intensity; }
+
+	// 光源 getter（正しく返すように修正）
+	const Vector4& GetColor()     const { return directionalLightData->color; }
+	const Vector3& GetDirection() const { return directionalLightData->direction; }
+	float          GetIntensity() const { return directionalLightData->intensity; }
+
+
 private:
 
 	DirectXCommon* dx_;

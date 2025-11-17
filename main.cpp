@@ -7,6 +7,7 @@
 #include "Object3d.h"
 #include "Model.h"
 #include "ModelManager.h"
+#include "YMath.h"
 
 #include <locale>
 #include <codecvt>
@@ -317,6 +318,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	object3dB->SetModel("plane.obj");        // ← ここも同じ Model
 	object3dB->SetTranslate({ 3.0f, 0.0f, 0.0f });   // 位置B（少し右にずらす）
 
+	// ==== （オブジェクト生成の後あたりで）初期値を UI 側に取り込む ====
+	Vector4 uiLightColor = object3dA->GetColor();          // RGBA
+	Vector3 uiLightDir = object3dA->GetDirection();      // 方向
+	float   uiLightIntensity = object3dA->GetIntensity();    // 強度
+
+	auto Normalize3 = [](Vector3 v) {
+		float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+		if (l < 1e-6f) return Vector3{ 0.0f, -1.0f, 0.0f };
+		return Vector3{ v.x / l, v.y / l, v.z / l };
+		};
+
 
 	MSG msg{};
 
@@ -430,9 +442,37 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	
 		dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+		// ==== 毎フレーム（ImGui の描画ブロック内）====
+		ImGui::Begin("Lighting");
+
+		// 色（RGB or RGBA どちらでもOK。アルファは 1.0f 固定でも良い）
+		ImGui::ColorEdit3("Directional Color", &uiLightColor.x);
+
+		// 方向（-1～+1 の範囲で編集 → 後で正規化）
+		ImGui::DragFloat3("Directional Dir", &uiLightDir.x, 0.01f, -1.0f, 1.0f);
+
+		// 強度（0～4 くらいが扱いやすい）
+		ImGui::SliderFloat("Intensity", &uiLightIntensity, 0.0f, 1.0f);
+
+		// 反映ボタンが欲しければ：if (ImGui::Button("Apply")) { ... }
+		// 即時反映で良ければ毎フレームそのまま Set～ する
+		ImGui::End();
+
+		// ==== UI 値を Object3d の CB に書き戻す（即時反映）====
+		Vector3 dirN = Normalize3(uiLightDir);
+
+		// A に適用
+		object3dA->SetColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+		object3dA->SetDirection(dirN);
+		object3dA->SetIntensity(uiLightIntensity);
+
+		// B にも同じ設定（片方だけで良ければ外してOK）
+		object3dB->SetColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+		object3dB->SetDirection(dirN);
+		object3dB->SetIntensity(uiLightIntensity);
+
 	
 		// ---- Sprite (Indexed) ----
-		if (isDrawSprite) {
 			// === ImGuiで全スプライト共通操作 ===
 			ImGui::Begin("Sprite Controller");
 
@@ -472,7 +512,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				sp->Draw();
 			}
 
-		}
+		
 
 	
 		rotA.z += 0.02f;
