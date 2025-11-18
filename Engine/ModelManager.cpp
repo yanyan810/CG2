@@ -33,20 +33,31 @@ void ModelManager::Initialize(DirectXCommon* dxCommon) {
 
 void ModelManager::LoadModel(const std::string& filePath) {
 
-	//読み込み済みモデルを検索
+	// すでに読み込み済みならスキップ
 	if (models.contains(filePath)) {
-		//読み込み済みなら早期リターン
 		return;
+	}
+
+	namespace fs = std::filesystem;
+	fs::path p(filePath);
+
+	std::string directoryPath = "resources";
+	std::string filename = filePath;
+
+	if (p.has_parent_path()) {
+		// 例: filePath = "fence/fence.obj"
+		//     p.parent_path() = "fence"
+		//     p.filename()    = "fence.obj"
+		directoryPath = (fs::path("resources") / p.parent_path()).string(); // "resources/fence"
+		filename = p.filename().string();                              // "fence.obj"
 	}
 
 	//モデルの生成とファイル読み込み、初期化
 	std::unique_ptr<Model> model = std::make_unique<Model>();
-	model->Initialize(modelCommon, "resources", filePath);
+	model->Initialize(modelCommon, directoryPath, filename);
 
 	//モデルをmapコンテナに格納する
 	models.insert(std::make_pair(filePath, std::move(model)));
-
-
 }
 
 Model* ModelManager::FindModel(const std::string& filePath) {

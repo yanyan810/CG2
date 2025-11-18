@@ -84,14 +84,74 @@ void Object3dCommon::CreateGraphicsPipelineState() {
     // === Blend ===
     D3D12_BLEND_DESC blend{};
     blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    blend.RenderTarget[0].BlendEnable = TRUE;
-    blend.RenderTarget[0].SrcBlend=D3D12_BLEND_SRC_ALPHA;
-    blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-    blend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-    blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-    blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 
+    switch (blendMode_) {
+    case BlendMode::kBlendModeNone:
+        blend.RenderTarget[0].BlendEnable = FALSE;
+        break;
+
+    case BlendMode::kBlendModeNormal:
+
+        blend.RenderTarget[0].BlendEnable = TRUE;
+        blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+        break;
+
+    case BlendMode::kBlendModeAdd:
+
+        blend.RenderTarget[0].BlendEnable = TRUE;
+        blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+        break;
+
+    case BlendMode::kBlendModeSubtract:
+
+        blend.RenderTarget[0].BlendEnable = TRUE;
+        blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
+        blend.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+        break;
+
+    case BlendMode::kBlendModeMultily:
+
+        blend.RenderTarget[0].BlendEnable = TRUE;
+        blend.RenderTarget[0].SrcBlend = D3D12_BLEND_ZERO;
+        blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
+        blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+        break;
+
+    case BlendMode::kBlendModeScreen:
+
+        blend.RenderTarget[0].BlendEnable = TRUE;
+        blend.RenderTarget[0].SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+        blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+        break;
+
+    }
+   
     // === Rasterizer ===
     D3D12_RASTERIZER_DESC rast{};
     rast.CullMode = D3D12_CULL_MODE_NONE;

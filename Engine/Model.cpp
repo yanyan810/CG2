@@ -42,7 +42,7 @@ void Model::Initialize(ModelCommon* modelCommon,
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
 
     materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-    materialData_->enableLighting = 1;
+    materialData_->enableLighting = 2;
     materialData_->uvTransform = Matrix4x4::MakeIdentity4x4();
 
     // ===== テクスチャ読み込み＆番号取得 =====
