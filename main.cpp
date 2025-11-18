@@ -31,6 +31,8 @@
 #pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "dinput8.lib")
 
+#pragma message("### HERE")
+
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
 }
