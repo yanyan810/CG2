@@ -7,17 +7,13 @@
 #include "Object3d.h"
 #include "Model.h"
 #include "ModelManager.h"
+#include "YMath.h"
 
 #include <locale>
 #include <codecvt>
 #include <strsafe.h>
 #include <DbgHelp.h>   
 #include <dxgidebug.h>
-
-#include "math/Matrix4x4.h"
-#include "math/Vector3.h"
-
-
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -34,6 +30,8 @@
 #pragma comment(lib, "DirectXTex.lib")
 #pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "dinput8.lib")
+
+#pragma message("### HERE")
 
 void Log(const std::string& message) {
 	OutputDebugStringA(message.c_str());
@@ -313,7 +311,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 3Dオブジェクト（1個目）
 	Object3d* object3dA = new Object3d();
 	object3dA->Initialize(object3dCommon, dxCommon);
-	object3dA->SetModel("axis.obj");        // ← 同じ Model を共有
+	object3dA->SetModel("fence/fence.obj");        // ← 同じ Model を共有
 	object3dA->SetTranslate({ 0.0f, 0.0f, 0.0f });   // 位置A
 
 	// 3Dオブジェクト（2個目）
@@ -322,6 +320,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	object3dB->SetModel("plane.obj");        // ← ここも同じ Model
 	object3dB->SetTranslate({ 3.0f, 0.0f, 0.0f });   // 位置B（少し右にずらす）
 
+	// ==== （オブジェクト生成の後あたりで）初期値を UI 側に取り込む ====
+	Vector4 uiLightColor = object3dA->GetLightColor();          // RGBA
+	Vector3 uiLightDir = object3dA->GetDirection();      // 方向
+	float   uiLightIntensity = object3dA->GetIntensity();    // 強度
+
+	auto Normalize3 = [](Vector3 v) {
+		float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+		if (l < 1e-6f) return Vector3{ 0.0f, -1.0f, 0.0f };
+		return Vector3{ v.x / l, v.y / l, v.z / l };
+		};
+
+	object3dA->SetBlendMode(Object3dCommon::BlendMode::kBlendModeAdd);
+	object3dB->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNormal);
 
 	MSG msg{};
 
@@ -435,49 +446,118 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	
 		dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+		
+
+		// ==== 毎フレーム（ImGui の描画ブロック内）====
+		ImGui::Begin("Lighting");
+
+		// 色（RGB or RGBA どちらでもOK。アルファは 1.0f 固定でも良い）
+		ImGui::ColorEdit3("Directional Color", &uiLightColor.x);
+
+		// 方向（-1～+1 の範囲で編集 → 後で正規化）
+		ImGui::DragFloat3("Directional Dir", &uiLightDir.x, 0.01f, -1.0f, 1.0f);
+
+		// 強度（0～4 くらいが扱いやすい）
+		ImGui::SliderFloat("Intensity", &uiLightIntensity, 0.0f, 1.0f);
+
+		ImGui::Begin("Material");
+
+		static Vector4 uiMatA = object3dA->GetMaterialColor();
+		ImGui::ColorEdit4("Material A", &uiMatA.x);
+		object3dA->SetMaterialColor(uiMatA);
+
+		static Vector4 uiMatB = object3dB->GetMaterialColor();
+		ImGui::ColorEdit4("Material B", &uiMatB.x);
+		object3dB->SetMaterialColor(uiMatB);
+
+		ImGui::End();
+
+		ImGui::Begin("Material");
+
+		static int uiBlendModeA = (int)Object3dCommon::BlendMode::kBlendModeNormal;
+		static int uiBlendModeB = (int)Object3dCommon::BlendMode::kBlendModeNormal;
+
+		const char* blendNames[] = {
+			"None",
+			"Normal",
+			"Add",
+			"Subtract",
+			"Multiply",
+			"Screen"
+		};
+
+		// A のブレンド
+		ImGui::Combo("Blend A", &uiBlendModeA, blendNames, IM_ARRAYSIZE(blendNames));
+		object3dA->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeA);
+
+		// B のブレンド
+		ImGui::Combo("Blend B", &uiBlendModeB, blendNames, IM_ARRAYSIZE(blendNames));
+		object3dB->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeB);
+
+		ImGui::End();
+
+
+		// 反映ボタンが欲しければ：if (ImGui::Button("Apply")) { ... }
+		// 即時反映で良ければ毎フレームそのまま Set～ する
+		ImGui::End();
+
+
+
+		// ==== UI 値を Object3d の CB に書き戻す（即時反映）====
+		Vector3 dirN = Normalize3(uiLightDir);
+
+		// A に適用
+		object3dA->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+		object3dA->SetDirection(dirN);
+		object3dA->SetIntensity(uiLightIntensity);
+
+		// B にも同じ設定（片方だけで良ければ外してOK）
+		object3dB->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+		object3dB->SetDirection(dirN);
+		object3dB->SetIntensity(uiLightIntensity);
+
 	
-		// ---- Sprite (Indexed) ----
-		if (isDrawSprite) {
-			// === ImGuiで全スプライト共通操作 ===
-			ImGui::Begin("Sprite Controller");
+		//// ---- Sprite (Indexed) ----
+		//	// === ImGuiで全スプライト共通操作 ===
+		//	ImGui::Begin("Sprite Controller");
 
-			// 共通で動かすパラメータ
-			static Transform spriteCtrl = {
-				{1.0f, 1.0f, 1.0f}, // scale
-				{0.0f, 0.0f, 0.0f}, // rotate
-				{0.0f, 0.0f, 0.0f}  // translate
-			};
-			static Vector4 color = { 1,1,1,1 };
-			ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
-			ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
-			ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
-			ImGui::ColorEdit4("Color", &color.x);
-			ImGui::End();
+		//	// 共通で動かすパラメータ
+		//	static Transform spriteCtrl = {
+		//		{1.0f, 1.0f, 1.0f}, // scale
+		//		{0.0f, 0.0f, 0.0f}, // rotate
+		//		{0.0f, 0.0f, 0.0f}  // translate
+		//	};
+		//	static Vector4 color = { 1,1,1,1 };
+		//	ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
+		//	ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
+		//	ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
+		//	ImGui::ColorEdit4("Color", &color.x);
+		//	ImGui::End();
 
-			// === 全スプライトに適用 & 描画 ===
-			const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
-			const Matrix4x4 proj2D = Matrix4x4::MakeOrthographicMatrix(
-				0.0f, 0.0f,
-				float(WinApp::kClientWidth),
-				float(WinApp::kClientHeight),
-				0.0f, 100.0f
-			);
-			for (size_t i = 0; i < sprites.size(); ++i) {
-				auto& sp = sprites[i];
-				sp->SetScale(spriteCtrl.scale);
-				sp->SetRotation(spriteCtrl.rotate);
-				sp->SetColor(color);
+		//	// === 全スプライトに適用 & 描画 ===
+		//	const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
+		//	const Matrix4x4 proj2D = Matrix4x4::MakeOrthographicMatrix(
+		//		0.0f, 0.0f,
+		//		float(WinApp::kClientWidth),
+		//		float(WinApp::kClientHeight),
+		//		0.0f, 100.0f
+		//	);
+		//	for (size_t i = 0; i < sprites.size(); ++i) {
+		//		auto& sp = sprites[i];
+		//		sp->SetScale(spriteCtrl.scale);
+		//		sp->SetRotation(spriteCtrl.rotate);
+		//		sp->SetColor(color);
 
-				// ★ ここを「上書き」→「加算」に変更
-				Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
-								basePos[i].y + spriteCtrl.translate.y };
-				sp->SetPosition(pos);
+		//		// ★ ここを「上書き」→「加算」に変更
+		//		Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
+		//						basePos[i].y + spriteCtrl.translate.y };
+		//		sp->SetPosition(pos);
 
-				sp->Update(view2D, proj2D);
-				sp->Draw();
-			}
+		//		sp->Update(view2D, proj2D);
+		//		sp->Draw();
+		//	}
 
-		}
+		
 
 	
 		rotA.z += 0.02f;
