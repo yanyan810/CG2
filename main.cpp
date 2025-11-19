@@ -450,7 +450,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//	sp->SetUVTransform(uvMatrix);    // ← 既存インスタンスへ反映
 		//}
 
-		ImGui::End();
 
 		// ===== GPUコマンド発行開始 =====
 		dxCommon->PreDraw();                  // ← クリア & バリア遷移
@@ -476,6 +475,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		// 強度（0～4 くらいが扱いやすい）
 		ImGui::SliderFloat("Intensity", &uiLightIntensity, 0.0f, 1.0f);
+
+		ImGui::End();
 
 		ImGui::Begin("Material");
 
@@ -510,9 +511,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// B のブレンド
 		ImGui::Combo("Blend B", &uiBlendModeB, blendNames, IM_ARRAYSIZE(blendNames));
 		object3dB->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeB);
-
-		ImGui::End();
-
 
 		// 反映ボタンが欲しければ：if (ImGui::Button("Apply")) { ... }
 		// 即時反映で良ければ毎フレームそのまま Set～ する
@@ -631,7 +629,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #ifdef _DEBUG
 	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-	debugController->Release();
+	//debugController->Release();
 #endif
 
 
