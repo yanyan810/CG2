@@ -74,6 +74,23 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd) {
 	cmd->DrawInstanced(static_cast<UINT>(modelData_.vertices.size()), 1, 0, 0);
 }
 
+void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount) {
+
+	cmd->IASetVertexBuffers(0, 1, &vertexBufferView_);
+
+	cmd->SetGraphicsRootConstantBufferView(
+		0, materialResource_->GetGPUVirtualAddress());
+
+	auto handle = TextureManager::GetInstance()
+		->GetSrvHandleGPU(modelData_.material.textureIndex);
+	cmd->SetGraphicsRootDescriptorTable(2, handle);
+
+	// ★ インスタンス数を引数で指定
+	cmd->DrawInstanced(static_cast<UINT>(modelData_.vertices.size()),
+		instanceCount,
+		0, 0);
+}
+
 
 Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
 	MaterialData materialData;//構築するMaterialData

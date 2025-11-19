@@ -8,6 +8,8 @@
 #include "Model.h"
 #include "ModelManager.h"
 #include "YMath.h"
+#include "ParticleCommon.h"
+#include "Particle.h"
 
 #include <locale>
 #include <codecvt>
@@ -257,47 +259,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	TextureManager::GetInstance()->Initialize(dxCommon);
 
-	// 2) 使うテクスチャをロード（1回でOK）
-	TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
-	TextureManager::GetInstance()->LoadTexture("resources/sample.png");
+	//// 2) 使うテクスチャをロード（1回でOK）
+	//TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
+	//TextureManager::GetInstance()->LoadTexture("resources/sample.png");
 
-	const int spriteCount = 5; // 出したい数
-	std::vector<std::unique_ptr<Sprite>> sprites;
-	std::vector<Vector2> basePos;
+	//const int spriteCount = 5; // 出したい数
+	//std::vector<std::unique_ptr<Sprite>> sprites;
+	//std::vector<Vector2> basePos;
 
-	for (int i = 0; i < spriteCount; ++i) {
+	//for (int i = 0; i < spriteCount; ++i) {
 
-		// 1) テクスチャを交互に選択
-		std::string texturePath = (i % 2 == 0)
-			? "resources/uvChecker.png"
-			: "resources/sample.png";
+	//	// 1) テクスチャを交互に選択
+	//	std::string texturePath = (i % 2 == 0)
+	//		? "resources/uvChecker.png"
+	//		: "resources/sample.png";
 
-		auto sprite = std::make_unique<Sprite>();
-		sprite->Initialize(spriteCommon, dxCommon, texturePath);
+	//	auto sprite = std::make_unique<Sprite>();
+	//	sprite->Initialize(spriteCommon, dxCommon, texturePath);
 
-		// 2) 配置（X方向にずらして並べる）
-		Vector2 p = { 10.0f,10.0f };
-		sprite->SetPosition(p);
-		sprite->SetScale({ 0.1f, 0.1f, 0.1f });
+	//	// 2) 配置（X方向にずらして並べる）
+	//	Vector2 p = { 10.0f,10.0f };
+	//	sprite->SetPosition(p);
+	//	sprite->SetScale({ 0.1f, 0.1f, 0.1f });
 
-		// 3) 色を少しずつ変える（任意）
-		sprite->SetColor({ 1.0f, 0.2f * i, 1.0f - 0.2f * i, 1.0f });
+	//	// 3) 色を少しずつ変える（任意）
+	//	sprite->SetColor({ 1.0f, 0.2f * i, 1.0f - 0.2f * i, 1.0f });
 
-		// 4) UV設定（画像全体を使うならこれでOK）
-		sprite->SetTextureTopLeft({ 0.0f, 0.0f });
-		sprite->SetTextureCutSize({ 512.0f, 512.0f }); // 画像サイズに合わせる
+	//	// 4) UV設定（画像全体を使うならこれでOK）
+	//	sprite->SetTextureTopLeft({ 0.0f, 0.0f });
+	//	sprite->SetTextureCutSize({ 512.0f, 512.0f }); // 画像サイズに合わせる
 
-		// 5) アンカー（左上に固定）
-		sprite->SetAnchorPoint({ 0.0f, 0.0f });
+	//	// 5) アンカー（左上に固定）
+	//	sprite->SetAnchorPoint({ 0.0f, 0.0f });
 
-		// 6) 反転なし
-		sprite->SetFlipX(false);
-		sprite->SetFlipY(false);
+	//	// 6) 反転なし
+	//	sprite->SetFlipX(false);
+	//	sprite->SetFlipY(false);
 
-		// リストへ追加
-		basePos.push_back(p);
-		sprites.push_back(std::move(sprite));
-	}
+	//	// リストへ追加
+	//	basePos.push_back(p);
+	//	sprites.push_back(std::move(sprite));
+	//}
 
 	//3Dモデルマネージャの初期化
 	ModelManager::GetInstance()->Initialize(dxCommon);
@@ -333,6 +335,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	object3dA->SetBlendMode(Object3dCommon::BlendMode::kBlendModeAdd);
 	object3dB->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNormal);
+
+	// ========== Particle 用 ==========
+	ParticleCommon* particleCommon = new ParticleCommon();
+	particleCommon->Initialize(dxCommon);
+
+	Particle* particle = new Particle();
+	particle->Initialize(particleCommon, dxCommon);
+
+	// 好きなモデルをセット（とりあえず plane.obj とか）
+	particle->SetModel("plane.obj");
+	// 位置やスケールも設定しておく
+	particle->SetTranslate({ -2.0f, 0.0f, 0.0f });
+	particle->SetScale({ 1.0f, 1.0f, 1.0f });
+	// ブレンド（加算とか）を変えたいとき
+	particle->SetBlendMode(ParticleCommon::BlendMode::kBlendModeNone);
 
 	MSG msg{};
 
@@ -424,14 +441,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		static int selectedTexture2 = 0;
 		const char* textureNames[] = { "UV", "Sample", "Axis" };
 
-		//スプライトのUVを変換する行列を計算
-		Matrix4x4 uvMatrix =
-			Matrix4x4::Scale(uvTransformSprite.scale) *
-			Matrix4x4::RotateZ(uvTransformSprite.rotate.z) *
-			Matrix4x4::Translation(uvTransformSprite.translate);
-		for (auto& sp : sprites) {
-			sp->SetUVTransform(uvMatrix);    // ← 既存インスタンスへ反映
-		}
+		////スプライトのUVを変換する行列を計算
+		//Matrix4x4 uvMatrix =
+		//	Matrix4x4::Scale(uvTransformSprite.scale) *
+		//	Matrix4x4::RotateZ(uvTransformSprite.rotate.z) *
+		//	Matrix4x4::Translation(uvTransformSprite.translate);
+		//for (auto& sp : sprites) {
+		//	sp->SetUVTransform(uvMatrix);    // ← 既存インスタンスへ反映
+		//}
 
 		ImGui::End();
 
@@ -560,21 +577,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		
 
 	
-		rotA.z += 0.02f;
-		object3dA->SetRotate(rotA);
+		//rotA.z += 0.02f;
+		//object3dA->SetRotate(rotA);
 
-		
-		rotB.y += 0.02f;
-		object3dB->SetRotate(rotB);
+		//
+		//rotB.y += 0.02f;
+		//object3dB->SetRotate(rotB);
 
-		//Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
-		object3dCommon->SetGraphicsPipelineState();
+		////Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
+		//object3dCommon->SetGraphicsPipelineState();
 
-		object3dA->Update();
-		object3dB->Update();
+		//object3dA->Update();
+		//object3dB->Update();
 
-		object3dA->Draw();
-		object3dB->Draw();
+		//object3dA->Draw();
+		//object3dB->Draw();
+
+		// ==== パーティクル描画 ====
+// ここで Particle 用の PSO/RootSignature に切り替え
+		particleCommon->SetGraphicsPipelineState();
+
+		// 必要なら位置アニメとかここで transform をいじる
+		particle->Update();
+		particle->Draw();
 
 		// ---- ImGui ----
 		ImGui::Render();
@@ -624,8 +649,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete dxCommon;
 	dxCommon = nullptr;
 
-	delete spriteCommon;
-	spriteCommon = nullptr;
+	//delete spriteCommon;
+	//spriteCommon = nullptr;
 
 	delete object3dCommon;
 	object3dCommon = nullptr;
