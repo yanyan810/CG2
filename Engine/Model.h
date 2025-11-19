@@ -43,6 +43,8 @@ public:
 		const std::string& filename);
 
 	void Draw(ID3D12GraphicsCommandList* cmd);
+	//パーティクル用
+	void Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount);
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 

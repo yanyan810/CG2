@@ -2,11 +2,11 @@
 #include "Object3dCommon.h"
 
 
-Vector3 Normalize(const Vector3& v) {
-	float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
-	if (length == 0.0f) return { 0.0f, 0.0f, 0.0f };
-	return { v.x / length, v.y / length, v.z / length };
-}
+//Vector3 Normalize(const Vector3& v) {
+//	float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+//	if (length == 0.0f) return { 0.0f, 0.0f, 0.0f };
+//	return { v.x / length, v.y / length, v.z / length };
+//}
 
 
 void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
@@ -28,7 +28,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
 	//初期化
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // ライトの色
-	directionalLightData->direction = Normalize({ 0.0f, -1.0f, 0.0f });//ライトの向き
+	directionalLightData->direction = Matrix4x4::Normalize({ 0.0f, -1.0f, 0.0f });//ライトの向き
 	directionalLightData->intensity = 1.0f; // ライトの強度
 
 
