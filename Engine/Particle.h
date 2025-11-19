@@ -32,7 +32,7 @@ public:
 
 	struct ParticleData {
 		Transform transform;
-		Vector3 velosity;
+		Vector3 velocity;
 
 	};
 
