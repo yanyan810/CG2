@@ -1,6 +1,7 @@
 #pragma once
 #include "Vector3.h"
 #include "Matrix4x4.h"
+#include "AABB.h"
 #include <string>
 #include <vector>
 #include <format>
@@ -45,7 +46,11 @@ public:
 		uint32_t count;//発生数
 		float frequency;//発生頻度
 		float frequencyTime;//頻度用時刻
+	};
 
+	struct AccelerationField {
+		Vector3 acceleration;//加速度
+		AABB area; //範囲
 
 	};
 
@@ -150,6 +155,8 @@ private:
 	std::mt19937 randomEngine{ seedGenerator() };
 
 	Emitter emitter{};
+
+	AccelerationField accelerationField;
 
 };
 

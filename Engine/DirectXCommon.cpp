@@ -1,7 +1,8 @@
 #include "DirectXCommon.h"
-
 #include <cassert>
+#include <dxgidebug.h>
 
+#pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 
@@ -34,8 +35,8 @@ Microsoft::WRL::ComPtr <ID3D12DescriptorHeap>   DirectXCommon::CreateDescriptorH
 /// <summary>
 ///  深度バッファリソースの設定
 /// </summary>
-ID3D12Resource* DirectXCommon::CreateDepthStencilResource(int32_t width, int32_t height) {
-	//生成するResourceの設定
+Microsoft::WRL::ComPtr<ID3D12Resource>
+DirectXCommon::CreateDepthStencilResource(int32_t width, int32_t height) {	//生成するResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;//Textureの幅
 	resourceDesc.Height = height;//Textureの高さ
@@ -55,7 +56,7 @@ ID3D12Resource* DirectXCommon::CreateDepthStencilResource(int32_t width, int32_t
 	depthClearValue.DepthStencil.Depth = 1.0f;//1.0f(最大値)でクリア
 	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//DepthStencilとして利用可能なフォーマット
 	//Resourceの生成
-	ID3D12Resource* resource = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
 	HRESULT hr = device_->CreateCommittedResource(
 		&heapProperties,//Heapの設定
 		D3D12_HEAP_FLAG_NONE,//Heapの特殊な設定。特になし
@@ -64,6 +65,8 @@ ID3D12Resource* DirectXCommon::CreateDepthStencilResource(int32_t width, int32_t
 		&depthClearValue,//Clear最適値
 		IID_PPV_ARGS(&resource));//作成するResourceポインタへのポインタ
 	assert(SUCCEEDED(hr));
+
+	resource->SetName(L"DepthStencil");
 
 	return resource;
 }
@@ -198,6 +201,10 @@ Microsoft::WRL::ComPtr<ID3D12Resource>DirectXCommon::CreateBufferResource( size_
 		nullptr,
 		IID_PPV_ARGS(&buffer));
 	assert(SUCCEEDED(hr));
+
+	// ここで名前を付ける（必要なら引数で名前渡す）
+	buffer->SetName(L"GenericUploadBuffer");
+
 	return buffer;
 }
 
@@ -229,6 +236,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource>DirectXCommon::CreateTextureResource(const
 		nullptr,//Clear最適地。使わないのでnullptr
 		IID_PPV_ARGS(&resource));//作成するResourceポインタへのポインタ
 	assert(SUCCEEDED(hr));
+
+	resource->SetName(L"TextureResource");
+
 	return resource;
 }
 
@@ -339,7 +349,7 @@ void DirectXCommon::DeviceInitialize() {
 		//デバッグレイヤーを有効にする
 		debugController->EnableDebugLayer();
 		//さらにGPU側でもチェックを行えるようにする
-		debugController->SetEnableGPUBasedValidation(TRUE);
+	//	debugController->SetEnableGPUBasedValidation(TRUE);
 	}
 
 #endif
@@ -752,4 +762,17 @@ void DirectXCommon::PostDraw() {
 	// ★ここで「今フレームの Present 後」の index をログ
 	const UINT idxAfter = swapChain->GetCurrentBackBufferIndex();
 	OutputDebugStringA(std::format("[After Present] backBufferIndex = {}\n", idxAfter).c_str());
+}
+
+void DirectXCommon::ReportLiveObjects()
+{
+#if _DEBUG
+	Microsoft::WRL::ComPtr<ID3D12DebugDevice> debugDevice;
+	if (SUCCEEDED(device_.As(&debugDevice))) {
+		// 詳細レポート（名前も出る）
+		debugDevice->ReportLiveDeviceObjects(
+			D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL
+		);
+	}
+#endif
 }

@@ -8,6 +8,15 @@
 //	return { v.x / length, v.y / length, v.z / length };
 //}
 
+// === AABB と点の当たり判定 ===
+static bool IsCollision(const AABB& aabb, const Vector3& point) {
+	if (aabb.min.x <= point.x && point.x <= aabb.max.x &&
+		aabb.min.y <= point.y && point.y <= aabb.max.y &&
+		aabb.min.z <= point.z && point.z <= aabb.max.z) {
+		return true;
+	}
+	return false;
+}
 
 void Particle::Initialize(ParticleCommon* particleCommon, DirectXCommon* dx) {
 	this->particleCommon = particleCommon;
@@ -31,6 +40,7 @@ void Particle::Initialize(ParticleCommon* particleCommon, DirectXCommon* dx) {
 	// ===== instancing 用 StructuredBuffer =====
 	instancingResource_ =
 		dx->CreateBufferResource(sizeof(ParticleForGPU) * kMaxInstance);
+	instancingResource_->SetName(L"ParticleInstancingBuffer");
 	instancingResource_->Map(0, nullptr,
 		reinterpret_cast<void**>(&instancingData_));
 	D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
@@ -67,7 +77,9 @@ void Particle::Initialize(ParticleCommon* particleCommon, DirectXCommon* dx) {
 	emitter.transform.scale = { 1.0f,1.0f,1.0f };
 	emitter.transform.rotate = { 0.0f,0.0f,0.0f };
 
-
+	accelerationField.acceleration={ 15.0f,0.0f,0.0f };
+	accelerationField.area.min = { -1.0f, -1.0f, -1.0f };
+	accelerationField.area.max = { 1.0f,  1.0f,  1.0f };
 }
 
 Particle::ParticleData Particle::MakeNewParticle(std::mt19937& ramdomEngine, const Vector3& translate) {
@@ -128,9 +140,16 @@ void Particle::Update() {
 			particleIterator = particles.erase(particleIterator); // erase した戻り値で次要素
 			continue;
 		}
-
 		// 生存中なら更新
 		p.currentTime += deltaTime;
+
+		// === Field の範囲内にいるかチェックして加速度を適用 ===
+		if (IsCollision(accelerationField.area, p.transform.translate)) {
+			// v = v + a * dt
+			p.velocity += accelerationField.acceleration * deltaTime;
+		}
+
+		// 位置更新 x = x + v * dt
 		p.transform.translate += p.velocity * deltaTime;
 
 		// 寿命に応じて alpha
@@ -236,6 +255,14 @@ void Particle::DebugImGui() {
 	if (ImGui::Button("AddParticle")) {
 		particles.splice(particles.end(), Emit(emitter, randomEngine));
 	}
+
+	ImGui::Separator();
+	ImGui::Text("Acceleration Field");
+
+	ImGui::DragFloat3("Field Min", &accelerationField.area.min.x, 0.1f);
+	ImGui::DragFloat3("Field Max", &accelerationField.area.max.x, 0.1f);
+	ImGui::DragFloat3("Field Accel", &accelerationField.acceleration.x, 0.1f);
+
 
 	ImGui::End();
 }

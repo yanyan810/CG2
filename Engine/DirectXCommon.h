@@ -51,6 +51,8 @@ public:
 	ID3D12Device* GetDevice() const { return device_.Get(); }
 	ID3D12GraphicsCommandList* GetCommandList() const { return commandList.Get(); }
 
+	void ReportLiveObjects();
+
 	Microsoft::WRL::ComPtr<IDxcBlob> CompilesSharder(
 		//CompilerするSharderファイルへのパス
 		const std::wstring& filePath,
@@ -92,7 +94,8 @@ private:
 	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap>CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,
 		UINT numDescripters, bool shaderVisible);
 
-	ID3D12Resource* CreateDepthStencilResource(int32_t width, int32_t height);
+	Microsoft::WRL::ComPtr<ID3D12Resource>
+		CreateDepthStencilResource(int32_t width, int32_t height);
 
 	/// <summary>
 	/// 指定番号のCPUでスクリプタハンドルを取得する

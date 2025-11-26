@@ -94,6 +94,8 @@ struct D3DResourceLeakChecker {
 
 	~D3DResourceLeakChecker() {
 
+
+#ifdef _DEBUG
 		//リソースチェック
 		Microsoft::WRL::ComPtr <IDXGIDebug1> debug = nullptr;
 		//hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug));
@@ -103,7 +105,7 @@ struct D3DResourceLeakChecker {
 			debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
 
 		}
-
+		#endif
 	}
 
 };
@@ -234,7 +236,7 @@ void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData) {
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	D3DResourceLeakChecker leakCheck;
-	
+
 
 	// CrashHandlerを登録
 	SetUnhandledExceptionFilter(ExportDump);
@@ -249,7 +251,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//DirectXの初期化
 	dxCommon = new DirectXCommon();
-	dxCommon  ->Initialize(winApp);
+	dxCommon->Initialize(winApp);
 
 	SpriteCommon* spriteCommon = nullptr;
 
@@ -307,7 +309,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//3Dオブジェクト共通部分の初期化
 	Object3dCommon* object3dCommon = nullptr;
 	//3dオブジェクトの初期化	
-	object3dCommon = new Object3dCommon();	
+	object3dCommon = new Object3dCommon();
 	object3dCommon->Initialize(dxCommon);
 
 	// 3Dオブジェクト（1個目）
@@ -415,8 +417,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	auto rotA = object3dA->GetRotate();
 	auto rotB = object3dB->GetRotate();
+
+	bool isEnd = false;
+
 	//ウィンドウボタンのxボタンが押されえるまでループ
-	while (msg.message != WM_QUIT) {
+	while (msg.message != WM_QUIT && !isEnd) {
 
 		if (winApp->ProcessMessage()) {
 			//ゲームループを抜ける
@@ -463,10 +468,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		spriteCommon->SetGraphicsPipelineState();
 
 		// 共有設定（PSO/RootSig/トポロジ）
-	
+
 		dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		
+
 
 		// ==== 毎フレーム（ImGui の描画ブロック内）====
 		ImGui::Begin("Lighting");
@@ -536,7 +541,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		object3dB->SetDirection(dirN);
 		object3dB->SetIntensity(uiLightIntensity);
 
-	
+
 		//// ---- Sprite (Indexed) ----
 		//	// === ImGuiで全スプライト共通操作 ===
 		//	ImGui::Begin("Sprite Controller");
@@ -577,9 +582,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//		sp->Draw();
 		//	}
 
-		
 
-	
+
+
 		//rotA.z += 0.02f;
 		//object3dA->SetRotate(rotA);
 
@@ -616,7 +621,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		if (input.IsKeyTrigger(DIK_ESCAPE)) {
 			//ESCキーが押されたら終了
-			return 0;
+			isEnd = true;
 		}
 
 
@@ -641,7 +646,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 
-	// WindowsAPIの終了処理
+// WindowsAPIの終了処理
 	winApp->Finalize();
 
 	TextureManager::GetInstance()->Finalize();
@@ -651,12 +656,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete winApp;
 	winApp = nullptr;
 
+	dxCommon->ReportLiveObjects();
+
 	delete dxCommon;
 	dxCommon = nullptr;
 
-	//delete spriteCommon;
-	//spriteCommon = nullptr;
+	// ★ スプライト共通 解放
+	delete spriteCommon;
+	spriteCommon = nullptr;
 
+	// ★ パーティクル 解放
+	delete particle;
+	particle = nullptr;
+
+	delete particleCommon;
+	particleCommon = nullptr;
+
+	// 3D 共通・オブジェクト解放
 	delete object3dCommon;
 	object3dCommon = nullptr;
 
@@ -665,9 +681,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	delete object3dB;
 	object3dB = nullptr;
-
-	delete particle;
-	particle = nullptr;
 
 
 	return 0;
