@@ -174,7 +174,7 @@ void ParticleCommon::CreateGraphicsPipelineState() {
     // === Depth/Stencil ===
     D3D12_DEPTH_STENCIL_DESC ds{};
     ds.DepthEnable = TRUE;                    // 必要に応じて FALSE（UI最前面に）でもOK
-    ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
     // === PSO ===

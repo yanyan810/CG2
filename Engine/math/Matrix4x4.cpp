@@ -339,6 +339,14 @@ Matrix4x4 Matrix4x4::MakeScaleMatrix(const Matrix4x4& m) {
 	return scaleMatrix;
 }
 
+Matrix4x4 Matrix4x4::MakeScaleMatrix(const Vector3& scale) {
+    Matrix4x4 m = MakeIdentity4x4();
+    m.m[0][0] = scale.x;
+    m.m[1][1] = scale.y;
+    m.m[2][2] = scale.z;
+    return m;
+}
+
 Matrix4x4 Matrix4x4::operator*(const Matrix4x4& rhs) const {
     return Multiply(*this, rhs); // 既存のMultiplyを流用
 }

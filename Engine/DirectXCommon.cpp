@@ -635,32 +635,43 @@ void DirectXCommon::ImGuiInitialize() {
 void DirectXCommon::InitializeFixFPS() {
 
 	reference_ = std::chrono::steady_clock::now();
+	fps_ = 0.0f;
 
 }
 
 void DirectXCommon::UpdateFixFPS() {
 
+	using namespace std::chrono;
+
 	//1/60秒ぴったりの時間
-	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+	const microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
 	//1/60秒よりわずかに短い時間
-	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+	const microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
 
-	//現在時間を取得する
-	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-	//前回記録から経過時間を取得する
-	std::chrono::microseconds elapsed =
-		std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
+	// 現在時間と前フレームからの経過時間
+	auto now = steady_clock::now();
+	auto elapsed = duration_cast<microseconds>(now - reference_);
 
-	//1/60秒(よりわずかに短い時間)立っていない場合
+	// まだほとんど時間が経っていなければスリープして60fpsに近づける
 	if (elapsed < kMinCheckTime) {
-		//1?60秒経過するまで微小なスリープを繰り返す
-		while (std::chrono::steady_clock::now() - reference_ < kMinTime) {
-			std::this_thread::sleep_for(std::chrono::microseconds(1));
-
-		}	
+		while (steady_clock::now() - reference_ < kMinTime) {
+			std::this_thread::sleep_for(microseconds(1));
+		}
+		// スリープ後の正確な経過時間を測り直す
+		now = steady_clock::now();
+		elapsed = duration_cast<microseconds>(now - reference_);
 	}
 
+	// 次フレームの基準時間を更新
+	reference_ = now;
+
+	// FPS 計算（経過秒の逆数）
+	if (elapsed.count() > 0) {
+		float elapsedSec = static_cast<float>(elapsed.count()) / 1'000'000.0f;
+		fps_ = 1.0f / elapsedSec;
+	}
 }
+
 
 void DirectXCommon::PreDraw() {
 	const UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();

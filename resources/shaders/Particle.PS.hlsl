@@ -1,4 +1,4 @@
-#include "Object3d.hlsli"
+#include "Particle.hlsli"
 struct Material
 {
     float4 color;
@@ -37,7 +37,7 @@ PixelSharderOutput main(VertexShaderOutput input)
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
 
     // マテリアル色とテクスチャ色を掛け合わせる
-    output.color = gMaterial.color * textureColor;
+    output.color = gMaterial.color * textureColor*input.color;
 
     // 最終 α が 0 のときは破棄（描画しない）
     if (output.color.a == 0.0f)

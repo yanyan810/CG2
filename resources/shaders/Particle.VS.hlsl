@@ -1,14 +1,15 @@
 #include "Particle.hlsli"
 
 // C++ 側と同じレイアウト
-struct TransformationMatrix
+struct ParticleForGPU
 {
     float4x4 WVP;
     float4x4 World;
+    float4 color;
 };
 
 // instancing 用：StructuredBuffer を SRV(t0) で受け取る
-StructuredBuffer<TransformationMatrix> gTransformationMatrices : register(t0);
+StructuredBuffer<ParticleForGPU> gParticle : register(t0);
 
 struct VertexShaderInput
 {
@@ -23,11 +24,12 @@ VertexShaderOutput main(VertexShaderInput input)
     VertexShaderOutput output;
 
     // InstanceID から自分の Transform を取ってくる
-    TransformationMatrix tm = gTransformationMatrices[input.instanceId];
+    ParticleForGPU tm = gParticle[input.instanceId];
 
     output.position = mul(input.position, tm.WVP);
     output.texcoord = input.texcoord;
-    output.normal = normalize(mul(input.normal, (float3x3) tm.World));
+    output.color = gParticle[input.instanceId].color;
+    //output.normal = normalize(mul(input.normal, (float3x3) tm.World));
 
     return output;
 }

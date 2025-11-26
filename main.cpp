@@ -349,7 +349,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	particle->SetTranslate({ -2.0f, 0.0f, 0.0f });
 	particle->SetScale({ 1.0f, 1.0f, 1.0f });
 	// ブレンド（加算とか）を変えたいとき
-	particle->SetBlendMode(ParticleCommon::BlendMode::kBlendModeNone);
+	particle->SetBlendMode(ParticleCommon::BlendMode::kBlendModeAdd);
 
 	MSG msg{};
 
@@ -434,6 +434,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// ImGuiウィンドウ表示
 		ImGui::ShowDemoWindow();
 
+		// ★ FPS 表示用ウィンドウ
+		ImGui::Begin("System Info");
+		ImGui::Text("FPS: %.1f", dxCommon->GetFPS());
+		ImGui::End();
+
 		//ゲームの更新処理
 
 		//ImGuiの表示
@@ -513,6 +518,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		ImGui::End();
 
+		particle->DebugImGui();
 
 		// 反映ボタンが欲しければ：if (ImGui::Button("Apply")) { ... }
 		// 即時反映で良ければ毎フレームそのまま Set～ する
@@ -594,6 +600,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 // ここで Particle 用の PSO/RootSignature に切り替え
 		particleCommon->SetGraphicsPipelineState();
 
+		particle->SpawnParticle();
+
 		// 必要なら位置アニメとかここで transform をいじる
 		particle->Update();
 		particle->Draw();
@@ -658,7 +666,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete object3dB;
 	object3dB = nullptr;
 
-
+	delete particle;
+	particle = nullptr;
 
 
 	return 0;
