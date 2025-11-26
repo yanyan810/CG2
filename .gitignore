@@ -333,6 +333,35 @@ log/
 *.mdmp
 *.rpt
 
-# ImGui per-user settings
+# ImGui 設定ファイル（毎回変わる・個人環境依存）
 imgui.ini
-ImGui.ini
+
+# DirectX Shader Compiler DLL / 生成物
+dxcompiler.dll
+dxil.dll
+dxc.exe
+# （どこに置いてるかわからない場合はワイルドカード推奨）
+**/dxcompiler.dll
+**/dxil.dll
+**/dxc.exe
+
+# Visual Studio の生成物 / ビルドフォルダ
+*.obj
+*.pdb
+*.ipdb
+*.iobj
+*.exe
+*.dll
+*.lib
+*.ilk
+*.log
+
+# 中間フォルダ
+/bin/
+/Bin/
+/build/
+/Build/
+/Debug/
+/Release/
+/x64/
+/x86/
