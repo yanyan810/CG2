@@ -11,6 +11,7 @@
 #include "Model.h"
 #include "ModelManager.h"
 #include "ParticleCommon.h"
+#include <numbers>
 
 //class Object3dCommon;
 
@@ -19,9 +20,10 @@ class Particle
 
 public:
 
-	struct TransformationMatrix {
+	struct ParticleForGPU {
 		Matrix4x4 WVP;
 		Matrix4x4 World;
+		Vector4 color;
 	};
 
 	struct DirectionalLight {
@@ -32,7 +34,18 @@ public:
 
 	struct ParticleData {
 		Transform transform;
-		Vector3 velosity;
+		Vector3 velocity;
+		Vector4 color;
+		float lifeTime;
+		float currentTime;
+	};
+
+	struct Emitter {
+		Transform transform;//エミッタのトランスフォーム
+		uint32_t count;//発生数
+		float frequency;//発生頻度
+		float frequencyTime;//頻度用時刻
+
 
 	};
 
@@ -49,14 +62,26 @@ public:
 	void SetModel(const std::string& filePath);
 
 	// ===== Transform 用 setter =====
-	void SetScale(const Vector3& scale) { transform.scale = scale; }
-	void SetRotate(const Vector3& rotate) { transform.rotate = rotate; }
-	void SetTranslate(const Vector3& translate) { transform.translate = translate; }
+	void SetScale(const Vector3& scale) {
+		if (!particles.empty()) particles.front().transform.scale = scale;
+	}
+	void SetRotate(const Vector3& rotate) {
+		if (!particles.empty()) particles.front().transform.rotate = rotate;
+	}
+	void SetTranslate(const Vector3& translate) {
+		if (!particles.empty()) particles.front().transform.translate = translate;
+	}
 
 	// ===== Transform 用 getter =====
-	const Vector3& GetScale()     const { return transform.scale; }
-	const Vector3& GetRotate()    const { return transform.rotate; }
-	const Vector3& GetTranslate() const { return transform.translate; }
+	const Vector3& GetScale() const {
+		return particles.front().transform.scale;
+	}
+	const Vector3& GetRotate() const {
+		return particles.front().transform.rotate;
+	}
+	const Vector3& GetTranslate() const {
+		return particles.front().transform.translate;
+	}
 
 	//光源用
 	void SetLightColor(const Vector4& color) { directionalLightData->color = color; }
@@ -81,6 +106,14 @@ public:
 		return model_ ? model_->GetMaterialColor() : Vector4{ 1,1,1,1 };
 	}
 
+	ParticleData MakeNewParticle(std::mt19937& randomEngine, const Vector3& translate);
+
+	void DebugImGui();
+
+	void SpawnParticle();
+
+	std::list<ParticleData> Emit(const Emitter& emitter, std::mt19937& randomEngine);
+
 private:
 
 	DirectXCommon* dx_;
@@ -92,13 +125,12 @@ private:
 	//モデル用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModel;/* = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));*/
 	//データを書き込む
-	TransformationMatrix* transformationMatrixDataModel = nullptr;
+	ParticleForGPU* transformationMatrixDataModel = nullptr;
 
 	//ライトのリソース作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
 	DirectionalLight* directionalLightData = nullptr;
 
-	Transform transform;
 	Transform cameraTransform;
 
 	// instancing 用 StructuredBuffer の SRV（GPU 側ハンドル）
@@ -107,8 +139,17 @@ private:
 	static const uint32_t kMaxInstance = 100; // 好きな数
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
-	TransformationMatrix* instancingData_ = nullptr;
+	ParticleForGPU* instancingData_ = nullptr;
 	uint32_t instanceCount_ = 0; // 今フレーム描く数
+
+	std::list<ParticleData> particles;
+
+	//Δtを設定
+	const float deltaTime = 1 / 60.0f;
+	std::random_device seedGenerator;
+	std::mt19937 randomEngine{ seedGenerator() };
+
+	Emitter emitter{};
 
 };
 

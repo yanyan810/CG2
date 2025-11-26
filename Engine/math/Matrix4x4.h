@@ -2,6 +2,7 @@
 #pragma once
 #include <cmath>
 #include "Vector3.h"
+#include <random>
 
 class Matrix4x4 {
 public:
@@ -18,6 +19,7 @@ public:
 	static Matrix4x4 RotateXYZ(float angleX, float angleY, float angleZ);
 	static Matrix4x4 PerspectiveFov(float fovY, float aspect, float nearZ, float farZ);
 	static Matrix4x4 MakeScaleMatrix(const Matrix4x4& m);
+	static Matrix4x4 MakeScaleMatrix(const Vector3& scale);
 
 	static Matrix4x4 MakeRotateZMatrix(float angleRad);
 		

@@ -63,6 +63,9 @@ public:
 
 	void UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages);
 
+	// 現在のFPSを取得
+	float GetFPS() const { return fps_; }
+
 	//最大SRV数(最大テクスチャ枚数)
 	static const uint32_t kMaxSRVCount;
 
@@ -164,7 +167,8 @@ private:
 	//記録時間
 	std::chrono::steady_clock::time_point reference_;
 
-
+	// 現在のFPS
+	float fps_ = 0.0f;
 
 };
 
