@@ -194,5 +194,6 @@
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />
     <None Include="resources\shaders\Particle.hlsli" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
