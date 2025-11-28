@@ -50,6 +50,8 @@ public:
 
 	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
 
+	static ModelData    LoadAssimpFile(const std::string& fullPath);
+
 	Vector4& GetMaterialColor() { return materialData_->color; }
 	void SetMaterialColor(const Vector4& c) { materialData_->color = c; }
 

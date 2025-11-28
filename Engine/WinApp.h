@@ -1,5 +1,13 @@
 #pragma once
 #include <Windows.h>
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
+
 #include "imgui.h"
 #include"imgui_impl_dx12.h"
 #include "imgui_impl_win32.h"

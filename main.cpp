@@ -321,8 +321,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 3Dオブジェクト（2個目）
 	Object3d* object3dB = new Object3d();
 	object3dB->Initialize(object3dCommon, dxCommon);
-	object3dB->SetModel("plane.obj");        // ← ここも同じ Model
-	object3dB->SetTranslate({ 3.0f, 0.0f, 0.0f });   // 位置B（少し右にずらす）
+	object3dB->SetModel("Human2.fbx");        // ← ここも同じ Model
+	object3dB->SetTranslate({ 0.0f, 0.0f, 10.0f });   // 位置B（少し右にずらす）
+	object3dB->SetScale({ 1.0f, 1.0f, 1.0f }); // スケール調整
 
 	// ==== （オブジェクト生成の後あたりで）初期値を UI 側に取り込む ====
 	Vector4 uiLightColor = object3dA->GetLightColor();          // RGBA
@@ -585,21 +586,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 
-		//rotA.z += 0.02f;
-		//object3dA->SetRotate(rotA);
+		rotA.z += 0.02f;
+		object3dA->SetRotate(rotA);
 
-		//
-		//rotB.y += 0.02f;
-		//object3dB->SetRotate(rotB);
+		
+	//	rotB.y += 0.02f;
+		object3dB->SetRotate(rotB);
 
-		////Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
-		//object3dCommon->SetGraphicsPipelineState();
+		//Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
+		object3dCommon->SetGraphicsPipelineState();
 
 		//object3dA->Update();
-		//object3dB->Update();
+		object3dB->Update();
 
 		//object3dA->Draw();
-		//object3dB->Draw();
+		object3dB->Draw();
 
 		// ==== パーティクル描画 ====
 // ここで Particle 用の PSO/RootSignature に切り替え
