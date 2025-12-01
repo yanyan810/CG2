@@ -30,6 +30,48 @@ void Model::Initialize(ModelCommon* modelCommon,
         modelData_ = LoadObjFile(directoryPath, filename);
     }
 
+    // ===== ここから AABB デバッグ =====
+    if (!modelData_.vertices.empty()) {
+        Vector3 minPos{ +FLT_MAX, +FLT_MAX, +FLT_MAX };
+        Vector3 maxPos{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+        for (const auto& v : modelData_.vertices) {
+            const Vector4& p = v.position;
+            if (p.x < minPos.x) minPos.x = p.x;
+            if (p.y < minPos.y) minPos.y = p.y;
+            if (p.z < minPos.z) minPos.z = p.z;
+
+            if (p.x > maxPos.x) maxPos.x = p.x;
+            if (p.y > maxPos.y) maxPos.y = p.y;
+            if (p.z > maxPos.z) maxPos.z = p.z;
+        }
+
+        Vector3 size{
+            maxPos.x - minPos.x,
+            maxPos.y - minPos.y,
+            maxPos.z - minPos.z
+        };
+        Vector3 center{
+            (minPos.x + maxPos.x) * 0.5f,
+            (minPos.y + maxPos.y) * 0.5f,
+            (minPos.z + maxPos.z) * 0.5f
+        };
+
+        char buf[256];
+        std::snprintf(
+            buf, sizeof(buf),
+            "[Model AABB] min=(%.3f, %.3f, %.3f), max=(%.3f, %.3f, %.3f), "
+            "center=(%.3f, %.3f, %.3f), size=(%.3f, %.3f, %.3f)\n",
+            minPos.x, minPos.y, minPos.z,
+            maxPos.x, maxPos.y, maxPos.z,
+            center.x, center.y, center.z,
+            size.x, size.y, size.z
+        );
+        OutputDebugStringA(buf);
+    }
+    // ===== AABB デバッグここまで =====
+
+
     // ===== 頂点バッファ作成 =====
     const size_t vtxCount = modelData_.vertices.size();
     assert(vtxCount > 0);
@@ -222,37 +264,31 @@ Model::ModelData Model::LoadObjFile(
 
 Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 {
-    ModelData data;
-
-    OutputDebugStringA("[Assimp] LoadAssimpFile() enter\n");
-    OutputDebugStringA(("[Assimp] fullPath = " + fullPath + "\n").c_str());
+    ModelData data{};
 
     Assimp::Importer importer;
 
+    // ==== OBJ とほぼ同じフラグ構成にする ====
     unsigned int flags = 0;
-    // ==== 基本変換 ====
-    flags |= aiProcess_Triangulate;           // 三角形化
-    flags |= aiProcess_ConvertToLeftHanded;   // 左手座標系
-    flags |= aiProcess_PreTransformVertices;  // ノード変換を焼き込み
-
-    // ==== 品質系オプション ====
+    flags |= aiProcess_Triangulate;
     flags |= aiProcess_JoinIdenticalVertices;
     flags |= aiProcess_GenSmoothNormals;
-    flags |= aiProcess_CalcTangentSpace;
-    flags |= aiProcess_ImproveCacheLocality;
-    flags |= aiProcess_RemoveRedundantMaterials;
-    flags |= aiProcess_OptimizeMeshes;
-    flags |= aiProcess_SortByPType;
-    flags |= aiProcess_FlipUVs;               // UV の V 反転
+    flags |= aiProcess_FlipUVs;
+    // flags |= aiProcess_ConvertToLeftHanded;   // 付ける場合は後で X反転を消す
+    // flags |= aiProcess_PreTransformVertices;  // とりあえず外す
 
-    OutputDebugStringA("[Assimp] Call ReadFile()\n");
     const aiScene* scene = importer.ReadFile(fullPath.c_str(), flags);
-
     if (!scene || !scene->HasMeshes()) {
-        std::string err = importer.GetErrorString();
-        OutputDebugStringA(("[Assimp] ReadFile FAILED: " + err + "\n").c_str());
+        OutputDebugStringA(("[Assimp] Failed: " + std::string(importer.GetErrorString()) + "\n").c_str());
         assert(false && "Assimp ReadFile failed");
         return data;
+    }
+
+
+    // 追加：Assimp は scene が非nullでもエラーを持っていることがある
+    std::string err2 = importer.GetErrorString();
+    if (!err2.empty()) {
+        OutputDebugStringA(("[Assimp WARNING/ERROR AFTER LOAD] " + err2 + "\n").c_str());
     }
 
     OutputDebugStringA(("[Assimp] ReadFile SUCCESS, mNumMeshes = " +
@@ -260,47 +296,54 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
     data.vertices.clear();
 
-    // ==== 全メッシュ結合 ====
     for (unsigned int mi = 0; mi < scene->mNumMeshes; ++mi) {
         const aiMesh* mesh = scene->mMeshes[mi];
-        aiVector3D zero(0, 0, 0);
+        aiVector3D zero3(0, 0, 0);
 
         OutputDebugStringA(("[Assimp] Process mesh #" +
             std::to_string(mi) +
             " (vertices=" + std::to_string(mesh->mNumVertices) +
             ", faces=" + std::to_string(mesh->mNumFaces) + ")\n").c_str());
 
-        // まず元頂点テーブルを作る（OBJ と同じスタイル）
+        // ==== まず頂点テーブルを作る（OBJ と同じスタイル）====
         std::vector<VertexData> baseVertices(mesh->mNumVertices);
+
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-            const aiVector3D& p = mesh->mVertices[i];
-            const aiVector3D& n = mesh->HasNormals() ? mesh->mNormals[i] : zero;
-            const aiVector3D& uv = mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0][i] : zero;
+            const aiVector3D* pos = &mesh->mVertices[i];
+            const aiVector3D* nrm = mesh->HasNormals() ? &mesh->mNormals[i] : &zero3;
+            const aiVector3D* uv = mesh->HasTextureCoords(0) ? &mesh->mTextureCoords[0][i] : &zero3;
 
             VertexData v{};
-            v.position = { p.x, p.y, p.z, 1.0f };  // 左手変換は Assimp 済み
-            v.normal = { n.x, n.y, n.z };
-            v.texcoord = { uv.x, uv.y };           // FlipUVs 済み
+            // ★ OBJ と同じ：そのまま（x,y,z）で入れる
+            v.position = { pos->x, pos->y, pos->z, 1.0f };
+
+            // ★ OBJ と同じ：V だけ 1 - v で反転
+            float u = uv->x;
+            float vtex = 1.0f - uv->y;
+            v.texcoord = { u, vtex };
+
+            v.normal = { nrm->x, nrm->y, nrm->z };
 
             baseVertices[i] = v;
         }
 
-        // そのあと三角形ごとに「v2, v1, v0」の順で push
-        for (unsigned int fi = 0; fi < mesh->mNumFaces; ++fi) {
-            const aiFace& face = mesh->mFaces[fi];
+        // ==== 三角形リスト用に展開（OBJ と同じ順番）====
+        for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
+            const aiFace& face = mesh->mFaces[i];
             assert(face.mNumIndices == 3);
 
             VertexData v0 = baseVertices[face.mIndices[0]];
             VertexData v1 = baseVertices[face.mIndices[1]];
             VertexData v2 = baseVertices[face.mIndices[2]];
 
-            // ←← ここが重要：OBJ と同じく順番を反転
+            // 左手系っぽい順番に合わせて v2, v1, v0 で push（OBJ と同じ）
             data.vertices.push_back(v2);
             data.vertices.push_back(v1);
             data.vertices.push_back(v0);
         }
     }
 
+    // 今はテクスチャは未対応としてクリア
     data.material.textureFilePath.clear();
 
     OutputDebugStringA(("[Assimp] Total vertices = " +

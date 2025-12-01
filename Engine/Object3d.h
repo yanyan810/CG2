@@ -43,9 +43,10 @@ public:
 	void SetModel(const std::string& filePath);
 
 	// ===== Transform 用 setter =====
-	void SetScale(const Vector3& scale) { transform.scale = scale; }
-	void SetRotate(const Vector3& rotate) { transform.rotate = rotate; }
-	void SetTranslate(const Vector3& translate) { transform.translate = translate; }
+public:
+	void SetScale(const Vector3& s) { transform.scale = s; }
+	void SetRotate(const Vector3& r) { transform.rotate = r; }
+	void SetTranslate(const Vector3& t) { transform.translate = t; }
 
 	// ===== Transform 用 getter =====
 	const Vector3& GetScale()     const { return transform.scale; }

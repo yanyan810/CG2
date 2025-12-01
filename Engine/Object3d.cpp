@@ -33,9 +33,12 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 
 
 	//Transform変数
-	transform = { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
-	cameraTransform = { {1.0f,1.0f,1.0f},{0.3f,0.0f,0.0f},{0.0f,4.0f,-10.0f} };
-
+	transform = { {1.0f,1.0f,1.0f},
+				  {0.0f,0.0f,0.0f},
+				  {0.0f,0.0f,0.0f} };
+	cameraTransform = { {1.0f,1.0f,1.0f},
+						{0.3f,0.0f,0.0f},
+						{0.0f,4.0f,-10.0f} };
 }
 
 void Object3d::Update() {
@@ -56,7 +59,7 @@ void Object3d::Update() {
 	Matrix4x4 viewMatrixModel = Matrix4x4::Inverse(cameraMatrixModel);
 
 	Matrix4x4 projectionMatrixModel = Matrix4x4::PerspectiveFov(
-		0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 100.0f);
+		0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 20000.0f);
 
 	Matrix4x4 wvpModel = Matrix4x4::Multiply(
 		worldMatrixModel,

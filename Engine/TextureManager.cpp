@@ -53,13 +53,19 @@ void TextureManager::LoadTexture(const std::string& filePath) {
 	HRESULT hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
 	assert(SUCCEEDED(hr));
 
-	//ミニマップの作成
+	//ミップマップの作成
 	DirectX::ScratchImage mipImages{};
-	hr = DirectX::GenerateMipMaps(image.GetImages(),
+	hr = DirectX::GenerateMipMaps(
+		image.GetImages(),
 		image.GetImageCount(),
 		image.GetMetadata(),
-		DirectX::TEX_FILTER_SRGB, 0, mipImages);
-	assert(SUCCEEDED(hr));
+		DirectX::TEX_FILTER_SRGB, 0, mipImages
+	);
+
+	if (FAILED(hr)) {
+		// ★ ミップ生成に失敗したら、そのまま使う
+		mipImages = std::move(image);
+	}
 
 	//テクスチャデータを追加
 	textureDatas_.resize(textureDatas_.size() + 1);
@@ -125,4 +131,9 @@ const DirectX::TexMetadata& TextureManager::GetMetaData(uint32_t textureIndex) {
 	assert(textureIndex < textureDatas_.size());
 	TextureData& textureData = textureDatas_[textureIndex];
 	return textureData.metadata;
+}
+
+ID3D12DescriptorHeap* TextureManager::GetSrvDescriptorHeap() const {
+	assert(dx_);                    // Initialize 済み前提
+	return dx_->GetSRVDescriptorHeap();
 }
