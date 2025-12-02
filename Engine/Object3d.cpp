@@ -28,7 +28,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
 	//初期化
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // ライトの色
-	directionalLightData->direction = Matrix4x4::Normalize({ 0.0f, -1.0f, 0.0f });//ライトの向き
+	directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
 	directionalLightData->intensity = 1.0f; // ライトの強度
 
 

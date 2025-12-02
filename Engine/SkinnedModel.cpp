@@ -7,6 +7,46 @@
 Microsoft::WRL::ComPtr<ID3D12RootSignature> SkinnedModel::sRootSignature_;
 Microsoft::WRL::ComPtr<ID3D12PipelineState> SkinnedModel::sPipelineState_;
 
+namespace {
+
+    Matrix4x4 MakeSRT(const Vector3& s, const Matrix4x4::Quat& q, const Vector3& t)
+    {
+        Matrix4x4 m = Matrix4x4::MakeIdentity4x4();
+
+        float xx = q.x * q.x;
+        float yy = q.y * q.y;
+        float zz = q.z * q.z;
+        float xy = q.x * q.y;
+        float xz = q.x * q.z;
+        float yz = q.y * q.z;
+        float wx = q.w * q.x;
+        float wy = q.w * q.y;
+        float wz = q.w * q.z;
+
+        // 回転部分
+        m.m[0][0] = (1.0f - 2.0f * (yy + zz)) * s.x;
+        m.m[0][1] = (2.0f * (xy - wz)) * s.x;
+        m.m[0][2] = (2.0f * (xz + wy)) * s.x;
+
+        m.m[1][0] = (2.0f * (xy + wz)) * s.y;
+        m.m[1][1] = (1.0f - 2.0f * (xx + zz)) * s.y;
+        m.m[1][2] = (2.0f * (yz - wx)) * s.y;
+
+        m.m[2][0] = (2.0f * (xz - wy)) * s.z;
+        m.m[2][1] = (2.0f * (yz + wx)) * s.z;
+        m.m[2][2] = (1.0f - 2.0f * (xx + yy)) * s.z;
+
+        // 平行移動
+        m.m[3][0] = t.x;
+        m.m[3][1] = t.y;
+        m.m[3][2] = t.z;
+
+        return m;
+    }
+
+} // namespace
+
+
 void SkinnedModel::Initialize(DirectXCommon* dx, const std::string& filePath)
 {
     dx_ = dx;
@@ -169,11 +209,94 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
         }
     }
 
-    // ==== 5. Tポーズ時の正しいグローバルボーン行列を計算 ====
-
- // ==== 5. boneMatrices_ はいったん全部 Identity（後でアニメ時にちゃんと計算する）====
+    // ==== 4.5 Bone 行列の初期化（ボーン数ぶん Identity） ====
     boneMatrices_.clear();
-    boneMatrices_.resize(bones_.size(), Matrix4x4::MakeIdentity4x4());
+    boneMatrices_.resize(bones_.size());
+    for (size_t i = 0; i < boneMatrices_.size(); ++i) {
+        boneMatrices_[i] = Matrix4x4::MakeIdentity4x4();
+    }
+
+    // ==== 5. アニメーション（とりあえず 1本目）を取り込む ====
+    anim_ = AnimationClip{};  // クリア
+
+    if (scene->HasAnimations() && scene->mAnimations[0]) {
+        const aiAnimation* aiAnim = scene->mAnimations[0];
+
+        anim_.name = aiAnim->mName.C_Str();
+
+        double ticksPerSecond = aiAnim->mTicksPerSecond;
+        if (ticksPerSecond <= 0.0) {
+            // 0 の場合は 25fps 相当など、適当な既定値にすることが多い
+            ticksPerSecond = 25.0;
+        }
+        anim_.ticksPerSecond = static_cast<float>(ticksPerSecond);
+
+        // duration（tick）→ 秒換算
+        const double durationTicks = aiAnim->mDuration;
+        anim_.duration = static_cast<float>(durationTicks / ticksPerSecond);
+
+        // チャンネルごとにコピー
+        anim_.channels.clear();
+        anim_.channels.reserve(aiAnim->mNumChannels);
+
+        for (unsigned int ci = 0; ci < aiAnim->mNumChannels; ++ci) {
+            const aiNodeAnim* nodeAnim = aiAnim->mChannels[ci];
+            if (!nodeAnim) { continue; }
+
+            BoneAnimChannel ch{};
+            ch.boneName = nodeAnim->mNodeName.C_Str();
+
+            // このチャンネルがどの Bone に対応するか調べる
+            ch.boneIndex = -1;
+            for (size_t bi = 0; bi < bones_.size(); ++bi) {
+                if (bones_[bi].name == ch.boneName) {
+                    ch.boneIndex = static_cast<int>(bi);
+                    break;
+                }
+            }
+            // 対応するボーンが無ければスキップしてもいいし、boneIndex=-1 のままにしてもよい
+            // ここでは一旦そのまま保持しておく
+
+            // 位置キー
+            ch.posKeys.reserve(nodeAnim->mNumPositionKeys);
+            for (unsigned int k = 0; k < nodeAnim->mNumPositionKeys; ++k) {
+                const aiVectorKey& key = nodeAnim->mPositionKeys[k];
+                AnimKeyVec3 ak{};
+                ak.time = static_cast<float>(key.mTime / ticksPerSecond);
+                ak.value = { key.mValue.x, key.mValue.y, key.mValue.z };
+                ch.posKeys.push_back(ak);
+            }
+
+            // 回転キー（クォータニオン）
+            ch.rotKeys.reserve(nodeAnim->mNumRotationKeys);
+            for (unsigned int k = 0; k < nodeAnim->mNumRotationKeys; ++k) {
+                const aiQuatKey& key = nodeAnim->mRotationKeys[k];
+                AnimKeyQuat ak{};
+                ak.time = static_cast<float>(key.mTime / ticksPerSecond);
+                ak.x = key.mValue.x;
+                ak.y = key.mValue.y;
+                ak.z = key.mValue.z;
+                ak.w = key.mValue.w;
+                ch.rotKeys.push_back(ak);
+            }
+
+            // スケールキー
+            ch.scaleKeys.reserve(nodeAnim->mNumScalingKeys);
+            for (unsigned int k = 0; k < nodeAnim->mNumScalingKeys; ++k) {
+                const aiVectorKey& key = nodeAnim->mScalingKeys[k];
+                AnimKeyVec3 ak{};
+                ak.time = static_cast<float>(key.mTime / ticksPerSecond);
+                ak.value = { key.mValue.x, key.mValue.y, key.mValue.z };
+                ch.scaleKeys.push_back(ak);
+            }
+
+            anim_.channels.push_back(std::move(ch));
+        }
+    } else {
+        // アニメ無しのモデルの場合：anim_.duration=0 のまま、channels 空
+        anim_ = AnimationClip{};
+    }
+
 
     // ==== 6. mFaces を使って「描画順の頂点配列」を作る ====
     std::vector<SkinVertex> ordered;
@@ -197,9 +320,149 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
     textureIndex_ =
         TextureManager::GetInstance()->GetTextureIndexByFilePath("resources/white1x1.png");
 
+
+
+    // ==== デバッグ: 読み込んだアニメ情報をログ ====
+    {
+        std::string out =
+            "[SkinnedModel] Anim name=" + anim_.name +
+            ", duration=" + std::to_string(anim_.duration) +
+            " sec, ticksPerSec=" + std::to_string(anim_.ticksPerSecond) +
+            ", channels=" + std::to_string(anim_.channels.size()) + "\n";
+
+        OutputDebugStringA(out.c_str());
+
+        int mappedChannels = 0;
+        for (auto& ch : anim_.channels) {
+            if (ch.boneIndex >= 0) {
+                ++mappedChannels;
+            }
+        }
+
+        std::string out2 =
+            "[SkinnedModel] bones=" + std::to_string(bones_.size()) +
+            ", mappedChannels=" + std::to_string(mappedChannels) + "\n";
+
+        OutputDebugStringA(out2.c_str());
+    }
+
+
     // ==== 8. GPUリソース作成 ====
     CreateBuffers_();
 }
+
+void SkinnedModel::UpdateAnimation(float deltaTime)
+{
+    // アニメーション無し or 再生しないときは何もしない
+    if (!animPlaying_ || anim_.duration <= 0.0f ||
+        anim_.channels.empty() || bones_.empty()) {
+        return;
+    }
+
+    // 時間を進める
+    animTime_ += deltaTime * animSpeed_;
+
+    // ループ処理
+    if (animTime_ > anim_.duration) {
+        animTime_ = std::fmod(animTime_, anim_.duration);
+    }
+
+    const size_t boneCount = bones_.size();
+
+    // いったん全部 Identity
+    std::vector<Matrix4x4> local(boneCount);
+    for (size_t i = 0; i < boneCount; ++i) {
+        local[i] = Matrix4x4::MakeIdentity4x4();
+    }
+
+    // ==== 各チャンネルからローカル行列を作成 ====
+    for (const BoneAnimChannel& ch : anim_.channels) {
+        int bi = ch.boneIndex;
+        if (bi < 0 || bi >= static_cast<int>(boneCount)) {
+            continue;
+        }
+
+        // S / R / T を全部サンプリング
+        Vector3            pos = SamplePosition(ch, animTime_);
+        Matrix4x4::Quat    rot = SampleRotation(ch, animTime_);
+        Vector3            scl = SampleScale(ch, animTime_);
+
+        // クォータニオンから SRT 行列を組み立て
+        local[bi] = MakeSRT(scl, rot, pos);
+    }
+
+    // ==== 親子を考慮したグローバル行列 & boneMatrices_ へ反映 ====
+    std::vector<Matrix4x4> global(boneCount);
+    for (size_t i = 0; i < boneCount; ++i) {
+        int parent = bones_[i].parentIndex;
+        if (parent < 0) {
+            global[i] = local[i];
+        } else {
+            global[i] = Matrix4x4::Multiply(global[parent], local[i]);
+        }
+        // 今は offset を無視してそのまま使う（デバッグ簡易版）
+        boneMatrices_[i] = global[i];
+    }
+}
+
+
+Vector3 SkinnedModel::SamplePosition(const BoneAnimChannel& ch, float time)
+{
+    if (ch.posKeys.empty()) return { 0,0,0 };
+    if (ch.posKeys.size() == 1) return ch.posKeys[0].value;
+
+    for (size_t i = 0; i < ch.posKeys.size() - 1; i++) {
+        float t0 = ch.posKeys[i].time;
+        float t1 = ch.posKeys[i + 1].time;
+        if (time >= t0 && time <= t1) {
+            float f = (time - t0) / (t1 - t0);
+            return ch.posKeys[i].value * (1.0f - f) + ch.posKeys[i + 1].value * f;
+        }
+    }
+
+    return ch.posKeys.back().value;
+}
+
+Matrix4x4::Quat SkinnedModel::SampleRotation(const BoneAnimChannel& ch, float time)
+{
+    if (ch.rotKeys.empty()) return { 0,0,0,1 };
+    if (ch.rotKeys.size() == 1) return {
+        ch.rotKeys[0].x, ch.rotKeys[0].y, ch.rotKeys[0].z, ch.rotKeys[0].w
+    };
+
+    for (size_t i = 0; i < ch.rotKeys.size() - 1; i++) {
+        float t0 = ch.rotKeys[i].time;
+        float t1 = ch.rotKeys[i + 1].time;
+        if (time >= t0 && time <= t1) {
+            float f = (time - t0) / (t1 - t0);
+            Matrix4x4::Quat a{ ch.rotKeys[i].x, ch.rotKeys[i].y, ch.rotKeys[i].z, ch.rotKeys[i].w };
+            Matrix4x4::Quat b{ ch.rotKeys[i + 1].x, ch.rotKeys[i + 1].y, ch.rotKeys[i + 1].z, ch.rotKeys[i + 1].w };
+            return Matrix4x4::Slerp(a, b, f);
+        }
+    }
+
+    Matrix4x4::Quat last{ ch.rotKeys.back().x, ch.rotKeys.back().y, ch.rotKeys.back().z, ch.rotKeys.back().w };
+    return last;
+}
+
+Vector3 SkinnedModel::SampleScale(const BoneAnimChannel& ch, float time)
+{
+    // スケールキーが無い → (1,1,1) 固定
+    if (ch.scaleKeys.empty()) return { 1.0f, 1.0f, 1.0f };
+    if (ch.scaleKeys.size() == 1) return ch.scaleKeys[0].value;
+
+    for (size_t i = 0; i < ch.scaleKeys.size() - 1; i++) {
+        float t0 = ch.scaleKeys[i].time;
+        float t1 = ch.scaleKeys[i + 1].time;
+        if (time >= t0 && time <= t1) {
+            float f = (time - t0) / (t1 - t0);
+            return ch.scaleKeys[i].value * (1.0f - f) + ch.scaleKeys[i + 1].value * f;
+        }
+    }
+
+    return ch.scaleKeys.back().value;
+}
+
 
 void SkinnedModel::CreateBuffers_()
 {
@@ -374,37 +637,37 @@ void SkinnedModel::Draw()
     transformData_->world = world;
     transformData_->worldViewProj = wvp;
 
-    // ==== Bone 行列のデバッグ更新 ====
-    if (debugPoseEnable_ && !bones_.empty()) {
-        const size_t boneCount = bones_.size();
+    //// ==== Bone 行列のデバッグ更新 ====
+    //if (debugPoseEnable_ && !bones_.empty()) {
+    //    const size_t boneCount = bones_.size();
 
-        // ローカル行列（回転＋平行移動）
-        std::vector<Matrix4x4> local(boneCount);
-        for (size_t i = 0; i < boneCount; ++i) {
-            const Vector3& r = debugBoneRot_[i];
-            const Vector3& t = debugBoneTrans_[i];  // ★ 追加
+    //    // ローカル行列（回転＋平行移動）
+    //    std::vector<Matrix4x4> local(boneCount);
+    //    for (size_t i = 0; i < boneCount; ++i) {
+    //        const Vector3& r = debugBoneRot_[i];
+    //        const Vector3& t = debugBoneTrans_[i];  // ★ 追加
 
-            local[i] = Matrix4x4::MakeAffineMatrix(
-                { 1.0f, 1.0f, 1.0f },  // scale
-                r,                     // rotate（ラジアン）
-                t                      // translate（ImGui から設定）
-            );
-        }
+    //        local[i] = Matrix4x4::MakeAffineMatrix(
+    //            { 1.0f, 1.0f, 1.0f },  // scale
+    //            r,                     // rotate（ラジアン）
+    //            t                      // translate（ImGui から設定）
+    //        );
+    //    }
 
 
-        // 親子を考慮したグローバル（簡易版）
-        std::vector<Matrix4x4> global(boneCount);
-        for (size_t i = 0; i < boneCount; ++i) {
-            int parent = bones_[i].parentIndex;
-            if (parent < 0) {
-                global[i] = local[i];
-            } else {
-                global[i] = Matrix4x4::Multiply(global[parent], local[i]);
-            }
-            // 今は offset を無視して「デバッグ用行列」としてそのまま使う
-            boneMatrices_[i] = global[i];
-        }
-    }
+    //    // 親子を考慮したグローバル（簡易版）
+    //    std::vector<Matrix4x4> global(boneCount);
+    //    for (size_t i = 0; i < boneCount; ++i) {
+    //        int parent = bones_[i].parentIndex;
+    //        if (parent < 0) {
+    //            global[i] = local[i];
+    //        } else {
+    //            global[i] = Matrix4x4::Multiply(global[parent], local[i]);
+    //        }
+    //        // 今は offset を無視して「デバッグ用行列」としてそのまま使う
+    //        boneMatrices_[i] = global[i];
+    //    }
+    //}
 
     // Bone 行列を CB にコピー
     if (boneMatrixData_ && !boneMatrices_.empty()) {

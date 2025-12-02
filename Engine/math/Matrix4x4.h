@@ -24,7 +24,7 @@ public:
 	static Matrix4x4 FromAiMatrix(const aiMatrix4x4& a);
 
 	static Matrix4x4 MakeRotateZMatrix(float angleRad);
-		
+
 	static Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);
 	static Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translation);
 	static Matrix4x4 Inverse(const Matrix4x4& m);
@@ -47,5 +47,53 @@ public:
 	// ★ 追加：行列の掛け算オペレータ
 	Matrix4x4 operator*(const Matrix4x4& rhs) const;
 	Matrix4x4& operator*=(const Matrix4x4& rhs);
+
+	// クォータニオンの構造体がない場合、簡易版
+	struct Quat { float x, y, z, w; };
+
+	static Quat Normalize(const Quat& q)
+	{
+		float len = sqrtf(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+		return { q.x / len, q.y / len, q.z / len, q.w / len };
+	}
+
+	static Quat Slerp(const Quat& a, const Quat& b, float t)
+	{
+		// 内積
+		float dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+
+		// 逆向きの場合は片方を反転
+		Quat bb = b;
+		if (dot < 0.0f) {
+			dot = -dot;
+			bb = { -b.x, -b.y, -b.z, -b.w };
+		}
+
+		if (dot > 0.9995f) {
+			// ほぼ同じ → Lerp でOK
+			Quat r{
+				a.x + (bb.x - a.x) * t,
+				a.y + (bb.y - a.y) * t,
+				a.z + (bb.z - a.z) * t,
+				a.w + (bb.w - a.w) * t
+			};
+			return Normalize(r);
+		}
+
+		// θ を求める
+		float theta = acosf(dot);
+		float sinT = sinf(theta);
+
+		float w1 = sinf((1.0f - t) * theta) / sinT;
+		float w2 = sinf(t * theta) / sinT;
+
+		return {
+			a.x * w1 + bb.x * w2,
+			a.y * w1 + bb.y * w2,
+			a.z * w1 + bb.z * w2,
+			a.w * w1 + bb.w * w2
+		};
+	}
+
 
 };

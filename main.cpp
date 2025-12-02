@@ -655,6 +655,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// ==== 3D（スキン付き）====
 	//	skinnedCommon->SetGraphicsPipelineState(); // ← Skinned 用 PSO
 		// Transform / Material / Light / Bone 行列を Root にセット
+
+		skinnedHuman->UpdateAnimation(1.0f / 60.0f);
+
 		skinnedHuman->Draw();
 
 		// ==== パーティクル描画 ====

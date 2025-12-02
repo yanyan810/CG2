@@ -11,6 +11,40 @@
 #include <wrl.h>
 #include <assimp/scene.h>
 
+// t秒時点の Vec3 キーフレーム
+struct AnimKeyVec3 {
+    float   time = 0.0f;
+    Vector3 value{};
+};
+
+// t秒時点の 回転（クォータニオン）キーフレーム
+struct AnimKeyQuat {
+    float time = 0.0f;
+    // クォータニオンをまだクラスで持っていなければ、x,y,z,w だけ持つ簡易構造体でOK
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float w = 1.0f;
+};
+
+// 1ボーン分のアニメーション（位置・回転・スケール）
+struct BoneAnimChannel {
+    std::string            boneName;
+    int                    boneIndex = -1;  // SkinnedModel::bones_ の何番か
+    std::vector<AnimKeyVec3> posKeys;
+    std::vector<AnimKeyQuat> rotKeys;
+    std::vector<AnimKeyVec3> scaleKeys;
+};
+
+// 1本のアニメクリップ（とりあえず FBX の Animation[0] 用）
+struct AnimationClip {
+    std::string                   name;
+    float                         duration = 0.0f;        // 秒換算
+    float                         ticksPerSecond = 0.0f;  // Assimp の値
+    std::vector<BoneAnimChannel>  channels;
+};
+// ==== 追加ここまで ====
+
 class SkinnedModel {
 public:
     // ==== 頂点構造体（ボーン4本まで）====
@@ -60,6 +94,14 @@ public:
     const std::vector<Bone>& GetBones() const { return bones_; }
     void SetDebugBoneTranslate(int index, const Vector3& trans);
 
+    void UpdateAnimation(float deltaTime);
+
+    Vector3 SamplePosition(const BoneAnimChannel& ch, float time);
+
+    Matrix4x4::Quat SampleRotation(const BoneAnimChannel& ch, float time);
+
+    Vector3 SampleScale(const BoneAnimChannel& ch, float time);
+
 
 private:
     void LoadFbx_(const std::string& filePath);
@@ -95,6 +137,13 @@ private:
 
     // テクスチャ
     uint32_t textureIndex_ = 0;
+
+    // ==== アニメーション再生用 ====  ←★ ここから追加
+    AnimationClip anim_;       // 今は「1本だけ」扱う
+    float         animTime_ = 0.0f;      // 現在の再生時間[秒]
+    bool          animPlaying_ = true;   // 再生中フラグ
+    float         animSpeed_ = 1.0f;     // 再生速度（1.0=等倍）
+ 
 
     // Transform 値
     Vector3 scale_{ 1.0f,1.0f,1.0f };
