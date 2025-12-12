@@ -337,8 +337,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		return Vector3{ v.x / l, v.y / l, v.z / l };
 		};
 
-	object3dA->SetBlendMode(Object3dCommon::BlendMode::kBlendModeAdd);
-	object3dB->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNormal);
+	object3dA->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+	object3dB->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
 
 	// ========== Particle 用 ==========
 	ParticleCommon* particleCommon = new ParticleCommon();

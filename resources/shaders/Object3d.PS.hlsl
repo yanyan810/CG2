@@ -71,6 +71,7 @@ PixelSharderOutput main(VertexShaderOutput input)
     //float3 normal = normalize(input.normal);
     //output.color = float4(normal * 0.5f + 0.5f, 1.0f);
 
+    output.color = float4(1, 0, 0, 1);
     
         return output;
 }
