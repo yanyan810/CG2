@@ -79,8 +79,8 @@ void SpriteCommon::CreateGraphicsPipelineState() {
 
     // === Shaders ===
     // ※ まずは既存の Object3D シェーダを流用（あなたの main と同じ）
-    Microsoft::WRL::ComPtr<IDxcBlob> vs = dx_->CompilesSharder(L"resources/shaders/Object3D.VS.hlsl", L"vs_6_0");
-    Microsoft::WRL::ComPtr<IDxcBlob> ps = dx_->CompilesSharder(L"resources/shaders/Object3D.PS.hlsl", L"ps_6_0");
+    Microsoft::WRL::ComPtr<IDxcBlob> vs = dx_->CompilesSharder(L"resources/shaders/Sprite2d.VS.hlsl", L"vs_6_0");
+    Microsoft::WRL::ComPtr<IDxcBlob> ps = dx_->CompilesSharder(L"resources/shaders/Sprite2d.PS.hlsl", L"ps_6_0");
 
     // === Blend ===
     D3D12_BLEND_DESC blend{};

@@ -262,9 +262,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	TextureManager::GetInstance()->Initialize(dxCommon);
 
-	//// 2) 使うテクスチャをロード（1回でOK）
-	//TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
-	//TextureManager::GetInstance()->LoadTexture("resources/sample.png");
+	// 2) 使うテクスチャをロード（1回でOK）
+	TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
+	TextureManager::GetInstance()->LoadTexture("resources/sample.png");
 
 	//const int spriteCount = 5; // 出したい数
 	//std::vector<std::unique_ptr<Sprite>> sprites;
@@ -313,32 +313,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	object3dCommon = new Object3dCommon();
 	object3dCommon->Initialize(dxCommon);
 
-	//// 3Dオブジェクト（1個目）
-	//Object3d* object3dA = new Object3d();
-	//object3dA->Initialize(object3dCommon, dxCommon);
-	//object3dA->SetModel("fence/fence.obj");        // ← 同じ Model を共有
-	//object3dA->SetTranslate({ 0.0f, 0.0f, 0.0f });   // 位置A
+	// 3Dオブジェクト（1個目）
+	Object3d* object3dA = new Object3d();
+	object3dA->Initialize(object3dCommon, dxCommon);
+	object3dA->SetModel("fence/fence.obj");        // ← 同じ Model を共有
+	object3dA->SetTranslate({ 0.0f, 0.0f, 0.0f });   // 位置A
 
-	//// 3Dオブジェクト（2個目）
-	//Object3d* object3dB = new Object3d();
-	//object3dB->Initialize(object3dCommon, dxCommon);
-	//object3dB->SetModel("Human2.fbx");        // ← ここも同じ Model
-	//object3dB->SetScale({ 0.1f, 0.1f, 0.1f });
-	//object3dB->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	// 3Dオブジェクト（2個目）
+	Object3d* object3dB = new Object3d();
+	object3dB->Initialize(object3dCommon, dxCommon);
+	object3dB->SetModel("plane.obj");        // ← ここも同じ Model
+	object3dB->SetScale({ 1.0f, 1.0f, 1.0f });
+	object3dB->SetTranslate({ 0.0f, 0.0f, 0.0f });
 
-	//// ==== （オブジェクト生成の後あたりで）初期値を UI 側に取り込む ====
-	//Vector4 uiLightColor = object3dA->GetLightColor();          // RGBA
-	//Vector3 uiLightDir = object3dA->GetDirection();      // 方向
-	//float   uiLightIntensity = object3dA->GetIntensity();    // 強度
+	// ==== （オブジェクト生成の後あたりで）初期値を UI 側に取り込む ====
+	Vector4 uiLightColor = object3dA->GetLightColor();          // RGBA
+	Vector3 uiLightDir = object3dA->GetDirection();      // 方向
+	float   uiLightIntensity = object3dA->GetIntensity();    // 強度
 
-	//auto Normalize3 = [](Vector3 v) {
-	//	float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-	//	if (l < 1e-6f) return Vector3{ 0.0f, -1.0f, 0.0f };
-	//	return Vector3{ v.x / l, v.y / l, v.z / l };
-	//	};
+	auto Normalize3 = [](Vector3 v) {
+		float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+		if (l < 1e-6f) return Vector3{ 0.0f, -1.0f, 0.0f };
+		return Vector3{ v.x / l, v.y / l, v.z / l };
+		};
 
-	//object3dA->SetBlendMode(Object3dCommon::BlendMode::kBlendModeAdd);
-	//object3dB->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNormal);
+	object3dA->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+	object3dB->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
 
 	// ========== Particle 用 ==========
 	ParticleCommon* particleCommon = new ParticleCommon();
@@ -355,19 +356,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ブレンド（加算とか）を変えたいとき
 	particle->SetBlendMode(ParticleCommon::BlendMode::kBlendModeAdd);
 
-	SkinnedModel* skinnedHuman = nullptr;
+	//SkinnedModel* skinnedHuman = nullptr;
 
-	skinnedHuman = new SkinnedModel();
-	//skinnedHuman->Initialize(dxCommon, "resources/55-rp_nathan_animated_003_walking_fbx/rp_nathan_animated_003_walking.fbx");
-	skinnedHuman->Initialize(dxCommon, "resources/Human.fbx");
-	// 表示位置をちょっと調整したければ
-	skinnedHuman->SetScale({ 0.02f*1.0f, 0.02f*1.0f, 0.02f*1.0f });
-	skinnedHuman->SetTranslate({ 0.0f, -20.0f, 100.0f });
-	skinnedHuman->SetRotate({ 0.0f, 0.0f, 0.0f }); // ← Y軸回転で180度回す
+	//skinnedHuman = new SkinnedModel();
+	////skinnedHuman->Initialize(dxCommon, "resources/55-rp_nathan_animated_003_walking_fbx/rp_nathan_animated_003_walking.fbx");
+	//skinnedHuman->Initialize(dxCommon, "resources/Human.fbx");
+	//// 表示位置をちょっと調整したければ
+	//skinnedHuman->SetScale({ 0.02f*1.0f, 0.02f*1.0f, 0.02f*1.0f });
+	//skinnedHuman->SetTranslate({ 0.0f, -20.0f, 100.0f });
+	//skinnedHuman->SetRotate({ 0.0f, 0.0f, 0.0f }); // ← Y軸回転で180度回す
 
-	Vector3 scale = { 1.0f,1.0f,1.0f };
-	Vector3 tramnslate = { 0.0f,0.0f,0.0f };
-	Vector3 rotate = { 0.0f,0.0f,0.0f };
+	//Vector3 scale = { 1.0f,1.0f,1.0f };
+	//Vector3 tramnslate = { 0.0f,0.0f,0.0f };
+	//Vector3 rotate = { 0.0f,0.0f,0.0f };
+
+	Camera* camera = new Camera();
+	camera->SetRotate({ 0.0f,0.0f,0.0f });
+	camera->SetTranslate({ 0.0f,3.0f,-10.0f });
+	object3dCommon->SetDefaultCamera(camera);
+	object3dCommon->SetDefaultCamera(camera);
+	object3dA->SetCamera(camera);
+	object3dB->SetCamera(camera);
 
 	MSG msg{};
 
@@ -431,8 +440,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	bool isDrawSprite = true;
 	bool isDrawTea = false;
 
-	/*auto rotA = object3dA->GetRotate();
-	auto rotB = object3dB->GetRotate();*/
+	auto rotA = object3dA->GetRotate();
+	auto rotB = object3dB->GetRotate();
 
 	bool isEnd = false;
 
@@ -459,53 +468,107 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::NewFrame();
 
 		
-		ImGui::Begin("SkinnedModel Bones");
+		//ImGui::Begin("SkinnedModel Bones");
 
-		// ボーンが存在するときだけ表示
-		const auto& bones = skinnedHuman->GetBones();
-		if (!bones.empty()) {
+		//// ボーンが存在するときだけ表示
+		//const auto& bones = skinnedHuman->GetBones();
+		//if (!bones.empty()) {
 
-			// Bone 選択コンボ
-			const char* currentName = bones[uiBoneIndex].name.c_str();
-			if (ImGui::BeginCombo("Bone", currentName)) {
-				for (int i = 0; i < static_cast<int>(bones.size()); ++i) {
-					bool isSelected = (i == uiBoneIndex);
-					if (ImGui::Selectable(bones[i].name.c_str(), isSelected)) {
-						uiBoneIndex = i;
-						// ボーン変更時は回転＆移動をリセット（お好みで）
-						uiBoneRot = { 0.0f, 0.0f, 0.0f };
-						uiBoneTrans = { 0.0f, 0.0f, 0.0f };
-						uiBoneScale = { 1.0f, 1.0f, 1.0f };
-					}
-					if (isSelected) {
-						ImGui::SetItemDefaultFocus();
-					}
-				}
-				ImGui::EndCombo();
+		//	// Bone 選択コンボ
+		//	const char* currentName = bones[uiBoneIndex].name.c_str();
+		//	if (ImGui::BeginCombo("Bone", currentName)) {
+		//		for (int i = 0; i < static_cast<int>(bones.size()); ++i) {
+		//			bool isSelected = (i == uiBoneIndex);
+		//			if (ImGui::Selectable(bones[i].name.c_str(), isSelected)) {
+		//				uiBoneIndex = i;
+		//				// ボーン変更時は回転＆移動をリセット（お好みで）
+		//				uiBoneRot = { 0.0f, 0.0f, 0.0f };
+		//				uiBoneTrans = { 0.0f, 0.0f, 0.0f };
+		//				uiBoneScale = { 1.0f, 1.0f, 1.0f };
+		//			}
+		//			if (isSelected) {
+		//				ImGui::SetItemDefaultFocus();
+		//			}
+		//		}
+		//		ImGui::EndCombo();
+		//	}
+
+		//	// ★ 追加：ローカル位置（ボーン原点からのオフセット）
+		//	ImGui::DragFloat3("Bone Pos (local)", &uiBoneTrans.x, 0.01f);
+
+		//	// 回転スライダー（度指定だけど値はラジアンで入る）
+		//	ImGui::SliderAngle("Bone Rot X", &uiBoneRot.x);
+		//	ImGui::SliderAngle("Bone Rot Y", &uiBoneRot.y);
+		//	ImGui::SliderAngle("Bone Rot Z", &uiBoneRot.z);
+
+		//	// スケールスライダー
+		//	ImGui::DragFloat3("Bone Scale", &uiBoneScale.x, 0.01f);
+
+		//	// SkinnedModel に反映
+		//	skinnedHuman->SetDebugBoneTranslate(uiBoneIndex, uiBoneTrans);
+		//	skinnedHuman->SetDebugBoneRotate(uiBoneIndex, uiBoneRot);
+		//	//skinnedHuman->SetDebugBoneScale(uiBoneIndex, uiBoneScale);
+		//}
+		//ImGui::End();
+
+
+
+		// =====================
+// Camera Debug (ImGui)
+// =====================
+		{
+			static Vector3 camT = camera->GetTranslate();
+			static Vector3 camR = camera->GetRotate();
+
+			// 投影（Perspective）の材料
+			static float fovY = 0.45f;
+			static float nearZ = 0.1f;
+			static float farZ = 1000.0f;
+			static bool init = false;
+
+			if (!init) {
+				// 1回だけ Camera の現在値を吸い上げ
+				camT = camera->GetTranslate();
+				camR = camera->GetRotate();
+				// Camera 側 getter が無いので初期値は Camera.cpp に合わせる
+				// (fovY=0.45, near=0.1, far=1000)
+				init = true;
 			}
 
-			// ★ 追加：ローカル位置（ボーン原点からのオフセット）
-			ImGui::DragFloat3("Bone Pos (local)", &uiBoneTrans.x, 0.01f);
+			ImGui::Begin("Camera");
 
-			// 回転スライダー（度指定だけど値はラジアンで入る）
-			ImGui::SliderAngle("Bone Rot X", &uiBoneRot.x);
-			ImGui::SliderAngle("Bone Rot Y", &uiBoneRot.y);
-			ImGui::SliderAngle("Bone Rot Z", &uiBoneRot.z);
+			ImGui::DragFloat3("Translate", &camT.x, 0.05f);
+			ImGui::SliderAngle("Rot X", &camR.x);
+			ImGui::SliderAngle("Rot Y", &camR.y);
+			ImGui::SliderAngle("Rot Z", &camR.z);
 
-			// スケールスライダー
-			ImGui::DragFloat3("Bone Scale", &uiBoneScale.x, 0.01f);
+			ImGui::SliderFloat("FovY", &fovY, 0.1f, 1.5f);
+			ImGui::InputFloat("NearZ", &nearZ);
+			ImGui::InputFloat("FarZ", &farZ);
 
-			// SkinnedModel に反映
-			skinnedHuman->SetDebugBoneTranslate(uiBoneIndex, uiBoneTrans);
-			skinnedHuman->SetDebugBoneRotate(uiBoneIndex, uiBoneRot);
-			//skinnedHuman->SetDebugBoneScale(uiBoneIndex, uiBoneScale);
+			// 安全化
+			if (nearZ < 0.001f) nearZ = 0.001f;
+			if (farZ < nearZ + 0.01f) farZ = nearZ + 0.01f;
+
+			// 反映（毎フレーム即反映）
+			camera->SetTranslate(camT);
+			camera->SetRotate(camR);
+			camera->SetFovY(fovY);
+			camera->SetNearZ(nearZ);
+			camera->SetFarClip(farZ);
+
+			// aspect はウィンドウサイズから毎フレーム更新しておくのが安全
+			camera->SetAspect(float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
+
+			ImGui::End();
 		}
-		ImGui::End();
 
 
-
-	
 		//ゲームの更新処理
+
+
+		camera->Update();
+
 
 		//ImGuiの表示
 		static int selectedTexture1 = 0;
@@ -550,39 +613,41 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//ImGui::Begin("Material");
 
-		//static Vector4 uiMatA = object3dA->GetMaterialColor();
-		//ImGui::ColorEdit4("Material A", &uiMatA.x);
-		//object3dA->SetMaterialColor(uiMatA);
+		static Vector4 uiMatA = object3dA->GetMaterialColor();
+		ImGui::ColorEdit4("Material A", &uiMatA.x);
+		uiMatA.w = 1.0f;
+		object3dA->SetMaterialColor(uiMatA);
 
-		//static Vector4 uiMatB = object3dB->GetMaterialColor();
-		//ImGui::ColorEdit4("Material B", &uiMatB.x);
-		//object3dB->SetMaterialColor(uiMatB);
 
-		//ImGui::End();
-
-		//ImGui::Begin("Material");
-
-		//static int uiBlendModeA = (int)Object3dCommon::BlendMode::kBlendModeNormal;
-		//static int uiBlendModeB = (int)Object3dCommon::BlendMode::kBlendModeNormal;
-
-		//const char* blendNames[] = {
-		//	"None",
-		//	"Normal",
-		//	"Add",
-		//	"Subtract",
-		//	"Multiply",
-		//	"Screen"
-		//};
-
-		//// A のブレンド
-		//ImGui::Combo("Blend A", &uiBlendModeA, blendNames, IM_ARRAYSIZE(blendNames));
-		//object3dA->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeA);
-
-		//// B のブレンド
-		//ImGui::Combo("Blend B", &uiBlendModeB, blendNames, IM_ARRAYSIZE(blendNames));
-		//object3dB->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeB);
+		static Vector4 uiMatB = object3dB->GetMaterialColor();
+		ImGui::ColorEdit4("Material B", &uiMatB.x);
+		object3dB->SetMaterialColor(uiMatB);
 
 		//ImGui::End();
+
+		ImGui::Begin("Material");
+
+		static int uiBlendModeA = (int)Object3dCommon::BlendMode::kBlendModeNormal;
+		static int uiBlendModeB = (int)Object3dCommon::BlendMode::kBlendModeNormal;
+
+		const char* blendNames[] = {
+			"None",
+			"Normal",
+			"Add",
+			"Subtract",
+			"Multiply",
+			"Screen"
+		};
+
+		// A のブレンド
+		ImGui::Combo("Blend A", &uiBlendModeA, blendNames, IM_ARRAYSIZE(blendNames));
+		object3dA->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeA);
+
+		// B のブレンド
+		ImGui::Combo("Blend B", &uiBlendModeB, blendNames, IM_ARRAYSIZE(blendNames));
+		object3dB->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeB);
+
+		ImGui::End();
 
 		particle->DebugImGui();
 
@@ -592,75 +657,65 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//// ==== UI 値を Object3d の CB に書き戻す（即時反映）====
 		//Vector3 dirN = Normalize3(uiLightDir);
 
-		//// A に適用
-		//object3dA->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
-		//object3dA->SetDirection(dirN);
-		//object3dA->SetIntensity(uiLightIntensity);
+		// A に適用
+	//	object3dA->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+	//	object3dA->SetDirection(dirN);
+	//	object3dA->SetIntensity(uiLightIntensity);
 
-		//// B にも同じ設定（片方だけで良ければ外してOK）
-		//object3dB->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
-		//object3dB->SetDirection(dirN);
-		//object3dB->SetIntensity(uiLightIntensity);
-
-
-		//// ---- Sprite (Indexed) ----
-		//	// === ImGuiで全スプライト共通操作 ===
-		//	ImGui::Begin("Sprite Controller");
-
-		//	// 共通で動かすパラメータ
-		//	static Transform spriteCtrl = {
-		//		{1.0f, 1.0f, 1.0f}, // scale
-		//		{0.0f, 0.0f, 0.0f}, // rotate
-		//		{0.0f, 0.0f, 0.0f}  // translate
-		//	};
-		//	static Vector4 color = { 1,1,1,1 };
-		//	ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
-		//	ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
-		//	ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
-		//	ImGui::ColorEdit4("Color", &color.x);
-		//	ImGui::End();
-
-		//	// === 全スプライトに適用 & 描画 ===
-		//	const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
-		//	const Matrix4x4 proj2D = Matrix4x4::MakeOrthographicMatrix(
-		//		0.0f, 0.0f,
-		//		float(WinApp::kClientWidth),
-		//		float(WinApp::kClientHeight),
-		//		0.0f, 100.0f
-		//	);
-		//	for (size_t i = 0; i < sprites.size(); ++i) {
-		//		auto& sp = sprites[i];
-		//		sp->SetScale(spriteCtrl.scale);
-		//		sp->SetRotation(spriteCtrl.rotate);
-		//		sp->SetColor(color);
-
-		//		// ★ ここを「上書き」→「加算」に変更
-		//		Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
-		//						basePos[i].y + spriteCtrl.translate.y };
-		//		sp->SetPosition(pos);
-
-		//		sp->Update(view2D, proj2D);
-		//		sp->Draw();
-		//	}
+		// B にも同じ設定（片方だけで良ければ外してOK）
+	//	object3dB->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+	//	object3dB->SetDirection(dirN);
+	//	object3dB->SetIntensity(uiLightIntensity);
 
 
+		// ---- Sprite (Indexed) ----
+			// === ImGuiで全スプライト共通操作 ===
+			ImGui::Begin("Sprite Controller");
 
+			// 共通で動かすパラメータ
+			static Transform spriteCtrl = {
+				{1.0f, 1.0f, 1.0f}, // scale
+				{0.0f, 0.0f, 0.0f}, // rotate
+				{0.0f, 0.0f, 0.0f}  // translate
+			};
+			static Vector4 color = { 1,1,1,1 };
+			ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
+			ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
+			ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
+			ImGui::ColorEdit4("Color", &color.x);
+			ImGui::End();
 
-	//	rotA.z += 0.02f;
-	//	object3dA->SetRotate(rotA);
+			//// === 全スプライトに適用 & 描画 ===
+			//const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
+			//const Matrix4x4 proj2D = Matrix4x4::MakeOrthographicMatrix(
+			//	0.0f, 0.0f,
+			//	float(WinApp::kClientWidth),
+			//	float(WinApp::kClientHeight),
+			//	0.0f, 100.0f
+			//);
+			//for (size_t i = 0; i < sprites.size(); ++i) {
+			//	auto& sp = sprites[i];
+			//	sp->SetScale(spriteCtrl.scale);
+			//	sp->SetRotation(spriteCtrl.rotate);
+			//	sp->SetColor(color);
 
-	//	
-	////	rotB.y += 0.02f;
-	//	object3dB->SetRotate(rotB);
+			//	// ★ ここを「上書き」→「加算」に変更
+			//	Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
+			//					basePos[i].y + spriteCtrl.translate.y };
+			//	sp->SetPosition(pos);
 
-		//Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
-	//	object3dCommon->SetGraphicsPipelineState();
+			//	sp->Update(view2D, proj2D);
+			//	sp->Draw();
+			//}
 
-	//	//object3dA->Update();
-	//	object3dB->Update();
+	//	Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
+		object3dCommon->SetGraphicsPipelineState();
 
-	//	//object3dA->Draw();
-	//	object3dB->Draw();
+		object3dA->Update();
+		object3dB->Update();
+
+		object3dA->Draw();
+		object3dB->Draw();
 
 		// ==== 3D（スキン付き）====
 	//	skinnedCommon->SetGraphicsPipelineState(); // ← Skinned 用 PSO
@@ -745,14 +800,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete object3dCommon;
 	object3dCommon = nullptr;
 
-	//delete object3dA;
-	//object3dA = nullptr;
+	delete object3dA;
+	object3dA = nullptr;
 
-	//delete object3dB;
-	//object3dB = nullptr;
+	delete object3dB;
+	object3dB = nullptr;
 
-	delete skinnedHuman;
-	skinnedHuman = nullptr;
+	//delete skinnedHuman;
+	//skinnedHuman = nullptr;
 
 	return 0;
 }

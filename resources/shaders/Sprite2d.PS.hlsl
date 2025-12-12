@@ -1,4 +1,4 @@
-#include "Object3d.hlsli"
+#include "Sprite2d.hlsli"
 struct Material
 {
     float4 color;
@@ -71,7 +71,6 @@ PixelSharderOutput main(VertexShaderOutput input)
     //float3 normal = normalize(input.normal);
     //output.color = float4(normal * 0.5f + 0.5f, 1.0f);
 
- //   output.color = float4(1, 0, 0, 1);
     
         return output;
 }
