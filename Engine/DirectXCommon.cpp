@@ -776,3 +776,43 @@ void DirectXCommon::ReportLiveObjects()
 	}
 #endif
 }
+
+// === BlendDesc ===
+D3D12_BLEND_DESC DirectXCommon::GetBlendDesc() const {
+	D3D12_BLEND_DESC desc{};
+	desc.AlphaToCoverageEnable = FALSE;
+	desc.IndependentBlendEnable = FALSE;
+
+	const D3D12_RENDER_TARGET_BLEND_DESC defaultBlend = {
+		TRUE, FALSE,
+		D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
+		D3D12_BLEND_ONE, D3D12_BLEND_INV_SRC_ALPHA, D3D12_BLEND_OP_ADD,
+		D3D12_LOGIC_OP_NOOP,
+		D3D12_COLOR_WRITE_ENABLE_ALL
+	};
+
+	for (int i = 0; i < 8; ++i) {
+		desc.RenderTarget[i] = defaultBlend;
+	}
+	return desc;
+}
+
+// === Rasterizer ===
+D3D12_RASTERIZER_DESC DirectXCommon::GetRasterizerDesc() const {
+	D3D12_RASTERIZER_DESC desc{};
+	desc.FillMode = D3D12_FILL_MODE_SOLID;
+	desc.CullMode = D3D12_CULL_MODE_BACK;   // CullMode::None でも OK
+	desc.FrontCounterClockwise = FALSE;
+	desc.DepthClipEnable = TRUE;
+	return desc;
+}
+
+// === DepthStencil ===
+D3D12_DEPTH_STENCIL_DESC DirectXCommon::GetDepthStencilDesc() const {
+	D3D12_DEPTH_STENCIL_DESC desc{};
+	desc.DepthEnable = TRUE;
+	desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	desc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	desc.StencilEnable = FALSE;
+	return desc;
+}

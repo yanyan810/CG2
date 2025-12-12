@@ -23,6 +23,8 @@ public:
 	//メタデータ取得
 	const DirectX::TexMetadata& GetMetaData(uint32_t textureIndex);
 
+	ID3D12DescriptorHeap* GetSrvDescriptorHeap() const;
+
 private:
 	static TextureManager* instance;
 

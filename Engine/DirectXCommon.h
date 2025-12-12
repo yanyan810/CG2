@@ -51,6 +51,8 @@ public:
 	ID3D12Device* GetDevice() const { return device_.Get(); }
 	ID3D12GraphicsCommandList* GetCommandList() const { return commandList.Get(); }
 
+	ID3D12DescriptorHeap* GetSRVDescriptorHeap() const { return srvDescriptorHeap.Get(); }
+
 	void ReportLiveObjects();
 
 	Microsoft::WRL::ComPtr<IDxcBlob> CompilesSharder(
@@ -70,6 +72,14 @@ public:
 
 	//最大SRV数(最大テクスチャ枚数)
 	static const uint32_t kMaxSRVCount;
+
+	// ====== PSO 用 Getter ======
+	D3D12_BLEND_DESC GetBlendDesc() const;
+	D3D12_RASTERIZER_DESC GetRasterizerDesc() const;
+	D3D12_DEPTH_STENCIL_DESC GetDepthStencilDesc() const;
+
+	DXGI_FORMAT GetRTVFormat() const { return rtvDesc.Format; }
+	DXGI_FORMAT GetDSVFormat() const { return dsvDesc.Format; }
 
 private:
 
