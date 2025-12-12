@@ -262,9 +262,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	TextureManager::GetInstance()->Initialize(dxCommon);
 
-	//// 2) 使うテクスチャをロード（1回でOK）
-	//TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
-	//TextureManager::GetInstance()->LoadTexture("resources/sample.png");
+	// 2) 使うテクスチャをロード（1回でOK）
+	TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
+	TextureManager::GetInstance()->LoadTexture("resources/sample.png");
 
 	//const int spriteCount = 5; // 出したい数
 	//std::vector<std::unique_ptr<Sprite>> sprites;
@@ -614,7 +614,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		static Vector4 uiMatA = object3dA->GetMaterialColor();
 		ImGui::ColorEdit4("Material A", &uiMatA.x);
+		uiMatA.w = 1.0f;
 		object3dA->SetMaterialColor(uiMatA);
+
 
 		static Vector4 uiMatB = object3dB->GetMaterialColor();
 		ImGui::ColorEdit4("Material B", &uiMatB.x);
@@ -654,64 +656,64 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//// ==== UI 値を Object3d の CB に書き戻す（即時反映）====
 		//Vector3 dirN = Normalize3(uiLightDir);
 
-		//// A に適用
-		//object3dA->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
-		//object3dA->SetDirection(dirN);
-		//object3dA->SetIntensity(uiLightIntensity);
+		// A に適用
+	//	object3dA->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+	//	object3dA->SetDirection(dirN);
+	//	object3dA->SetIntensity(uiLightIntensity);
 
-		//// B にも同じ設定（片方だけで良ければ外してOK）
-		//object3dB->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
-		//object3dB->SetDirection(dirN);
-		//object3dB->SetIntensity(uiLightIntensity);
+		// B にも同じ設定（片方だけで良ければ外してOK）
+	//	object3dB->SetLightColor({ uiLightColor.x, uiLightColor.y, uiLightColor.z, 1.0f });
+	//	object3dB->SetDirection(dirN);
+	//	object3dB->SetIntensity(uiLightIntensity);
 
 
-		//// ---- Sprite (Indexed) ----
-		//	// === ImGuiで全スプライト共通操作 ===
-		//	ImGui::Begin("Sprite Controller");
+		// ---- Sprite (Indexed) ----
+			// === ImGuiで全スプライト共通操作 ===
+			ImGui::Begin("Sprite Controller");
 
-		//	// 共通で動かすパラメータ
-		//	static Transform spriteCtrl = {
-		//		{1.0f, 1.0f, 1.0f}, // scale
-		//		{0.0f, 0.0f, 0.0f}, // rotate
-		//		{0.0f, 0.0f, 0.0f}  // translate
-		//	};
-		//	static Vector4 color = { 1,1,1,1 };
-		//	ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
-		//	ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
-		//	ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
-		//	ImGui::ColorEdit4("Color", &color.x);
-		//	ImGui::End();
+			// 共通で動かすパラメータ
+			static Transform spriteCtrl = {
+				{1.0f, 1.0f, 1.0f}, // scale
+				{0.0f, 0.0f, 0.0f}, // rotate
+				{0.0f, 0.0f, 0.0f}  // translate
+			};
+			static Vector4 color = { 1,1,1,1 };
+			ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
+			ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
+			ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
+			ImGui::ColorEdit4("Color", &color.x);
+			ImGui::End();
 
-		//	// === 全スプライトに適用 & 描画 ===
-		//	const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
-		//	const Matrix4x4 proj2D = Matrix4x4::MakeOrthographicMatrix(
-		//		0.0f, 0.0f,
-		//		float(WinApp::kClientWidth),
-		//		float(WinApp::kClientHeight),
-		//		0.0f, 100.0f
-		//	);
-		//	for (size_t i = 0; i < sprites.size(); ++i) {
-		//		auto& sp = sprites[i];
-		//		sp->SetScale(spriteCtrl.scale);
-		//		sp->SetRotation(spriteCtrl.rotate);
-		//		sp->SetColor(color);
+			//// === 全スプライトに適用 & 描画 ===
+			//const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
+			//const Matrix4x4 proj2D = Matrix4x4::MakeOrthographicMatrix(
+			//	0.0f, 0.0f,
+			//	float(WinApp::kClientWidth),
+			//	float(WinApp::kClientHeight),
+			//	0.0f, 100.0f
+			//);
+			//for (size_t i = 0; i < sprites.size(); ++i) {
+			//	auto& sp = sprites[i];
+			//	sp->SetScale(spriteCtrl.scale);
+			//	sp->SetRotation(spriteCtrl.rotate);
+			//	sp->SetColor(color);
 
-		//		// ★ ここを「上書き」→「加算」に変更
-		//		Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
-		//						basePos[i].y + spriteCtrl.translate.y };
-		//		sp->SetPosition(pos);
+			//	// ★ ここを「上書き」→「加算」に変更
+			//	Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
+			//					basePos[i].y + spriteCtrl.translate.y };
+			//	sp->SetPosition(pos);
 
-		//		sp->Update(view2D, proj2D);
-		//		sp->Draw();
-		//	}
+			//	sp->Update(view2D, proj2D);
+			//	sp->Draw();
+			//}
 
 	//	Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
 		object3dCommon->SetGraphicsPipelineState();
 
-		//object3dA->Update();
+		object3dA->Update();
 		object3dB->Update();
 
-		//object3dA->Draw();
+		object3dA->Draw();
 		object3dB->Draw();
 
 		// ==== 3D（スキン付き）====
@@ -797,11 +799,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete object3dCommon;
 	object3dCommon = nullptr;
 
-	//delete object3dA;
-	//object3dA = nullptr;
+	delete object3dA;
+	object3dA = nullptr;
 
-	//delete object3dB;
-	//object3dB = nullptr;
+	delete object3dB;
+	object3dB = nullptr;
 
 	//delete skinnedHuman;
 	//skinnedHuman = nullptr;

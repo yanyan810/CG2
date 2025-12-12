@@ -114,6 +114,8 @@
     <FxCompile Include="resources\shaders\Skinned.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
+    <FxCompile Include="resources\shaders\Sprite2d.VS.hlsl" />
+    <FxCompile Include="resources\shaders\Sprite2d.PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -216,5 +218,6 @@
     <None Include="resources\shaders\Object3d.hlsli" />
     <None Include="resources\shaders\Particle.hlsli" />
     <None Include="packages.config" />
+    <None Include="resources\shaders\Sprite2d.hlsli" />
   </ItemGroup>
 </Project>
