@@ -367,11 +367,8 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 	vertices_.swap(ordered);
 
 	// ==== 7. テクスチャ読み込み（今は白1x1でOK） ====
-	TextureManager::GetInstance()->LoadTexture("resources/white1x1.png");
-	textureIndex_ =
-		TextureManager::GetInstance()->GetTextureIndexByFilePath("resources/white1x1.png");
-
-
+	texturePath_ = "resources/white1x1.png";
+	TextureManager::GetInstance()->LoadTexture(texturePath_);
 
 	// ==== デバッグ: 読み込んだアニメ情報をログ ====
 	{
@@ -778,7 +775,7 @@ void SkinnedModel::Draw()
 
 	// RootParameter 2: Texture SRV
 	D3D12_GPU_DESCRIPTOR_HANDLE texHandle =
-		TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_);
+		TextureManager::GetInstance()->GetSrvHandleGPU(texturePath_);
 	cmd->SetGraphicsRootDescriptorTable(2, texHandle);
 
 	// RootParameter 3: BoneMatrices

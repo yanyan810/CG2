@@ -21,7 +21,6 @@ public:
 
 	struct MaterialData {
 		std::string textureFilePath; // テクスチャファイルのパス
-		uint32_t textureIndex = 0;
 	};
 
 	struct ModelData {

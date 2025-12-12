@@ -11,6 +11,7 @@
 #include "ParticleCommon.h"
 #include "Particle.h"
 #include "SkinnedModel.h"
+#include "SrvManager.h"
 
 #include <locale>
 #include <codecvt>
@@ -106,7 +107,7 @@ struct D3DResourceLeakChecker {
 			debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
 
 		}
-		#endif
+#endif
 	}
 
 };
@@ -254,21 +255,53 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxCommon = new DirectXCommon();
 	dxCommon->Initialize(winApp);
 
+	//srvの初期化
+	SrvManager* srvManager = nullptr;
+	srvManager = new SrvManager();
+	srvManager->Initialize(dxCommon);
+
+
 	SpriteCommon* spriteCommon = nullptr;
 
 	//スプライト共通部分の初期化
 	spriteCommon = new SpriteCommon();
 	spriteCommon->Initialize(dxCommon);
 
-	TextureManager::GetInstance()->Initialize(dxCommon);
+	TextureManager::GetInstance()->Initialize(dxCommon, srvManager);
 
 	// 2) 使うテクスチャをロード（1回でOK）
 	TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
 	TextureManager::GetInstance()->LoadTexture("resources/sample.png");
 
 	//const int spriteCount = 5; // 出したい数
-	//std::vector<std::unique_ptr<Sprite>> sprites;
-	//std::vector<Vector2> basePos;
+	/*std::vector<std::unique_ptr<Sprite>> sprites;
+	std::vector<Vector2> basePos;*/
+
+	Sprite* sprite = new Sprite;
+
+	sprite->Initialize(spriteCommon, dxCommon, "resources/uvChecker.png");
+
+	sprite->AdjustTextureSize();
+
+	Vector2 spriteTrans = { 0.0f,0.0f };
+
+	Vector3 spriteScale = { 1.0f,1.0f ,1.0f };
+
+	sprite->SetPosition(spriteTrans);
+	sprite->SetScale(spriteScale);
+
+	//// 4) UV設定（画像全体を使うならこれでOK）
+	//sprite->SetTextureTopLeft({ 0.0f, 0.0f });
+	//sprite->SetTextureCutSize({ 512.0f, 512.0f }); // 画像サイズに合わせる
+
+	// 5) アンカー（左上に固定）
+	sprite->SetAnchorPoint({ 0.0f, 0.0f });
+
+	
+
+	// 6) 反転なし
+	sprite->SetFlipX(false);
+	sprite->SetFlipY(false);
 
 	//for (int i = 0; i < spriteCount; ++i) {
 
@@ -283,7 +316,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//	// 2) 配置（X方向にずらして並べる）
 	//	Vector2 p = { 10.0f,10.0f };
 	//	sprite->SetPosition(p);
-	//	sprite->SetScale({ 0.1f, 0.1f, 0.1f });
+	//	sprite->SetScale({ 1.0f, 0.1f, 0.1f });
 
 	//	// 3) 色を少しずつ変える（任意）
 	//	sprite->SetColor({ 1.0f, 0.2f * i, 1.0f - 0.2f * i, 1.0f });
@@ -317,14 +350,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Object3d* object3dA = new Object3d();
 	object3dA->Initialize(object3dCommon, dxCommon);
 	object3dA->SetModel("fence/fence.obj");        // ← 同じ Model を共有
-	object3dA->SetTranslate({ 0.0f, 0.0f, 0.0f });   // 位置A
+	object3dA->SetTranslate({ 0.0f, 0.0f, 20.0f });   // 位置A
 
 	// 3Dオブジェクト（2個目）
 	Object3d* object3dB = new Object3d();
 	object3dB->Initialize(object3dCommon, dxCommon);
 	object3dB->SetModel("plane.obj");        // ← ここも同じ Model
 	object3dB->SetScale({ 1.0f, 1.0f, 1.0f });
-	object3dB->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	object3dB->SetTranslate({ 0.0f, 0.0f, 20.0f });
+	object3dB->SetRotate({ 0.0f, 0.5f, 0.0f });
 
 	// ==== （オブジェクト生成の後あたりで）初期値を UI 側に取り込む ====
 	Vector4 uiLightColor = object3dA->GetLightColor();          // RGBA
@@ -467,7 +501,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		
+
 		//ImGui::Begin("SkinnedModel Bones");
 
 		//// ボーンが存在するときだけ表示
@@ -516,52 +550,52 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// =====================
 // Camera Debug (ImGui)
 // =====================
-		{
-			static Vector3 camT = camera->GetTranslate();
-			static Vector3 camR = camera->GetRotate();
+		//{
+		//	static Vector3 camT = camera->GetTranslate();
+		//	static Vector3 camR = camera->GetRotate();
 
-			// 投影（Perspective）の材料
-			static float fovY = 0.45f;
-			static float nearZ = 0.1f;
-			static float farZ = 1000.0f;
-			static bool init = false;
+		//	// 投影（Perspective）の材料
+		//	static float fovY = 0.45f;
+		//	static float nearZ = 0.1f;
+		//	static float farZ = 1000.0f;
+		//	static bool init = false;
 
-			if (!init) {
-				// 1回だけ Camera の現在値を吸い上げ
-				camT = camera->GetTranslate();
-				camR = camera->GetRotate();
-				// Camera 側 getter が無いので初期値は Camera.cpp に合わせる
-				// (fovY=0.45, near=0.1, far=1000)
-				init = true;
-			}
+		//	if (!init) {
+		//		// 1回だけ Camera の現在値を吸い上げ
+		//		camT = camera->GetTranslate();
+		//		camR = camera->GetRotate();
+		//		// Camera 側 getter が無いので初期値は Camera.cpp に合わせる
+		//		// (fovY=0.45, near=0.1, far=1000)
+		//		init = true;
+		//	}
 
-			ImGui::Begin("Camera");
+		//	ImGui::Begin("Camera");
 
-			ImGui::DragFloat3("Translate", &camT.x, 0.05f);
-			ImGui::SliderAngle("Rot X", &camR.x);
-			ImGui::SliderAngle("Rot Y", &camR.y);
-			ImGui::SliderAngle("Rot Z", &camR.z);
+		//	ImGui::DragFloat3("Translate", &camT.x, 0.05f);
+		//	ImGui::SliderAngle("Rot X", &camR.x);
+		//	ImGui::SliderAngle("Rot Y", &camR.y);
+		//	ImGui::SliderAngle("Rot Z", &camR.z);
 
-			ImGui::SliderFloat("FovY", &fovY, 0.1f, 1.5f);
-			ImGui::InputFloat("NearZ", &nearZ);
-			ImGui::InputFloat("FarZ", &farZ);
+		//	ImGui::SliderFloat("FovY", &fovY, 0.1f, 1.5f);
+		//	ImGui::InputFloat("NearZ", &nearZ);
+		//	ImGui::InputFloat("FarZ", &farZ);
 
-			// 安全化
-			if (nearZ < 0.001f) nearZ = 0.001f;
-			if (farZ < nearZ + 0.01f) farZ = nearZ + 0.01f;
+		//	// 安全化
+		//	if (nearZ < 0.001f) nearZ = 0.001f;
+		//	if (farZ < nearZ + 0.01f) farZ = nearZ + 0.01f;
 
-			// 反映（毎フレーム即反映）
-			camera->SetTranslate(camT);
-			camera->SetRotate(camR);
-			camera->SetFovY(fovY);
-			camera->SetNearZ(nearZ);
-			camera->SetFarClip(farZ);
+		//	// 反映（毎フレーム即反映）
+		//	camera->SetTranslate(camT);
+		//	camera->SetRotate(camR);
+		//	camera->SetFovY(fovY);
+		//	camera->SetNearZ(nearZ);
+		//	camera->SetFarClip(farZ);
 
-			// aspect はウィンドウサイズから毎フレーム更新しておくのが安全
-			camera->SetAspect(float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
+		//	// aspect はウィンドウサイズから毎フレーム更新しておくのが安全
+		//	camera->SetAspect(float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
 
-			ImGui::End();
-		}
+		//	ImGui::End();
+		//}
 
 
 		//ゲームの更新処理
@@ -588,9 +622,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		dxCommon->PreDraw();                  // ← クリア & バリア遷移
 		dxCommon->SetDescriptorHeaps();       // ← SRVヒープをセット
 
-		//Spriteの描画準備。Spriteの描画に共通のグラフィックコマンドを詰む
-		spriteCommon->SetGraphicsPipelineState();
-
 		// 共有設定（PSO/RootSig/トポロジ）
 
 		dxCommon->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -613,43 +644,43 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//ImGui::Begin("Material");
 
-		static Vector4 uiMatA = object3dA->GetMaterialColor();
-		ImGui::ColorEdit4("Material A", &uiMatA.x);
-		uiMatA.w = 1.0f;
-		object3dA->SetMaterialColor(uiMatA);
+		//static Vector4 uiMatA = object3dA->GetMaterialColor();
+		//ImGui::ColorEdit4("Material A", &uiMatA.x);
+		//uiMatA.w = 1.0f;
+		//object3dA->SetMaterialColor(uiMatA);
 
 
-		static Vector4 uiMatB = object3dB->GetMaterialColor();
-		ImGui::ColorEdit4("Material B", &uiMatB.x);
-		object3dB->SetMaterialColor(uiMatB);
+		//static Vector4 uiMatB = object3dB->GetMaterialColor();
+		//ImGui::ColorEdit4("Material B", &uiMatB.x);
+		//object3dB->SetMaterialColor(uiMatB);
+
+		////ImGui::End();
+
+		//ImGui::Begin("Material");
+
+		//static int uiBlendModeA = (int)Object3dCommon::BlendMode::kBlendModeNormal;
+		//static int uiBlendModeB = (int)Object3dCommon::BlendMode::kBlendModeNormal;
+
+		//const char* blendNames[] = {
+		//	"None",
+		//	"Normal",
+		//	"Add",
+		//	"Subtract",
+		//	"Multiply",
+		//	"Screen"
+		//};
+
+		//// A のブレンド
+		//ImGui::Combo("Blend A", &uiBlendModeA, blendNames, IM_ARRAYSIZE(blendNames));
+		//object3dA->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeA);
+
+		//// B のブレンド
+		//ImGui::Combo("Blend B", &uiBlendModeB, blendNames, IM_ARRAYSIZE(blendNames));
+		//object3dB->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeB);
 
 		//ImGui::End();
 
-		ImGui::Begin("Material");
-
-		static int uiBlendModeA = (int)Object3dCommon::BlendMode::kBlendModeNormal;
-		static int uiBlendModeB = (int)Object3dCommon::BlendMode::kBlendModeNormal;
-
-		const char* blendNames[] = {
-			"None",
-			"Normal",
-			"Add",
-			"Subtract",
-			"Multiply",
-			"Screen"
-		};
-
-		// A のブレンド
-		ImGui::Combo("Blend A", &uiBlendModeA, blendNames, IM_ARRAYSIZE(blendNames));
-		object3dA->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeA);
-
-		// B のブレンド
-		ImGui::Combo("Blend B", &uiBlendModeB, blendNames, IM_ARRAYSIZE(blendNames));
-		object3dB->SetBlendMode((Object3dCommon::BlendMode)uiBlendModeB);
-
-		ImGui::End();
-
-		particle->DebugImGui();
+		//particle->DebugImGui();
 
 		// 反映ボタンが欲しければ：if (ImGui::Button("Apply")) { ... }
 		// 即時反映で良ければ毎フレームそのまま Set～ する
@@ -670,20 +701,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		// ---- Sprite (Indexed) ----
 			// === ImGuiで全スプライト共通操作 ===
-			ImGui::Begin("Sprite Controller");
+			//ImGui::Begin("Sprite Controller");
 
-			// 共通で動かすパラメータ
-			static Transform spriteCtrl = {
-				{1.0f, 1.0f, 1.0f}, // scale
-				{0.0f, 0.0f, 0.0f}, // rotate
-				{0.0f, 0.0f, 0.0f}  // translate
-			};
-			static Vector4 color = { 1,1,1,1 };
-			ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
-			ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
-			ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
-			ImGui::ColorEdit4("Color", &color.x);
-			ImGui::End();
+			//// 共通で動かすパラメータ
+			//static Transform spriteCtrl = {
+			//	{1.0f, 1.0f, 1.0f}, // scale
+			//	{0.0f, 0.0f, 0.0f}, // rotate
+			//	{0.0f, 0.0f, 0.0f}  // translate
+			//};
+			//static Vector4 color = { 1,1,1,1 };
+			//ImGui::DragFloat2("Translate", &spriteCtrl.translate.x, 1.0f);
+			//ImGui::DragFloat2("Scale", &spriteCtrl.scale.x, 0.01f, 0.01f, 10.0f);
+			//ImGui::SliderAngle("Rotation Z", &spriteCtrl.rotate.z);
+			//ImGui::ColorEdit4("Color", &color.x);
+			//ImGui::End();
 
 			//// === 全スプライトに適用 & 描画 ===
 			//const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
@@ -695,21 +726,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//);
 			//for (size_t i = 0; i < sprites.size(); ++i) {
 			//	auto& sp = sprites[i];
-			//	sp->SetScale(spriteCtrl.scale);
+			//	/*sp->SetScale(spriteCtrl.scale);
 			//	sp->SetRotation(spriteCtrl.rotate);
-			//	sp->SetColor(color);
+			//	sp->SetColor(color);*/
 
-			//	// ★ ここを「上書き」→「加算」に変更
-			//	Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
-			//					basePos[i].y + spriteCtrl.translate.y };
-			//	sp->SetPosition(pos);
+			//	//// ★ ここを「上書き」→「加算」に変更
+			//	//Vector2 pos = { basePos[i].x + spriteCtrl.translate.x,
+			//	//				basePos[i].y + spriteCtrl.translate.y };
+			//	//sp->SetPosition(pos);
 
 			//	sp->Update(view2D, proj2D);
 			//	sp->Draw();
 			//}
 
-	//	Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
+
+		//	Objectの描画準備。Objectの描画に共通のグラフィックコマンドを詰む
 		object3dCommon->SetGraphicsPipelineState();
+
+		rotA.y += 0.2f;
+		rotB.y += 0.2f;
+
+		object3dA->SetRotate(rotA);
+		object3dB->SetRotate(rotB);
 
 		object3dA->Update();
 		object3dB->Update();
@@ -729,11 +767,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 // ここで Particle 用の PSO/RootSignature に切り替え
 		particleCommon->SetGraphicsPipelineState();
 
-		particle->SpawnParticle();
+		//particle->SpawnParticle();
 
-		// 必要なら位置アニメとかここで transform をいじる
-		particle->Update();
-		particle->Draw();
+		//// 必要なら位置アニメとかここで transform をいじる
+		//particle->Update();
+		//particle->Draw();
+
+
+		//Spriteの描画準備。Spriteの描画に共通のグラフィックコマンドを詰む
+		spriteCommon->SetGraphicsPipelineState();
+
+
+		const Matrix4x4 view2D = Matrix4x4::MakeIdentity4x4();
+		const Matrix4x4 proj2D = Matrix4x4::MakeOrthographicMatrix(
+			0.0f, 0.0f,
+			float(WinApp::kClientWidth),
+			float(WinApp::kClientHeight),
+			0.0f, 100.0f
+		);
+
+		sprite->Update(view2D, proj2D);
+		sprite->Draw();
 
 		// ---- ImGui ----
 		ImGui::Render();
@@ -785,9 +839,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete dxCommon;
 	dxCommon = nullptr;
 
+	delete srvManager;
+	srvManager = nullptr;
+
 	// ★ スプライト共通 解放
 	delete spriteCommon;
 	spriteCommon = nullptr;
+
+	delete sprite;
+	sprite = nullptr;
 
 	// ★ パーティクル 解放
 	delete particle;

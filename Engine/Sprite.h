@@ -68,10 +68,12 @@ public:
 	void SetTextureTopLeft(const Vector2& ttl) { this->textureTopLeft_ = ttl; }
 	void SetTextureCutSize(const Vector2& tcs) { this->textureCutSize_ = tcs; }
 
-private:
-
 	//テクスチャサイズをイメージに合わせる
 	void AdjustTextureSize();
+
+private:
+
+
 
 private:
 	struct Material {
@@ -115,7 +117,7 @@ private:
 	D3D12_GPU_DESCRIPTOR_HANDLE srv_{}; // Drawで使用
 	uint32_t srvSlot_ = UINT32_MAX; // UINT32_MAXなら未指定扱い
 
-	uint32_t textureIndex = 0;
+	std::string textureFilePath_;
 
 	Vector2 anchorPoint{ 0.0f,0.0f };
 	Vector2 size_{ 1.0f, 1.0f };
