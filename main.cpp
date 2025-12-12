@@ -323,7 +323,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Object3d* object3dB = new Object3d();
 	object3dB->Initialize(object3dCommon, dxCommon);
 	object3dB->SetModel("plane.obj");        // ← ここも同じ Model
-	object3dB->SetScale({ 0.1f, 0.1f, 0.1f });
+	object3dB->SetScale({ 1.0f, 1.0f, 1.0f });
 	object3dB->SetTranslate({ 0.0f, 0.0f, 0.0f });
 
 	// ==== （オブジェクト生成の後あたりで）初期値を UI 側に取り込む ====

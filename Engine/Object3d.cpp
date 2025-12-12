@@ -72,6 +72,12 @@ void Object3d::Update() {
 void Object3d::Draw() {
 	auto* cmd = dx_->GetCommandList();
 
+	// ★ SRVヒープを必ずセット（これがないとテクスチャが読めない）
+	ID3D12DescriptorHeap* heaps[] = {
+		TextureManager::GetInstance()->GetSrvDescriptorHeap()
+	};
+	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
 	// Transform（WVP/World）
 	cmd->SetGraphicsRootConstantBufferView(
 		1, transformationMatrixResourceModel->GetGPUVirtualAddress());
@@ -80,11 +86,12 @@ void Object3d::Draw() {
 	cmd->SetGraphicsRootConstantBufferView(
 		3, directionalLightResource->GetGPUVirtualAddress());
 
-	// ★ Model がセットされていたら描画する
+	// Model
 	if (model_) {
 		model_->Draw(cmd);
 	}
 }
+
 
 
 void Object3d::SetModel(const std::string& filePath) {
