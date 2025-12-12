@@ -11,6 +11,7 @@
 #include "Model.h"
 #include "ModelManager.h"
 #include "Object3dCommon.h"
+#include "Camera.h"
 
 //class Object3dCommon;
 
@@ -76,6 +77,9 @@ public:
 		return model_ ? model_->GetMaterialColor() : Vector4{ 1,1,1,1 };
 	}
 
+	//カメラセッター
+	void SetCamera(Camera* camera) { camera_ = camera; }
+
 private:
 
 	DirectXCommon* dx_;
@@ -95,6 +99,9 @@ private:
 
 	Transform transform;
 	Transform cameraTransform;
+	//カメラ
+	Camera* camera_ = nullptr;
+
 
 };
 

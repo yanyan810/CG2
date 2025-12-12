@@ -39,39 +39,36 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	cameraTransform = { {1.0f,1.0f,1.0f},
 						{0.3f,0.0f,0.0f},
 						{0.0f,4.0f,-10.0f} };
+
+	this->camera_ = object3dCommon->GetDefaultCamera();
+
 }
 
 void Object3d::Update() {
 
-	//===========
-		//モデルの計算
-		//===========
 	Matrix4x4 worldMatrixModel = Matrix4x4::MakeAffineMatrix(
 		transform.scale,
 		transform.rotate,
 		transform.translate
 	);
 
-	//transform.rotate.y += 0.5f;
+	// ★ まだ未設定なら default を取り直す（保険）
+	if (!camera_) {
+		camera_ = object3dCommon->GetDefaultCamera();
+	}
 
-	Matrix4x4 cameraMatrixModel = Matrix4x4::MakeAffineMatrix(
-		cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-	Matrix4x4 viewMatrixModel = Matrix4x4::Inverse(cameraMatrixModel);
+	Matrix4x4 wvpModel = worldMatrixModel;
 
-	Matrix4x4 projectionMatrixModel = Matrix4x4::PerspectiveFov(
-		0.45f, float(WinApp::kClientWidth) / float(WinApp::kClientHeight), 0.1f, 20000.0f);
-
-	Matrix4x4 wvpModel = Matrix4x4::Multiply(
-		worldMatrixModel,
-		Matrix4x4::Multiply(viewMatrixModel, projectionMatrixModel)
-	);
+	if (camera_) {
+		const Matrix4x4& vp = camera_->GetViewProjectionMatrix(); // View*Proj
+		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // world * (view*proj)
+	}
 
 	transformationMatrixDataModel->WVP = wvpModel;
 	transformationMatrixDataModel->World = worldMatrixModel;
-
-
-
 }
+
+
 void Object3d::Draw() {
 	auto* cmd = dx_->GetCommandList();
 

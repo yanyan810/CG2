@@ -1,5 +1,6 @@
 #pragma once
 #include "DirectXCommon.h"
+#include "Camera.h"
 
 class Object3dCommon
 {
@@ -32,6 +33,11 @@ public:
 
     void SetBlendMode(BlendMode m) { blendMode_ = m; CreateGraphicsPipelineState(); }
 
+    //setter
+	void SetDefaultCamera(Camera* camera) { this->defaultCamera_ = camera; }
+    //getter
+	Camera* GetDefaultCamera() const { return defaultCamera_; }
+
 private:
 
     // ルートシグネチャの作成
@@ -61,6 +67,8 @@ private:
 
     //ブレンドモード設定
     BlendMode blendMode_;
+
+	Camera* defaultCamera_ = nullptr;
 
 };
 
