@@ -155,7 +155,8 @@ private:
 	std::vector<Vector3>    debugBoneScale_;
 
     // テクスチャ
-    uint32_t textureIndex_ = 0;
+    std::string texturePath_ = "resources/white1x1.png";
+
 
     // ==== アニメーション再生用 ====  ←★ ここから追加
     AnimationClip anim_;       // 今は「1本だけ」扱う

@@ -94,12 +94,13 @@ void Model::Initialize(ModelCommon* modelCommon,
     // ===== テクスチャ読み込み（パスが空ならスキップ）=====
     if (!modelData_.material.textureFilePath.empty()) {
         TextureManager::GetInstance()->LoadTexture(modelData_.material.textureFilePath);
-        modelData_.material.textureIndex =
-            TextureManager::GetInstance()
-            ->GetTextureIndexByFilePath(modelData_.material.textureFilePath);
-    } else {
-        modelData_.material.textureIndex = 0; // 白テクスチャなど
-    }
+        if (!modelData_.material.textureFilePath.empty()) {
+            TextureManager::GetInstance()->LoadTexture(modelData_.material.textureFilePath);
+        }
+
+    } //else {
+    //    modelData_.material.textureFilePath = 0; // 白テクスチャなど
+    //}
 
     OutputDebugStringA(("[Model] vertex count = " +
         std::to_string(modelData_.vertices.size()) + "\n").c_str());
@@ -116,8 +117,9 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd) {
 		0, materialResource_->GetGPUVirtualAddress());
 
 	// 3) テクスチャSRV
-	auto handle = TextureManager::GetInstance()
-		->GetSrvHandleGPU(modelData_.material.textureIndex);
+    auto handle = TextureManager::GetInstance()
+        ->GetSrvHandleGPU(modelData_.material.textureFilePath);
+
 	cmd->SetGraphicsRootDescriptorTable(2, handle);
 
 	// 4) DrawCall
@@ -131,8 +133,9 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount) {
 	cmd->SetGraphicsRootConstantBufferView(
 		0, materialResource_->GetGPUVirtualAddress());
 
-	auto handle = TextureManager::GetInstance()
-		->GetSrvHandleGPU(modelData_.material.textureIndex);
+    auto handle = TextureManager::GetInstance()
+        ->GetSrvHandleGPU(modelData_.material.textureFilePath);
+
 	cmd->SetGraphicsRootDescriptorTable(2, handle);
 
 	// ★ インスタンス数を引数で指定

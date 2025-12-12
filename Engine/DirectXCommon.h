@@ -81,6 +81,12 @@ public:
 	DXGI_FORMAT GetRTVFormat() const { return rtvDesc.Format; }
 	DXGI_FORMAT GetDSVFormat() const { return dsvDesc.Format; }
 
+	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap>CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,
+		UINT numDescripters, bool shaderVisible);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource>
+		CreateDepthStencilResource(int32_t width, int32_t height);
+
 private:
 
 	void DeviceInitialize();
@@ -101,11 +107,7 @@ private:
 	//FPS固定更新
 	void UpdateFixFPS();
 
-	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap>CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,
-		UINT numDescripters, bool shaderVisible);
-
-	Microsoft::WRL::ComPtr<ID3D12Resource>
-		CreateDepthStencilResource(int32_t width, int32_t height);
+	
 
 	/// <summary>
 	/// 指定番号のCPUでスクリプタハンドルを取得する

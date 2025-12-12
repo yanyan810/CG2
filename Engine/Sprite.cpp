@@ -16,7 +16,9 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
     dx_ = dx;
 
     //単位行列を書き込んでおく
-	textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath);
+    textureFilePath_ = textureFilePath;
+    TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+
 
     // === 頂点/インデックス ===
     vertexResource_ = dx->CreateBufferResource(sizeof(SpriteVertex) * 4);
@@ -72,7 +74,7 @@ void Sprite::Update(const Matrix4x4& view, const Matrix4x4& proj) {
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&v));
 
     const DirectX::TexMetadata& metadata =
-        TextureManager::GetInstance()->GetMetaData(textureIndex);
+        TextureManager::GetInstance()->GetMetaData(textureFilePath_);
 
     // (0,0)〜(1,1) の単位矩形を、anchor だけ平行移動
     float left = 0.0f - anchorPoint.x;
@@ -125,12 +127,33 @@ void Sprite::Update(const Matrix4x4& view, const Matrix4x4& proj) {
 void Sprite::Draw() {
     assert(spriteCommon_ && "Sprite not initialized (spriteCommon_ is null)");
     assert(dx_ && "Sprite not initialized (dx_ is null)");
-    assert(srv_.ptr != 0 && "Call SetTexture() before Draw()");
+
+    // ★ SRV の heap をこのコマンドリストにセット（これが無いと DescriptorTable が無効）
+    ID3D12DescriptorHeap* heaps[] = { TextureManager::GetInstance()->GetSrvDescriptorHeap() };
+    dx_->GetCommandList()->SetDescriptorHeaps(1, heaps);
+
+
+  /*  assert(srv_.ptr != 0 && "Call SetTexture() before Draw()");
 
     if (srv_.ptr == 0 && srvSlot_ != UINT32_MAX) {
         srv_ = dx_->GetSRVGPUDescriptorHandle(static_cast<int>(srvSlot_));
     }
-    assert(srv_.ptr != 0 && "SetTexture() か SetTextureSlot() でテクスチャを設定して下さい");
+    assert(srv_.ptr != 0 && "SetTexture() か SetTextureSlot() でテクスチャを設定して下さい");*/
+
+    D3D12_GPU_DESCRIPTOR_HANDLE texSrv{};
+
+    //if (srvSlot_ != UINT32_MAX) {
+    //    // slot 指定があるならそっち（※これは DirectXCommon 側のSRVヒープ運用のときだけ有効）
+    //    texSrv = dx_->GetSRVGPUDescriptorHandle(static_cast<int>(srvSlot_));
+    //} else {
+    //    // 通常は TextureManager（filePath）から取る
+    //    texSrv = TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_);
+    //}
+
+    // slot は一旦使わない（混在防止）
+    texSrv = TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_);
+
+    assert(texSrv.ptr != 0 && "texture SRV is null");
 
 
     auto* cmd = dx_->GetCommandList();
@@ -144,7 +167,7 @@ void Sprite::Draw() {
     // Root 0=Material, 1=Transform, 2=Texture SRV（プロジェクトの順に合わせて）
     cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     cmd->SetGraphicsRootConstantBufferView(1, transformResource_->GetGPUVirtualAddress());
-    cmd->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex));
+    cmd->SetGraphicsRootDescriptorTable(2,texSrv);
 
     cmd->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
@@ -152,7 +175,7 @@ void Sprite::Draw() {
 // テクスチャサイズをイメージに合わせる
 void Sprite::AdjustTextureSize() {
 	const DirectX::TexMetadata& metadata =
-		TextureManager::GetInstance()->GetMetaData(textureIndex);
+		TextureManager::GetInstance()->GetMetaData(textureFilePath_);
     textureCutSize_.x = static_cast<float>(metadata.width);
     textureCutSize_.y = static_cast<float>(metadata.height);
 
