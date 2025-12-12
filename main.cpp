@@ -358,12 +358,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	SkinnedModel* skinnedHuman = nullptr;
 
 	skinnedHuman = new SkinnedModel();
-	skinnedHuman->Initialize(dxCommon, "resources/Human2.fbx");
-
+	//skinnedHuman->Initialize(dxCommon, "resources/55-rp_nathan_animated_003_walking_fbx/rp_nathan_animated_003_walking.fbx");
+	skinnedHuman->Initialize(dxCommon, "resources/Human.fbx");
 	// 表示位置をちょっと調整したければ
-	skinnedHuman->SetScale({ 0.8f, 0.8f, 0.8f });
-	skinnedHuman->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	skinnedHuman->SetScale({ 0.02f*1.0f, 0.02f*1.0f, 0.02f*1.0f });
+	skinnedHuman->SetTranslate({ 0.0f, -20.0f, 100.0f });
 	skinnedHuman->SetRotate({ 0.0f, 0.0f, 0.0f }); // ← Y軸回転で180度回す
+
+	Vector3 scale = { 1.0f,1.0f,1.0f };
+	Vector3 tramnslate = { 0.0f,0.0f,0.0f };
+	Vector3 rotate = { 0.0f,0.0f,0.0f };
 
 	MSG msg{};
 
@@ -436,6 +440,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	static int     uiBoneIndex = 0;
 	static Vector3 uiBoneRot{ 0.0f, 0.0f, 0.0f };
 	static Vector3 uiBoneTrans{ 0.0f, 0.0f, 0.0f };
+	static Vector3 uiBoneScale{ 1.0f, 1.0f, 1.0f };
 
 	//ウィンドウボタンのxボタンが押されえるまでループ
 	while (msg.message != WM_QUIT && !isEnd) {
@@ -470,6 +475,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 						// ボーン変更時は回転＆移動をリセット（お好みで）
 						uiBoneRot = { 0.0f, 0.0f, 0.0f };
 						uiBoneTrans = { 0.0f, 0.0f, 0.0f };
+						uiBoneScale = { 1.0f, 1.0f, 1.0f };
 					}
 					if (isSelected) {
 						ImGui::SetItemDefaultFocus();
@@ -486,9 +492,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::SliderAngle("Bone Rot Y", &uiBoneRot.y);
 			ImGui::SliderAngle("Bone Rot Z", &uiBoneRot.z);
 
+			// スケールスライダー
+			ImGui::DragFloat3("Bone Scale", &uiBoneScale.x, 0.01f);
+
 			// SkinnedModel に反映
 			skinnedHuman->SetDebugBoneTranslate(uiBoneIndex, uiBoneTrans);
 			skinnedHuman->SetDebugBoneRotate(uiBoneIndex, uiBoneRot);
+			//skinnedHuman->SetDebugBoneScale(uiBoneIndex, uiBoneScale);
 		}
 		ImGui::End();
 
@@ -656,19 +666,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//	skinnedCommon->SetGraphicsPipelineState(); // ← Skinned 用 PSO
 		// Transform / Material / Light / Bone 行列を Root にセット
 
-		skinnedHuman->UpdateAnimation(1.0f / 60.0f);
+	/*	skinnedHuman->UpdateAnimation(1.0f / 60.0f);
 
-		skinnedHuman->Draw();
+		skinnedHuman->Draw();*/
 
 		// ==== パーティクル描画 ====
 // ここで Particle 用の PSO/RootSignature に切り替え
-	//	particleCommon->SetGraphicsPipelineState();
+		particleCommon->SetGraphicsPipelineState();
 
-		//particle->SpawnParticle();
+		particle->SpawnParticle();
 
-		//// 必要なら位置アニメとかここで transform をいじる
-		//particle->Update();
-		//particle->Draw();
+		// 必要なら位置アニメとかここで transform をいじる
+		particle->Update();
+		particle->Draw();
 
 		// ---- ImGui ----
 		ImGui::Render();

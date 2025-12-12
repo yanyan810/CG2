@@ -27,10 +27,25 @@ struct AnimKeyQuat {
     float w = 1.0f;
 };
 
+struct Node {
+    std::string name;
+    int         parentIndex = -1;
+    Matrix4x4   bindLocal;   // aiNode::mTransformation
+};
+
+struct Bone {
+    std::string name;
+    int         parentIndex;
+    int         nodeIndex = -1;  // この Bone がぶら下がっている Node
+    Matrix4x4   offsetMatrix; // inverse bind pose
+};
+
+
 // 1ボーン分のアニメーション（位置・回転・スケール）
 struct BoneAnimChannel {
     std::string            boneName;
     int                    boneIndex = -1;  // SkinnedModel::bones_ の何番か
+    int nodeIndex = -1;   // 対応する Node index（Armature 等も含む）
     std::vector<AnimKeyVec3> posKeys;
     std::vector<AnimKeyQuat> rotKeys;
     std::vector<AnimKeyVec3> scaleKeys;
@@ -70,12 +85,7 @@ public:
         Matrix4x4 world;
     };
 
-    struct Bone {
-        std::string name;
-        int         parentIndex;
-        Matrix4x4   offsetMatrix; // inverse bind pose
-    };
-
+   
 public:
     void Initialize(DirectXCommon* dx, const std::string& filePath);
 
@@ -93,6 +103,7 @@ public:
     void SetDebugBoneRotate(int index, const Vector3& rot);
     const std::vector<Bone>& GetBones() const { return bones_; }
     void SetDebugBoneTranslate(int index, const Vector3& trans);
+	void SetDebugBoneScale(int index, const Vector3& scale);
 
     void UpdateAnimation(float deltaTime);
 
@@ -130,10 +141,18 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> boneMatrixResource_;
     Matrix4x4* boneMatrixData_ = nullptr;
 
+    //Node
+    std::vector<Node> nodes_;                  // シーン全体のノード
+    std::unordered_map<std::string, int> nodeNameToIndex_; // name -> nodeIndex
+
+    Matrix4x4 globalInverse_;                 // scene root の逆行列
+
+
     //ボーンごとのデバッグ用回転
     std::vector<Vector3>    debugBoneRot_;   // ラジアン
     bool                    debugPoseEnable_ = true;
     std::vector<Vector3>    debugBoneTrans_;
+	std::vector<Vector3>    debugBoneScale_;
 
     // テクスチャ
     uint32_t textureIndex_ = 0;

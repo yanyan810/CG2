@@ -21,7 +21,21 @@ public:
 	static Matrix4x4 PerspectiveFov(float fovY, float aspect, float nearZ, float farZ);
 	static Matrix4x4 MakeScaleMatrix(const Matrix4x4& m);
 	static Matrix4x4 MakeScaleMatrix(const Vector3& scale);
-	static Matrix4x4 FromAiMatrix(const aiMatrix4x4& a);
+
+	static Matrix4x4 FromAiMatrix(const aiMatrix4x4& a)
+	{
+		Matrix4x4 m{};
+
+		// Assimp の aiMatrix4x4 をそのまま自前の行列にコピー（転置しない）
+		m.m[0][0] = a.a1;  m.m[0][1] = a.a2;  m.m[0][2] = a.a3;  m.m[0][3] = a.a4;
+		m.m[1][0] = a.b1;  m.m[1][1] = a.b2;  m.m[1][2] = a.b3;  m.m[1][3] = a.b4;
+		m.m[2][0] = a.c1;  m.m[2][1] = a.c2;  m.m[2][2] = a.c3;  m.m[2][3] = a.c4;
+		m.m[3][0] = a.d1;  m.m[3][1] = a.d2;  m.m[3][2] = a.d3;  m.m[3][3] = a.d4;
+
+		return m;
+	}
+
+
 
 	static Matrix4x4 MakeRotateZMatrix(float angleRad);
 
