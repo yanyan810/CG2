@@ -12,6 +12,7 @@
 #include "Particle.h"
 #include "SkinnedModel.h"
 #include "SrvManager.h"
+#include "ParticleManager.h"
 
 #include <locale>
 #include <codecvt>
@@ -297,8 +298,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 5) アンカー（左上に固定）
 	sprite->SetAnchorPoint({ 0.0f, 0.0f });
 
-	
-
 	// 6) 反転なし
 	sprite->SetFlipX(false);
 	sprite->SetFlipY(false);
@@ -380,7 +379,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	particleCommon->Initialize(dxCommon);
 
 	Particle* particle = new Particle();
-	particle->Initialize(particleCommon, dxCommon);
+	particle->Initialize(particleCommon, dxCommon,srvManager);
 
 	// 好きなモデルをセット（とりあえず plane.obj とか）
 	particle->SetModel("plane.obj");
@@ -390,19 +389,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ブレンド（加算とか）を変えたいとき
 	particle->SetBlendMode(ParticleCommon::BlendMode::kBlendModeAdd);
 
-	//SkinnedModel* skinnedHuman = nullptr;
+	//パテ２
+	Particle* particle2 = new Particle();
+	particle2->Initialize(particleCommon, dxCommon, srvManager);
 
-	//skinnedHuman = new SkinnedModel();
-	////skinnedHuman->Initialize(dxCommon, "resources/55-rp_nathan_animated_003_walking_fbx/rp_nathan_animated_003_walking.fbx");
-	//skinnedHuman->Initialize(dxCommon, "resources/Human.fbx");
-	//// 表示位置をちょっと調整したければ
-	//skinnedHuman->SetScale({ 0.02f*1.0f, 0.02f*1.0f, 0.02f*1.0f });
-	//skinnedHuman->SetTranslate({ 0.0f, -20.0f, 100.0f });
-	//skinnedHuman->SetRotate({ 0.0f, 0.0f, 0.0f }); // ← Y軸回転で180度回す
+	particle2->SetModel("plane.obj");
+	// 位置やスケールも設定しておく
+	particle2->SetTranslate({ -2.0f, 30.0f, 20.0f });
+	particle2->SetScale({ 1.0f, 1.0f, 1.0f });
+	// ブレンド（加算とか）を変えたいとき
+	particle2->SetBlendMode(ParticleCommon::BlendMode::kBlendModeMultily);
 
-	//Vector3 scale = { 1.0f,1.0f,1.0f };
-	//Vector3 tramnslate = { 0.0f,0.0f,0.0f };
-	//Vector3 rotate = { 0.0f,0.0f,0.0f };
+	SkinnedModel* skinnedHuman = nullptr;
+
+	skinnedHuman = new SkinnedModel();
+	//skinnedHuman->Initialize(dxCommon, "resources/55-rp_nathan_animated_003_walking_fbx/rp_nathan_animated_003_walking.fbx");
+	skinnedHuman->Initialize(dxCommon, "resources/Human.fbx");
+	// 表示位置をちょっと調整したければ
+	skinnedHuman->SetScale({ 0.02f*1.0f, 0.02f*1.0f, 0.02f*1.0f });
+	skinnedHuman->SetTranslate({ 0.0f, -20.0f, 100.0f });
+	skinnedHuman->SetRotate({ 0.0f, 0.0f, 0.0f }); // ← Y軸回転で180度回す
+
+	Vector3 scale = { 1.0f,1.0f,1.0f };
+	Vector3 tramnslate = { 0.0f,0.0f,0.0f };
+	Vector3 rotate = { 0.0f,0.0f,0.0f };
 
 	Camera* camera = new Camera();
 	camera->SetRotate({ 0.0f,0.0f,0.0f });
@@ -412,6 +422,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	object3dA->SetCamera(camera);
 	object3dB->SetCamera(camera);
 
+	auto* pm = ParticleManager::GetInstance();
+	pm->Initialize(dxCommon, srvManager,particleCommon);
+
+	// グループ作成（テクスチャは好きなやつ）
+	pm->CreateParticleGroup("smoke", "resources/uvChecker.png");
+	pm->SetGroupBlendMode("smoke", ParticleCommon::BlendMode::kBlendModeAdd); // 例：加算
+	auto* pm2 = ParticleManager::GetInstance();
+
+	pm2->Initialize(dxCommon, srvManager,particleCommon);
+
+	// グループ作成（テクスチャは好きなやつ）
+	pm2->CreateParticleGroup("flash", "resources/circle.png");
+	pm2->SetGroupBlendMode("flash", ParticleCommon::BlendMode::kBlendModeSubtract); // 例：加算
 	MSG msg{};
 
 	//ログのディレクトリを用意
@@ -620,7 +643,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		// ===== GPUコマンド発行開始 =====
 		dxCommon->PreDraw();                  // ← クリア & バリア遷移
-		dxCommon->SetDescriptorHeaps();       // ← SRVヒープをセット
+		//dxCommon->SetDescriptorHeaps();       // ← SRVヒープをセット
+
+		srvManager->PreDraw(/*dxCommon->GetCommandList()*/); // ★ SrvManager の heap をバインド
+
 
 		// 共有設定（PSO/RootSig/トポロジ）
 
@@ -759,20 +785,36 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//	skinnedCommon->SetGraphicsPipelineState(); // ← Skinned 用 PSO
 		// Transform / Material / Light / Bone 行列を Root にセット
 
-	/*	skinnedHuman->UpdateAnimation(1.0f / 60.0f);
+		//skinnedHuman->UpdateAnimation(1.0f / 60.0f);
 
-		skinnedHuman->Draw();*/
+		//skinnedHuman->Draw();
 
 		// ==== パーティクル描画 ====
 // ここで Particle 用の PSO/RootSignature に切り替え
 		particleCommon->SetGraphicsPipelineState();
 
-		//particle->SpawnParticle();
+		particle->SpawnParticle();
 
 		//// 必要なら位置アニメとかここで transform をいじる
 		//particle->Update();
 		//particle->Draw();
 
+		//particle2->SpawnParticle();
+
+		//// 必要なら位置アニメとかここで transform をいじる
+		//particle2->Update();
+		//particle2->Draw();
+
+		srvManager->PreDraw();
+
+		// 例：毎フレーム 10 個出す
+		pm->Emit("smoke", {0.0f, 7.0f, 20.0f }, 2);
+		pm->Update(1.0f / 60.0f, *camera);
+		pm->Draw(dxCommon->GetCommandList());
+
+		pm2->Emit("flash", { 0.0f, -3.0f, 20.0f }, 5);
+		pm2->Update(1.0f / 60.0f, *camera);
+		pm2->Draw(dxCommon->GetCommandList());
 
 		//Spriteの描画準備。Spriteの描画に共通のグラフィックコマンドを詰む
 		spriteCommon->SetGraphicsPipelineState();
@@ -787,7 +829,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		);
 
 		sprite->Update(view2D, proj2D);
-		sprite->Draw();
+		//sprite->Draw();
+
 
 		// ---- ImGui ----
 		ImGui::Render();
@@ -853,6 +896,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete particle;
 	particle = nullptr;
 
+	delete particle2;
+	particle2 = nullptr;
+
+	
 	delete particleCommon;
 	particleCommon = nullptr;
 
@@ -866,8 +913,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	delete object3dB;
 	object3dB = nullptr;
 
-	//delete skinnedHuman;
-	//skinnedHuman = nullptr;
+	delete skinnedHuman;
+	skinnedHuman = nullptr;
 
 	return 0;
 }

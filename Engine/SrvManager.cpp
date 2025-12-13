@@ -164,3 +164,26 @@ void SrvManager::SetGraphicsDescriptorTable(UINT rootParamIndex, uint32_t srvInd
         GetGPUDescriptionHandle(srvIndex)
     );
 }
+
+void SrvManager::CreateSRVforStructuredBuffer(
+    uint32_t srvIndex, ID3D12Resource* pResource,
+    UINT numElements, UINT structureByteStride)
+{
+    assert(srvIndex < kMaxSRVCount);
+    assert(pResource);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    srvDesc.Buffer.FirstElement = 0;
+    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+    srvDesc.Buffer.NumElements = numElements;
+    srvDesc.Buffer.StructureByteStride = structureByteStride;
+
+    dxCommon_->GetDevice()->CreateShaderResourceView(
+        pResource,
+        &srvDesc,
+        GetCPUDescriptionHandle(srvIndex)
+    );
+}

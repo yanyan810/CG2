@@ -13,6 +13,7 @@
 #include "ModelManager.h"
 #include "ParticleCommon.h"
 #include <numbers>
+#include "SrvManager.h"
 
 //class Object3dCommon;
 
@@ -56,7 +57,7 @@ public:
 
 public:
 
-	void Initialize(ParticleCommon* particleCommon, DirectXCommon* dx);
+	void Initialize(ParticleCommon* particleCommon, DirectXCommon* dx, SrvManager* srv);
 
 	void Update();
 
@@ -157,6 +158,9 @@ private:
 	Emitter emitter{};
 
 	AccelerationField accelerationField;
+
+	SrvManager* srv_ = nullptr;
+	uint32_t instancingSrvIndex_ = 0;
 
 };
 

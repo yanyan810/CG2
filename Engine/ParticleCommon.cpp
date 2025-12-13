@@ -1,51 +1,55 @@
 #include "ParticleCommon.h"
+#include <cassert>
 
-void ParticleCommon::Initialize(DirectXCommon* dxCommon) {
-    // 初期化処理
-
+void ParticleCommon::Initialize(DirectXCommon* dxCommon)
+{
     dx_ = dxCommon;
 
-    CreateGraphicsPipelineState();
+    // RootSig は1回だけ
+    CreateRootSignature();
 
+    // ★ 全BlendMode分 PSO を事前生成
+    for (int i = 0; i < static_cast<int>(BlendMode::kCountOfBlendMode); ++i) {
+        CreateGraphicsPipelineState(static_cast<BlendMode>(i));
+    }
 }
 
-void ParticleCommon::CreateRootSignature() {
+void ParticleCommon::CreateRootSignature()
+{
     // ==== DescriptorRange ====
-    // ① instancing 用 StructuredBuffer<TransformationMatrix> (VS : t0)
     D3D12_DESCRIPTOR_RANGE descriptorRangeInstancing{};
     descriptorRangeInstancing.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     descriptorRangeInstancing.NumDescriptors = 1;
-    descriptorRangeInstancing.BaseShaderRegister = 0; // t0
+    descriptorRangeInstancing.BaseShaderRegister = 0; // t0 (VS)
     descriptorRangeInstancing.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    // ② テクスチャ用 (PS : t0)
     D3D12_DESCRIPTOR_RANGE descriptorRangeTexture{};
     descriptorRangeTexture.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     descriptorRangeTexture.NumDescriptors = 1;
-    descriptorRangeTexture.BaseShaderRegister = 0; // t0
+    descriptorRangeTexture.BaseShaderRegister = 0; // t0 (PS)
     descriptorRangeTexture.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    // ==== RootParameters ====
+    // ==== Root Parameters ====
     D3D12_ROOT_PARAMETER params[4]{};
 
-    // (0) Pixel: Material 用 CBV(b0)
+    // (0) Pixel: Material CBV(b0)
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     params[0].Descriptor.ShaderRegister = 0; // b0
 
-    // (1) Vertex: instancing 用 StructuredBuffer(SRV t0) の DescriptorTable
+    // (1) Vertex: Instancing SRV(t0)
     params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     params[1].DescriptorTable.NumDescriptorRanges = 1;
     params[1].DescriptorTable.pDescriptorRanges = &descriptorRangeInstancing;
 
-    // (2) Pixel: テクスチャ用 SRV(t0) の DescriptorTable
+    // (2) Pixel: Texture SRV(t0)
     params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     params[2].DescriptorTable.NumDescriptorRanges = 1;
     params[2].DescriptorTable.pDescriptorRanges = &descriptorRangeTexture;
 
-    // (3) Pixel: DirectionalLight 用 CBV(b1)
+    // (3) Pixel: DirectionalLight CBV(b1)
     params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     params[3].Descriptor.ShaderRegister = 1; // b1
@@ -69,7 +73,6 @@ void ParticleCommon::CreateRootSignature() {
     desc.NumStaticSamplers = 1;
     desc.pStaticSamplers = &samp;
 
-    // Serialize & Create
     Microsoft::WRL::ComPtr<ID3DBlob> sigBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errBlob;
     HRESULT hr = D3D12SerializeRootSignature(
@@ -85,27 +88,25 @@ void ParticleCommon::CreateRootSignature() {
     assert(SUCCEEDED(hr));
 }
 
-
-void ParticleCommon::CreateGraphicsPipelineState() {
-
-    CreateRootSignature();
-
+void ParticleCommon::CreateGraphicsPipelineState(BlendMode mode)
+{
     // === Shaders ===
-    // ※ まずは既存の Object3D シェーダを流用（あなたの main と同じ）
-    Microsoft::WRL::ComPtr<IDxcBlob> vs = dx_->CompilesSharder(L"resources/shaders/Particle.VS.hlsl", L"vs_6_0");
-    Microsoft::WRL::ComPtr<IDxcBlob> ps = dx_->CompilesSharder(L"resources/shaders/Particle.PS.hlsl", L"ps_6_0");
+    // ※ ここは “初期化時に一回だけ” 呼ばれるので、都度コンパイルでもOK
+    Microsoft::WRL::ComPtr<IDxcBlob> vs =
+        dx_->CompilesSharder(L"resources/shaders/Particle.VS.hlsl", L"vs_6_0");
+    Microsoft::WRL::ComPtr<IDxcBlob> ps =
+        dx_->CompilesSharder(L"resources/shaders/Particle.PS.hlsl", L"ps_6_0");
 
     // === Blend ===
     D3D12_BLEND_DESC blend{};
     blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-    switch (blendMode_) {
+    switch (mode) {
     case BlendMode::kBlendModeNone:
         blend.RenderTarget[0].BlendEnable = FALSE;
         break;
 
     case BlendMode::kBlendModeNormal:
-
         blend.RenderTarget[0].BlendEnable = TRUE;
         blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
         blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -113,11 +114,9 @@ void ParticleCommon::CreateGraphicsPipelineState() {
         blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
         blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-
         break;
 
     case BlendMode::kBlendModeAdd:
-
         blend.RenderTarget[0].BlendEnable = TRUE;
         blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
         blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -125,11 +124,9 @@ void ParticleCommon::CreateGraphicsPipelineState() {
         blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
         blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-
         break;
 
     case BlendMode::kBlendModeSubtract:
-
         blend.RenderTarget[0].BlendEnable = TRUE;
         blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
         blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
@@ -137,11 +134,9 @@ void ParticleCommon::CreateGraphicsPipelineState() {
         blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
         blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-
         break;
 
     case BlendMode::kBlendModeMultily:
-
         blend.RenderTarget[0].BlendEnable = TRUE;
         blend.RenderTarget[0].SrcBlend = D3D12_BLEND_ZERO;
         blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -149,11 +144,9 @@ void ParticleCommon::CreateGraphicsPipelineState() {
         blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
         blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-
         break;
 
     case BlendMode::kBlendModeScreen:
-
         blend.RenderTarget[0].BlendEnable = TRUE;
         blend.RenderTarget[0].SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
         blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -161,9 +154,18 @@ void ParticleCommon::CreateGraphicsPipelineState() {
         blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
         blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-
         break;
 
+    default:
+        // 念のため
+        blend.RenderTarget[0].BlendEnable = TRUE;
+        blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+        blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+        break;
     }
 
     // === Rasterizer ===
@@ -173,7 +175,7 @@ void ParticleCommon::CreateGraphicsPipelineState() {
 
     // === Depth/Stencil ===
     D3D12_DEPTH_STENCIL_DESC ds{};
-    ds.DepthEnable = TRUE;                    // 必要に応じて FALSE（UI最前面に）でもOK
+    ds.DepthEnable = TRUE;
     ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
@@ -193,17 +195,20 @@ void ParticleCommon::CreateGraphicsPipelineState() {
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-    HRESULT hr = dx_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso_));
+    const int idx = static_cast<int>(mode);
+    HRESULT hr = dx_->GetDevice()->CreateGraphicsPipelineState(
+        &psoDesc, IID_PPV_ARGS(&pso_[idx]));
     assert(SUCCEEDED(hr));
 }
 
-void ParticleCommon::SetGraphicsPipelineState() {
+void ParticleCommon::SetGraphicsPipelineState()
+{
     auto* cmd = dx_->GetCommandList();
 
-    // ルートシグネチャ
     cmd->SetGraphicsRootSignature(rootSignature_.Get());
-    // グラフィックスパイプラインステート（PSO）
-    cmd->SetPipelineState(pso_.Get());
-    // プリミティブトポロジ（スプライトは三角形リスト）
+
+    const int idx = static_cast<int>(blendMode_);
+    cmd->SetPipelineState(pso_[idx].Get());
+
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }

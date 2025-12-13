@@ -18,9 +18,12 @@ static bool IsCollision(const AABB& aabb, const Vector3& point) {
 	return false;
 }
 
-void Particle::Initialize(ParticleCommon* particleCommon, DirectXCommon* dx) {
+void Particle::Initialize(ParticleCommon* particleCommon, DirectXCommon* dx, SrvManager* srv) {
 	this->particleCommon = particleCommon;
 	dx_ = dx;
+
+	srv_ = srv;
+
 
 	// ライト周りは今のままでOK
 	directionalLightResource = dx->CreateBufferResource(sizeof(DirectionalLight));
@@ -43,25 +46,21 @@ void Particle::Initialize(ParticleCommon* particleCommon, DirectXCommon* dx) {
 	instancingResource_->SetName(L"ParticleInstancingBuffer");
 	instancingResource_->Map(0, nullptr,
 		reinterpret_cast<void**>(&instancingData_));
-	D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
-	instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	instancingSrvDesc.Buffer.FirstElement = 0;
-	instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	instancingSrvDesc.Buffer.NumElements = kMaxInstance;
-	instancingSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
 
-	const uint32_t instancingSrvIndex = 3;
-	D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvCPU =
-		dx_->GetSRVCPUDescriptorHandle(instancingSrvIndex);
-	instancingSrvHandleGPU_ =
-		dx_->GetSRVGPUDescriptorHandle(instancingSrvIndex);
+	instancingSrvIndex_ = srv_->Allocate();
+	D3D12_CPU_DESCRIPTOR_HANDLE cpu = srv_->GetCPUDescriptionHandle(instancingSrvIndex_);
+	instancingSrvHandleGPU_ = srv_->GetGPUDescriptionHandle(instancingSrvIndex_);
 
-	dx_->GetDevice()->CreateShaderResourceView(
-		instancingResource_.Get(),
-		&instancingSrvDesc,
-		instancingSrvCPU);
+	D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	desc.Buffer.FirstElement = 0;
+	desc.Buffer.NumElements = kMaxInstance;
+	desc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
+	desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+	dx_->GetDevice()->CreateShaderResourceView(instancingResource_.Get(), &desc, cpu);
 
 
 	// ランダム分布
@@ -193,20 +192,20 @@ void Particle::SpawnParticle() {
 }
 
 void Particle::Draw() {
+	assert(instancingSrvHandleGPU_.ptr != 0);
+
+	// ※ SRV heap は main 側で srvManager->PreDraw() により一元管理する
+// ※ Draw 内では SetDescriptorHeaps を呼ばないこと
+
 	auto* cmd = dx_->GetCommandList();
 
-	// ★ instancing 用 StructuredBuffer<TransformationMatrix> の SRV を t0 にセット
+	// ★ ここで SetDescriptorHeaps しない（heapは main の srvManager->PreDraw() で統一）
 	cmd->SetGraphicsRootDescriptorTable(1, instancingSrvHandleGPU_);
+	cmd->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 
-	// DirectionalLight (b1)
-	cmd->SetGraphicsRootConstantBufferView(
-		3, directionalLightResource->GetGPUVirtualAddress());
-
-	if (model_) {
-		// ★ インスタンス数を指定して描画
-		model_->Draw(cmd, instanceCount_);
-	}
+	if (model_) model_->Draw(cmd, instanceCount_);
 }
+
 
 
 void Particle::SetModel(const std::string& filePath) {
