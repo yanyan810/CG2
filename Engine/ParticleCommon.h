@@ -1,11 +1,10 @@
 #pragma once
 #include "DirectXCommon.h"
+#include <array>
 
 class ParticleCommon
 {
-
 public:
-
     enum class BlendMode {
         //!<ブレンド無し
         kBlendModeNone,
@@ -19,34 +18,31 @@ public:
         kBlendModeMultily,
         //!<スクリーン。Src*(1-Dest)+Dest*1
         kBlendModeScreen,
-        //!<利用してはいけない
+        //!<利用してはいけない（要素数）
         kCountOfBlendMode,
-
     };
 
 public:
-
     void Initialize(DirectXCommon* dxCommon);
 
     void SetGraphicsPipelineState();
 
-    void SetBlendMode(BlendMode m) { blendMode_ = m; CreateGraphicsPipelineState(); }
+    // ★ ここではPSOを作り直さない（軽量）
+    void SetBlendMode(BlendMode m) { blendMode_ = m; }
+    BlendMode GetBlendMode() const { return blendMode_; }
 
 private:
-
-    // ルートシグネチャの作成
     void CreateRootSignature();
-    // グラフィックスパイプラインの生成
-    void CreateGraphicsPipelineState();
-
-
+    void CreateGraphicsPipelineState(BlendMode mode); // ★ mode別に作る
 
 private:
-
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
-    Microsoft::WRL::ComPtr<ID3D12PipelineState> pso_;
 
-    DirectXCommon* dx_;
+    // ★ ブレンド分のPSOを保持
+    std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>,
+        static_cast<size_t>(BlendMode::kCountOfBlendMode)> pso_{};
+
+    DirectXCommon* dx_ = nullptr;
 
     // ※ 今の頂点構造(VertexData)に合わせて POSITION/TEXCOORD/NORMAL の3要素
     D3D12_INPUT_ELEMENT_DESC inputElems_[3] = {
@@ -59,8 +55,5 @@ private:
     };
     D3D12_INPUT_LAYOUT_DESC inputLayout_{ inputElems_, 3 };
 
-    //ブレンドモード設定
     BlendMode blendMode_ = BlendMode::kBlendModeNormal;
-
 };
-

@@ -64,6 +64,11 @@ public:
     // ★追加：外から heap を取れるように
     ID3D12DescriptorHeap* GetDescriptorHeap() const { return descriptorHeap.Get(); }
 
+    // SRV生成(StructuredBuffer用)
+    void CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResource,
+        UINT numElements, UINT structureByteStride);
+
+
 private:
     DirectXCommon* dxCommon_ = nullptr;
 
