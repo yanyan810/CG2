@@ -321,7 +321,7 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 	ViewPortInitialize();
 	SizeringInitialize();
 	DXCCompilierSpawn();
-	ImGuiInitialize();
+//	ImGuiInitialize();
 
 	HRESULT hr = commandList->Close();                                // いったん閉じる（開いていてもOK）
 	hr = commandAllocator->Reset();                                    // アロケータをリセット
