@@ -14,16 +14,19 @@
 #include "SrvManager.h"
 #include "ParticleManager.h"
 #include "ImGuiManagaer.h"	
+//#include <xaudio2.h>
+#include "AudioSystem.h"
 
 #include <locale>
 #include <codecvt>
 #include <strsafe.h>
 #include <DbgHelp.h>   
 #include <dxgidebug.h>
+#include <fstream>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <xaudio2.h>
+
 #define DIRECTINPUT_VERSION 0x0800//DIrectInputバージョンの指定
 #include <dinput.h>
 #include "Input.h"
@@ -34,7 +37,7 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "dxcompiler.lib")
 #pragma comment(lib, "DirectXTex.lib")
-#pragma comment(lib, "xaudio2.lib")
+//#pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "dinput8.lib")
 
 #pragma message("### HERE")
@@ -207,32 +210,32 @@ SoundData SoundLoadWave(const char* filename) {
 
 }
 
-void SoundUnload(SoundData* soundData) {
-	delete[] soundData->pBuffer; // バッファの解放
-	soundData->pBuffer = 0; // ポインタをnullptrに設定
-	soundData->bufferSize = 0; // サイズを0に設定
-	soundData->wfex = {}; // 波形フォーマットを初期化
-}
-
-//音声再生
-void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData) {
-	HRESULT result;
-	//波形フォーマットをもとにSourceVoiceの生成
-	IXAudio2SourceVoice* pSourceVoice = nullptr;
-	result = xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
-	assert(SUCCEEDED(result));
-
-	//再生する波形データの設定
-	XAUDIO2_BUFFER buf{};
-	buf.pAudioData = soundData.pBuffer;
-	buf.AudioBytes = soundData.bufferSize;
-	buf.Flags = XAUDIO2_END_OF_STREAM;
-
-	//波形データの再生
-	result = pSourceVoice->SubmitSourceBuffer(&buf);
-	result = pSourceVoice->Start();
-
-}
+//void SoundUnload(SoundData* soundData) {
+//	delete[] soundData->pBuffer; // バッファの解放
+//	soundData->pBuffer = 0; // ポインタをnullptrに設定
+//	soundData->bufferSize = 0; // サイズを0に設定
+//	soundData->wfex = {}; // 波形フォーマットを初期化
+//}
+//
+////音声再生
+//void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData) {
+//	HRESULT result;
+//	//波形フォーマットをもとにSourceVoiceの生成
+//	IXAudio2SourceVoice* pSourceVoice = nullptr;
+//	result = xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
+//	assert(SUCCEEDED(result));
+//
+//	//再生する波形データの設定
+//	XAUDIO2_BUFFER buf{};
+//	buf.pAudioData = soundData.pBuffer;
+//	buf.AudioBytes = soundData.bufferSize;
+//	buf.Flags = XAUDIO2_END_OF_STREAM;
+//
+//	//波形データの再生
+//	result = pSourceVoice->SubmitSourceBuffer(&buf);
+//	result = pSourceVoice->Start();
+//
+//}
 
 
 
@@ -445,6 +448,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ImGuiManagaer* imguiManager = new ImGuiManagaer();
 	imguiManager->Initialize(winApp, dxCommon, srvManager);
 
+	AudioSystem audio;
+	if (!audio.Initialize()) {
+		assert(false && "Audio init failed");
+	}
+
+	auto h = audio.LoadAudioFile(L"Resources/Cold_Memory.mp3", true);
+	audio.Play(h, 0.6f);
+
+	static bool paused = false;
+
 	//ログのディレクトリを用意
 	std::filesystem::create_directory("logs");
 
@@ -465,7 +478,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//ファイルを作って書き込み準備
 	std::ofstream logStream(localFilePath);
 
-	HRESULT hr;
+	//HRESULT hr;
 
 	Input input;
 	input.Initialize(winApp);
@@ -476,17 +489,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	debugCamera.SetInput(&input);
 
 
-	//=========================
-	//音を入れる
-	//=========================
-	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
-	IXAudio2MasteringVoice* masterVoice = nullptr;
+	////=========================
+	////音を入れる
+	////=========================
+	//Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
+	//IXAudio2MasteringVoice* masterVoice = nullptr;
 
-	//Xaudioエンジンのインスタンスの生成
-	hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+	////Xaudioエンジンのインスタンスの生成
+	//hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
 
-	//マスターボイスを実装
-	hr = xAudio2->CreateMasteringVoice(&masterVoice);
+	////マスターボイスを実装
+	//hr = xAudio2->CreateMasteringVoice(&masterVoice);
 
 	// --- スプライト用パラメータ（ImGui用） ---
 	Transform uvTransformSprite{
@@ -497,7 +510,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool useSample = true;
 
-	SoundData soundData1 = SoundLoadWave("resources/fanfare.wav");
+	//SoundData soundData1 = SoundLoadWave("resources/fanfare.wav");
 
 	bool isDrawSphere = true;
 	bool isDrawModel = true;
@@ -635,6 +648,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		srvManager->PreDraw(/*dxCommon->GetCommandList()*/); // ★ SrvManager の heap をバインド
 
+		audio.Update();
+
+
+
 #ifdef USE_IMGUI
 		imguiManager->Begin();
 
@@ -762,7 +779,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		sprite->Update(view2D, proj2D);
 		sprite->Draw();
 
+		// Iキー：Stop
+		if (input.IsKeyTrigger(DIK_I)) {
+			audio.Stop(h);
+			paused = false;
+		}
 
+		// Oキー：Pause / Resume トグル
+		if (input.IsKeyTrigger(DIK_O)) {
+			OutputDebugStringA("[Main] O Trigger\n");
+			if (!paused) { audio.Pause(h); paused = true; } else { audio.Resume(h); paused = false; }
+		}
+
+		if (input.IsKeyTrigger(DIK_P)) {
+			audio.Play(h, 0.6f); // Pで再生し直すテスト
+		}
 
 
 		// =====================
@@ -790,17 +821,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	imguiManager->Shutdown();
 
 
-	xAudio2.Reset();
-	SoundUnload(&soundData1);
+	//xAudio2.Reset();
+	//SoundUnload(&soundData1);
 
 #ifdef _DEBUG
 	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 	//debugController->Release();
 #endif
 
+	audio.Finalize();
 
 
-// WindowsAPIの終了処理
+	// WindowsAPIの終了処理
 	winApp->Finalize();
 
 	TextureManager::GetInstance()->Finalize();
