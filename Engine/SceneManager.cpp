@@ -18,17 +18,16 @@ void SceneManager::Change(GameApp& app, const std::string& name) {
 
 void SceneManager::Update(GameApp& app, float dt) {
     if (!current_) return;
+
     current_->Update(app, dt);
 
-    if (current_->IsEndRequested()) {
-        // GameApp 側で終了させる想定（app.RequestQuit() とか）
-        return;
-    }
-
-    if (!current_->NextScene().empty()) {
-        Change(app, current_->NextScene());
+    const std::string next = current_->NextScene();
+    if (!next.empty()) {
+        current_->ClearNextScene_(); // ★超重要
+        Change(app, next);
     }
 }
+
 
 void SceneManager::Draw(GameApp& app) {
     if (!current_) return;

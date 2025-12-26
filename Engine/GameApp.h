@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include "SceneManager.h"
 
 class WinApp;
 class DirectXCommon;
@@ -30,6 +31,10 @@ public:
 
     SceneManager& Scenes() { return *sceneMgr_; }
 
+    void Update(float dt);
+
+    void Draw();
+
 private:
     bool Initialize_();
     void Finalize_();
@@ -47,4 +52,7 @@ private:
     std::unique_ptr<ImGuiManagaer> imgui_;
 
     std::unique_ptr<SceneManager> sceneMgr_;
+
+    SceneManager sceneManager_;
+
 };

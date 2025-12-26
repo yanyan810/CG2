@@ -93,8 +93,6 @@ void GameScene::Draw(GameApp& app) {
     auto* srv = app.Srv();
     auto* cmd = dx->GetCommandList();
 
-    dx->PreDraw();
-    srv->PreDraw();
 
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -119,5 +117,4 @@ void GameScene::Draw(GameApp& app) {
         sprite_->Draw();
     }
 
-    dx->PostDraw();
 }
