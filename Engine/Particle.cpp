@@ -142,18 +142,6 @@ void Particle::Update() {
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
 
-	Vector3 right{ billboardMatrix.m[0][0], billboardMatrix.m[0][1], billboardMatrix.m[0][2] };
-	Vector3 up{ billboardMatrix.m[1][0], billboardMatrix.m[1][1], billboardMatrix.m[1][2] };
-	Vector3 front{ billboardMatrix.m[2][0], billboardMatrix.m[2][1], billboardMatrix.m[2][2] };
-
-	right = Matrix4x4::Normalize(right);
-	up = Matrix4x4::Normalize(up);
-	front = Matrix4x4::Normalize(front);
-
-	billboardMatrix.m[0][0] = right.x; billboardMatrix.m[0][1] = right.y; billboardMatrix.m[0][2] = right.z;
-	billboardMatrix.m[1][0] = up.x;    billboardMatrix.m[1][1] = up.y;    billboardMatrix.m[1][2] = up.z;
-	billboardMatrix.m[2][0] = front.x; billboardMatrix.m[2][1] = front.y; billboardMatrix.m[2][2] = front.z;
-
 	// ==== list を回しながら更新 ====
 	for (auto it = particles.begin();
 		it != particles.end() && instanceCount_ < kMaxInstance; )
