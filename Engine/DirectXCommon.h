@@ -99,7 +99,8 @@ private:
 	void FanceInitialize();
 	void ViewPortInitialize();
 	void SizeringInitialize();
-	void DXCCompilierSpawn();
+	void DXCCompilerSpawn();   // ★正しい綴り（リンクエラー側）
+	void DXCCompilierSpawn();  // ★今あるやつ（残す）
 	void ImGuiInitialize();
 
 	//FPS固定初期化
