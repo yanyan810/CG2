@@ -5,6 +5,8 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxcompiler.lib")
+
 
 using namespace Logger;
 using namespace StringUtility;
@@ -321,7 +323,7 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 	ViewPortInitialize();
 	SizeringInitialize();
 	DXCCompilierSpawn();
-	ImGuiInitialize();
+//	ImGuiInitialize();
 
 	HRESULT hr = commandList->Close();                                // いったん閉じる（開いていてもOK）
 	hr = commandAllocator->Reset();                                    // アロケータをリセット
@@ -622,6 +624,11 @@ void DirectXCommon::DXCCompilierSpawn() {
 	assert(SUCCEEDED(hr));
 
 
+}
+
+void DirectXCommon::DXCCompilerSpawn() {
+	// ★既存のミス綴り実装へ転送
+	DXCCompilierSpawn();
 }
 
 void DirectXCommon::ImGuiInitialize() {

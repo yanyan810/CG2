@@ -76,5 +76,5 @@ private:
     uint32_t descriptorSize = 0;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 
-    uint32_t useIndex = 0;
+    uint32_t useIndex = 1;
 };

@@ -17,6 +17,8 @@
 
 //class Object3dCommon;
 
+class Camera;
+
 class Particle
 {
 
@@ -66,6 +68,8 @@ public:
 	void SetModel(Model* model) { this->model_ = model; }
 
 	void SetModel(const std::string& filePath);
+
+	void SetCamera(const Camera* camera) { camera_ = camera; }
 
 	// ===== Transform 用 setter =====
 	void SetScale(const Vector3& scale) {
@@ -161,6 +165,8 @@ private:
 
 	SrvManager* srv_ = nullptr;
 	uint32_t instancingSrvIndex_ = 0;
+
+	const Camera* camera_ = nullptr;
 
 };
 

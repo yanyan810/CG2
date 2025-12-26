@@ -14,6 +14,13 @@ class Sprite {
 		Matrix4x4 World;
 	};
 
+	struct SpriteTransform {
+		float pos[2] = { 640.0f, 360.0f }; // 画面中央
+		float scale[2] = { 1.0f, 1.0f };
+		float rotate = 0.0f;              // ラジアン or 度
+	};
+
+
 public:
 	void Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx,std::string textureFilePath);
 

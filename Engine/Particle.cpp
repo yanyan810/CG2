@@ -1,6 +1,8 @@
 #include "Particle.h"
 #include "ParticleCommon.h"
 #include "imgui.h"
+#include "Camera.h"
+
 
 //Vector3 Normalize(const Vector3& v) {
 //	float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -100,82 +102,84 @@ Particle::ParticleData Particle::MakeNewParticle(std::mt19937& ramdomEngine, con
 	return particle;
 
 }
-
 void Particle::Update() {
 
 	instanceCount_ = 0;
 
+	// ★ 自動スポーンを使うならここ（前に入れたやつ）
+	// SpawnParticle();
+
 	// --- カメラ行列 ---
-	Matrix4x4 cameraMatrix =
-		Matrix4x4::MakeAffineMatrix(
-			cameraTransform.scale,
-			cameraTransform.rotate,
-			cameraTransform.translate);
-	Matrix4x4 viewMatrix = Matrix4x4::Inverse(cameraMatrix);
+	Matrix4x4 cameraMatrix{};
+	Matrix4x4 vp{};
 
-	Matrix4x4 projMatrix =
-		Matrix4x4::PerspectiveFov(
-			0.45f,
-			float(WinApp::kClientWidth) / float(WinApp::kClientHeight),
-			0.1f, 100.0f);
+	if (camera_) {
+		// ★ 外部カメラを使用
+		cameraMatrix = camera_->GetWorldMatrix();
+		vp = camera_->GetViewProjectionMatrix();
+	} else {
+		// --- 既存の内部カメラ ---
+		cameraMatrix =
+			Matrix4x4::MakeAffineMatrix(
+				cameraTransform.scale,
+				cameraTransform.rotate,
+				cameraTransform.translate);
+		Matrix4x4 viewMatrix = Matrix4x4::Inverse(cameraMatrix);
 
-	Matrix4x4 vp = Matrix4x4::Multiply(viewMatrix, projMatrix);
+		Matrix4x4 projMatrix =
+			Matrix4x4::PerspectiveFov(
+				0.45f,
+				float(WinApp::kClientWidth) / float(WinApp::kClientHeight),
+				0.1f, 100.0f);
 
-	// --- スライド通りの billboardMatrix ---
-	Matrix4x4 backToFrontMatrix = Matrix4x4::RotateY(std::numbers::pi_v<float> *0.5f);
-	Matrix4x4 billboardMatrix = Matrix4x4::Multiply(backToFrontMatrix, cameraMatrix);
+		vp = Matrix4x4::Multiply(viewMatrix, projMatrix);
+	}
+
+	// --- billboardMatrix ---
+	// （あなたの今の方式に合わせる）
+	Matrix4x4 billboardMatrix = cameraMatrix;
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
 
-	// ==== list を回しながら消す（スライド通り）====
-	for (std::list<ParticleData>::iterator particleIterator = particles.begin();
-		particleIterator != particles.end() && instanceCount_ < kMaxInstance; )
+	// ==== list を回しながら更新 ====
+	for (auto it = particles.begin();
+		it != particles.end() && instanceCount_ < kMaxInstance; )
 	{
-		ParticleData& p = *particleIterator;
+		ParticleData& p = *it;
 
-		// 寿命を超えたら消す
 		if (p.lifeTime <= p.currentTime) {
-			particleIterator = particles.erase(particleIterator); // erase した戻り値で次要素
+			it = particles.erase(it);
 			continue;
 		}
-		// 生存中なら更新
+
 		p.currentTime += deltaTime;
 
-		// === Field の範囲内にいるかチェックして加速度を適用 ===
 		if (IsCollision(accelerationField.area, p.transform.translate)) {
-			// v = v + a * dt
 			p.velocity += accelerationField.acceleration * deltaTime;
 		}
 
-		// 位置更新 x = x + v * dt
 		p.transform.translate += p.velocity * deltaTime;
 
-		// 寿命に応じて alpha
 		float alpha = 1.0f - (p.currentTime / p.lifeTime);
 
-		// 行列計算（scale * billboard * translate）
 		Matrix4x4 scaleM = Matrix4x4::MakeScaleMatrix(p.transform.scale);
 		Matrix4x4 translateM = Matrix4x4::Translation(p.transform.translate);
+
 		Matrix4x4 world =
 			Matrix4x4::Multiply(
 				Matrix4x4::Multiply(scaleM, billboardMatrix),
 				translateM);
+
 		Matrix4x4 wvp = Matrix4x4::Multiply(world, vp);
 
-		// ==== GPU へ書き込む前に最大数チェック ====
-		if (instanceCount_ >= kMaxInstance) {
-			break;  // or ループを抜ける
-		}
-
-		// CPU へ書き込み
 		instancingData_[instanceCount_].World = world;
 		instancingData_[instanceCount_].WVP = wvp;
 		instancingData_[instanceCount_].color = p.color;
 		instancingData_[instanceCount_].color.w = alpha;
 
 		++instanceCount_;
-		++particleIterator; // 次へ
+		++it;
 	}
 }
 
