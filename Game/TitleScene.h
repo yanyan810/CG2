@@ -1,6 +1,7 @@
 #pragma once
 #include "IScene.h"
 #include <memory>
+#include "Matrix4x4.h"
 
 class Particle;
 class Camera;
@@ -17,5 +18,9 @@ private:
     bool prevSpace_ = false;
 
     std::unique_ptr<Camera> camera_;
+
+    Vector3 imguiCamPos_={ 0.0f, 3.0f, -20.0f };
+    Vector3 imguiCamRot_={ 0.0f, 0.0f, 0.0f };
+
     std::unique_ptr<Particle> particle_;
 };

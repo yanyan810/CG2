@@ -43,7 +43,20 @@ void TitleScene::Update(GameApp& app, float dt) {
         RequestChangeScene_("Game");
     }
 
-    if (camera_) camera_->Update();
+    // ===== ImGui =====
+    ImGui::Begin("Camera Debug");
+
+    ImGui::DragFloat3("Position", &imguiCamPos_.x, 0.1f);
+    ImGui::DragFloat3("Rotation", &imguiCamRot_.x, 0.01f);
+
+    ImGui::End();
+
+    // ===== カメラ反映 =====
+    if (camera_) {
+        camera_->SetTranslate(imguiCamPos_);
+        camera_->SetRotate(imguiCamRot_);
+        camera_->Update();
+    }
 
     // ★重要：Spawn → Update（Spawnしないと instanceCount_ が0のまま）
     if (particle_) {
