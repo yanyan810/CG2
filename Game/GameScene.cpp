@@ -50,6 +50,13 @@ void GameScene::OnEnter(GameApp& app) {
     particle_->SetModel("plane.obj");
     particle_->SetTranslate({ -2, 0, 0 });
     particle_->SetCamera(camera_.get());
+
+    debugTitleParticle_ = std::make_unique<Particle>();
+    debugTitleParticle_->Initialize(app.ParticleCom(), app.Dx(), app.Srv());
+    debugTitleParticle_->SetModel("plane.obj");
+    debugTitleParticle_->SetCamera(camera_.get()); // ← GameSceneで普段使ってるカメラ
+
+
 }
 
 void GameScene::OnExit(GameApp& /*app*/) {
@@ -85,7 +92,13 @@ void GameScene::Update(GameApp& app, float /*dt*/) {
 
     if (particle_) {
         particle_->SpawnParticle();
+        particle_->Update();
     }
+
+    debugTitleParticle_->SpawnParticle();
+    debugTitleParticle_->Update();
+
+
 }
 
 void GameScene::Draw(GameApp& app) {
@@ -105,6 +118,9 @@ void GameScene::Draw(GameApp& app) {
     app.ParticleCom()->SetGraphicsPipelineState();
     // particle_ が自分で Draw を持ってるならここで
     // particle_->Draw();
+
+    debugTitleParticle_->Draw();
+
 
     // 2D sprite
     app.SpriteCom()->SetGraphicsPipelineState();

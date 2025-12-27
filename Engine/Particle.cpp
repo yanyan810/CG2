@@ -137,7 +137,7 @@ void Particle::Update() {
 
 	// --- billboardMatrix ---
 	// （あなたの今の方式に合わせる）
-	Matrix4x4 billboardMatrix = Matrix4x4::Inverse(cameraMatrix);
+	Matrix4x4 billboardMatrix = cameraMatrix;
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;

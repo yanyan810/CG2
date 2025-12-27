@@ -10,7 +10,7 @@ void TitleScene::OnEnter(GameApp& app) {
     // カメラ（Particle は内部カメラでも動くけど、外部カメラを渡すと安定）
     camera_ = std::make_unique<Camera>();
     camera_->SetRotate({ 0, 0, 0 });
-    camera_->SetTranslate({ 0, 3, -12 });
+    camera_->SetTranslate({ 0, 3, -50 });
 
     // Particle
     particle_ = std::make_unique<Particle>();
@@ -21,7 +21,9 @@ void TitleScene::OnEnter(GameApp& app) {
 
     // カメラを渡せるなら渡す（Particle.cpp は camera_ があればそれを使う仕様）
     particle_->SetCamera(camera_.get());
+    Vector3 rotate = { 0.0f,0.0f,0.0f };
 
+    particle_->SetRotate(rotate);
     // 見えやすいように（任意）
     particle_->SetBlendMode(ParticleCommon::BlendMode::kBlendModeAdd);
     particle_->SetMaterialColor({ 1, 1, 1, 1 });
@@ -46,7 +48,7 @@ void TitleScene::Update(GameApp& app, float /*dt*/) {
     // ★重要：Spawn → Update（Spawnしないと instanceCount_ が0のまま）
     if (particle_) {
         particle_->SpawnParticle(); // emitter.frequency=0.5なので0.5秒ごとに出る
-        particle_->Update();
+       particle_->Update();
     }
 }
 
