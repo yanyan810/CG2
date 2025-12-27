@@ -10,7 +10,7 @@ void TitleScene::OnEnter(GameApp& app) {
     // カメラ（Particle は内部カメラでも動くけど、外部カメラを渡すと安定）
     camera_ = std::make_unique<Camera>();
     camera_->SetRotate({ 0, 0, 0 });
-    camera_->SetTranslate({ 0, 3, -50 });
+    camera_->SetTranslate({ 0, 3, -20 });
 
     // Particle
     particle_ = std::make_unique<Particle>();
@@ -34,7 +34,7 @@ void TitleScene::OnExit(GameApp&) {
     camera_.reset();
 }
 
-void TitleScene::Update(GameApp& app, float /*dt*/) {
+void TitleScene::Update(GameApp& app, float dt) {
     // SPACEでGameへ
     bool now = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
     bool trigger = now && !prevSpace_;

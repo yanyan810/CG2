@@ -119,7 +119,7 @@ void GameApp::Finalize_() {
 
 void GameApp::Update(float dt) {
     OutputDebugStringA("[GameApp] Update\n");
-    sceneManager_.Update(*this, dt); // ここがあるかが重要
+    sceneMgr_->Update(*this, dt); // ここがあるかが重要
 }
 
 void GameApp::Draw() {
@@ -128,7 +128,7 @@ void GameApp::Draw() {
     dx_->PreDraw();
     srv_->PreDraw();
 
-    sceneManager_.Draw(*this); // ここがあるかが重要
+    sceneMgr_->Draw(*this); // ここがあるかが重要
 
     dx_->PostDraw();
 

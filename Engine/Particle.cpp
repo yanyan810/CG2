@@ -136,11 +136,19 @@ void Particle::Update() {
 	}
 
 	// --- billboardMatrix ---
-	// （あなたの今の方式に合わせる）
 	Matrix4x4 billboardMatrix = cameraMatrix;
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
+
+	// ★ plane.obj が XZ 平面なら、まず板を立てる（-90° X回転）
+	Matrix4x4 fix = Matrix4x4::RotateX(-std::numbers::pi_v<float> *0.5f);
+
+	// ★（必要なら）表裏反転補正
+	// Matrix4x4 fix2 = Matrix4x4::RotateY(std::numbers::pi_v<float>);
+
+	// billboardMatrix = Multiply(fix2, Multiply(fix, billboardMatrix));
+	billboardMatrix = Matrix4x4::Multiply(fix, billboardMatrix);
 
 	// ==== list を回しながら更新 ====
 	for (auto it = particles.begin();
@@ -168,7 +176,7 @@ void Particle::Update() {
 
 		Matrix4x4 world =
 			Matrix4x4::Multiply(
-				Matrix4x4::Multiply(scaleM, billboardMatrix),
+				Matrix4x4::Multiply(billboardMatrix, scaleM),
 				translateM);
 
 		Matrix4x4 wvp = Matrix4x4::Multiply(world, vp);
