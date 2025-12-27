@@ -1,6 +1,7 @@
 #include "GameApp.h"
 #include "SceneManager.h"
-#include "GameScene.h"   // 今回作るやつ
+#include "GameScene.h"  
+#include "TitleScene.h"
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
@@ -23,26 +24,40 @@ int GameApp::Run() {
         return -1;
     }
 
-    // 最初のシーン
-    sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>(); });
-    sceneMgr_->Change(*this, "Game");
-
     // ループ
     while (!quit_) {
         if (win_->ProcessMessage()) break;
 
-        // dt（簡易：固定でもOK）
         const float dt = 1.0f / 60.0f;
 
+        // ★ ImGui フレーム開始（ここで1回だけ）
+        imgui_->Begin();
+
+        // Update
         sceneMgr_->Update(*this, dt);
+
+        // Draw（★PreDraw/SrvPreDraw/PostDraw はここで1回だけ）
+        dx_->PreDraw();
+        srv_->PreDraw();
+
+      
         sceneMgr_->Draw(*this);
+
+        imgui_->End(dx_->GetCommandList());
+
+        dx_->PostDraw();
     }
 
     Finalize_();
     return 0;
 }
 
+
+
 bool GameApp::Initialize_() {
+
+    OutputDebugStringA("[GameApp] Initialize BEGIN\n");
+
     win_ = std::make_unique<WinApp>();
     win_->Initialize();
 
@@ -69,7 +84,21 @@ bool GameApp::Initialize_() {
     imgui_->Initialize(win_.get(), dx_.get(), srv_.get());
 
     sceneMgr_ = std::make_unique<SceneManager>();
+
+    // ★ここで登録（1回だけ）
+    sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
+    sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
+
+    // ★最初は Title
+    sceneMgr_->Change(*this, "Title");
+
+
+    OutputDebugStringA("[GameApp] Initialize END\n");
+
     return true;
+
+
+
 }
 
 void GameApp::Finalize_() {
@@ -93,3 +122,21 @@ void GameApp::Finalize_() {
     dx_.reset();
     win_.reset();
 }
+
+void GameApp::Update(float dt) {
+    OutputDebugStringA("[GameApp] Update\n");
+    sceneMgr_->Update(*this, dt); // ここがあるかが重要
+}
+
+void GameApp::Draw() {
+    OutputDebugStringA("[GameApp] Draw\n");
+
+    dx_->PreDraw();
+    srv_->PreDraw();
+
+    sceneMgr_->Draw(*this); // ここがあるかが重要
+
+    dx_->PostDraw();
+
+}
+

@@ -25,4 +25,9 @@ private:
     std::unique_ptr<Object3d> objA_;
     std::unique_ptr<Object3d> objB_;
     std::unique_ptr<Particle> particle_;
+
+
+    std::unique_ptr<Particle> debugTitleParticle_;
+
+
 };
