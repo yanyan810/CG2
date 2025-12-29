@@ -44,9 +44,8 @@ void TitleScene::Update(GameApp& app, float dt) {
     }
 
 
-#ifdef DEBUG
 
-
+#ifdef USE_IMGUI
 
     // ===== ImGui =====
     ImGui::Begin("Camera Debug");

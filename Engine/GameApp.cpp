@@ -30,7 +30,7 @@ int GameApp::Run() {
 
         const float dt = 1.0f / 60.0f;
 
-#ifdef ImGUI_DEBUG
+#ifdef USE_IMGUI
 
 
 
@@ -48,7 +48,7 @@ int GameApp::Run() {
       
         sceneMgr_->Draw(*this);
 
-#ifdef ImGUI_DEBUG
+#ifdef USE_IMGUI
         imgui_->End(dx_->GetCommandList());
 
 #endif // DEBUG
