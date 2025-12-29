@@ -53,6 +53,4 @@ private:
 
     std::unique_ptr<SceneManager> sceneMgr_;
 
-    SceneManager sceneManager_;
-
 };

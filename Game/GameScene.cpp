@@ -65,6 +65,7 @@ void GameScene::OnExit(GameApp& /*app*/) {
     objA_.reset();
     sprite_.reset();
     camera_.reset();
+    debugTitleParticle_.reset();
 }
 
 void GameScene::Update(GameApp& app, float /*dt*/) {
