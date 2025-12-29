@@ -30,8 +30,13 @@ int GameApp::Run() {
 
         const float dt = 1.0f / 60.0f;
 
+#ifdef ImGUI_DEBUG
+
+
+
         // ★ ImGui フレーム開始（ここで1回だけ）
         imgui_->Begin();
+#endif // DEBUG
 
         // Update
         sceneMgr_->Update(*this, dt);
@@ -43,7 +48,10 @@ int GameApp::Run() {
       
         sceneMgr_->Draw(*this);
 
+#ifdef ImGUI_DEBUG
         imgui_->End(dx_->GetCommandList());
+
+#endif // DEBUG
 
         dx_->PostDraw();
     }

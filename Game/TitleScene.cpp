@@ -43,6 +43,11 @@ void TitleScene::Update(GameApp& app, float dt) {
         RequestChangeScene_("Game");
     }
 
+
+#ifdef DEBUG
+
+
+
     // ===== ImGui =====
     ImGui::Begin("Camera Debug");
 
@@ -50,6 +55,8 @@ void TitleScene::Update(GameApp& app, float dt) {
     ImGui::DragFloat3("Rotation", &imguiCamRot_.x, 0.01f);
 
     ImGui::End();
+    
+#endif // DEBUG
 
     // ===== カメラ反映 =====
     if (camera_) {
