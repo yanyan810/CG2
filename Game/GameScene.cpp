@@ -22,9 +22,25 @@ void GameScene::OnEnter(GameApp& app) {
     // テクスチャやモデルのロード（必要なものをここで）
     TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
 
+    input_ = app.GetInput();
+    assert(input_); // ここでnullなら初期化順が悪い
+
     camera_ = std::make_unique<Camera>();
-    camera_->SetRotate({ 0,0,0 });
-    camera_->SetTranslate({ 0,3,-10 });
+
+    // 斜め上・少し後ろ
+    camera_->SetTranslate({
+        0.0f,   // X
+        20.0f,   // Y（高さ）
+       -50.0f   // Z（後ろ）
+        });
+
+    // 少し下向き（ラジアン）
+    camera_->SetRotate({
+        0.35f,  // X回転（見下ろし）
+        0.0f,   // Y
+        0.0f
+        });
+
 
     // ObjCommon は GameApp が持つ。カメラ設定だけここで。
     app.ObjCom()->SetDefaultCamera(camera_.get());
@@ -56,10 +72,23 @@ void GameScene::OnEnter(GameApp& app) {
     debugTitleParticle_->SetModel("plane.obj");
     debugTitleParticle_->SetCamera(camera_.get()); // ← GameSceneで普段使ってるカメラ
 
+    //player
+    player_ = std::make_unique<Player>();
+    player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
+
+    //enemy
+    enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
+
+    // テストスポーン
+    enemyMgr_.Spawn(EnemyType::Melee, { 5.0f, 0.0f ,0.0f});
+    enemyMgr_.Spawn(EnemyType::Shooter, { 9.0f, 0.0f ,0.0f});
+    // bossはステージ5で
+
 
 }
 
 void GameScene::OnExit(GameApp& /*app*/) {
+    player_.reset(); // ★追加
     particle_.reset();
     objB_.reset();
     objA_.reset();
@@ -68,12 +97,15 @@ void GameScene::OnExit(GameApp& /*app*/) {
     debugTitleParticle_.reset();
 }
 
-void GameScene::Update(GameApp& app, float /*dt*/) {
+
+void GameScene::Update(GameApp& app, float dt) {
     // ESC で終了（Input クラス持ってるなら差し替え）
     if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
         app.RequestQuit();
         return;
     }
+
+    if (!input_) return; // 念のため
 
     camera_->Update();
 
@@ -96,10 +128,26 @@ void GameScene::Update(GameApp& app, float /*dt*/) {
         particle_->Update();
     }
 
+  
+
     debugTitleParticle_->SpawnParticle();
     debugTitleParticle_->Update();
 
+    if (player_) {
+        player_->Update(dt, *input_, enemyMgr_);
+    }
 
+    // enemyMgr_ に渡す playerPos を Player から取る
+    Vector2 playerPos2D{ 0.0f, 0.0f };
+    if (player_) {
+        playerPos2D = player_->GetPos2D();
+    }
+
+    float playerZ = 15.0f;
+    if (player_) {
+        playerZ = player_->GetZ(); // 追加したgetter
+    }
+    enemyMgr_.Update(dt, playerPos2D, playerZ);
 }
 
 void GameScene::Draw(GameApp& app) {
@@ -112,8 +160,37 @@ void GameScene::Draw(GameApp& app) {
 
     // 3D
     app.ObjCom()->SetGraphicsPipelineState();
-    if (objA_) objA_->Draw();
-    if (objB_) objB_->Draw();
+    //if (objA_) objA_->Draw();
+    //if (objB_) objB_->Draw();
+
+    //player
+    if (player_) player_->Draw();
+
+    // ★攻撃判定 可視化（当たり判定が有効なフレームだけ描く）
+    if (player_ && debugHitboxObj_) {
+        const PlayerCombo* combo = player_->GetCombo();
+        if (combo) {
+            AABB2 hb{};
+            if (combo->GetDebugHitBox(hb)) {
+                // AABB2 は center(x,y) と half(hx,hy)
+                const float w = hb.hx * 2.0f;
+                const float h = hb.hy * 2.0f;
+
+                // plane.obj が XZ 平面（地面）向きなら、XYにするために90度回す
+                debugHitboxObj_->SetRotate({ 1.570796f, 0.0f, 0.0f });
+
+                // サイズ
+                debugHitboxObj_->SetScale({ w, h, 1.0f });
+
+                // Zはプレイヤーと同じ位置に（少しだけ前に出すとZ-fighting避け）
+                float z = player_->GetZ() + 0.05f;
+                debugHitboxObj_->SetTranslate({ hb.x, hb.y, z });
+
+                debugHitboxObj_->Update();
+                debugHitboxObj_->Draw();
+            }
+        }
+    }
 
     // Particle
     app.ParticleCom()->SetGraphicsPipelineState();
@@ -131,7 +208,10 @@ void GameScene::Draw(GameApp& app) {
 
     if (sprite_) {
         sprite_->Update(view, proj);
-        sprite_->Draw();
+      //  sprite_->Draw();
     }
+
+    // GameScene.cpp Draw の 3D 描画のところ
+    enemyMgr_.Draw();
 
 }

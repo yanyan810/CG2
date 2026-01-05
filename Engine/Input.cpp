@@ -102,13 +102,22 @@ void Input::Update() {
 }
 
 bool Input::IsKeyTrigger(BYTE keyCode) const {
-    return keys_[keyCode] && !prevKeys_[keyCode];
+    // DirectInput は 0x80 が押下
+    return (keys_[keyCode] & 0x80) && !(prevKeys_[keyCode] & 0x80);
 }
 
 bool Input::IsKeyPressed(BYTE keyCode) const {
-    return keys_[keyCode];
+    return (keys_[keyCode] & 0x80) != 0;
 }
 
 bool Input::IsKeyReleased(BYTE keyCode) const {
-    return !keys_[keyCode] && prevKeys_[keyCode];
+    return !(keys_[keyCode] & 0x80) && (prevKeys_[keyCode] & 0x80);
 }
+
+//
+//bool Input::IsKeyPressed(BYTE keyCode) const {
+//    return (keys_[keyCode] & 0x80) != 0;
+//}
+//bool Input::IsKeyReleased(BYTE keyCode) const {
+//    return (keys_[keyCode] & 0x80) == 0;
+//}

@@ -27,6 +27,8 @@ public:
     void UpdateMouseDelta();
     POINT GetMouseDelta() const { return mouseDelta_; }
 
+ /*   bool IsKeyPressed(BYTE keyCode) const;
+    bool IsKeyReleased(BYTE keyCode) const;*/
 
 private:
     IDirectInput8* directInput_ = nullptr;

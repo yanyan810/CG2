@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include "SceneManager.h"
+#include "Input.h"
 
 class WinApp;
 class DirectXCommon;
@@ -35,6 +36,9 @@ public:
 
     void Draw();
 
+    Input* GetInput() { return input_.get(); }
+    const Input* GetInput() const { return input_.get(); }
+
 private:
     bool Initialize_();
     void Finalize_();
@@ -52,5 +56,7 @@ private:
     std::unique_ptr<ImGuiManagaer> imgui_;
 
     std::unique_ptr<SceneManager> sceneMgr_;
+
+    std::unique_ptr<Input> input_; 
 
 };

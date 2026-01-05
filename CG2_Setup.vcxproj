@@ -83,7 +83,7 @@
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;$(SolutionDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;$(SolutionDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)Game\player;$(ProjectDir)Game\enemy</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -168,6 +168,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\enemy\Enemy.cpp" />
     <ClCompile Include="Engine\D3DResourceLeakChecker.cpp" />
     <ClCompile Include="Engine\CrashHandler.cpp" />
     <ClCompile Include="Engine\AudioSystem.cpp" />
@@ -209,6 +210,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\ParticleManager.cpp" />
     <ClCompile Include="Engine\SceneManager.cpp" />
     <ClCompile Include="Game\TitleScene.cpp" />
+    <ClCompile Include="Game\player\PlayerCombo.cpp" />
+    <ClCompile Include="Game\player\Player.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -259,6 +262,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\enemy\Enemy.h" />
     <ClInclude Include="Engine\D3DResourceLeakChecker.h" />
     <ClInclude Include="Engine\CrashHandler.h" />
     <ClInclude Include="Engine\AudioSystem.h" />
@@ -300,6 +304,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\GameApp.h" />
     <ClInclude Include="Game\GameScene.h" />
     <ClInclude Include="Game\TitleScene.h" />
+    <ClInclude Include="Game\player\PlayerCombo.h" />
+    <ClInclude Include="Game\player\Player.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

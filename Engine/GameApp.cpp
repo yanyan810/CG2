@@ -31,12 +31,11 @@ int GameApp::Run() {
         const float dt = 1.0f / 60.0f;
 
 #ifdef USE_IMGUI
-
-
-
         // ★ ImGui フレーム開始（ここで1回だけ）
         imgui_->Begin();
 #endif // DEBUG
+
+        if (input_) input_->Update();
 
         // Update
         sceneMgr_->Update(*this, dt);
@@ -61,10 +60,8 @@ int GameApp::Run() {
 }
 
 
-
 bool GameApp::Initialize_() {
-
-    OutputDebugStringA("[GameApp] Initialize BEGIN\n");
+    OutputDebugStringA("[GameApp] Initialize START\n");
 
     win_ = std::make_unique<WinApp>();
     win_->Initialize();
@@ -79,7 +76,6 @@ bool GameApp::Initialize_() {
     spriteCommon_->Initialize(dx_.get());
 
     TextureManager::GetInstance()->Initialize(dx_.get(), srv_.get());
-
     ModelManager::GetInstance()->Initialize(dx_.get());
 
     objCommon_ = std::make_unique<Object3dCommon>();
@@ -88,26 +84,27 @@ bool GameApp::Initialize_() {
     particleCommon_ = std::make_unique<ParticleCommon>();
     particleCommon_->Initialize(dx_.get());
 
+#ifdef USE_IMGUI
     imgui_ = std::make_unique<ImGuiManagaer>();
     imgui_->Initialize(win_.get(), dx_.get(), srv_.get());
+#endif
 
+    // ★ Input は Scene を動かす前に作る（最重要）
+    input_ = std::make_unique<Input>();
+    input_->Initialize(win_.get());
+    input_->Update(); // 初回
+
+    // SceneManager
     sceneMgr_ = std::make_unique<SceneManager>();
-
-    // ★ここで登録（1回だけ）
     sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
     sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
 
-    // ★最初は Title
     sceneMgr_->Change(*this, "Title");
 
-
     OutputDebugStringA("[GameApp] Initialize END\n");
-
     return true;
-
-
-
 }
+
 
 void GameApp::Finalize_() {
     // Scene 終了（必要ならここで current_->OnExit 呼んでもOK）
@@ -133,6 +130,10 @@ void GameApp::Finalize_() {
 
 void GameApp::Update(float dt) {
     OutputDebugStringA("[GameApp] Update\n");
+
+    input_->Update();
+
+
     sceneMgr_->Update(*this, dt); // ここがあるかが重要
 }
 
