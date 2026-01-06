@@ -82,7 +82,7 @@ public:
 
 private:
 
-	DirectXCommon* dx_;
+	DirectXCommon* dx_ = nullptr;
 
 	Object3dCommon* object3dCommon = nullptr;
 
@@ -93,7 +93,7 @@ private:
 	//データを書き込む
 	TransformationMatrix* transformationMatrixDataModel = nullptr;
 
-		//ライトのリソース作成
+	//ライトのリソース作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
 	DirectionalLight* directionalLightData = nullptr;
 

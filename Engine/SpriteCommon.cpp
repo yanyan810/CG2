@@ -6,8 +6,12 @@
 
 void SpriteCommon::Initialize(DirectXCommon* dx) {
     dx_ = dx;
-  
+
+    // 既存スプライト
     CreateGraphicsPipelineState();
+
+    // ★追加：円マスク（1回だけ作る）
+    CreateCircleMaskPipeline_();
 }
 
 void SpriteCommon::CreateRootSignature() {
@@ -133,4 +137,95 @@ void SpriteCommon::SetGraphicsPipelineState() {
     cmd->SetPipelineState(pso_.Get());
     // プリミティブトポロジ（スプライトは三角形リスト）
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void SpriteCommon::CreateCircleMaskPipeline_()
+{
+    auto* dev = dx_->GetDevice();
+
+    // --- RootSignature (b0 のみ) ---
+    CD3DX12_ROOT_PARAMETER rp{};
+    rp.InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    CD3DX12_ROOT_SIGNATURE_DESC rsDesc{};
+    rsDesc.Init(1, &rp, 0, nullptr,
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+    Microsoft::WRL::ComPtr<ID3DBlob> sigBlob, errBlob;
+    HRESULT hr = D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+        &sigBlob, &errBlob);
+    assert(SUCCEEDED(hr));
+
+    hr = dev->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(),
+        IID_PPV_ARGS(&circleMaskRootSig_));
+    assert(SUCCEEDED(hr));
+
+    // --- Shaders ---
+    // ※ SV_VertexID を使うので InputLayout は null/0
+    auto vs = dx_->CompilesSharder(L"resources/shaders/ui/FullscreenQuadVS.hlsl", L"vs_6_0");
+    auto ps = dx_->CompilesSharder(L"resources/shaders/ui/CircleMaskPS.hlsl", L"ps_6_0");
+
+    // --- PSO ---
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pso{};
+    pso.pRootSignature = circleMaskRootSig_.Get();
+    pso.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+    pso.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+
+    pso.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    pso.BlendState.RenderTarget[0].BlendEnable = TRUE;
+    pso.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    pso.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    pso.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    pso.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    pso.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    pso.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    pso.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+    pso.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+
+    // ★深度は完全OFF（最前面に被せたいので）
+    pso.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    pso.DepthStencilState.DepthEnable = FALSE;
+    pso.DepthStencilState.StencilEnable = FALSE;
+
+    pso.InputLayout = { nullptr, 0 }; // ★重要
+    pso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+    pso.NumRenderTargets = 1;
+    // あなたのRTVが SRGB を使ってるので合わせる
+    pso.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    pso.SampleDesc.Count = 1;
+    pso.SampleMask = UINT_MAX;
+
+    hr = dev->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&circleMaskPSO_));
+    assert(SUCCEEDED(hr));
+
+    // --- ConstantBuffer (Upload) ---
+    circleMaskCB_ = dx_->CreateBufferResource(sizeof(MaskCB));
+    hr = circleMaskCB_->Map(0, nullptr, reinterpret_cast<void**>(&mappedMaskCB_));
+    assert(SUCCEEDED(hr));
+
+    // 初期値
+    mappedMaskCB_->radius = 1.0f;
+    mappedMaskCB_->softness = 0.6f;
+    mappedMaskCB_->pad[0] = mappedMaskCB_->pad[1] = 0.0f;
+}
+
+void SpriteCommon::DrawCircleMask(float radius01, float softness01)
+{
+    auto* cmd = dx_->GetCommandList();
+
+    // CB更新
+    mappedMaskCB_->radius = radius01;
+    mappedMaskCB_->softness = softness01;
+
+    // PSO/RootSig
+    cmd->SetGraphicsRootSignature(circleMaskRootSig_.Get());
+    cmd->SetPipelineState(circleMaskPSO_.Get());
+
+    cmd->SetGraphicsRootConstantBufferView(0, circleMaskCB_->GetGPUVirtualAddress());
+
+    // InputLayoutなしの DrawInstanced(6)
+    cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmd->DrawInstanced(6, 1, 0, 0);
 }

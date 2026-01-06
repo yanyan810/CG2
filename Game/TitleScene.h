@@ -2,6 +2,10 @@
 #include "IScene.h"
 #include <memory>
 #include "Matrix4x4.h"
+#include "Object3d.h"
+#include "Object3dCommon.h"
+#include "Sprite.h"
+#include "SpriteCommon.h"
 
 class Particle;
 class Camera;
@@ -23,4 +27,24 @@ private:
     Vector3 imguiCamRot_={ 0.0f, 0.0f, 0.0f };
 
     std::unique_ptr<Particle> particle_;
+
+    std::unique_ptr<Object3d> skyDome_;
+
+    std::unique_ptr < Sprite> bg_;
+
+	std::unique_ptr < Sprite> pressStart_;
+
+    enum class State {
+        Idle,
+        ExitClose
+    };
+
+    State state_ = State::Idle;
+
+    float circle_ = 1.0f;   // ★Titleは最初から開いている
+    float softness_ = 0.6f;
+
+    const char* kNextScene_ = "Test"; // SPACE後に行く先
+
+
 };

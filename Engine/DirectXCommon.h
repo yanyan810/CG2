@@ -87,6 +87,11 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource>
 		CreateDepthStencilResource(int32_t width, int32_t height);
 
+	Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
+		const std::wstring& filePath,
+		const wchar_t* profile
+	);
+
 private:
 
 	void DeviceInitialize();

@@ -83,7 +83,7 @@
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;$(SolutionDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)Game\player;$(ProjectDir)Game\enemy</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;$(SolutionDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)Game\player;$(ProjectDir)Game\enemy;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -115,7 +115,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -148,7 +148,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;$(ProjectDir)packages\Assimp_native_4.1_v142.4.1.0\build\native\include;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -168,6 +168,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\GameClearScene.cpp" />
+    <ClCompile Include="Game\GameOverScene.cpp" />
+    <ClCompile Include="Game\enemy\BossAI.cpp" />
+    <ClCompile Include="Game\enemy\Bullet.cpp" />
     <ClCompile Include="Game\enemy\Enemy.cpp" />
     <ClCompile Include="Engine\D3DResourceLeakChecker.cpp" />
     <ClCompile Include="Engine\CrashHandler.cpp" />
@@ -212,6 +216,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\TitleScene.cpp" />
     <ClCompile Include="Game\player\PlayerCombo.cpp" />
     <ClCompile Include="Game\player\Player.cpp" />
+    <ClCompile Include="Game\TestScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -260,8 +265,22 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="resources\shaders\ui\CircleMaskPS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\ui\FullscreenQuadVS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\GameClearScene.h" />
+    <ClInclude Include="Game\GameOverScene.h" />
+    <ClInclude Include="Game\enemy\BossAI.h" />
+    <ClInclude Include="Game\enemy\Bullet.h" />
     <ClInclude Include="Game\enemy\Enemy.h" />
     <ClInclude Include="Engine\D3DResourceLeakChecker.h" />
     <ClInclude Include="Engine\CrashHandler.h" />
@@ -306,6 +325,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\TitleScene.h" />
     <ClInclude Include="Game\player\PlayerCombo.h" />
     <ClInclude Include="Game\player\Player.h" />
+    <ClInclude Include="Game\TestScene.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

@@ -28,9 +28,15 @@ void PlayerCombo::Push_(AttackBtn b) { buf_.push_back({ b, bufKeep_ }); }
 bool PlayerCombo::Pop_(AttackBtn& out) {
 	if (buf_.empty()) return false;
 	out = buf_.front().btn;
+
+	char b[64];
+	sprintf_s(b, "[Pop] btn=%d\n", (int)out);
+	OutputDebugStringA(b);
+
 	buf_.erase(buf_.begin());
 	return true;
 }
+
 
 void PlayerCombo::UpdateBuf_(float dt) {
 	for (auto& it : buf_) it.life -= dt;
@@ -40,10 +46,13 @@ void PlayerCombo::UpdateBuf_(float dt) {
 
 int PlayerCombo::ReadDirY_(const Input& in) const {
 	// 押しっぱなし方向を読む（攻撃開始時に固定する）
-	if (in.IsKeyPressed(DIK_UP))   return +1;
-	if (in.IsKeyPressed(DIK_DOWN)) return -1;
+	// ↑ or W : +1
+	if (in.IsKeyPressed(DIK_UP) || in.IsKeyPressed(DIK_W))   return +1;
+	// ↓ or S : -1（※今は使ってないけど残してOK）
+	if (in.IsKeyPressed(DIK_DOWN) || in.IsKeyPressed(DIK_S)) return -1;
 	return 0;
 }
+
 
 AttackData PlayerCombo::GetData_(bool airborne, int step, AttackBtn btn) const {
 	AttackData a{};
@@ -84,22 +93,35 @@ AttackData PlayerCombo::GetData_(bool airborne, int step, AttackBtn btn) const {
   // I(Weak): 全体0.2秒、0.1秒で判定出て、0.2秒で消える
   // O(Strong): 全体0.5秒、0.3秒で判定出て、0.5秒で消える
   // =========================
-	if (btn == AttackBtn::Weak) {        // I
+	if (btn == AttackBtn::Weak) { // I
 		a.duration = 0.20f;
 		a.hitStart = 0.10f;
 		a.hitEnd = 0.20f;
 		a.chainOpen = 0.12f;
 		a.chainClose = 0.18f;
 
-		a.hitZ = 0.6f;   // ★細め
-	} else {                             // O
+		// ★判定サイズ（半幅）
+		a.hbHalfX = 1.2f;  // ←横を広げる
+		a.hbHalfY = 1.6f;  // ←縦を広げる
+		a.hbOffX = 1.2f;  // ←前に出す
+		a.hbOffY = 0.0f;  // ←高さ
+		
+
+	} else { // O
 		a.duration = 0.50f;
 		a.hitStart = 0.30f;
 		a.hitEnd = 0.50f;
 		a.chainOpen = 0.35f;
 		a.chainClose = 0.48f;
 
-		a.hitZ = 1.2f;   // ★広め
+		// ★判定サイズ（半幅）
+		a.hbHalfX = 1.6f;
+		a.hbHalfY = 1.0f;
+		a.hbOffX = 1.2f;
+		a.hbOffY = 0.7f;
+
+		a.hitZ = 1.6f; //奥行き
+
 	}
 
 	return a;
@@ -130,6 +152,11 @@ AABB2 PlayerCombo::MakeEnemyBody2D_(const Enemy& e) const {
 }
 
 void PlayerCombo::StartAttack_(bool airborne, AttackBtn btn, int dirY) {
+
+	char b[128];
+	sprintf_s(b, "[Combo Start] btn=%d\n", (int)btn);
+	OutputDebugStringA(b);
+
 	attacking_ = true;
 	attackAir_ = airborne;
 	step_ = 0;
@@ -139,29 +166,39 @@ void PlayerCombo::StartAttack_(bool airborne, AttackBtn btn, int dirY) {
 }
 
 void PlayerCombo::NextStep_(bool airborne, AttackBtn btn) {
+
+	char b[64];
+	sprintf_s(b, "[NextStep] btn=%d\n", (int)btn);
+	OutputDebugStringA(b);
+
 	step_ = std::min(step_ + 1, 2);
 	attackAir_ = airborne;
-	t_ = 0.0f;
 	curBtn_ = btn;
+
+	// ★チェインで次段に入った瞬間、攻撃判定がすぐ出るようにする
+	AttackData a = GetData_(airborne, step_, btn);
+	t_ = a.hitStart;   // ← ここがポイント（0.10 or 0.30まで待たない）
 }
+
 
 void PlayerCombo::Update(float dt,
 	const Input& in,
 	Vector2& playerPos, Vector2& playerVel,
 	bool onGround,
 	int facing,
-	float playerZ,            // ★追加
+	float playerZ,
 	EnemyManager& enemyMgr) {
-
 
 	// ★毎フレーム最初に無効化
 	debugHbValid_ = false;
+	debugHb3Valid_ = false;
 
 	UpdateBuf_(dt);
 
 	// I/O をバッファへ
-	if (in.IsKeyTrigger(DIK_I)) Push_(AttackBtn::Weak);
-	if (in.IsKeyTrigger(DIK_O)) Push_(AttackBtn::Strong);
+	if (in.IsKeyTrigger(DIK_I)) { OutputDebugStringA("[Trigger] I\n"); Push_(AttackBtn::Weak); }
+	if (in.IsKeyTrigger(DIK_O)) { OutputDebugStringA("[Trigger] O\n"); Push_(AttackBtn::Strong); }
+
 
 	// 開始
 	if (!attacking_) {
@@ -178,7 +215,11 @@ void PlayerCombo::Update(float dt,
 	const bool treatAir = attackAir_ || airborneNow;
 
 	AttackData a = GetData_(treatAir, step_, curBtn_);
+	lastData_ = a;
+	lastDataValid_ = true;
+
 	t_ += dt;
+
 
 	const bool hitActive = (t_ >= a.hitStart && t_ <= a.hitEnd);
 	bool hittingNow = false;
@@ -193,38 +234,38 @@ void PlayerCombo::Update(float dt,
 		debugHb_ = hb;
 		debugHbValid_ = true;
 
+		// ★3D可視化用（Zも含めたヒットボックス）
+		debugHb3_ = { hb.x, hb.y, playerZ, hb.hx, hb.hy, a.hitZ };
+		debugHb3Valid_ = true;
+
 		for (auto& e : enemies) {
 			if (!e.IsAlive()) continue;
 
 			AABB2 body2 = MakeEnemyBody2D_(e);
 			if (!Intersect(hb, body2)) continue;
 
-			// ★ Z判定（奥行き）を追加：
-// Enemyの3D AABBから「Z中心」と「Z半幅」を取り出す
+
+			// ★Z判定（奥行き）
 			AABB a3 = e.GetBodyAABB();
 			float ezC = (a3.min.z + a3.max.z) * 0.5f;
 			float ehz = (a3.max.z - a3.min.z) * 0.5f;
-
-			// 攻撃のZ半幅 a.hitZ と重なるかチェック
 			if (std::abs(ezC - playerZ) > (a.hitZ + ehz)) continue;
 
 			hittingNow = true;
 
-			float knockX = a.knockX;
-			float launchY = a.launchY;
+			// ★ 吹き飛ばしは「↑キー時の上方向のみ」
+			float knockX = 0.0f;   // 横吹き飛ばし完全に無し
+			float launchY = 0.0f;
 
-			// ↑↔↓（開始時方向固定）
 			if (startDirY_ > 0) {
-				launchY *= 1.4f;
-			} else if (startDirY_ < 0) {
-				launchY *= 0.6f;
+				launchY = a.launchY;   // ↑押し時だけ上に飛ばす
 			}
 
 			// ボス：ひるませない＆浮かせない（仕様）
 			if (e.IsBoss()) {
 				e.ApplyHit2D(0.0f, 0.0f, false);
 			} else {
-				e.ApplyHit2D(knockX * float(facing), launchY, true);
+				e.ApplyHit2D(knockX, launchY, true);
 			}
 		}
 	}
@@ -246,8 +287,20 @@ void PlayerCombo::Update(float dt,
 	}
 
 	if (t_ >= a.duration) {
+		// ★チェイン窓を逃しても、入力が溜まってたら即つなぐ（隙間無し）
+		AttackBtn next;
+		if (step_ < 2 && Pop_(next)) {
+			NextStep_(treatAir, next);
+
+			// さらに「次段の判定をすぐ出す」ならこれが効く（前に入れたやつ）
+			// NextStep_ 内で t_ = hitStart にしている前提
+			return;
+		}
+
+		// もう次が無いなら終了
 		attacking_ = false;
 		step_ = 0;
 		t_ = 0.0f;
 	}
+
 }

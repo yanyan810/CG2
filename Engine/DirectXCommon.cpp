@@ -171,7 +171,6 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompilesSharder(
 	Log(ConvertString(std::format(L"Compile Succeded,path:{},profile\n", filePath, profile)));
 	//もう使わないリソースを解放
 	shaderSource->Release();
-	shaderSource->Release();
 	//実行用のバイナリを返却
 	return shaderBlob;
 
@@ -822,4 +821,11 @@ D3D12_DEPTH_STENCIL_DESC DirectXCommon::GetDepthStencilDesc() const {
 	desc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	desc.StencilEnable = FALSE;
 	return desc;
+}
+
+Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
+	const std::wstring& filePath,
+	const wchar_t* profile
+) {
+	return CompilesSharder(filePath, profile);
 }

@@ -2,6 +2,9 @@
 #include "SceneManager.h"
 #include "GameScene.h"  
 #include "TitleScene.h"
+#include "TestScene.h"
+#include "GameOverScene.h"
+#include "GameClearScene.h"
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
@@ -98,8 +101,12 @@ bool GameApp::Initialize_() {
     sceneMgr_ = std::make_unique<SceneManager>();
     sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
     sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
+    sceneMgr_->Register("Test", [] { return std::make_unique<TestScene>();  }); 
+    sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  }); 
+	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
 
     sceneMgr_->Change(*this, "Title");
+
 
     OutputDebugStringA("[GameApp] Initialize END\n");
     return true;

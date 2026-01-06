@@ -182,3 +182,13 @@ void Sprite::AdjustTextureSize() {
     size_ = textureCutSize_;
 
 }
+
+void Sprite::SetTextureFilePath(const std::string& filePath) {
+    textureFilePath_ = filePath;
+
+    // 念のためロード（ロード済みなら内部で無視される想定）
+    TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+
+    // 画像サイズに合わせたいならこれ（数字は小さいのでON推奨）
+    AdjustTextureSize();
+}

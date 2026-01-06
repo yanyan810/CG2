@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <dinput.h>
+#include "Object3d.h"
 
 class Input;
 class EnemyManager;
@@ -17,6 +18,11 @@ inline bool Intersect(const AABB2& a, const AABB2& b) {
         (std::abs(a.y - b.y) <= (a.hy + b.hy));
 }
 
+
+struct AABB3 {
+    float x = 0, y = 0, z = 0; // center
+    float hx = 0.5f, hy = 0.5f, hz = 0.5f;
+};
 enum class AttackBtn { Weak, Strong };
 
 enum class AttackType {
@@ -38,12 +44,12 @@ struct AttackData {
     float launchY = 7.0f;
 
     float hbOffX = 0.9f;
-    float hbOffY = 0.8f;
+    float hbOffY = 0.0f;
     float hbHalfX = 0.6f;
     float hbHalfY = 0.5f;
 
-    float hitZ = 0.8f;
 
+    float hitZ = 0.5f; // ★Z方向の半幅（奥行き）
     bool airFloatOnHit = true; // 空中ヒット中浮遊
 };
 
@@ -58,8 +64,8 @@ public:
         const Input& in,
         Vector2& playerPos, Vector2& playerVel,
         bool onGround,
-        int facing,
-        float playerZ,            // ★追加
+        int facing,                  // +1右 / -1左
+        float playerZ,
         EnemyManager& enemyMgr);
 
     bool IsAttacking() const { return attacking_; }
@@ -80,6 +86,39 @@ public:
         return true;
     }
 
+    bool GetDebugHitBox3(AABB3& out) const {
+        if (!debugHb3Valid_) return false;
+        out = debugHb3_;
+        return true;
+    }
+
+    // ★アニメ用：いまの攻撃状態を外に出す
+    struct AttackAnimState {
+        bool attacking = false;
+        AttackBtn btn = AttackBtn::Weak;
+        int step = 0;
+        float t = 0.0f;         // 攻撃経過時間
+        AttackData data{};      // duration/hitStart/hitEnd など
+    };
+
+    bool GetAnimState(AttackAnimState& out) const {
+
+        out = {};
+
+        if (!attacking_) return false;
+        out.attacking = true;
+        out.btn = curBtn_;
+        out.step = step_;
+        out.t = t_;
+
+        // ★Updateで実際に使ったデータを返す
+        if (lastDataValid_) out.data = lastData_;
+        else out.data = GetData_(attackAir_, step_, curBtn_); // 保険
+
+        return true;
+    }
+
+
 private:
     // 入力バッファ
     struct BufItem { AttackBtn btn; float life; };
@@ -99,7 +138,14 @@ private:
     bool  debugHbValid_ = false;
     AABB2 debugHb_{};
 
+    bool  debugHb3Valid_ = false;
+    AABB3 debugHb3_{};                // ★AABB3 を保存する（こっちが本体）
+
+
     AttackType attackType_ = AttackType::None;
+
+    AttackData lastData_{};
+    bool lastDataValid_ = false;
 
 private:
     void Push_(AttackBtn b);
