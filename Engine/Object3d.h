@@ -33,6 +33,7 @@ public:
 
 	struct CameraGPU {
 		Vector3 worldPosition;
+		float pad; // ★16byte揃え
 	};
 
 public:

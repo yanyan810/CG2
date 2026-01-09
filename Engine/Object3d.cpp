@@ -28,7 +28,8 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
 	//初期化
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // ライトの色
-	directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
+	//directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
+	directionalLightData->direction = { 0.0f, -1.0f, -1.0f };
 	directionalLightData->intensity = 1.0f; // ライトの強度
 
 
@@ -65,7 +66,7 @@ void Object3d::Update() {
 
 	if (camera_) {
 
-		cameraData_->worldPosition = camera_->GetTranslate();
+		
 
 		const Matrix4x4& vp = camera_->GetViewProjectionMatrix(); // View*Proj
 		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // world * (view*proj)
@@ -77,6 +78,11 @@ void Object3d::Update() {
 
 
 void Object3d::Draw() {
+
+	if (cameraData_ && camera_) {
+		cameraData_->worldPosition = camera_->GetTranslate();
+	}
+
 	auto* cmd = dx_->GetCommandList();
 
 	// ★ SRVヒープを必ずセット（これがないとテクスチャが読めない）

@@ -94,21 +94,21 @@ void TitleScene::Update(GameApp& app, float dt) {
     bool spaceTrig = spaceNow && !prevSpace_;
     prevSpace_ = spaceNow;
 
-    switch (state_) {
-    case State::Idle:
-        if (spaceTrig) {
-            state_ = State::ExitClose; // ★すぐ遷移しない
-        }
-        break;
+    //switch (state_) {
+    //case State::Idle:
+    //    if (spaceTrig) {
+    //        state_ = State::ExitClose; // ★すぐ遷移しない
+    //    }
+    //    break;
 
-    case State::ExitClose:
-        circle_ -= 1.8f * dt;          // ★閉じる
-        if (circle_ <= 0.0f) {
-            circle_ = 0.0f;
-            RequestChangeScene_(kNextScene_);
-        }
-        break;
-    }
+    //case State::ExitClose:
+    //    circle_ -= 1.8f * dt;          // ★閉じる
+    //    if (circle_ <= 0.0f) {
+    //        circle_ = 0.0f;
+    //        RequestChangeScene_(kNextScene_);
+    //    }
+    //    break;
+    //}
 
 
     skyDome_->Update();
@@ -193,7 +193,7 @@ void TitleScene::Draw(GameApp& app) {
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
-    if (bg_) {
+ /*   if (bg_) {
         bg_->Update(view, proj);
         bg_->Draw();
     }
@@ -201,7 +201,7 @@ void TitleScene::Draw(GameApp& app) {
     if (pressStart_) {
         pressStart_->Update(view, proj);
         pressStart_->Draw();
-    }
+    }*/
 
     // ===== マスクは必ず最後 =====
     app.SpriteCom()->DrawCircleMask(circle_, softness_);

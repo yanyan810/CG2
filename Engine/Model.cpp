@@ -70,6 +70,24 @@ void Model::Initialize(ModelCommon* modelCommon,
         OutputDebugStringA(buf);
     }
     // ===== AABB デバッグここまで =====
+    // ===== Normal デバッグ =====
+    if (!modelData_.vertices.empty()) {
+        Vector3 nMin{ +FLT_MAX, +FLT_MAX, +FLT_MAX };
+        Vector3 nMax{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+        for (const auto& v : modelData_.vertices) {
+            const Vector3& n = v.normal;
+            nMin.x = std::min(nMin.x, n.x); nMin.y = std::min(nMin.y, n.y); nMin.z = std::min(nMin.z, n.z);
+            nMax.x = std::max(nMax.x, n.x); nMax.y = std::max(nMax.y, n.y); nMax.z = std::max(nMax.z, n.z);
+        }
+
+        char buf[256];
+        std::snprintf(buf, sizeof(buf),
+            "[Normal] min=(%.3f,%.3f,%.3f) max=(%.3f,%.3f,%.3f)\n",
+            nMin.x, nMin.y, nMin.z, nMax.x, nMax.y, nMax.z);
+        OutputDebugStringA(buf);
+    }
+
 
 
     // ===== 頂点バッファ作成 =====
@@ -83,13 +101,18 @@ void Model::Initialize(ModelCommon* modelCommon,
     vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
     vertexBufferView_.SizeInBytes = static_cast<UINT>(sizeof(VertexData) * vtxCount);
     vertexBufferView_.StrideInBytes = sizeof(VertexData);
-
     // ===== マテリアルリソース =====
     materialResource_ = dx->CreateBufferResource(sizeof(Material));
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
+
+    *materialData_ = {}; // ★ゼロクリア（まずこれが強い）
+
     materialData_->color = { 1,1,1,1 };
-    materialData_->enableLighting = 0;
+    materialData_->enableLighting = 1;                 // ★最初からLambertにして確認しやすく
     materialData_->uvTransform = Matrix4x4::MakeIdentity4x4();
+
+    materialData_->shininess = 64.0f;                  // ★必ず入れる（32〜128でOK）
+
 
     // ===== テクスチャ読み込み（パスが空ならスキップ）=====
     if (!modelData_.material.textureFilePath.empty()) {
@@ -104,6 +127,16 @@ void Model::Initialize(ModelCommon* modelCommon,
 
     OutputDebugStringA(("[Model] vertex count = " +
         std::to_string(modelData_.vertices.size()) + "\n").c_str());
+
+    char buf2[256];
+    std::snprintf(buf2, sizeof(buf2),
+        "[VertexData Offsets] pos=%zu uv=%zu nrm=%zu sizeof=%zu\n",
+        offsetof(Model::VertexData, position),
+        offsetof(Model::VertexData, texcoord),
+        offsetof(Model::VertexData, normal),
+        sizeof(Model::VertexData));
+    OutputDebugStringA(buf2);
+
 }
 
 
