@@ -33,6 +33,7 @@ public:
 		int32_t enableLighting;
 		float padding[3];
 		Matrix4x4 uvTransform;
+		float shininess;
 	};
 
 public:
@@ -53,6 +54,8 @@ public:
 
 	Vector4& GetMaterialColor() { return materialData_->color; }
 	void SetMaterialColor(const Vector4& c) { materialData_->color = c; }
+
+	Material* GetMaterial() { return materialData_; }
 
 private:
 

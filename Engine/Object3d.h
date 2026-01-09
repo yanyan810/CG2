@@ -31,6 +31,10 @@ public:
 		float intensity;
 	};
 
+	struct CameraGPU {
+		Vector3 worldPosition;
+	};
+
 public:
 
 	void Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx);
@@ -63,6 +67,23 @@ public:
 	const Vector4& GetLightColor()     const { return directionalLightData->color; }
 	const Vector3& GetDirection() const { return directionalLightData->direction; }
 	float          GetIntensity() const { return directionalLightData->intensity; }
+
+	void SetEnableLighting(int enable) {
+		if (model_ && model_->GetMaterial()) {
+			model_->GetMaterial()->enableLighting = enable;
+		}
+	}
+	void SetShininess(float s) {
+		if (model_ && model_->GetMaterial()) {
+			model_->GetMaterial()->shininess = s;
+		}
+	}
+	int GetEnableLighting() const {
+		return (model_ && model_->GetMaterial()) ? model_->GetMaterial()->enableLighting : 0;
+	}
+	float GetShininess() const {
+		return (model_ && model_->GetMaterial()) ? model_->GetMaterial()->shininess : 0.0f;
+	}
 
 	//ブレンド設定
 	void SetBlendMode(Object3dCommon::BlendMode m) { object3dCommon->SetBlendMode(m); }
@@ -102,6 +123,8 @@ private:
 	//カメラ
 	Camera* camera_ = nullptr;
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
+	CameraGPU* cameraData_ = nullptr;
 
 };
 

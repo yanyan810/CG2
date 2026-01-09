@@ -42,6 +42,10 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 
 	this->camera_ = object3dCommon->GetDefaultCamera();
 
+	cameraResource_ = dx_->CreateBufferResource(sizeof(CameraGPU));
+	cameraResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
+
+
 }
 
 void Object3d::Update() {
@@ -60,6 +64,9 @@ void Object3d::Update() {
 	Matrix4x4 wvpModel = worldMatrixModel;
 
 	if (camera_) {
+
+		cameraData_->worldPosition = camera_->GetTranslate();
+
 		const Matrix4x4& vp = camera_->GetViewProjectionMatrix(); // View*Proj
 		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // world * (view*proj)
 	}
@@ -85,6 +92,9 @@ void Object3d::Draw() {
 	// DirectionalLight
 	cmd->SetGraphicsRootConstantBufferView(
 		3, directionalLightResource->GetGPUVirtualAddress());
+
+	cmd->SetGraphicsRootConstantBufferView(
+		4, cameraResource_->GetGPUVirtualAddress());
 
 	// Model
 	if (model_) {

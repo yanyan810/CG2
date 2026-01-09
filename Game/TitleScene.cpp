@@ -58,6 +58,22 @@ void TitleScene::OnEnter(GameApp& app) {
  //   pressStart_->SetPosition({ WinApp::kClientWidth * 0.5f, WinApp::kClientHeight * 0.80f });
     pressStart_->SetScale({ 1,1,1 }); // 128x128なら等倍でOK
 
+    testObj_ = std::make_unique<Object3d>();
+    testObj_->Initialize(app.ObjCom(), app.Dx());
+
+    // 手元にあるモデル名にしてOK（例：sphere.obj / cube.obj / Suzanne.obj 等）
+    testObj_->SetModel("cube/cube.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
+
+    testObj_->SetTranslate({ 0.0f, 1.0f, 0.0f });
+    testObj_->SetScale({ 2.0f, 2.0f, 2.0f });
+
+    // 鏡面反射が分かりやすいように：白っぽく、ライティングON、shininess高め
+    testObj_->SetMaterialColor({ 1,1,1,1 });
+    testObj_->SetEnableLighting(lightingMode_);
+    testObj_->SetShininess(shininess_);
+
+
+
 }
 
 void TitleScene::OnExit(GameApp&) {
@@ -109,6 +125,45 @@ void TitleScene::Update(GameApp& app, float dt) {
     
 #endif // DEBUG
 
+#ifdef USE_IMGUI
+    ImGui::Begin("Phong Check");
+
+    ImGui::Checkbox("Orbit Camera", &orbitCam_);
+    ImGui::DragFloat("Orbit Speed", &orbitSpeed_, 0.01f, 0.0f, 5.0f);
+    ImGui::DragFloat("Orbit Radius", &orbitRadius_, 0.1f, 1.0f, 50.0f);
+
+    ImGui::SliderFloat("Shininess", &shininess_, 1.0f, 256.0f);
+
+    // 1:Lambert 2:Half 3:SpecOnly
+    ImGui::RadioButton("Lambert", &lightingMode_, 1); ImGui::SameLine();
+    ImGui::RadioButton("HalfLambert", &lightingMode_, 2); ImGui::SameLine();
+    ImGui::RadioButton("SpecOnly", &lightingMode_, 3);
+
+    ImGui::End();
+#endif
+
+    if (orbitCam_ && camera_) {
+        orbitT_ += orbitSpeed_ * dt;
+
+        Vector3 target{ 0.0f, 1.0f, 0.0f }; // testObjを見る想定
+        Vector3 eye{
+            target.x + std::cosf(orbitT_) * orbitRadius_,
+            target.y + 3.0f,
+            target.z + std::sinf(orbitT_) * orbitRadius_
+        };
+
+        camera_->SetTranslate(eye);
+
+        // 回転は「LookAt」関数が無いなら、いったん手動でYawだけでもOK
+        // ここはあなたのCamera仕様次第なので、とりあえずImGui回転を残す運用でもOK
+    }
+
+    if (testObj_) {
+        testObj_->SetEnableLighting(lightingMode_);
+        testObj_->SetShininess(shininess_);
+        testObj_->Update();
+    }
+
     // ===== カメラ反映 =====
     if (camera_) {
         camera_->SetTranslate(imguiCamPos_);
@@ -127,7 +182,9 @@ void TitleScene::Draw(GameApp& app) {
 
     app.ObjCom()->SetGraphicsPipelineState();
 
-	skyDome_->Draw();
+	//skyDome_->Draw();
+
+    if (testObj_) testObj_->Draw();
 
     // ---- 2D ----
     app.SpriteCom()->SetGraphicsPipelineState();
