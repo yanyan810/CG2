@@ -25,7 +25,7 @@ VertexShaderOutput main(VertexShaderInput input)
     
     //output.normal = float3(0, 0, 1); // 強制固定
     
-    output.worldPosition = mul(input.position, gTransformation.World).xyz;
+   // output.worldPosition = mul(input.position, gTransformation.World).xyz;
     return output;
 }
 
