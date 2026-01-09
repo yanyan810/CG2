@@ -62,7 +62,7 @@ void TitleScene::OnEnter(GameApp& app) {
     testObj_->Initialize(app.ObjCom(), app.Dx());
 
     // 手元にあるモデル名にしてOK（例：sphere.obj / cube.obj / Suzanne.obj 等）
-    testObj_->SetModel("cube/cube.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
+    testObj_->SetModel("Player/dush/dush.fbx");  // ★あなたのresourcesにあるやつに合わせて変えてOK
 
     testObj_->SetTranslate({ 0.0f, 1.0f, 0.0f });
     testObj_->SetScale({ 2.0f, 2.0f, 2.0f });
@@ -71,6 +71,7 @@ void TitleScene::OnEnter(GameApp& app) {
     testObj_->SetMaterialColor({ 1,1,1,1 });
     testObj_->SetEnableLighting(lightingMode_);
     testObj_->SetShininess(shininess_);
+	testObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
 
 
@@ -139,6 +140,14 @@ void TitleScene::Update(GameApp& app, float dt) {
     ImGui::RadioButton("HalfLambert", &lightingMode_, 2); ImGui::SameLine();
     ImGui::RadioButton("SpecOnly", &lightingMode_, 3);
 
+    ImGui::Separator();
+    ImGui::Text("Light");
+
+    ImGui::DragFloat3("Dir", &lightDir_.x, 0.01f, -1.0f, 1.0f);
+    ImGui::SliderFloat("Intensity", &lightIntensity_, 0.0f, 5.0f);
+    ImGui::ColorEdit3("Color", &lightColor_.x); // RGBだけ
+
+
     ImGui::End();
 #endif
 
@@ -161,8 +170,15 @@ void TitleScene::Update(GameApp& app, float dt) {
     if (testObj_) {
         testObj_->SetEnableLighting(lightingMode_);
         testObj_->SetShininess(shininess_);
+
+        // ★ライト反映
+        testObj_->SetDirection(lightDir_);
+        testObj_->SetIntensity(lightIntensity_);
+        testObj_->SetLightColor(lightColor_);
+
         testObj_->Update();
     }
+
 
     // ===== カメラ反映 =====
     if (camera_) {

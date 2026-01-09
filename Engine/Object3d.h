@@ -60,9 +60,11 @@ public:
 	const Vector3& GetTranslate() const { return transform.translate; }
 
 	//光源用
-	void SetLightColor(const Vector4& color) { directionalLightData->color = color; }
-	void SetDirection(const Vector3& direction) { directionalLightData->direction = direction; }
-	void SetIntensity(const float& intensity) { directionalLightData->intensity = intensity; }
+	void SetLightColor(const Vector4& color) { if (directionalLightData) directionalLightData->color = color; }
+
+	void SetDirection(const Vector3& direction);
+
+	void SetIntensity(float intensity) { if (directionalLightData) directionalLightData->intensity = intensity; }
 
 	// 光源 getter（正しく返すように修正）
 	const Vector4& GetLightColor()     const { return directionalLightData->color; }

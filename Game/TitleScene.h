@@ -57,4 +57,10 @@ private:
     float orbitRadius_ = 10.0f;
     float orbitT_ = 0.0f;
 
+    Vector3 lightDir_ = { 0.0f, -1.0f, -1.0f };
+    float   lightIntensity_ = 1.0f;
+    Vector4 lightColor_ = { 1,1,1,1 };
+
+
+
 };

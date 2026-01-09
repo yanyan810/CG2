@@ -126,3 +126,19 @@ void Object3d::SetModel(const std::string& filePath) {
 	model_ = m;
 
 }
+
+void Object3d::SetDirection(const Vector3& direction)
+{
+	if (!directionalLightData) return;
+
+	Vector3 d = direction;
+	float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+
+	if (len < 1e-6f) {
+		d = { 0.0f, -1.0f, -1.0f }; // 0ベクトル保険
+		len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+	}
+
+	d.x /= len; d.y /= len; d.z /= len;
+	directionalLightData->direction = d;
+}
