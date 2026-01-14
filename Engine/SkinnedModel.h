@@ -42,7 +42,7 @@ struct Bone {
 
 
 // 1ボーン分のアニメーション（位置・回転・スケール）
-struct BoneAnimChannel {
+struct BoneAnimeChannel {
     std::string            boneName;
     int                    boneIndex = -1;  // SkinnedModel::bones_ の何番か
     int nodeIndex = -1;   // 対応する Node index（Armature 等も含む）
@@ -56,7 +56,7 @@ struct AnimationClip {
     std::string                   name;
     float                         duration = 0.0f;        // 秒換算
     float                         ticksPerSecond = 0.0f;  // Assimp の値
-    std::vector<BoneAnimChannel>  channels;
+    std::vector<BoneAnimeChannel>  channels;
 };
 // ==== 追加ここまで ====
 
@@ -66,7 +66,7 @@ public:
     struct SkinVertex {
         Vector4 position;
         Vector3 normal;
-        Vector2 texcoord;
+        Vector2 texCoord;
         uint32_t boneIndex[4];
         float    boneWeight[4];
     };
@@ -107,11 +107,11 @@ public:
 
     void UpdateAnimation(float deltaTime);
 
-    Vector3 SamplePosition(const BoneAnimChannel& ch, float time);
+    Vector3 SamplePosition(const BoneAnimeChannel& ch, float time);
 
-    Matrix4x4::Quat SampleRotation(const BoneAnimChannel& ch, float time);
+    Matrix4x4::Quat SampleRotation(const BoneAnimeChannel& ch, float time);
 
-    Vector3 SampleScale(const BoneAnimChannel& ch, float time);
+    Vector3 SampleScale(const BoneAnimeChannel& ch, float time);
 
 
 private:
@@ -159,10 +159,10 @@ private:
 
 
     // ==== アニメーション再生用 ====  ←★ ここから追加
-    AnimationClip anim_;       // 今は「1本だけ」扱う
-    float         animTime_ = 0.0f;      // 現在の再生時間[秒]
-    bool          animPlaying_ = true;   // 再生中フラグ
-    float         animSpeed_ = 1.0f;     // 再生速度（1.0=等倍）
+    AnimationClip anime_;       // 今は「1本だけ」扱う
+    float         animeTime_ = 0.0f;      // 現在の再生時間[秒]
+    bool          animePlaying_ = true;   // 再生中フラグ
+    float         animeSpeed_ = 1.0f;     // 再生速度（1.0=等倍）
  
 
     // Transform 値
