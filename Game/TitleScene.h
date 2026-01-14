@@ -48,7 +48,7 @@ private:
 
     //確認
     std::unique_ptr<Object3d> testObj_;
-
+    std::unique_ptr<Object3d> terrainObj_;
 
     Vector3 testPos_{ 0.0f, 1.0f, 0.0f };
     Vector3 testRot_{ 0.0f, 0.0f, 0.0f };   // ラジアンなら 0.01刻み、度なら 1.0刻み
@@ -63,9 +63,17 @@ private:
     float orbitT_ = 0.0f;
 
     Vector3 lightDir_ = { 0.0f, -1.0f, -1.0f };
-    float   lightIntensity_ = 1.0f;
+    float   lightIntensity_ = 0.0f;
     Vector4 lightColor_ = { 1,1,1,1 };
 
+    Vector3 pointPos_{ 0.0f, 3.0f, -3.0f };
+    Vector4 pointColor_{ 1,1,1,1 };
+    float   pointIntensity_ = 1.0f;
+	float pointRadius_ = 10.0f;
+    float pointDecay_ = 1.0f;
+
+    // 確認用：Pointだけ見る
+    int lightViewMode_ = 0; // 0:全部 1:Directionalのみ 2:Pointのみ
 
 
 };

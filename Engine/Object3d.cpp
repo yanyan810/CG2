@@ -30,7 +30,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // ライトの色
 	//directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
 	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
-	directionalLightData->intensity = 1.0f; // ライトの強度
+	directionalLightData->intensity = 0.0f; // ライトの強度
 
 
 	//Transform変数
@@ -45,6 +45,16 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 
 	cameraResource_ = dx_->CreateBufferResource(sizeof(CameraGPU));
 	cameraResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
+
+	pointLightResource_ = dx_->CreateBufferResource(sizeof(PointLight));
+	pointLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData_));
+
+	// 初期値（とりあえず）
+	pointLightData_->color = { 1,1,1,1 };
+	pointLightData_->position = { 0, 3, 0 };
+	pointLightData_->intensity = 1.0f;
+	pointLightData_->radius = 10.0f;
+	pointLightData_->decay = 1.0f;
 
 
 }
@@ -103,6 +113,8 @@ void Object3d::Draw() {
 
 	cmd->SetGraphicsRootConstantBufferView(
 		4, cameraResource_->GetGPUVirtualAddress());
+
+	cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
 
 	// Model
 	if (model_) {

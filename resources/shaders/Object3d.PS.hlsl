@@ -31,12 +31,25 @@ struct Camera
     float _pad;
 };
 
+struct PointLight
+{
+    
+    float4 color;
+    float3 position;
+    float intensity;
+    float radius;
+    float decay;
+    float2 _pad;
+    
+};
+
 Texture2D gTexture : register(t0);
 SamplerState gSampler : register(s0);
 
 ConstantBuffer<Material> gMaterial : register(b0);
 ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 ConstantBuffer<Camera> gCamera : register(b2);
+ConstantBuffer<PointLight> gPointLight : register(b3);
 
 PixelSharderOutput main(VertexShaderOutput input)
 {
@@ -56,76 +69,104 @@ PixelSharderOutput main(VertexShaderOutput input)
     {
         float3 N = normalize(input.normal);
 
-        // あなたの設計：direction は「光が進む向き」想定なので - を付けて L を作る
-        float3 L = normalize(-gDirectionalLight.direction); // 点→光
+    // ===== View =====
         float3 V = normalize(gCamera.worldPosition - input.worldPosition); // 点→カメラ
 
-        float NdotL = dot(N, L);
+    // ===== Directional Light =====
+        float3 Ld = normalize(-gDirectionalLight.direction); // 点→光（Directional）
+        float NdotLd = dot(N, Ld);
 
-        // 拡散（Lambert / HalfLambert）
-        float lighting = 1.0f;
+        float lightingD = 1.0f;
         if (gMaterial.enableLighting == 1)
         {
-            lighting = saturate(NdotL); // Lambert
+            lightingD = saturate(NdotLd);
         }
         else if (gMaterial.enableLighting == 2)
         {
-            lighting = pow(NdotL * 0.5f + 0.5f, 2.0f); // Half-Lambert
+            lightingD = pow(NdotLd * 0.5f + 0.5f, 2.0f);
+        }
+        else
+        {
+            lightingD = saturate(NdotLd);
         }
 
-        float3 diffuse =
-            gMaterial.color.rgb *
-            textureColor.rgb *
-            gDirectionalLight.color.rgb *
-            lighting *
-            gDirectionalLight.intensity;
+        float3 diffuseD =
+        gMaterial.color.rgb *
+        textureColor.rgb *
+        gDirectionalLight.color.rgb *
+        lightingD *
+        gDirectionalLight.intensity;
 
-        // ---------------------------
-        // ★ 鏡面反射：Phong（reflect）版
-        // ---------------------------
-        float3 R = reflect(-L, N); // 入射（光が当たる向き）は -L
-        float phongSpecPow = pow(saturate(dot(R, V)), max(gMaterial.shininess, 1.0f));
-        float3 phongSpecular =
-            gDirectionalLight.color.rgb *
-            gDirectionalLight.intensity *
-            phongSpecPow;
+        float3 Hd = normalize(Ld + V);
+        float specD = pow(saturate(dot(N, Hd)), max(gMaterial.shininess, 1.0f));
+        float3 specularD =
+        gDirectionalLight.color.rgb *
+        gDirectionalLight.intensity *
+        specD;
 
-        // ---------------------------
-        // ★ 鏡面反射：Blinn-Phong（HalfVector）版（画像の計算）
-        // halfVector = normalize(L + V)
-        // ---------------------------
-        float3 H = normalize(L + V);
-        float NdotH = dot(N, H);
-        float blinnSpecPow = pow(saturate(NdotH), max(gMaterial.shininess, 1.0f));
-        float3 blinnSpecular =
-            gDirectionalLight.color.rgb *
-            gDirectionalLight.intensity *
-            blinnSpecPow;
+  // ===== Point Light =====
+        float3 toLight = gPointLight.position - input.worldPosition; // 点→光源ベクトル
+        float dist = length(toLight);
 
-        // ★ 確認用モード
-        // 3: Phong鏡面のみ
-        if (gMaterial.enableLighting == 3)
+// 0除算防止（dist=0 を避ける）
+        dist = max(dist, 0.001f);
+
+// ★改良版減衰（半径radius以内で 0..1、外は0。decayで落ち方を調整）
+        float t = saturate(1.0f - dist / max(gPointLight.radius, 0.001f));
+        float factor = pow(t, gPointLight.decay);
+
+// L は「点→光」なので normalize(toLight)
+        float3 Lp = toLight / dist; // normalize(toLight) と同じ（dist計算済みなので割り算でOK）
+        float NdotLp = dot(N, Lp);
+
+        float lightingP = 1.0f;
+        if (gMaterial.enableLighting == 1)
         {
-            output.color.rgb = phongSpecular;
+            lightingP = saturate(NdotLp);
+        }
+        else if (gMaterial.enableLighting == 2)
+        {
+            lightingP = pow(NdotLp * 0.5f + 0.5f, 2.0f);
+        }
+        else
+        {
+            lightingP = saturate(NdotLp);
+        }
+
+// ★ここがポイント：点光源の色（強さ）に factor を掛ける
+        float3 pointColor = gPointLight.color.rgb * gPointLight.intensity * factor;
+
+        float3 diffuseP =
+    gMaterial.color.rgb *
+    textureColor.rgb *
+    pointColor *
+    lightingP;
+
+        float3 Hp = normalize(Lp + V); // Blinn-Phong
+        float specP = pow(saturate(dot(N, Hp)), max(gMaterial.shininess, 1.0f));
+        float3 specularP = pointColor * specP;
+
+
+        // ===== 合成前に確認モード =====
+        if (gMaterial.enableLighting == 12)
+        {
+            output.color.rgb = diffuseP + specularP; // Pointだけ
+            output.color.a = 1.0f;
+            return output;
+        }
+        if (gMaterial.enableLighting == 11)
+        {
+            output.color.rgb = diffuseD + specularD; // Directionalだけ
             output.color.a = 1.0f;
             return output;
         }
 
-        // 4: Blinn鏡面のみ（追加）
-        if (gMaterial.enableLighting == 4)
-        {
-            output.color.rgb = blinnSpecular;
-            output.color.a = 1.0f;
-            return output;
-        }
 
-        // 通常：diffuse + specular
-        // ★ どっちを足すかは好み：まずは Blinn の方が安定なので Blinn を採用してみる
-        // output.color.rgb = diffuse + phongSpecular;
-        output.color.rgb = diffuse + blinnSpecular;
-
+    // ===== 全部足す（スライドの式）=====
+        output.color.rgb = diffuseD + specularD + diffuseP + specularP;
         output.color.a = gMaterial.color.a * textureColor.a;
     }
+
 
     return output;
 }

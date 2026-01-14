@@ -32,6 +32,15 @@ public:
 		float intensity;
 	};
 
+	struct PointLight {
+		Vector4 color;//!<ライトの色
+		Vector3 position;//!<ライトの位置
+		float intensity;//!<輝度
+		float radius;//!<ライトの届く最大距離
+		float decay;//!<減衰率
+		float padding[2];
+	};
+
 	struct CameraGPU {
 		Vector3 worldPosition;
 		float pad; // ★16byte揃え
@@ -105,6 +114,12 @@ public:
 	//カメラセッター
 	void SetCamera(Camera* camera) { camera_ = camera; }
 
+	void SetPointLightColor(const Vector4& c) { if (pointLightData_) pointLightData_->color = c; }
+	void SetPointLightPos(const Vector3& p) { if (pointLightData_) pointLightData_->position = p; }
+	void SetPointLightIntensity(float i) { if (pointLightData_) pointLightData_->intensity = i; }
+	void SetPointLightRadius(float r) { if (pointLightData_) pointLightData_->radius = r; }
+	void SetPointLightDecay(float d) { if (pointLightData_) pointLightData_->decay = d; }
+
 private:
 
 	DirectXCommon* dx_ = nullptr;
@@ -129,6 +144,11 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
 	CameraGPU* cameraData_ = nullptr;
+
+	// 点光源（CB）
+	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource_;
+	PointLight* pointLightData_ = nullptr;
+
 
 };
 
