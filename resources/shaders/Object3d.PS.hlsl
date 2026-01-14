@@ -5,15 +5,11 @@ struct Material
     float4 color;
     int enableLighting;
 
-    // ★ int の後に padding（16byte揃え）
     float3 _pad0;
 
     float4x4 uvTransform;
 
-    // ★ 鏡面反射用
     float shininess;
-
-    // ★ 16byte揃え
     float3 _pad1;
 };
 
@@ -49,6 +45,7 @@ PixelSharderOutput main(VertexShaderOutput input)
     float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
 
+    // Alpha 0 は捨てる（※抜けが気になるなら一旦コメントアウトしてOK）
     if (textureColor.a == 0.0f)
         discard;
 
@@ -58,12 +55,14 @@ PixelSharderOutput main(VertexShaderOutput input)
     if (gMaterial.enableLighting != 0)
     {
         float3 N = normalize(input.normal);
-        float3 L = normalize(-gDirectionalLight.direction); // 光が当たる方向
-        float3 V = normalize(gCamera.worldPosition - input.worldPosition); // ★toEye
-        float3 R = reflect(-L, N); // ★反射
+
+        // あなたの設計：direction は「光が進む向き」想定なので - を付けて L を作る
+        float3 L = normalize(-gDirectionalLight.direction); // 点→光
+        float3 V = normalize(gCamera.worldPosition - input.worldPosition); // 点→カメラ
 
         float NdotL = dot(N, L);
 
+        // 拡散（Lambert / HalfLambert）
         float lighting = 1.0f;
         if (gMaterial.enableLighting == 1)
         {
@@ -74,7 +73,6 @@ PixelSharderOutput main(VertexShaderOutput input)
             lighting = pow(NdotL * 0.5f + 0.5f, 2.0f); // Half-Lambert
         }
 
-        // diffuse
         float3 diffuse =
             gMaterial.color.rgb *
             textureColor.rgb *
@@ -82,23 +80,50 @@ PixelSharderOutput main(VertexShaderOutput input)
             lighting *
             gDirectionalLight.intensity;
 
-        // ★ specular（ここで作る！）
-        float specPow = pow(saturate(dot(R, V)), max(gMaterial.shininess, 1.0f));
-        float3 specular =
+        // ---------------------------
+        // ★ 鏡面反射：Phong（reflect）版
+        // ---------------------------
+        float3 R = reflect(-L, N); // 入射（光が当たる向き）は -L
+        float phongSpecPow = pow(saturate(dot(R, V)), max(gMaterial.shininess, 1.0f));
+        float3 phongSpecular =
             gDirectionalLight.color.rgb *
             gDirectionalLight.intensity *
-            specPow;
+            phongSpecPow;
 
-        // ★ SpecOnly モード（確認用）
+        // ---------------------------
+        // ★ 鏡面反射：Blinn-Phong（HalfVector）版（画像の計算）
+        // halfVector = normalize(L + V)
+        // ---------------------------
+        float3 H = normalize(L + V);
+        float NdotH = dot(N, H);
+        float blinnSpecPow = pow(saturate(NdotH), max(gMaterial.shininess, 1.0f));
+        float3 blinnSpecular =
+            gDirectionalLight.color.rgb *
+            gDirectionalLight.intensity *
+            blinnSpecPow;
+
+        // ★ 確認用モード
+        // 3: Phong鏡面のみ
         if (gMaterial.enableLighting == 3)
         {
-            output.color.rgb = specular;
+            output.color.rgb = phongSpecular;
+            output.color.a = 1.0f;
+            return output;
+        }
+
+        // 4: Blinn鏡面のみ（追加）
+        if (gMaterial.enableLighting == 4)
+        {
+            output.color.rgb = blinnSpecular;
             output.color.a = 1.0f;
             return output;
         }
 
         // 通常：diffuse + specular
-        output.color.rgb = diffuse + specular;
+        // ★ どっちを足すかは好み：まずは Blinn の方が安定なので Blinn を採用してみる
+        // output.color.rgb = diffuse + phongSpecular;
+        output.color.rgb = diffuse + blinnSpecular;
+
         output.color.a = gMaterial.color.a * textureColor.a;
     }
 

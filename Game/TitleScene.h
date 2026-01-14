@@ -49,6 +49,11 @@ private:
     //確認
     std::unique_ptr<Object3d> testObj_;
 
+
+    Vector3 testPos_{ 0.0f, 1.0f, 0.0f };
+    Vector3 testRot_{ 0.0f, 0.0f, 0.0f };   // ラジアンなら 0.01刻み、度なら 1.0刻み
+    Vector3 testScale_{ 2.0f, 2.0f, 2.0f };
+
     // 確認用パラメータ
     float shininess_ = 64.0f;
     int lightingMode_ = 1;     // 1:Lambert 2:HalfLambert 3:SpecOnly

@@ -29,7 +29,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	//初期化
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // ライトの色
 	//directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
-	directionalLightData->direction = { 0.0f, -1.0f, -1.0f };
+	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
 	directionalLightData->intensity = 1.0f; // ライトの強度
 
 
@@ -65,16 +65,18 @@ void Object3d::Update() {
 	Matrix4x4 wvpModel = worldMatrixModel;
 
 	if (camera_) {
-
-		
-
 		const Matrix4x4& vp = camera_->GetViewProjectionMatrix(); // View*Proj
-		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // world * (view*proj)
+		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // World * (ViewProj)
 	}
 
 	transformationMatrixDataModel->WVP = wvpModel;
 	transformationMatrixDataModel->World = worldMatrixModel;
+
+	// ★非均一スケール対応：WorldInverseTranspose
+	Matrix4x4 invW = Matrix4x4::Inverse(worldMatrixModel);
+	transformationMatrixDataModel->WorldInverseTranspose = Matrix4x4::Transpose(invW);
 }
+
 
 
 void Object3d::Draw() {

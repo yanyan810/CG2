@@ -62,10 +62,12 @@ void TitleScene::OnEnter(GameApp& app) {
     testObj_->Initialize(app.ObjCom(), app.Dx());
 
     // 手元にあるモデル名にしてOK（例：sphere.obj / cube.obj / Suzanne.obj 等）
-    testObj_->SetModel("Player/dush/dush.fbx");  // ★あなたのresourcesにあるやつに合わせて変えてOK
+    testObj_->SetModel("enemy/shooter/bullet/bullet.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
 
-    testObj_->SetTranslate({ 0.0f, 1.0f, 0.0f });
-    testObj_->SetScale({ 2.0f, 2.0f, 2.0f });
+    testObj_->SetTranslate(testPos_);
+    testObj_->SetScale(testScale_);
+    // 回転も使うなら
+    testObj_->SetRotate(testRot_);
 
     // 鏡面反射が分かりやすいように：白っぽく、ライティングON、shininess高め
     testObj_->SetMaterialColor({ 1,1,1,1 });
@@ -138,7 +140,8 @@ void TitleScene::Update(GameApp& app, float dt) {
     // 1:Lambert 2:Half 3:SpecOnly
     ImGui::RadioButton("Lambert", &lightingMode_, 1); ImGui::SameLine();
     ImGui::RadioButton("HalfLambert", &lightingMode_, 2); ImGui::SameLine();
-    ImGui::RadioButton("SpecOnly", &lightingMode_, 3);
+    ImGui::RadioButton("SpecOnly(Phong)", &lightingMode_, 3); ImGui::SameLine();
+    ImGui::RadioButton("SpecOnly(Blinn)", &lightingMode_, 4);
 
     ImGui::Separator();
     ImGui::Text("Light");
@@ -149,6 +152,20 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 
     ImGui::End();
+
+	ImGui::Begin("Test Object SRT");
+
+    // 位置
+    ImGui::DragFloat3("T", &testPos_.x, 0.1f);
+
+    // 回転：ラジアン想定なら 0.01f 刻みが扱いやすい
+    ImGui::DragFloat3("R", &testRot_.x, 0.01f);
+
+    // スケール
+    ImGui::DragFloat3("S", &testScale_.x, 0.1f, 0.001f, 100.0f);
+
+    ImGui::End();
+
 #endif
 
     if (orbitCam_ && camera_) {
@@ -168,10 +185,14 @@ void TitleScene::Update(GameApp& app, float dt) {
     }
 
     if (testObj_) {
+        // ★SRT反映
+        testObj_->SetTranslate(testPos_);
+        testObj_->SetRotate(testRot_);
+        testObj_->SetScale(testScale_);
+
+        // 既存
         testObj_->SetEnableLighting(lightingMode_);
         testObj_->SetShininess(shininess_);
-
-        // ★ライト反映
         testObj_->SetDirection(lightDir_);
         testObj_->SetIntensity(lightIntensity_);
         testObj_->SetLightColor(lightColor_);
