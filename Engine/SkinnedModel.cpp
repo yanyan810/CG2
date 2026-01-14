@@ -146,7 +146,7 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 
 		v.position = { p.x, p.y, p.z, 1.0f };
 		v.normal = { n.x, n.y, n.z };
-		v.texcoord = { uv.x, 1.0f - uv.y };
+		v.texCoord = { uv.x, 1.0f - uv.y };
 
 		// ボーン情報は一旦全部 0 初期化
 		for (int k = 0; k < 4; ++k) {
@@ -262,33 +262,33 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 	}
 
 	// ==== 5. アニメーション（とりあえず 1本目）を取り込む ====
-	anim_ = AnimationClip{};  // クリア
+	anime_ = AnimationClip{};  // クリア
 
 	if (scene->HasAnimations() && scene->mAnimations[0]) {
-		const aiAnimation* aiAnim = scene->mAnimations[0];
+		const aiAnimation* aiAnime = scene->mAnimations[0];
 
-		anim_.name = aiAnim->mName.C_Str();
+		anime_.name = aiAnime->mName.C_Str();
 
-		double ticksPerSecond = aiAnim->mTicksPerSecond;
+		double ticksPerSecond = aiAnime->mTicksPerSecond;
 		if (ticksPerSecond <= 0.0) {
 			// 0 の場合は 25fps 相当など、適当な既定値にすることが多い
 			ticksPerSecond = 25.0;
 		}
-		anim_.ticksPerSecond = static_cast<float>(ticksPerSecond);
+		anime_.ticksPerSecond = static_cast<float>(ticksPerSecond);
 
 		// duration（tick）→ 秒換算
-		const double durationTicks = aiAnim->mDuration;
-		anim_.duration = static_cast<float>(durationTicks / ticksPerSecond);
+		const double durationTicks = aiAnime->mDuration;
+		anime_.duration = static_cast<float>(durationTicks / ticksPerSecond);
 
 		// チャンネルごとにコピー
-		anim_.channels.clear();
-		anim_.channels.reserve(aiAnim->mNumChannels);
-		for (unsigned int ci = 0; ci < aiAnim->mNumChannels; ++ci) {
-			const aiNodeAnim* nodeAnim = aiAnim->mChannels[ci];
-			if (!nodeAnim) { continue; }
+		anime_.channels.clear();
+		anime_.channels.reserve(aiAnime->mNumChannels);
+		for (unsigned int ci = 0; ci < aiAnime->mNumChannels; ++ci) {
+			const aiNodeAnim* nodeAnime = aiAnime->mChannels[ci];
+			if (!nodeAnime) { continue; }
 
-			BoneAnimChannel ch{};
-			ch.boneName = nodeAnim->mNodeName.C_Str();
+			BoneAnimeChannel ch{};
+			ch.boneName = nodeAnime->mNodeName.C_Str();
 
 			// どの Bone か
 			ch.boneIndex = -1;
@@ -309,9 +309,9 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 			// ここでは一旦そのまま保持しておく
 
 			// 位置キー
-			ch.posKeys.reserve(nodeAnim->mNumPositionKeys);
-			for (unsigned int k = 0; k < nodeAnim->mNumPositionKeys; ++k) {
-				const aiVectorKey& key = nodeAnim->mPositionKeys[k];
+			ch.posKeys.reserve(nodeAnime->mNumPositionKeys);
+			for (unsigned int k = 0; k < nodeAnime->mNumPositionKeys; ++k) {
+				const aiVectorKey& key = nodeAnime->mPositionKeys[k];
 				AnimKeyVec3 ak{};
 				ak.time = static_cast<float>(key.mTime / ticksPerSecond);
 				ak.value = { key.mValue.x, key.mValue.y, key.mValue.z };
@@ -319,9 +319,9 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 			}
 
 			// 回転キー（クォータニオン）
-			ch.rotKeys.reserve(nodeAnim->mNumRotationKeys);
-			for (unsigned int k = 0; k < nodeAnim->mNumRotationKeys; ++k) {
-				const aiQuatKey& key = nodeAnim->mRotationKeys[k];
+			ch.rotKeys.reserve(nodeAnime->mNumRotationKeys);
+			for (unsigned int k = 0; k < nodeAnime->mNumRotationKeys; ++k) {
+				const aiQuatKey& key = nodeAnime->mRotationKeys[k];
 				AnimKeyQuat ak{};
 				ak.time = static_cast<float>(key.mTime / ticksPerSecond);
 				ak.x = key.mValue.x;
@@ -332,20 +332,20 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 			}
 
 			// スケールキー
-			ch.scaleKeys.reserve(nodeAnim->mNumScalingKeys);
-			for (unsigned int k = 0; k < nodeAnim->mNumScalingKeys; ++k) {
-				const aiVectorKey& key = nodeAnim->mScalingKeys[k];
+			ch.scaleKeys.reserve(nodeAnime->mNumScalingKeys);
+			for (unsigned int k = 0; k < nodeAnime->mNumScalingKeys; ++k) {
+				const aiVectorKey& key = nodeAnime->mScalingKeys[k];
 				AnimKeyVec3 ak{};
 				ak.time = static_cast<float>(key.mTime / ticksPerSecond);
 				ak.value = { key.mValue.x, key.mValue.y, key.mValue.z };
 				ch.scaleKeys.push_back(ak);
 			}
 
-			anim_.channels.push_back(std::move(ch));
+			anime_.channels.push_back(std::move(ch));
 		}
 	} else {
-		// アニメ無しのモデルの場合：anim_.duration=0 のまま、channels 空
-		anim_ = AnimationClip{};
+		// アニメ無しのモデルの場合：anime_.duration=0 のまま、channels 空
+		anime_ = AnimationClip{};
 	}
 
 
@@ -373,15 +373,15 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 	// ==== デバッグ: 読み込んだアニメ情報をログ ====
 	{
 		std::string out =
-			"[SkinnedModel] Anim name=" + anim_.name +
-			", duration=" + std::to_string(anim_.duration) +
-			" sec, ticksPerSec=" + std::to_string(anim_.ticksPerSecond) +
-			", channels=" + std::to_string(anim_.channels.size()) + "\n";
+			"[SkinnedModel] Anim name=" + anime_.name +
+			", duration=" + std::to_string(anime_.duration) +
+			" sec, ticksPerSec=" + std::to_string(anime_.ticksPerSecond) +
+			", channels=" + std::to_string(anime_.channels.size()) + "\n";
 
 		OutputDebugStringA(out.c_str());
 
 		int mappedChannels = 0;
-		for (auto& ch : anim_.channels) {
+		for (auto& ch : anime_.channels) {
 			if (ch.boneIndex >= 0) {
 				++mappedChannels;
 			}
@@ -403,15 +403,15 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 }
 void SkinnedModel::UpdateAnimation(float deltaTime)
 {
-	if (!animPlaying_ || anim_.duration <= 0.0f ||
-		anim_.channels.empty() || bones_.empty() || nodes_.empty()) {
+	if (!animePlaying_ || anime_.duration <= 0.0f ||
+		anime_.channels.empty() || bones_.empty() || nodes_.empty()) {
 		return;
 	}
 
 	// 時間更新
-	animTime_ += deltaTime * animSpeed_;
-	if (animTime_ > anim_.duration) {
-		animTime_ = std::fmod(animTime_, anim_.duration);
+	animeTime_ += deltaTime * animeSpeed_;
+	if (animeTime_ > anime_.duration) {
+		animeTime_ = std::fmod(animeTime_, anime_.duration);
 	}
 
 	const size_t nodeCount = nodes_.size();
@@ -424,15 +424,15 @@ void SkinnedModel::UpdateAnimation(float deltaTime)
 	}
 
 	// アニメーションで上書き
-	for (const BoneAnimChannel& ch : anim_.channels) {
+	for (const BoneAnimeChannel& ch : anime_.channels) {
 		int ni = ch.nodeIndex;
 		if (ni < 0 || ni >= static_cast<int>(nodeCount)) {
 			continue;
 		}
 
-		Vector3          pos = SamplePosition(ch, animTime_);
-		Matrix4x4::Quat  rot = SampleRotation(ch, animTime_);
-		Vector3          scl = SampleScale(ch, animTime_);
+		Vector3          pos = SamplePosition(ch, animeTime_);
+		Matrix4x4::Quat  rot = SampleRotation(ch, animeTime_);
+		Vector3          scl = SampleScale(ch, animeTime_);
 
 		// ※ スケールが怪しい場合はいったん固定 1 にしてもOK
 		// scl = { 1.0f, 1.0f, 1.0f };
@@ -480,7 +480,7 @@ void SkinnedModel::UpdateAnimation(float deltaTime)
 	}
 }
 
-Vector3 SkinnedModel::SamplePosition(const BoneAnimChannel& ch, float time)
+Vector3 SkinnedModel::SamplePosition(const BoneAnimeChannel& ch, float time)
 {
 	if (ch.posKeys.empty()) return { 0,0,0 };
 	if (ch.posKeys.size() == 1) return ch.posKeys[0].value;
@@ -497,7 +497,7 @@ Vector3 SkinnedModel::SamplePosition(const BoneAnimChannel& ch, float time)
 	return ch.posKeys.back().value;
 }
 
-Matrix4x4::Quat SkinnedModel::SampleRotation(const BoneAnimChannel& ch, float time)
+Matrix4x4::Quat SkinnedModel::SampleRotation(const BoneAnimeChannel& ch, float time)
 {
 	if (ch.rotKeys.empty()) return { 0,0,0,1 };
 	if (ch.rotKeys.size() == 1) return {
@@ -519,7 +519,7 @@ Matrix4x4::Quat SkinnedModel::SampleRotation(const BoneAnimChannel& ch, float ti
 	return last;
 }
 
-Vector3 SkinnedModel::SampleScale(const BoneAnimChannel& ch, float time)
+Vector3 SkinnedModel::SampleScale(const BoneAnimeChannel& ch, float time)
 {
 	// スケールキーが無い → (1,1,1) 固定
 	if (ch.scaleKeys.empty()) return { 1.0f, 1.0f, 1.0f };
