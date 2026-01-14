@@ -19,6 +19,10 @@ public:
 		Vector3 normal;
 	};
 
+	static_assert(offsetof(Model::VertexData, position) == 0);
+	static_assert(offsetof(Model::VertexData, texcoord) == 16);
+	static_assert(offsetof(Model::VertexData, normal) == 24);
+
 	struct MaterialData {
 		std::string textureFilePath; // テクスチャファイルのパス
 	};
@@ -29,11 +33,16 @@ public:
 	};
 
 	struct Material {
-		Vector4 color; // 色
-		int32_t enableLighting;
-		float padding[3];
-		Matrix4x4 uvTransform;
+		Vector4  color;           // 16
+		int32_t  enableLighting;  // 4
+		float    pad0[3];         // 12  -> ここで16byte揃う
+
+		Matrix4x4 uvTransform;    // 64
+
+		float    shininess;       // 4
+		float    pad1[3];         // 12  -> ここで16byte揃う
 	};
+	static_assert(sizeof(Material) % 16 == 0, "Material must be 16-byte aligned");
 
 public:
 
@@ -53,6 +62,8 @@ public:
 
 	Vector4& GetMaterialColor() { return materialData_->color; }
 	void SetMaterialColor(const Vector4& c) { materialData_->color = c; }
+
+	Material* GetMaterial() { return materialData_; }
 
 private:
 

@@ -35,7 +35,7 @@ public:
 		return m;
 	}
 
-
+	static Matrix4x4 Transpose(const Matrix4x4& a);
 
 	static Matrix4x4 MakeRotateZMatrix(float angleRad);
 

@@ -28,7 +28,8 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
 	//初期化
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // ライトの色
-	directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
+	//directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
+	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
 	directionalLightData->intensity = 1.0f; // ライトの強度
 
 
@@ -41,6 +42,10 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 						{0.0f,4.0f,-10.0f} };
 
 	this->camera_ = object3dCommon->GetDefaultCamera();
+
+	cameraResource_ = dx_->CreateBufferResource(sizeof(CameraGPU));
+	cameraResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
+
 
 }
 
@@ -61,15 +66,25 @@ void Object3d::Update() {
 
 	if (camera_) {
 		const Matrix4x4& vp = camera_->GetViewProjectionMatrix(); // View*Proj
-		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // world * (view*proj)
+		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // World * (ViewProj)
 	}
 
 	transformationMatrixDataModel->WVP = wvpModel;
 	transformationMatrixDataModel->World = worldMatrixModel;
+
+	// ★非均一スケール対応：WorldInverseTranspose
+	Matrix4x4 invW = Matrix4x4::Inverse(worldMatrixModel);
+	transformationMatrixDataModel->WorldInverseTranspose = Matrix4x4::Transpose(invW);
 }
 
 
+
 void Object3d::Draw() {
+
+	if (cameraData_ && camera_) {
+		cameraData_->worldPosition = camera_->GetTranslate();
+	}
+
 	auto* cmd = dx_->GetCommandList();
 
 	// ★ SRVヒープを必ずセット（これがないとテクスチャが読めない）
@@ -85,6 +100,9 @@ void Object3d::Draw() {
 	// DirectionalLight
 	cmd->SetGraphicsRootConstantBufferView(
 		3, directionalLightResource->GetGPUVirtualAddress());
+
+	cmd->SetGraphicsRootConstantBufferView(
+		4, cameraResource_->GetGPUVirtualAddress());
 
 	// Model
 	if (model_) {
@@ -109,4 +127,20 @@ void Object3d::SetModel(const std::string& filePath) {
 
 	model_ = m;
 
+}
+
+void Object3d::SetDirection(const Vector3& direction)
+{
+	if (!directionalLightData) return;
+
+	Vector3 d = direction;
+	float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+
+	if (len < 1e-6f) {
+		d = { 0.0f, -1.0f, -1.0f }; // 0ベクトル保険
+		len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+	}
+
+	d.x /= len; d.y /= len; d.z /= len;
+	directionalLightData->direction = d;
 }

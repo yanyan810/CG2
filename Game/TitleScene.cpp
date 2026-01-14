@@ -58,6 +58,25 @@ void TitleScene::OnEnter(GameApp& app) {
  //   pressStart_->SetPosition({ WinApp::kClientWidth * 0.5f, WinApp::kClientHeight * 0.80f });
     pressStart_->SetScale({ 1,1,1 }); // 128x128なら等倍でOK
 
+    testObj_ = std::make_unique<Object3d>();
+    testObj_->Initialize(app.ObjCom(), app.Dx());
+
+    // 手元にあるモデル名にしてOK（例：sphere.obj / cube.obj / Suzanne.obj 等）
+    testObj_->SetModel("enemy/shooter/bullet/bullet.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
+
+    testObj_->SetTranslate(testPos_);
+    testObj_->SetScale(testScale_);
+    // 回転も使うなら
+    testObj_->SetRotate(testRot_);
+
+    // 鏡面反射が分かりやすいように：白っぽく、ライティングON、shininess高め
+    testObj_->SetMaterialColor({ 1,1,1,1 });
+    testObj_->SetEnableLighting(lightingMode_);
+    testObj_->SetShininess(shininess_);
+	testObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+
+
 }
 
 void TitleScene::OnExit(GameApp&) {
@@ -78,21 +97,21 @@ void TitleScene::Update(GameApp& app, float dt) {
     bool spaceTrig = spaceNow && !prevSpace_;
     prevSpace_ = spaceNow;
 
-    switch (state_) {
-    case State::Idle:
-        if (spaceTrig) {
-            state_ = State::ExitClose; // ★すぐ遷移しない
-        }
-        break;
+    //switch (state_) {
+    //case State::Idle:
+    //    if (spaceTrig) {
+    //        state_ = State::ExitClose; // ★すぐ遷移しない
+    //    }
+    //    break;
 
-    case State::ExitClose:
-        circle_ -= 1.8f * dt;          // ★閉じる
-        if (circle_ <= 0.0f) {
-            circle_ = 0.0f;
-            RequestChangeScene_(kNextScene_);
-        }
-        break;
-    }
+    //case State::ExitClose:
+    //    circle_ -= 1.8f * dt;          // ★閉じる
+    //    if (circle_ <= 0.0f) {
+    //        circle_ = 0.0f;
+    //        RequestChangeScene_(kNextScene_);
+    //    }
+    //    break;
+    //}
 
 
     skyDome_->Update();
@@ -108,6 +127,79 @@ void TitleScene::Update(GameApp& app, float dt) {
     ImGui::End();
     
 #endif // DEBUG
+
+#ifdef USE_IMGUI
+    ImGui::Begin("Phong Check");
+
+    ImGui::Checkbox("Orbit Camera", &orbitCam_);
+    ImGui::DragFloat("Orbit Speed", &orbitSpeed_, 0.01f, 0.0f, 5.0f);
+    ImGui::DragFloat("Orbit Radius", &orbitRadius_, 0.1f, 1.0f, 50.0f);
+
+    ImGui::SliderFloat("Shininess", &shininess_, 1.0f, 256.0f);
+
+    // 1:Lambert 2:Half 3:SpecOnly
+    ImGui::RadioButton("Lambert", &lightingMode_, 1); ImGui::SameLine();
+    ImGui::RadioButton("HalfLambert", &lightingMode_, 2); ImGui::SameLine();
+    ImGui::RadioButton("SpecOnly(Phong)", &lightingMode_, 3); ImGui::SameLine();
+    ImGui::RadioButton("SpecOnly(Blinn)", &lightingMode_, 4);
+
+    ImGui::Separator();
+    ImGui::Text("Light");
+
+    ImGui::DragFloat3("Dir", &lightDir_.x, 0.01f, -1.0f, 1.0f);
+    ImGui::SliderFloat("Intensity", &lightIntensity_, 0.0f, 5.0f);
+    ImGui::ColorEdit3("Color", &lightColor_.x); // RGBだけ
+
+
+    ImGui::End();
+
+	ImGui::Begin("Test Object SRT");
+
+    // 位置
+    ImGui::DragFloat3("T", &testPos_.x, 0.1f);
+
+    // 回転：ラジアン想定なら 0.01f 刻みが扱いやすい
+    ImGui::DragFloat3("R", &testRot_.x, 0.01f);
+
+    // スケール
+    ImGui::DragFloat3("S", &testScale_.x, 0.1f, 0.001f, 100.0f);
+
+    ImGui::End();
+
+#endif
+
+    if (orbitCam_ && camera_) {
+        orbitT_ += orbitSpeed_ * dt;
+
+        Vector3 target{ 0.0f, 1.0f, 0.0f }; // testObjを見る想定
+        Vector3 eye{
+            target.x + std::cosf(orbitT_) * orbitRadius_,
+            target.y + 3.0f,
+            target.z + std::sinf(orbitT_) * orbitRadius_
+        };
+
+        camera_->SetTranslate(eye);
+
+        // 回転は「LookAt」関数が無いなら、いったん手動でYawだけでもOK
+        // ここはあなたのCamera仕様次第なので、とりあえずImGui回転を残す運用でもOK
+    }
+
+    if (testObj_) {
+        // ★SRT反映
+        testObj_->SetTranslate(testPos_);
+        testObj_->SetRotate(testRot_);
+        testObj_->SetScale(testScale_);
+
+        // 既存
+        testObj_->SetEnableLighting(lightingMode_);
+        testObj_->SetShininess(shininess_);
+        testObj_->SetDirection(lightDir_);
+        testObj_->SetIntensity(lightIntensity_);
+        testObj_->SetLightColor(lightColor_);
+
+        testObj_->Update();
+    }
+
 
     // ===== カメラ反映 =====
     if (camera_) {
@@ -127,7 +219,9 @@ void TitleScene::Draw(GameApp& app) {
 
     app.ObjCom()->SetGraphicsPipelineState();
 
-	skyDome_->Draw();
+	//skyDome_->Draw();
+
+    if (testObj_) testObj_->Draw();
 
     // ---- 2D ----
     app.SpriteCom()->SetGraphicsPipelineState();
@@ -136,7 +230,7 @@ void TitleScene::Draw(GameApp& app) {
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
-    if (bg_) {
+ /*   if (bg_) {
         bg_->Update(view, proj);
         bg_->Draw();
     }
@@ -144,7 +238,7 @@ void TitleScene::Draw(GameApp& app) {
     if (pressStart_) {
         pressStart_->Update(view, proj);
         pressStart_->Draw();
-    }
+    }*/
 
     // ===== マスクは必ず最後 =====
     app.SpriteCom()->DrawCircleMask(circle_, softness_);

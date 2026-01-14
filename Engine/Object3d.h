@@ -23,12 +23,18 @@ public:
 	struct TransformationMatrix {
 		Matrix4x4 WVP;
 		Matrix4x4 World;
+		Matrix4x4 WorldInverseTranspose;
 	};
 
 	struct DirectionalLight {
 		Vector4 color;
 		Vector3 direction;
 		float intensity;
+	};
+
+	struct CameraGPU {
+		Vector3 worldPosition;
+		float pad; // ★16byte揃え
 	};
 
 public:
@@ -55,14 +61,33 @@ public:
 	const Vector3& GetTranslate() const { return transform.translate; }
 
 	//光源用
-	void SetLightColor(const Vector4& color) { directionalLightData->color = color; }
-	void SetDirection(const Vector3& direction) { directionalLightData->direction = direction; }
-	void SetIntensity(const float& intensity) { directionalLightData->intensity = intensity; }
+	void SetLightColor(const Vector4& color) { if (directionalLightData) directionalLightData->color = color; }
+
+	void SetDirection(const Vector3& direction);
+
+	void SetIntensity(float intensity) { if (directionalLightData) directionalLightData->intensity = intensity; }
 
 	// 光源 getter（正しく返すように修正）
 	const Vector4& GetLightColor()     const { return directionalLightData->color; }
 	const Vector3& GetDirection() const { return directionalLightData->direction; }
 	float          GetIntensity() const { return directionalLightData->intensity; }
+
+	void SetEnableLighting(int enable) {
+		if (model_ && model_->GetMaterial()) {
+			model_->GetMaterial()->enableLighting = enable;
+		}
+	}
+	void SetShininess(float s) {
+		if (model_ && model_->GetMaterial()) {
+			model_->GetMaterial()->shininess = s;
+		}
+	}
+	int GetEnableLighting() const {
+		return (model_ && model_->GetMaterial()) ? model_->GetMaterial()->enableLighting : 0;
+	}
+	float GetShininess() const {
+		return (model_ && model_->GetMaterial()) ? model_->GetMaterial()->shininess : 0.0f;
+	}
 
 	//ブレンド設定
 	void SetBlendMode(Object3dCommon::BlendMode m) { object3dCommon->SetBlendMode(m); }
@@ -102,6 +127,8 @@ private:
 	//カメラ
 	Camera* camera_ = nullptr;
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
+	CameraGPU* cameraData_ = nullptr;
 
 };
 
