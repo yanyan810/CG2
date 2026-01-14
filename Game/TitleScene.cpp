@@ -76,6 +76,22 @@ void TitleScene::OnEnter(GameApp& app) {
 	testObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
 
+    terrainObj_ = std::make_unique<Object3d>();
+    terrainObj_->Initialize(app.ObjCom(), app.Dx());
+
+    terrainObj_->SetModel("terrain/terrain.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
+
+    terrainObj_->SetTranslate(testPos_);
+    terrainObj_->SetScale(testScale_);
+    // 回転も使うなら
+    terrainObj_->SetRotate(testRot_);
+
+    // 鏡面反射が分かりやすいように：白っぽく、ライティングON、shininess高め
+    terrainObj_->SetMaterialColor({ 1,1,1,1 });
+    terrainObj_->SetEnableLighting(lightingMode_);
+    terrainObj_->SetShininess(shininess_);
+    terrainObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
 
 }
 
@@ -164,6 +180,36 @@ void TitleScene::Update(GameApp& app, float dt) {
     // スケール
     ImGui::DragFloat3("S", &testScale_.x, 0.1f, 0.001f, 100.0f);
 
+    ImGui::Separator();
+    ImGui::Text("PointLight");
+
+    ImGui::DragFloat3("Point Pos", &pointPos_.x, 0.1f);
+    ImGui::SliderFloat("Point Intensity", &pointIntensity_, 0.0f, 10.0f);
+    ImGui::DragFloat(
+        "Point Radius",
+        &pointRadius_,
+        0.1f,        // 1ドラッグの変化量
+        0,        // 最小
+        100.0f,      // 最大（まずは100で十分）
+        "%.2f"
+    );
+    ImGui::DragFloat(
+        "Point Decay",
+        &pointDecay_,
+        0.05f,
+        0.0f,
+        8.0f,
+        "%.2f"
+    );
+
+    ImGui::ColorEdit3("Point Color", &pointColor_.x);
+
+    ImGui::Separator();
+    ImGui::RadioButton("View: All", &lightViewMode_, 0); ImGui::SameLine();
+    ImGui::RadioButton("View: DirOnly", &lightViewMode_, 1); ImGui::SameLine();
+    ImGui::RadioButton("View: PointOnly", &lightViewMode_, 2);
+
+
     ImGui::End();
 
 #endif
@@ -184,6 +230,11 @@ void TitleScene::Update(GameApp& app, float dt) {
         // ここはあなたのCamera仕様次第なので、とりあえずImGui回転を残す運用でもOK
     }
 
+    int lighting = lightingMode_;
+    if (lightViewMode_ == 1) lighting = 11; // DirOnly
+    if (lightViewMode_ == 2) lighting = 12; // PointOnly
+
+
     if (testObj_) {
         // ★SRT反映
         testObj_->SetTranslate(testPos_);
@@ -191,15 +242,49 @@ void TitleScene::Update(GameApp& app, float dt) {
         testObj_->SetScale(testScale_);
 
         // 既存
-        testObj_->SetEnableLighting(lightingMode_);
+        testObj_->SetEnableLighting(lighting);
         testObj_->SetShininess(shininess_);
         testObj_->SetDirection(lightDir_);
         testObj_->SetIntensity(lightIntensity_);
         testObj_->SetLightColor(lightColor_);
 
+        // PointLight 反映
+        testObj_->SetPointLightPos(pointPos_);
+        testObj_->SetPointLightIntensity(pointIntensity_);
+        testObj_->SetPointLightColor(pointColor_);
+
+		testObj_->SetPointLightRadius(pointRadius_);
+		testObj_->SetPointLightDecay(pointDecay_);
+
+
         testObj_->Update();
     }
 
+    if (terrainObj_) {
+
+        // ★SRT反映
+        terrainObj_->SetTranslate(testPos_);
+        terrainObj_->SetRotate(testRot_);
+        terrainObj_->SetScale(testScale_);
+
+        // 既存
+        terrainObj_->SetEnableLighting(lighting);
+        terrainObj_->SetShininess(shininess_);
+        terrainObj_->SetDirection(lightDir_);
+        terrainObj_->SetIntensity(lightIntensity_);
+        terrainObj_->SetLightColor(lightColor_);
+
+        terrainObj_->SetPointLightPos(pointPos_);
+        terrainObj_->SetPointLightIntensity(pointIntensity_);
+        terrainObj_->SetPointLightColor(pointColor_);
+
+        terrainObj_->SetPointLightRadius(pointRadius_);
+        terrainObj_->SetPointLightDecay(pointDecay_);
+
+        terrainObj_->Update();
+
+
+    }
 
     // ===== カメラ反映 =====
     if (camera_) {
@@ -222,6 +307,7 @@ void TitleScene::Draw(GameApp& app) {
 	//skyDome_->Draw();
 
     if (testObj_) testObj_->Draw();
+	if (terrainObj_) terrainObj_->Draw();
 
     // ---- 2D ----
     app.SpriteCom()->SetGraphicsPipelineState();
