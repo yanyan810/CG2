@@ -56,6 +56,20 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	pointLightData_->radius = 10.0f;
 	pointLightData_->decay = 1.0f;
 
+	//スポットライト
+	spotLightResource_ = dx_->CreateBufferResource(sizeof(SpotLight));
+	spotLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&spotLightData_));
+
+	// スポットライト 初期値
+	spotLightData_->color = { 1,1,1,1 };
+	spotLightData_->position = { 0, 3, 0 };
+	spotLightData_->intensity = 1.0f;
+	spotLightData_->direction = { 0, -1, 0 }; // ※正規化しておくのが理想
+	spotLightData_->distance = 10.0f;
+	spotLightData_->decay = 1.0f;
+
+	// 例：内側30度のcos（ラジアンにしてcos）
+	spotLightData_->cosAngle = std::cosf(30.0f * (3.14159265f / 180.0f));
 
 }
 
@@ -115,6 +129,8 @@ void Object3d::Draw() {
 		4, cameraResource_->GetGPUVirtualAddress());
 
 	cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
+
+	cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
 
 	// Model
 	if (model_) {

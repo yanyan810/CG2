@@ -32,6 +32,12 @@ public:
 		float intensity;
 	};
 
+	struct CameraGPU {
+		Vector3 worldPosition;
+		float pad; // ★16byte揃え
+	};
+
+
 	struct PointLight {
 		Vector4 color;//!<ライトの色
 		Vector3 position;//!<ライトの位置
@@ -41,10 +47,21 @@ public:
 		float padding[2];
 	};
 
-	struct CameraGPU {
-		Vector3 worldPosition;
-		float pad; // ★16byte揃え
+	struct SpotLight {
+
+		Vector4 color;//!< ライトの色
+		Vector3 position;//!< ライトの位置
+		float intensity;//!< 輝度
+		Vector3 direction;//!< ライトの向き
+		float distance;//!< ライトの届く最大距離
+		float decay;//!< 減衰率
+		float cosAngle;//!スポットライトの余弦
+		float cosFalloffStart;
+		float padding[2];
+
+
 	};
+
 
 public:
 
@@ -114,11 +131,26 @@ public:
 	//カメラセッター
 	void SetCamera(Camera* camera) { camera_ = camera; }
 
+	//ポイントライトセッター
 	void SetPointLightColor(const Vector4& c) { if (pointLightData_) pointLightData_->color = c; }
 	void SetPointLightPos(const Vector3& p) { if (pointLightData_) pointLightData_->position = p; }
 	void SetPointLightIntensity(float i) { if (pointLightData_) pointLightData_->intensity = i; }
 	void SetPointLightRadius(float r) { if (pointLightData_) pointLightData_->radius = r; }
 	void SetPointLightDecay(float d) { if (pointLightData_) pointLightData_->decay = d; }
+
+	//スポットライトセッター
+	void SetSpotLightColor(const Vector4& c) { if (spotLightData_) spotLightData_->color = c; }
+	void SetSpotLightPos(const Vector3& p) { if (spotLightData_) spotLightData_->position = p; }
+	void SetSpotLightIntensity(float i) { if (spotLightData_) spotLightData_->intensity = i; }
+	void SetSpotLightDirection(const Vector3& d) { if (spotLightData_) spotLightData_->direction = d; } // 正規化推奨
+	void SetSpotLightDistance(float d) { if (spotLightData_) spotLightData_->distance = d; }
+	void SetSpotLightDecay(float d) { if (spotLightData_) spotLightData_->decay = d; }
+	void SetSpotLightCosAngle(float c) { if (spotLightData_) spotLightData_->cosAngle = c; } // cos(角度)
+
+	void SetSpotLightCosFalloffStart(float c) {
+		if (spotLightData_) spotLightData_->cosFalloffStart = c;
+	}
+
 
 private:
 
@@ -149,6 +181,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource_;
 	PointLight* pointLightData_ = nullptr;
 
+	// スポットライト（CB）
+	Microsoft::WRL::ComPtr<ID3D12Resource> spotLightResource_;
+	SpotLight* spotLightData_ = nullptr;
 
 };
 

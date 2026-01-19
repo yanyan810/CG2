@@ -92,7 +92,6 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_->SetShininess(shininess_);
     terrainObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
-
 }
 
 void TitleScene::OnExit(GameApp&) {
@@ -209,10 +208,41 @@ void TitleScene::Update(GameApp& app, float dt) {
     ImGui::RadioButton("View: DirOnly", &lightViewMode_, 1); ImGui::SameLine();
     ImGui::RadioButton("View: PointOnly", &lightViewMode_, 2);
 
+    ImGui::Separator();
+    ImGui::Text("SpotLight");
+
+    ImGui::DragFloat3("Spot Pos", &spotPos_.x, 0.1f);
+    ImGui::DragFloat3("Spot Dir", &spotDir_.x, 0.01f, -1.0f, 1.0f);
+
+    ImGui::SliderFloat("Spot Intensity", &spotIntensity_, 0.0f, 20.0f);
+    ImGui::DragFloat("Spot Distance", &spotDistance_, 0.1f, 0.0f, 200.0f, "%.2f");
+    ImGui::DragFloat("Spot Decay", &spotDecay_, 0.05f, 0.0f, 8.0f, "%.2f");
+
+    ImGui::ColorEdit3("Spot Color", &spotColor_.x);
+
+    ImGui::SliderFloat("Spot Angle (deg)", &spotAngleDeg_, 1.0f, 89.0f);
+    ImGui::SliderFloat("Falloff Start (deg)", &spotFalloffStartDeg_, 0.5f, 89.0f);
+
 
     ImGui::End();
 
 #endif
+    spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
+
+    // ---- Spot angle deg -> cos ----
+//    const float kPi = 3.14159265f;
+
+    // 外側は spotAngleDeg_
+// 内側は spotFalloffStartDeg_（必ず外側より小さく）
+    spotFalloffStartDeg_ = std::min(spotFalloffStartDeg_, spotAngleDeg_ - 0.1f);
+
+    float cosOuter = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
+    float cosInner = std::cosf(spotFalloffStartDeg_ * (std::numbers::pi_v<float> / 180.0f));
+
+    // cosは「角度が小さいほど大きい」ので、内側のcosは外側より大きいのが正しい
+    // cosInner > cosOuter になってる状態が正常
+
+
 
     if (orbitCam_ && camera_) {
         orbitT_ += orbitSpeed_ * dt;
@@ -256,6 +286,16 @@ void TitleScene::Update(GameApp& app, float dt) {
 		testObj_->SetPointLightRadius(pointRadius_);
 		testObj_->SetPointLightDecay(pointDecay_);
 
+        // SpotLight 反映
+        testObj_->SetSpotLightPos(spotPos_);
+        testObj_->SetSpotLightDirection(spotDir_);
+        testObj_->SetSpotLightIntensity(spotIntensity_);
+        testObj_->SetSpotLightDistance(spotDistance_);
+        testObj_->SetSpotLightDecay(spotDecay_);
+        testObj_->SetSpotLightCosAngle(cosOuter);
+        testObj_->SetSpotLightCosFalloffStart(cosInner);
+        testObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
 
         testObj_->Update();
     }
@@ -280,6 +320,17 @@ void TitleScene::Update(GameApp& app, float dt) {
 
         terrainObj_->SetPointLightRadius(pointRadius_);
         terrainObj_->SetPointLightDecay(pointDecay_);
+
+        // SpotLight 反映
+        terrainObj_->SetSpotLightPos(spotPos_);
+        terrainObj_->SetSpotLightDirection(spotDir_);
+        terrainObj_->SetSpotLightIntensity(spotIntensity_);
+        terrainObj_->SetSpotLightDistance(spotDistance_);
+        terrainObj_->SetSpotLightDecay(spotDecay_);
+        terrainObj_->SetSpotLightCosAngle(cosOuter);
+        terrainObj_->SetSpotLightCosFalloffStart(cosInner);
+        terrainObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
 
         terrainObj_->Update();
 

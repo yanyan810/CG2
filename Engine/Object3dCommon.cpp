@@ -18,7 +18,7 @@ void Object3dCommon::CreateRootSignature() {
     range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
     // ==== RootParameters ====
-    D3D12_ROOT_PARAMETER params[6]{};
+    D3D12_ROOT_PARAMETER params[7]{};
 
     // (0) Pixel: CBV0  … Material 用
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -51,6 +51,11 @@ void Object3dCommon::CreateRootSignature() {
     params[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     params[5].Descriptor.ShaderRegister = 3;
 
+	// (6) Pixel: CBV4 … SpotLight 
+    params[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[6].Descriptor.ShaderRegister = 4;
+    
     // ==== Static Sampler ====
     D3D12_STATIC_SAMPLER_DESC samp{};
     samp.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

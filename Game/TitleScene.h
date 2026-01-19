@@ -74,6 +74,16 @@ private:
 
     // 確認用：Pointだけ見る
     int lightViewMode_ = 0; // 0:全部 1:Directionalのみ 2:Pointのみ
-
+    
+    // ---- SpotLight (Debug) ----
+    Vector3 spotPos_ = { 0.0f, 3.0f, 0.0f };
+    Vector3 spotDir_ = { 0.0f, -1.0f, 0.0f };      // ※正規化推奨
+    float   spotIntensity_ = 2.0f;
+    float   spotDistance_ = 15.0f;
+    float   spotDecay_ = 1.0f;
+    float spotAngleDeg_ = 30.0f;         // 外側
+    float spotFalloffStartDeg_ = 15.0f;  // ★内側（外側より小さく）
+    Vector3 spotColor_ = { 1.0f, 1.0f, 1.0f }; // RGB
+    float spotCos;
 
 };
