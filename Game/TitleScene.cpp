@@ -79,7 +79,7 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_ = std::make_unique<Object3d>();
     terrainObj_->Initialize(app.ObjCom(), app.Dx());
 
-    terrainObj_->SetModel("terrain/terrain.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
+    terrainObj_->SetModel("gltf/plane.glb"); 
 
     terrainObj_->SetTranslate(testPos_);
     terrainObj_->SetScale(testScale_);
@@ -357,7 +357,7 @@ void TitleScene::Draw(GameApp& app) {
 
 	//skyDome_->Draw();
 
-    if (testObj_) testObj_->Draw();
+    //if (testObj_) testObj_->Draw();
 	if (terrainObj_) terrainObj_->Draw();
 
     // ---- 2D ----
