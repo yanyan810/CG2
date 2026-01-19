@@ -330,7 +330,6 @@
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />
     <None Include="resources\shaders\Particle.hlsli" />
-    <None Include="packages.config" />
     <None Include="resources\shaders\Sprite2d.hlsli" />
   </ItemGroup>
 </Project>

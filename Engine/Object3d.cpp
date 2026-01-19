@@ -73,30 +73,41 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 
 }
 
-void Object3d::Update() {
-
+void Object3d::Update()
+{
+	// 1) 通常のWorld（Object3dのTransform）
 	Matrix4x4 worldMatrixModel = Matrix4x4::MakeAffineMatrix(
 		transform.scale,
 		transform.rotate,
 		transform.translate
 	);
 
-	// ★ まだ未設定なら default を取り直す（保険）
+	// 2) ★glTF/FBX/OBJ共通：ModelのRootNode行列を適用（あれば）
+	//    これで「glTFが回転してる/スケールが違う」みたいなのが補正される
+	if (model_) {
+		// Model に GetRootLocalMatrix() を追加した前提
+		const Matrix4x4& root = model_->GetRootLocalMatrix();
+
+		// ★ここがポイント：
+		// あなたの式が wvp = world * vp なので、root を world の “前” に掛ける
+		worldMatrixModel = Matrix4x4::Multiply(root, worldMatrixModel);
+	}
+
+	// 3) camera
 	if (!camera_) {
 		camera_ = object3dCommon->GetDefaultCamera();
 	}
 
 	Matrix4x4 wvpModel = worldMatrixModel;
-
 	if (camera_) {
 		const Matrix4x4& vp = camera_->GetViewProjectionMatrix(); // View*Proj
-		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // World * (ViewProj)
+		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // World * VP
 	}
 
 	transformationMatrixDataModel->WVP = wvpModel;
 	transformationMatrixDataModel->World = worldMatrixModel;
 
-	// ★非均一スケール対応：WorldInverseTranspose
+	// 4) WorldInverseTranspose
 	Matrix4x4 invW = Matrix4x4::Inverse(worldMatrixModel);
 	transformationMatrixDataModel->WorldInverseTranspose = Matrix4x4::Transpose(invW);
 }

@@ -23,13 +23,30 @@ public:
 	static_assert(offsetof(Model::VertexData, texcoord) == 16);
 	static_assert(offsetof(Model::VertexData, normal) == 24);
 
-	struct MaterialData {
-		std::string textureFilePath; // テクスチャファイルのパス
+	struct MaterialData { std::string textureFilePath; };
+
+	//ノード
+	struct Node {
+		Matrix4x4 localMatrix = Matrix4x4::MakeIdentity4x4();
+		std::string name;
+		std::vector<uint32_t> meshIndices; // aiNode::mMeshes を保持（scene->mMeshes の index）
+		std::vector<Node> children;
+	};
+
+	struct MeshData {
+		std::vector<VertexData> vertices; // 読み込み直後のデータ（CPU側）
+		uint32_t materialIndex = 0;
+
+		// GPUバッファに詰めた後の範囲
+		uint32_t startVertex = 0;
+		uint32_t vertexCount = 0;
 	};
 
 	struct ModelData {
-		std::vector<VertexData> vertices; // 頂点データ
-		MaterialData material;
+		std::vector<MaterialData> materials;
+		std::vector<MeshData> meshes;
+
+		Node rootNode; // ★追加
 	};
 
 	struct Material {
@@ -60,10 +77,28 @@ public:
 
 	static ModelData    LoadAssimpFile(const std::string& fullPath);
 
-	Vector4& GetMaterialColor() { return materialData_->color; }
-	void SetMaterialColor(const Vector4& c) { materialData_->color = c; }
+	Vector4& GetMaterialColor()
+	{
+		static Vector4 dummy{ 1,1,1,1 };
+		if (!materialData_) {
+			OutputDebugStringA("[Model] GetMaterialColor returns dummy (materialData_ is null)\n");
+			return dummy;
+		}
+		return materialData_->color;
+	}
+
+	void SetMaterialColor(const Vector4& c)
+	{
+		if (!materialData_) {
+			OutputDebugStringA("[Model] SetMaterialColor skipped (materialData_ is null)\n");
+			return;
+		}
+		materialData_->color = c;
+	}
 
 	Material* GetMaterial() { return materialData_; }
+
+	const Matrix4x4& GetRootLocalMatrix() const;
 
 private:
 
