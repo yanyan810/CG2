@@ -182,3 +182,9 @@ dxc.exe
 #
 # resources/**/*.obj は Git 管理対象
 git add resources/**/*.obj
+
+# --- assimp libs are required for build ---
+!external/assimp/**/*.lib
+!external/assimp/**/*.dll
+!external/assimp/**/*.pdb
+git add -f external/assimp/path/to/assimp-vc143-mtd.lib

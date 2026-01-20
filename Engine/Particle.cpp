@@ -104,26 +104,20 @@ Particle::ParticleData Particle::MakeNewParticle(std::mt19937& ramdomEngine, con
 }
 
 Particle::ParticleData Particle::MakeNewParticleHit(std::mt19937& randomEngine, const Vector3& translate) {
-
-	std::uniform_real_distribution<float> distRotate(-std::numbers::pi_v<float>, std::numbers::pi_v<float>);
-	std::uniform_real_distribution<float> distScale(0.4f, 1.5f);
-
-	Particle::ParticleData p{};
+	ParticleData p{};
 	p.transform.translate = translate;
-
-	// ★小さめの板（例）
-	p.transform.scale = { 0.05f, distScale(randomEngine), 1.0f };
-
-	// ★billboard後のZ回転として使う想定
-	p.transform.rotate = { 0.0f, distRotate(randomEngine), 0.0f };
-
-	p.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	p.velocity = { 0.0f, 0.0f, 0.0f };
-
-	p.lifeTime = 0.6f;     // 好きに調整（短いほどキラッと消える）
+	p.color = { 1,1,1,1 };
+	p.velocity = { 0,0,0 };
+	p.lifeTime = 0.6f;
 	p.currentTime = 0.0f;
+	p.enableField = false;
+
+	// scale/rotate は SpawnHit 側で “星形” に作るのでここでは初期値だけ
+	p.transform.scale = { 0.05f, 1.0f, 1.0f };
+	p.transform.rotate = { 0.0f, 0.0f, 0.0f }; // ★Z回転を使う
 	return p;
 }
+
 
 
 
@@ -173,7 +167,7 @@ void Particle::Update() {
 	// Matrix4x4 fix2 = Matrix4x4::RotateY(std::numbers::pi_v<float>);
 
 	// billboardMatrix = Multiply(fix2, Multiply(fix, billboardMatrix));
-	billboardMatrix = Matrix4x4::Multiply(fix, billboardMatrix);
+	//billboardMatrix = Matrix4x4::Multiply(fix, billboardMatrix);
 
 	// ==== list を回しながら更新 ====
 	for (auto it = particles.begin();
@@ -200,14 +194,19 @@ void Particle::Update() {
 		Matrix4x4 scaleM = Matrix4x4::MakeScaleMatrix(p.transform.scale);
 		Matrix4x4 translateM = Matrix4x4::Translation(p.transform.translate);
 
-		Matrix4x4 rotateM = Matrix4x4::RotateY(p.transform.rotate.z);
+		// ★Z面内回転（星形の回転に使う）
+		Matrix4x4 spin = Matrix4x4::RotateZ(p.transform.rotate.z);
 
+		// ★順番：billboard → spin → fix → scale → translate
 		Matrix4x4 world =
 			Matrix4x4::Multiply(
 				Matrix4x4::Multiply(
-					Matrix4x4::Multiply(billboardMatrix, rotateM),
+					Matrix4x4::Multiply(
+						Matrix4x4::Multiply(billboardMatrix, spin),
+						fix),
 					scaleM),
 				translateM);
+
 
 	
 		Matrix4x4 wvp = Matrix4x4::Multiply(world, vp);
@@ -334,22 +333,35 @@ std::list<Particle::ParticleData> Particle::Emit(const Particle::Emitter& emitte
 	return result;
 }
 
-void Particle::SpawnHit(const Vector3& pos)
-{
-	// emitter.transform.translate を pos にして Emit() を流用してもOKだけど、
-	// 直接pushする方が分かりやすい
-	for (uint32_t i = 0; i < hitCount_; ++i) {
+void Particle::SpawnHit(const Vector3& pos) {
+	const float pi = std::numbers::pi_v<float>;
+	const float step = (2.0f * pi) / float(hitCount_);
 
+	std::uniform_real_distribution<float> distLen(hitScaleMin_, hitScaleMax_);
+	std::uniform_real_distribution<float> distJitter(
+		-hitJitterDeg_ * (pi / 180.0f),
+		hitJitterDeg_ * (pi / 180.0f)
+	);
+
+	for (uint32_t i = 0; i < hitCount_; ++i) {
 		ParticleData p = MakeNewParticleHit(randomEngine, pos);
 
-		p.enableField = false;
+		// 放射状の角度（等間隔 + 少しブレ）
+		const float a = step * float(i) + distJitter(randomEngine);
 
-		// ImGuiパラメータ反映（MakeNewParticleHit 内の固定値を上書きしたい場合）
-		p.lifeTime = hitLifeTime_;
+		// ★Z回転に入れる（面内回転）
+		p.transform.rotate = { 0.0f, 0.0f, a };
 
-		// scale調整
-		std::uniform_real_distribution<float> distScale(hitScaleMin_, hitScaleMax_);
-		p.transform.scale = { hitBaseScaleX_, distScale(randomEngine), 1.0f };
+		// 太さX + 長さY（細長い線）
+		p.transform.scale = { hitBaseScaleX_, distLen(randomEngine), 1.0f };
+
+		// ★中心から少しだけ外側に配置（重なりを減らす）
+		// billboard面のローカルで見た「右(x), 上(y)」に相当する方向にずらす
+		p.transform.translate = {
+			pos.x + std::cosf(a) * hitRadius_,
+			pos.y + std::sinf(a) * hitRadius_,
+			pos.z
+		};
 
 		particles.push_back(p);
 	}

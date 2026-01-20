@@ -175,11 +175,15 @@ private:
 	const Camera* camera_ = nullptr;
 
 
-	uint32_t hitCount_ = 8;
-	float hitLifeTime_ = 0.6f;
-	float hitBaseScaleX_ = 0.05f;
-	float hitScaleMin_ = 0.4f;
-	float hitScaleMax_ = 1.5f;
+	// HitEffect
+	uint32_t hitCount_ = 12;
+	float hitLifeTime_ = 0.4f;
+	float hitBaseScaleX_ = 0.06f; // 線の太さ
+	float hitScaleMin_ = 0.6f;    // 線の最小長さ
+	float hitScaleMax_ = 1.6f;    // 線の最大長さ
+	float hitRadius_ = 0.05f;     // ★中心から少し外に置く
+	float hitJitterDeg_ = 8.0f;   // ★角度のブレ（度）
+
 
 };
 
