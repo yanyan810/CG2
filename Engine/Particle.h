@@ -38,11 +38,13 @@ public:
 
 	struct ParticleData {
 		Transform transform;
-		Vector3 velocity;
 		Vector4 color;
+		Vector3 velocity;
 		float lifeTime;
 		float currentTime;
+		bool  enableField = true; // ★追加
 	};
+
 
 	struct Emitter {
 		Transform transform;//エミッタのトランスフォーム
@@ -118,9 +120,13 @@ public:
 
 	ParticleData MakeNewParticle(std::mt19937& randomEngine, const Vector3& translate);
 
+	ParticleData MakeNewParticleHit(std::mt19937& randomEngine, const Vector3& translate);
+
 	void DebugImGui();
 
 	void SpawnParticle();
+
+	void SpawnHit(const Vector3& pos);
 
 	std::list<ParticleData> Emit(const Emitter& emitter, std::mt19937& randomEngine);
 
@@ -167,6 +173,13 @@ private:
 	uint32_t instancingSrvIndex_ = 0;
 
 	const Camera* camera_ = nullptr;
+
+
+	uint32_t hitCount_ = 8;
+	float hitLifeTime_ = 0.6f;
+	float hitBaseScaleX_ = 0.05f;
+	float hitScaleMin_ = 0.4f;
+	float hitScaleMax_ = 1.5f;
 
 };
 

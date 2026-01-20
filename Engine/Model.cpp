@@ -325,19 +325,14 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd)
         bool useWhite = false;
 
         if (!texPath.empty()) {
-            // 未ロードでも LoadTexture は二重ロードしないので呼んでOK
-            TextureManager::GetInstance()->LoadTexture(texPath);
-
-            // ここで例外/アサートを避けるため、存在確認が欲しいが
-            // 現状APIに無いので try/catch で保険（MSVCなら unordered_map::at は例外）
-            try {
-                handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
-            } catch (...) {
-                useWhite = true;
+            if (!TextureManager::GetInstance()->HasTexture(texPath)) {
+                TextureManager::GetInstance()->LoadTexture(texPath);
             }
+            handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
         } else {
             useWhite = true;
         }
+
 
         if (useWhite) {
             handle = TextureManager::GetInstance()->GetSrvHandleGPU(""); // 空→白
@@ -374,15 +369,14 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount)
         bool useWhite = false;
 
         if (!texPath.empty()) {
-            TextureManager::GetInstance()->LoadTexture(texPath);
-            try {
-                handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
-            } catch (...) {
-                useWhite = true;
+            if (!TextureManager::GetInstance()->HasTexture(texPath)) {
+                TextureManager::GetInstance()->LoadTexture(texPath);
             }
+            handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
         } else {
             useWhite = true;
         }
+
 
         if (useWhite) {
             handle = TextureManager::GetInstance()->GetSrvHandleGPU("");
