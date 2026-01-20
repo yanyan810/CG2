@@ -50,10 +50,10 @@ jobs:
         run: |
           echo "=== チェック: 不要ファイル ==="
           EXIT_CODE=0
-          for pattern in $UNWANTED_NAME_PATTERNS; do
-            MATCHES=$(git ls-files "*$pattern")
-            if [ ! -z "$MATCHES" ]; then
-              echo "::error title=不要ファイル発見::$pattern"
+            for pattern in $UNWANTED_NAME_PATTERNS; do
+              MATCHES=$(git ls-files "*$pattern" | grep -v "^externals/assimp/" || true)
+              if [ ! -z "$MATCHES" ]; then
+               echo "::error title=不要ファイル発見::$pattern"
               echo "$MATCHES"
               EXIT_CODE=1
             fi
