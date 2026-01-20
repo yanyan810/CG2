@@ -110,69 +110,39 @@ Particle::ParticleData Particle::MakeNewParticleHit(std::mt19937& randomEngine, 
 	p.velocity = { 0,0,0 };
 	p.lifeTime = 0.6f;
 	p.currentTime = 0.0f;
-	p.enableField = false;
-
+	
 	// scale/rotate は SpawnHit 側で “星形” に作るのでここでは初期値だけ
 	p.transform.scale = { 0.05f, 1.0f, 1.0f };
 	p.transform.rotate = { 0.0f, 0.0f, 0.0f }; // ★Z回転を使う
 	return p;
 }
 
+void Particle::UpdateNormal(ParticleData& p) {
+	if (IsCollision(accelerationField.area, p.transform.translate)) {
+		p.velocity += accelerationField.acceleration * deltaTime;
+	}
+
+	p.transform.translate += p.velocity * deltaTime;
+
+	BuildWorld_Normal(p);
+}
+
+void Particle::UpdateHit(ParticleData& p) {
+	// 移動しない（or 少しだけ）
+	// p.transform.translate += p.velocity * deltaTime;
+
+	BuildWorld_Hit(p);
+}
 
 
 
 void Particle::Update() {
-
 	instanceCount_ = 0;
 
-	// ★ 自動スポーンを使うならここ（前に入れたやつ）
-	// SpawnParticle();
+	// ★これを呼ぶ
+	MakeCameraMatrices();
 
-	// --- カメラ行列 ---
-	Matrix4x4 cameraMatrix{};
-	Matrix4x4 vp{};
-
-	if (camera_) {
-		// ★ 外部カメラを使用
-		cameraMatrix = camera_->GetWorldMatrix();
-		vp = camera_->GetViewProjectionMatrix();
-	} else {
-		// --- 既存の内部カメラ ---
-		cameraMatrix =
-			Matrix4x4::MakeAffineMatrix(
-				cameraTransform.scale,
-				cameraTransform.rotate,
-				cameraTransform.translate);
-		Matrix4x4 viewMatrix = Matrix4x4::Inverse(cameraMatrix);
-
-		Matrix4x4 projMatrix =
-			Matrix4x4::PerspectiveFov(
-				0.45f,
-				float(WinApp::kClientWidth) / float(WinApp::kClientHeight),
-				0.1f, 100.0f);
-
-		vp = Matrix4x4::Multiply(viewMatrix, projMatrix);
-	}
-
-	// --- billboardMatrix ---
-	Matrix4x4 billboardMatrix = cameraMatrix;
-	billboardMatrix.m[3][0] = 0.0f;
-	billboardMatrix.m[3][1] = 0.0f;
-	billboardMatrix.m[3][2] = 0.0f;
-
-	// ★ plane.obj が XZ 平面なら、まず板を立てる（-90° X回転）
-	Matrix4x4 fix = Matrix4x4::RotateX(-std::numbers::pi_v<float> *0.5f);
-
-	// ★（必要なら）表裏反転補正
-	// Matrix4x4 fix2 = Matrix4x4::RotateY(std::numbers::pi_v<float>);
-
-	// billboardMatrix = Multiply(fix2, Multiply(fix, billboardMatrix));
-	//billboardMatrix = Matrix4x4::Multiply(fix, billboardMatrix);
-
-	// ==== list を回しながら更新 ====
-	for (auto it = particles.begin();
-		it != particles.end() && instanceCount_ < kMaxInstance; )
-	{
+	for (auto it = particles.begin(); it != particles.end() && instanceCount_ < kMaxInstance; ) {
 		ParticleData& p = *it;
 
 		if (p.lifeTime <= p.currentTime) {
@@ -182,44 +152,18 @@ void Particle::Update() {
 
 		p.currentTime += deltaTime;
 
-		if (p.enableField && IsCollision(accelerationField.area, p.transform.translate)) {
-			p.velocity += accelerationField.acceleration * deltaTime;
+		// Normal/Hit 分岐（type 必須）
+		if (p.type == ParticleType::Normal) {
+			UpdateNormal(p); // この中で BuildWorld_Normal(p) を呼ぶ
+		}
+		else {
+			UpdateHit(p);    // この中で BuildWorld_Hit(p) を呼ぶ
 		}
 
-
-		p.transform.translate += p.velocity * deltaTime;
-
-		float alpha = 1.0f - (p.currentTime / p.lifeTime);
-
-		Matrix4x4 scaleM = Matrix4x4::MakeScaleMatrix(p.transform.scale);
-		Matrix4x4 translateM = Matrix4x4::Translation(p.transform.translate);
-
-		// ★Z面内回転（星形の回転に使う）
-		Matrix4x4 spin = Matrix4x4::RotateZ(p.transform.rotate.z);
-
-		// ★順番：billboard → spin → fix → scale → translate
-		Matrix4x4 world =
-			Matrix4x4::Multiply(
-				Matrix4x4::Multiply(
-					Matrix4x4::Multiply(
-						Matrix4x4::Multiply(billboardMatrix, spin),
-						fix),
-					scaleM),
-				translateM);
-
-
-	
-		Matrix4x4 wvp = Matrix4x4::Multiply(world, vp);
-
-		instancingData_[instanceCount_].World = world;
-		instancingData_[instanceCount_].WVP = wvp;
-		instancingData_[instanceCount_].color = p.color;
-		instancingData_[instanceCount_].color.w = alpha;
-
-		++instanceCount_;
 		++it;
 	}
 }
+
 
 void Particle::SpawnParticle() {
 
@@ -309,7 +253,7 @@ void Particle::DebugImGui() {
 
 	ImGui::DragInt("Hit Count", reinterpret_cast<int*>(&hitCount_), 1, 1, 64);
 	ImGui::DragFloat("Hit Life", &hitLifeTime_, 0.01f, 0.05f, 5.0f);
-	ImGui::DragFloat("BaseScaleX", &hitBaseScaleX_, 0.001f, 0.001f, 1.0f);
+	ImGui::DragFloat("BaseScaleX", &hitBaseScaleX_, 0.01f, 0.01f);
 
 	ImGui::DragFloat("Scale Min", &hitScaleMin_, 0.01f, 0.0f, 10.0f);
 	ImGui::DragFloat("Scale Max", &hitScaleMax_, 0.01f, 0.0f, 10.0f);
@@ -323,15 +267,19 @@ void Particle::DebugImGui() {
 	ImGui::End();
 }
 
-std::list<Particle::ParticleData> Particle::Emit(const Particle::Emitter& emitter, std::mt19937& randomEngine) {
+std::list<Particle::ParticleData>
+Particle::Emit(const Particle::Emitter& emitter, std::mt19937& randomEngine) {
 	std::list<ParticleData> result;
 
 	for (uint32_t count = 0; count < emitter.count; ++count) {
-		result.push_back(MakeNewParticle(randomEngine, emitter.transform.translate));
+		ParticleData p = MakeNewParticle(randomEngine, emitter.transform.translate);
+		p.type = ParticleType::Normal;   // ★必須
+		result.push_back(p);
 	}
 
 	return result;
 }
+
 
 void Particle::SpawnHit(const Vector3& pos) {
 	const float pi = std::numbers::pi_v<float>;
@@ -345,7 +293,7 @@ void Particle::SpawnHit(const Vector3& pos) {
 
 	for (uint32_t i = 0; i < hitCount_; ++i) {
 		ParticleData p = MakeNewParticleHit(randomEngine, pos);
-
+		p.type = ParticleType::Hit;
 		// 放射状の角度（等間隔 + 少しブレ）
 		const float a = step * float(i) + distJitter(randomEngine);
 
@@ -366,3 +314,122 @@ void Particle::SpawnHit(const Vector3& pos) {
 		particles.push_back(p);
 	}
 }
+
+void Particle::BuildWorld_Hit(const ParticleData& p) {
+	// billboardMatrix_ は「回転だけ」のカメラ行列（MakeCameraMatricesで作成済み）
+
+	// カメラ基底（あなたの行列は “列に基底が入る” 前提の書き方をしているので列から取る）
+	Vector3 camRight = { billboardMatrix_.m[0][0], billboardMatrix_.m[1][0], billboardMatrix_.m[2][0] };
+	Vector3 camUp = { billboardMatrix_.m[0][1], billboardMatrix_.m[1][1], billboardMatrix_.m[2][1] };
+	Vector3 camFwd = { billboardMatrix_.m[0][2], billboardMatrix_.m[1][2], billboardMatrix_.m[2][2] };
+
+	// ★星形の「面内回転」：Right/Up を 2D回転する（回転軸は camFwd と同等）
+	const float a = p.transform.rotate.z;
+	const float c = std::cosf(a);
+	const float s = std::sinf(a);
+
+	Vector3 rightR = camRight * c + camUp * (-s);
+	Vector3 upR = camRight * s + camUp * (c);
+
+	// あなたの plane.obj は XZ 平面なので、長さ方向を “Up(縦)” にしたいならこれでOK
+	// （fixM を行列掛けで入れる代わりに、軸を直接使うので fixM は不要になります）
+
+	Matrix4x4 world = Matrix4x4::MakeIdentity4x4();
+
+	// 列0 = Right, 列1 = Up, 列2 = Forward（スケールを掛ける）
+	world.m[0][0] = rightR.x * p.transform.scale.x;
+	world.m[1][0] = rightR.y * p.transform.scale.x;
+	world.m[2][0] = rightR.z * p.transform.scale.x;
+
+	world.m[0][1] = upR.x * p.transform.scale.y;
+	world.m[1][1] = upR.y * p.transform.scale.y;
+	world.m[2][1] = upR.z * p.transform.scale.y;
+
+	world.m[0][2] = camFwd.x * p.transform.scale.z;
+	world.m[1][2] = camFwd.y * p.transform.scale.z;
+	world.m[2][2] = camFwd.z * p.transform.scale.z;
+
+	// 平行移動（あなたは m[3][0..2] を平行移動に使ってる書き方）
+	world.m[3][0] = p.transform.translate.x;
+	world.m[3][1] = p.transform.translate.y;
+	world.m[3][2] = p.transform.translate.z;
+	world.m[3][3] = 1.0f;
+
+	Matrix4x4 wvp = Matrix4x4::Multiply(world, vp_);
+
+	instancingData_[instanceCount_].World = world;
+	instancingData_[instanceCount_].WVP = wvp;
+	instancingData_[instanceCount_].color = p.color;
+	instancingData_[instanceCount_].color.w = 1.0f - (p.currentTime / p.lifeTime);
+
+	++instanceCount_;
+}
+
+
+
+
+void Particle::MakeCameraMatrices() {
+	Matrix4x4 cameraMatrix{};
+	Matrix4x4 vp{};
+
+	if (camera_) {
+		cameraMatrix = camera_->GetWorldMatrix();
+		vp = camera_->GetViewProjectionMatrix();
+	}
+	else {
+		cameraMatrix = Matrix4x4::MakeAffineMatrix(
+			cameraTransform.scale,
+			cameraTransform.rotate,
+			cameraTransform.translate);
+
+		Matrix4x4 viewMatrix = Matrix4x4::Inverse(cameraMatrix);
+
+		Matrix4x4 projMatrix =
+			Matrix4x4::PerspectiveFov(
+				0.45f,
+				float(WinApp::kClientWidth) / float(WinApp::kClientHeight),
+				0.1f, 100.0f);
+
+		vp = Matrix4x4::Multiply(viewMatrix, projMatrix);
+	}
+
+	// billboard（移動成分を消す）
+	billboardMatrix_ = cameraMatrix;
+	billboardMatrix_.m[3][0] = 0.0f;
+	billboardMatrix_.m[3][1] = 0.0f;
+	billboardMatrix_.m[3][2] = 0.0f;
+
+	vp_ = vp;
+}
+
+void Particle::BuildWorld_Normal(ParticleData& p) {
+	// --- billboardMatrix は MakeCameraMatrices() で作られている前提 ---
+
+	// plane.obj が XZ 平面なら板を立てる補正
+	Matrix4x4 fix = Matrix4x4::RotateX(-std::numbers::pi_v<float> *0.5f);
+
+	Matrix4x4 scaleM = Matrix4x4::MakeScaleMatrix(p.transform.scale);
+	Matrix4x4 translateM = Matrix4x4::Translation(p.transform.translate);
+
+	// Normal は回転を使わないなら identity（使うならここに回転入れる）
+	Matrix4x4 rotM = Matrix4x4::MakeIdentity4x4();
+
+	// ※ここはあなたの行列規約に依存（今まで動いてた順を維持）
+	Matrix4x4 world =
+		Matrix4x4::Multiply(
+			Matrix4x4::Multiply(
+				Matrix4x4::Multiply(
+					Matrix4x4::Multiply(billboardMatrix_, rotM),
+					fix),
+				scaleM),
+			translateM);
+
+	Matrix4x4 wvp = Matrix4x4::Multiply(world, vp_);
+
+	instancingData_[instanceCount_].World = world;
+	instancingData_[instanceCount_].WVP = wvp;
+	instancingData_[instanceCount_].color = p.color;
+
+	++instanceCount_;
+}
+
