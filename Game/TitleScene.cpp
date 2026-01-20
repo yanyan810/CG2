@@ -363,7 +363,7 @@ void TitleScene::Draw(GameApp& app) {
 	//skyDome_->Draw();
 
     //if (testObj_) testObj_->Draw();
-	if (terrainObj_) terrainObj_->Draw();
+	//if (terrainObj_) terrainObj_->Draw();
 
     // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
     app.ParticleCom()->SetGraphicsPipelineState();

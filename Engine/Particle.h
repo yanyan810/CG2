@@ -24,6 +24,11 @@ class Particle
 
 public:
 
+	enum class ParticleType {
+		Normal,
+		Hit,
+	};
+
 	struct ParticleForGPU {
 		Matrix4x4 WVP;
 		Matrix4x4 World;
@@ -38,12 +43,13 @@ public:
 
 	struct ParticleData {
 		Transform transform;
-		Vector4 color;
-		Vector3 velocity;
-		float lifeTime;
-		float currentTime;
-		bool  enableField = true; // ★追加
+		Vector4   color;
+		Vector3   velocity;
+		float     lifeTime;
+		float     currentTime;
+		ParticleType type;
 	};
+
 
 
 	struct Emitter {
@@ -130,6 +136,16 @@ public:
 
 	std::list<ParticleData> Emit(const Emitter& emitter, std::mt19937& randomEngine);
 
+	void UpdateNormal(ParticleData& p);
+
+	void UpdateHit(ParticleData& p);
+
+	void BuildWorld_Hit(const ParticleData& p);
+
+	void MakeCameraMatrices();
+	void BuildWorld_Normal(ParticleData& p); // Normal用（今Updateに書いてたやつを関数にする）
+
+
 private:
 
 	DirectXCommon* dx_;
@@ -178,11 +194,15 @@ private:
 	// HitEffect
 	uint32_t hitCount_ = 12;
 	float hitLifeTime_ = 0.4f;
-	float hitBaseScaleX_ = 0.06f; // 線の太さ
+	float hitBaseScaleX_ = 0.05f; // 線の太さ
 	float hitScaleMin_ = 0.6f;    // 線の最小長さ
-	float hitScaleMax_ = 1.6f;    // 線の最大長さ
-	float hitRadius_ = 0.05f;     // ★中心から少し外に置く
+	float hitScaleMax_ = 1.2f;    // 線の最大長さ
+	float hitRadius_ = 0.0f;     // ★中心から少し外に置く
 	float hitJitterDeg_ = 8.0f;   // ★角度のブレ（度）
+
+	// ===== per-frame cached matrices =====
+	Matrix4x4 billboardMatrix_{};
+	Matrix4x4 vp_{};
 
 
 };
