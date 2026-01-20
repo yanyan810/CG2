@@ -29,7 +29,7 @@ void TitleScene::OnEnter(GameApp& app) {
     particle_->Initialize(app.ParticleCom(), app.Dx(), app.Srv());
 
     // ★これが無いと「model_ が null」で Draw しても何も出ません
-   // particle_->SetModel("plane.obj"); // 既にある板ポリ等に合わせて
+    particle_->SetModel("plane.obj"); // 既にある板ポリ等に合わせて
 
     // カメラを渡せるなら渡す（Particle.cpp は camera_ があればそれを使う仕様）
     particle_->SetCamera(camera_.get());
@@ -79,7 +79,7 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_ = std::make_unique<Object3d>();
     terrainObj_->Initialize(app.ObjCom(), app.Dx());
 
-    terrainObj_->SetModel("gltf/walk.glb"); 
+    terrainObj_->SetModel("gltf/plane.glb"); 
 
     terrainObj_->SetTranslate(testPos_);
     terrainObj_->SetScale(testScale_);
@@ -91,6 +91,8 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_->SetEnableLighting(lightingMode_);
     terrainObj_->SetShininess(shininess_);
     terrainObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+
 
 }
 
@@ -223,8 +225,11 @@ void TitleScene::Update(GameApp& app, float dt) {
     ImGui::SliderFloat("Spot Angle (deg)", &spotAngleDeg_, 1.0f, 89.0f);
     ImGui::SliderFloat("Falloff Start (deg)", &spotFalloffStartDeg_, 0.5f, 89.0f);
 
-
     ImGui::End();
+
+    if (particle_) {
+        particle_->DebugImGui(); // ★Particle側のウィンドウを出す
+    }
 
 #endif
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
@@ -346,7 +351,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 
     // ★重要：Spawn → Update（Spawnしないと instanceCount_ が0のまま）
     if (particle_) {
-        particle_->SpawnParticle(); // emitter.frequency=0.5なので0.5秒ごとに出る
+       // particle_->SpawnParticle(); // emitter.frequency=0.5なので0.5秒ごとに出る
        particle_->Update();
     }
 }
@@ -359,6 +364,12 @@ void TitleScene::Draw(GameApp& app) {
 
     //if (testObj_) testObj_->Draw();
 	if (terrainObj_) terrainObj_->Draw();
+
+    // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
+    app.ParticleCom()->SetGraphicsPipelineState();
+
+    // ★PreDraw/SrvPreDraw/PostDraw は GameApp がやるのでここでは絶対呼ばない
+    particle_->Draw();
 
     // ---- 2D ----
     app.SpriteCom()->SetGraphicsPipelineState();
@@ -382,9 +393,5 @@ void TitleScene::Draw(GameApp& app) {
 
     if (!particle_) return;
 
-    // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
-    app.ParticleCom()->SetGraphicsPipelineState();
 
-    // ★PreDraw/SrvPreDraw/PostDraw は GameApp がやるのでここでは絶対呼ばない
-    //particle_->Draw();
 }

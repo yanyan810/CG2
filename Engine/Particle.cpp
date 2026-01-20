@@ -102,6 +102,31 @@ Particle::ParticleData Particle::MakeNewParticle(std::mt19937& ramdomEngine, con
 	return particle;
 
 }
+
+Particle::ParticleData Particle::MakeNewParticleHit(std::mt19937& randomEngine, const Vector3& translate) {
+
+	std::uniform_real_distribution<float> distRotate(-std::numbers::pi_v<float>, std::numbers::pi_v<float>);
+	std::uniform_real_distribution<float> distScale(0.4f, 1.5f);
+
+	Particle::ParticleData p{};
+	p.transform.translate = translate;
+
+	// ★小さめの板（例）
+	p.transform.scale = { 0.05f, distScale(randomEngine), 1.0f };
+
+	// ★billboard後のZ回転として使う想定
+	p.transform.rotate = { 0.0f, distRotate(randomEngine), 0.0f };
+
+	p.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	p.velocity = { 0.0f, 0.0f, 0.0f };
+
+	p.lifeTime = 0.6f;     // 好きに調整（短いほどキラッと消える）
+	p.currentTime = 0.0f;
+	return p;
+}
+
+
+
 void Particle::Update() {
 
 	instanceCount_ = 0;
@@ -163,9 +188,10 @@ void Particle::Update() {
 
 		p.currentTime += deltaTime;
 
-		if (IsCollision(accelerationField.area, p.transform.translate)) {
+		if (p.enableField && IsCollision(accelerationField.area, p.transform.translate)) {
 			p.velocity += accelerationField.acceleration * deltaTime;
 		}
+
 
 		p.transform.translate += p.velocity * deltaTime;
 
@@ -174,11 +200,16 @@ void Particle::Update() {
 		Matrix4x4 scaleM = Matrix4x4::MakeScaleMatrix(p.transform.scale);
 		Matrix4x4 translateM = Matrix4x4::Translation(p.transform.translate);
 
+		Matrix4x4 rotateM = Matrix4x4::RotateY(p.transform.rotate.z);
+
 		Matrix4x4 world =
 			Matrix4x4::Multiply(
-				Matrix4x4::Multiply(billboardMatrix, scaleM),
+				Matrix4x4::Multiply(
+					Matrix4x4::Multiply(billboardMatrix, rotateM),
+					scaleM),
 				translateM);
 
+	
 		Matrix4x4 wvp = Matrix4x4::Multiply(world, vp);
 
 		instancingData_[instanceCount_].World = world;
@@ -274,6 +305,21 @@ void Particle::DebugImGui() {
 	ImGui::DragFloat3("Field Max", &accelerationField.area.max.x, 0.1f);
 	ImGui::DragFloat3("Field Accel", &accelerationField.acceleration.x, 0.1f);
 
+	ImGui::Separator();
+	ImGui::Text("HitEffect");
+
+	ImGui::DragInt("Hit Count", reinterpret_cast<int*>(&hitCount_), 1, 1, 64);
+	ImGui::DragFloat("Hit Life", &hitLifeTime_, 0.01f, 0.05f, 5.0f);
+	ImGui::DragFloat("BaseScaleX", &hitBaseScaleX_, 0.001f, 0.001f, 1.0f);
+
+	ImGui::DragFloat("Scale Min", &hitScaleMin_, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("Scale Max", &hitScaleMax_, 0.01f, 0.0f, 10.0f);
+	if (hitScaleMin_ > hitScaleMax_) std::swap(hitScaleMin_, hitScaleMax_);
+
+	if (ImGui::Button("Spawn Hit @ Emitter")) {
+		SpawnHit(emitter.transform.translate);
+	}
+
 
 	ImGui::End();
 }
@@ -286,4 +332,25 @@ std::list<Particle::ParticleData> Particle::Emit(const Particle::Emitter& emitte
 	}
 
 	return result;
+}
+
+void Particle::SpawnHit(const Vector3& pos)
+{
+	// emitter.transform.translate を pos にして Emit() を流用してもOKだけど、
+	// 直接pushする方が分かりやすい
+	for (uint32_t i = 0; i < hitCount_; ++i) {
+
+		ParticleData p = MakeNewParticleHit(randomEngine, pos);
+
+		p.enableField = false;
+
+		// ImGuiパラメータ反映（MakeNewParticleHit 内の固定値を上書きしたい場合）
+		p.lifeTime = hitLifeTime_;
+
+		// scale調整
+		std::uniform_real_distribution<float> distScale(hitScaleMin_, hitScaleMax_);
+		p.transform.scale = { hitBaseScaleX_, distScale(randomEngine), 1.0f };
+
+		particles.push_back(p);
+	}
 }

@@ -70,10 +70,14 @@ void TextureManager::LoadTexture(const std::string& filePath)
         return; // 空は白テクスチャを使う想定
     }
 
-    // ★読込済みチェック（スライド通り）
+    // ★これを入れる
+    if (textureDatas_.contains(filePath)) {
+        return; // 既にロード済み
+    }
+
     if (!std::filesystem::exists(filePath)) {
         DebugPrintA("[Texture] file not found: " + filePath);
-        return; // assertしないで白に逃がすのが安全
+        return;
     }
 
     // ---- 画像読み込み ----

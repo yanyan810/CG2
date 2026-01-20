@@ -6,6 +6,7 @@
 #include "Object3dCommon.h"
 #include "Sprite.h"
 #include "SpriteCommon.h"
+#include "Particle.h"
 
 class Particle;
 class Camera;
