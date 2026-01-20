@@ -187,8 +187,13 @@ git add resources/**/*.obj
 !externals/assimp/**/*.lib
 !externals/assimp/**/*.dll
 !externals/assimp/**/*.pdb-vc143-mtd.lib
+!externals/assimp/**/*.pdb
 
 git add -f externals/assimp/lib/Release/assimp-vc143-mt.lib
 git add -f externals/assimp/lib/Debug/assimp-vc143-mtd.lib
 git commit -m "Track assimp libs for CI"
+git push
+
+git add -f externals/assimp/lib/Debug/assimp-vc143-mtd.pdb
+git commit -m "Add assimp debug PDB for CI"
 git push
