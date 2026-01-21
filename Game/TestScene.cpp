@@ -64,7 +64,7 @@ void TestScene::OnEnter(GameApp& app) {
     ground_->SetTranslate({ 0.0f, -5.0f, 0.0f });
     ground_->SetScale({ 1.0f, 1.0f, 1.0f });
     ground_->SetRotate({ 0.0f, 0.0f, 0.0f });
-    ground_->Update();
+   
 
 }
 
@@ -78,6 +78,8 @@ void TestScene::Update(GameApp& app, float dt) {
     if (!input_) return;
 
     camera_->Update();
+
+    ground_->Update(dt);
 
     if (player_) {
         player_->Update(dt, *input_, enemyMgr_);

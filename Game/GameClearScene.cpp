@@ -94,7 +94,7 @@ void GameClearScene::Update(GameApp& app, float dt) {
     prevSpace_ = spaceNow;
     prevEnter_ = enterNow;
 
-    skyDome_->Update();
+    skyDome_->Update(dt);
 
 	rotateYAngle_ += 0.05f * dt; // ゆっくり回転
 
@@ -130,13 +130,6 @@ void GameClearScene::Update(GameApp& app, float dt) {
 
 #endif
 
-}
-
-void GameClearScene::Draw(GameApp& app) {
-    app.ObjCom()->SetGraphicsPipelineState();
-
-	skyDome_->Draw();
-
     if (damageObj_) {
 
         damageObj_->SetTranslate({ 0.0f, -2.0f, clearPosZ_ });
@@ -145,7 +138,18 @@ void GameClearScene::Draw(GameApp& app) {
         const float s = 0.002f + objScaleT_ * 1.2f;
         damageObj_->SetScale({ s, s, s });
 
-        damageObj_->Update();
+        damageObj_->Update(dt);
+     
+    }
+
+}
+
+void GameClearScene::Draw(GameApp& app) {
+    app.ObjCom()->SetGraphicsPipelineState();
+
+	skyDome_->Draw();
+
+    if (damageObj_) {
         damageObj_->Draw();
     }
 

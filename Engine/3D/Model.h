@@ -1,12 +1,13 @@
 #pragma once
 #include "ModelCommon.h"
-#include "Vector3.h"
-#include "Matrix4x4.h"
+#include "MathStruct.h"
 #include "TextureManager.h"
 #include <format>
 #include <filesystem>
 #include <fstream>
-
+#include "Animation.h"
+#include <unordered_map>
+#include <algorithm>
 
 class Model
 {
@@ -46,8 +47,12 @@ public:
 		std::vector<MaterialData> materials;
 		std::vector<MeshData> meshes;
 
-		Node rootNode; // ★追加
+		Node rootNode;
+
+		// ★追加：アニメーション（Assimpから読めたもの）
+		std::unordered_map<std::string, Animation> animations;
 	};
+
 
 	struct Material {
 		Vector4  color;           // 16
@@ -99,6 +104,12 @@ public:
 	Material* GetMaterial() { return materialData_; }
 
 	const Matrix4x4& GetRootLocalMatrix() const;
+
+	//modeldataを取得
+	const std::unordered_map<std::string, Animation>& GetAnimations() const {
+		return modelData_.animations;
+	}
+
 
 private:
 

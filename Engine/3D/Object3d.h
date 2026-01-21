@@ -1,6 +1,5 @@
 #pragma once
-#include "Vector3.h"
-#include "Matrix4x4.h"
+#include "MathStruct.h"
 #include <string>
 #include <vector>
 #include <format>
@@ -12,6 +11,7 @@
 #include "ModelManager.h"
 #include "Object3dCommon.h"
 #include "Camera.h"
+#include "AnimationEvaluate.h"
 
 //class Object3dCommon;
 
@@ -67,7 +67,7 @@ public:
 
 	void Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx);
 
-	void Update();
+	void Update(float dt);
 
 	void Draw();
 
@@ -184,6 +184,33 @@ private:
 	// スポットライト（CB）
 	Microsoft::WRL::ComPtr<ID3D12Resource> spotLightResource_;
 	SpotLight* spotLightData_ = nullptr;
+
+
+public:
+	//=============
+	//アニメーション
+	//=============
+
+	void PlayAnimation(const std::string& animName = "", bool loop = true) {
+		isPlayAnimation_ = true;
+		playingAnimName_ = animName;
+		loop_ = loop;
+		animationTime_ = 0.0f;
+	}
+	void StopAnimation() { isPlayAnimation_ = false; }
+	void SetAnimationNodeName(const std::string& node) { playingNodeName_ = node; }
+
+	bool HasAnimation() const;
+
+private:
+
+	// Object3d.h （private でOK）
+	bool  isPlayAnimation_ = false;
+	float animationTime_ = 0.0f;
+	std::string playingAnimName_;   // 空なら先頭を使う
+	std::string playingNodeName_ = "root"; // まずはroot/なければ先頭
+	bool loop_ = true;
+	
 
 };
 

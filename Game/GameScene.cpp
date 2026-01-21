@@ -127,7 +127,7 @@ void GameScene::OnEnter(GameApp& app) {
     ground_->SetTranslate({ 0.0f, 0.0f, -20.0f });
     ground_->SetScale({ 1.0f, 1.0f, 1.0f });
     ground_->SetRotate({ 0.0f, 0.0f, 0.0f });
-    ground_->Update();
+ 
 
 }
 
@@ -152,6 +152,8 @@ void GameScene::Update(GameApp& app, float dt) {
     if (!input_) return; // 念のため
 
     camera_->Update();
+
+    ground_->Update(dt);
 
     /*if (particle_) {
         particle_->SpawnParticle();

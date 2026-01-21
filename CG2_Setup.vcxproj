@@ -83,7 +83,7 @@
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Game\player;$(ProjectDir)Game\enemy;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\3D;$(ProjectDir)Game\player;$(ProjectDir)Game\enemy;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -116,7 +116,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\3D;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -149,7 +149,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)externals\assimp;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\3D;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)externals\assimp;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -169,6 +169,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\2D\Sprite.cpp" />
+    <ClCompile Include="Engine\2D\SpriteCommon.cpp" />
+    <ClCompile Include="Engine\2D\TextureManager.cpp" />
+    <ClCompile Include="Engine\3D\Model.cpp" />
+    <ClCompile Include="Engine\3D\ModelCommon.cpp" />
+    <ClCompile Include="Engine\3D\ModelManager.cpp" />
+    <ClCompile Include="Engine\3D\Object3d.cpp" />
+    <ClCompile Include="Engine\3D\Object3dCommon.cpp" />
     <ClCompile Include="Game\GameClearScene.cpp" />
     <ClCompile Include="Game\GameOverScene.cpp" />
     <ClCompile Include="Game\enemy\BossAI.cpp" />
@@ -179,9 +187,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\AudioSystem.cpp" />
     <ClCompile Include="Engine\DebugCamera.cpp" />
     <ClCompile Include="Engine\DirectXCommon.cpp" />
-    <ClCompile Include="Engine\Model.cpp" />
-    <ClCompile Include="Engine\ModelCommon.cpp" />
-    <ClCompile Include="Engine\ModelManager.cpp" />
     <ClCompile Include="Engine\Particle.cpp" />
     <ClCompile Include="Engine\ParticleCommon.cpp" />
     <ClCompile Include="Engine\SkinnedModel.cpp" />
@@ -206,11 +211,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\math\Vector3.cpp" />
     <ClCompile Include="Engine\StringUtility.cpp" />
     <ClCompile Include="Engine\WinApp.cpp" />
-    <ClCompile Include="Engine\Sprite.cpp" />
-    <ClCompile Include="Engine\SpriteCommon.cpp" />
-    <ClCompile Include="Engine\TextureManager.cpp" />
-    <ClCompile Include="Engine\Object3d.cpp" />
-    <ClCompile Include="Engine\Object3dCommon.cpp" />
     <ClCompile Include="Engine\Camera.cpp" />
     <ClCompile Include="Engine\ParticleManager.cpp" />
     <ClCompile Include="Engine\SceneManager.cpp" />
@@ -278,6 +278,18 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\2D\Sprite.h" />
+    <ClInclude Include="Engine\2D\SpriteCommon.h" />
+    <ClInclude Include="Engine\2D\TextureManager.h" />
+    <ClInclude Include="Engine\3D\Model.h" />
+    <ClInclude Include="Engine\3D\ModelCommon.h" />
+    <ClInclude Include="Engine\3D\ModelManager.h" />
+    <ClInclude Include="Engine\3D\Object3d.h" />
+    <ClInclude Include="Engine\3D\Object3dCommon.h" />
+    <ClInclude Include="Engine\Animation.h" />
+    <ClInclude Include="Engine\AnimationEvaluate.h" />
+    <ClInclude Include="Engine\math\MathStruct.h" />
+    <ClInclude Include="Engine\math\Quaternion.h" />
     <ClInclude Include="Game\GameClearScene.h" />
     <ClInclude Include="Game\GameOverScene.h" />
     <ClInclude Include="Game\enemy\BossAI.h" />
@@ -291,9 +303,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\IScene.h" />
     <ClInclude Include="Engine\math\AABB.h" />
     <ClInclude Include="Engine\math\Mesh.h" />
-    <ClInclude Include="Engine\Model.h" />
-    <ClInclude Include="Engine\ModelCommon.h" />
-    <ClInclude Include="Engine\ModelManager.h" />
     <ClInclude Include="Engine\Particle.h" />
     <ClInclude Include="Engine\ParticleCommon.h" />
     <ClInclude Include="Engine\SkinnedModel.h" />
@@ -312,11 +321,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\math\Vector3.h" />
     <ClInclude Include="Engine\StringUtility.h" />
     <ClInclude Include="Engine\WinApp.h" />
-    <ClInclude Include="Engine\Sprite.h" />
-    <ClInclude Include="Engine\SpriteCommon.h" />
-    <ClInclude Include="Engine\TextureManager.h" />
-    <ClInclude Include="Engine\Object3d.h" />
-    <ClInclude Include="Engine\Object3dCommon.h" />
     <ClInclude Include="Engine\Camera.h" />
     <ClInclude Include="Engine\ParticleManager.h" />
     <ClInclude Include="Engine\ImGuiManagaer.h" />

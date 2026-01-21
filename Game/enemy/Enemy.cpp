@@ -192,6 +192,9 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 	if (!alive_) return;
 
+	model_->Update(dt);
+	debugHitboxCube_->Update(dt);
+
 	// ★Test用：完全停止
 	if (frozen_) {
 		vel_ = { 0,0,0 };
@@ -657,7 +660,7 @@ void Enemy::UpdateModel_() {
 
 	if (chosen) model_->SetModel(chosen);
 
-	model_->Update();
+	
 }
 
 
@@ -950,7 +953,7 @@ void EnemyManager::DrawHealDrops_() {
 		// 例：位置だけ置いて描画（色替えできるなら緑っぽく）
 		debugHitboxCube_->SetTranslate(d.pos);
 		debugHitboxCube_->SetScale({ 0.4f, 0.4f, 0.4f });
-		debugHitboxCube_->Update();
+		
 		debugHitboxCube_->Draw();
 	}
 }
