@@ -79,7 +79,7 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_ = std::make_unique<Object3d>();
     terrainObj_->Initialize(app.ObjCom(), app.Dx());
 
-    terrainObj_->SetModel("gltf/walk.glb"); 
+    terrainObj_->SetModel("AnimatedCube/AnimatedCube.gltf"); 
     terrainObj_->PlayAnimation("", true);
 
     terrainObj_->SetTranslate(testPos_);
