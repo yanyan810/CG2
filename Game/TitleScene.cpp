@@ -79,7 +79,8 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_ = std::make_unique<Object3d>();
     terrainObj_->Initialize(app.ObjCom(), app.Dx());
 
-    terrainObj_->SetModel("gltf/plane.glb"); 
+    terrainObj_->SetModel("gltf/walk.glb"); 
+    terrainObj_->PlayAnimation("", true);
 
     terrainObj_->SetTranslate(testPos_);
     terrainObj_->SetScale(testScale_);
@@ -92,6 +93,9 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_->SetShininess(shininess_);
     terrainObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
+    if (terrainObj_->HasAnimation()) {
+        OutputDebugStringA("has animation\n");
+    }
 
 
 }
@@ -131,7 +135,7 @@ void TitleScene::Update(GameApp& app, float dt) {
     //}
 
 
-    skyDome_->Update();
+    skyDome_->Update(dt);
 
 #ifdef USE_IMGUI
 
@@ -302,7 +306,7 @@ void TitleScene::Update(GameApp& app, float dt) {
         testObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
 
 
-        testObj_->Update();
+        testObj_->Update(dt);
     }
 
     if (terrainObj_) {
@@ -337,7 +341,7 @@ void TitleScene::Update(GameApp& app, float dt) {
         terrainObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
 
 
-        terrainObj_->Update();
+        terrainObj_->Update(dt);
 
 
     }
@@ -363,7 +367,7 @@ void TitleScene::Draw(GameApp& app) {
 	//skyDome_->Draw();
 
     //if (testObj_) testObj_->Draw();
-	//if (terrainObj_) terrainObj_->Draw();
+	if (terrainObj_) terrainObj_->Draw();
 
     // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
     app.ParticleCom()->SetGraphicsPipelineState();

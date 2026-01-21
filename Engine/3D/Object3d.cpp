@@ -73,7 +73,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 
 }
 
-void Object3d::Update()
+void Object3d::Update(float dt)
 {
 	// 1) 通常のWorld（Object3dのTransform）
 	Matrix4x4 worldMatrixModel = Matrix4x4::MakeAffineMatrix(
@@ -81,6 +81,65 @@ void Object3d::Update()
 		transform.rotate,
 		transform.translate
 	);
+
+	// ★ここに追加：Animation localMatrix を作って掛ける
+	if (model_ && isPlayAnimation_) {
+
+		const auto& anims = model_->GetAnimations();
+		if (!anims.empty()) {
+
+			// 使うアニメを選ぶ（名前指定が無ければ先頭）
+			const Animation* anim = nullptr;
+
+			if (!playingAnimName_.empty()) {
+				auto itA = anims.find(playingAnimName_);
+				if (itA != anims.end()) { anim = &itA->second; }
+			}
+			if (!anim) { anim = &anims.begin()->second; }
+
+			// 時刻更新（ここでは固定dtじゃなく、あなたのdtに置き換えてOK）
+			// 例：60fps想定で仮
+			animationTime_ +=dt;
+
+			const float duration = std::max(anim->duration, 0.0001f);
+			if (loop_) {
+				animationTime_ = std::fmod(animationTime_, duration);
+			}
+			else {
+				animationTime_ = std::min(animationTime_, duration);
+			}
+
+			// NodeAnimation を選ぶ（指定名→無ければ先頭）
+			const NodeAnimation* nodeAnim = nullptr;
+			auto itN = anim->nodeAnimations.find(playingNodeName_);
+			if (itN != anim->nodeAnimations.end()) {
+				nodeAnim = &itN->second;
+			}
+			else {
+				nodeAnim = &anim->nodeAnimations.begin()->second;
+			}
+
+			// T/R/S を time で評価（空はデフォルト）
+			Vector3 t{ 0,0,0 };
+			Quaternion r{ 0,0,0,1 };
+			Vector3 s{ 1,1,1 };
+
+			if (!nodeAnim->translate.keyframes.empty()) {
+				t = CalculateValue(nodeAnim->translate.keyframes, animationTime_);
+			}
+			if (!nodeAnim->rotate.keyframes.empty()) {
+				r = CalculateValue(nodeAnim->rotate.keyframes, animationTime_);
+			}
+			if (!nodeAnim->scale.keyframes.empty()) {
+				s = CalculateValue(nodeAnim->scale.keyframes, animationTime_);
+			}
+
+			Matrix4x4 localMatrix = MakeAffineMatrix(s, r, t);
+
+			// ★掛け順：local → root → objectWorld の順にしたいので「前に掛ける」
+			worldMatrixModel = Matrix4x4::Multiply(localMatrix, worldMatrixModel);
+		}
+	}
 
 	// 2) ★glTF/FBX/OBJ共通：ModelのRootNode行列を適用（あれば）
 	//    これで「glTFが回転してる/スケールが違う」みたいなのが補正される
@@ -182,4 +241,8 @@ void Object3d::SetDirection(const Vector3& direction)
 
 	d.x /= len; d.y /= len; d.z /= len;
 	directionalLightData->direction = d;
+}
+
+bool Object3d::HasAnimation() const {
+	return model_ && !model_->GetAnimations().empty();
 }

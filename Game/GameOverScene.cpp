@@ -93,7 +93,7 @@ void GameOverScene::Update(GameApp& app, float dt) {
 
     bool spaceTrigger = spaceNow && !prevSpace_;
     
-    skyDome_->Update();
+    skyDome_->Update(dt);
     bool enterTrigger = enterNow && !prevEnter_;
 
     prevSpace_ = spaceNow;
@@ -147,13 +147,6 @@ void GameOverScene::Update(GameApp& app, float dt) {
         }
     } break;
     }
-}
-
-void GameOverScene::Draw(GameApp& app) {
-
-    app.ObjCom()->SetGraphicsPipelineState();
-
-    skyDome_->Draw();
 
     // damage.obj（3D）を描く
     if (damageObj_) {
@@ -167,8 +160,22 @@ void GameOverScene::Draw(GameApp& app) {
         // ※ Object3d に色を渡せるなら alpha を使う（無ければ無視でOK）
         // damageObj_->SetColor({1,1,1,damageAlpha_});
 
-        damageObj_->Update();
+        damageObj_->Update(dt);
 
+       
+    }
+
+}
+
+void GameOverScene::Draw(GameApp& app) {
+
+    app.ObjCom()->SetGraphicsPipelineState();
+
+    skyDome_->Draw();
+
+    // damage.obj（3D）を描く
+    if (damageObj_) {
+     
         // ★Object3dCommon の PSO/RS セットが必要ならここで呼ぶ
         // 例：app.ObjCom()->SetGraphicsPipelineState();
         damageObj_->Draw();

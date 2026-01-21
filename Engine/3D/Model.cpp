@@ -131,6 +131,100 @@ static Model::Node ReadNodeRecursive(const aiNode* node)
     return out;
 }
 
+//AnumHelper
+static Quaternion ConvertAssimpQuat(const aiQuaternion& q) {
+    Quaternion out{};
+    out.x = q.x;
+    out.y = q.y;
+    out.z = q.z;
+    out.w = q.w;
+    return out;
+}
+
+//========================
+//キーフレーム読み取り
+//========================
+
+static void ReadVectorKeys(AnimationCurveVector3& outCurve, const aiVectorKey* keys, unsigned int count, double tps) {
+    outCurve.keyframes.clear();
+    outCurve.keyframes.reserve(count);
+
+    const double inv = (tps > 0.0) ? (1.0 / tps) : (1.0 / 25.0); // tps==0対策
+
+    for (unsigned int i = 0; i < count; ++i) {
+        KeyframeVector3 k{};
+        k.time = static_cast<float>(keys[i].mTime * inv);
+        k.value = Vector3{ keys[i].mValue.x, keys[i].mValue.y, keys[i].mValue.z };
+        outCurve.keyframes.push_back(k);
+    }
+
+    std::sort(outCurve.keyframes.begin(), outCurve.keyframes.end(),
+        [](auto& a, auto& b) { return a.time < b.time; });
+}
+
+static void ReadQuatKeys(AnimationCurveQuaternion& outCurve, const aiQuatKey* keys, unsigned int count, double tps) {
+    outCurve.keyframes.clear();
+    outCurve.keyframes.reserve(count);
+
+    const double inv = (tps > 0.0) ? (1.0 / tps) : (1.0 / 25.0);
+
+    for (unsigned int i = 0; i < count; ++i) {
+        KeyframeQuaternion k{};
+        k.time = static_cast<float>(keys[i].mTime * inv);
+        k.value = ConvertAssimpQuat(keys[i].mValue);
+        outCurve.keyframes.push_back(k);
+    }
+
+    std::sort(outCurve.keyframes.begin(), outCurve.keyframes.end(),
+        [](auto& a, auto& b) { return a.time < b.time; });
+}
+
+//アニメーション全体を読む
+static void ReadAnimationsFromAssimp(Model::ModelData& out, const aiScene* scene) {
+    out.animations.clear();
+
+    if (!scene || scene->mNumAnimations == 0) { return; }
+
+    for (unsigned int ai = 0; ai < scene->mNumAnimations; ++ai) {
+        const aiAnimation* a = scene->mAnimations[ai];
+        if (!a) continue;
+
+        Animation clip{};
+        const double tps = (a->mTicksPerSecond != 0.0) ? a->mTicksPerSecond : 25.0;
+        clip.duration = static_cast<float>(a->mDuration / tps);
+
+        // アニメ名（空のことがあるのでフォールバック）
+        std::string animName = a->mName.C_Str();
+        if (animName.empty()) {
+            animName = "anim_" + std::to_string(ai);
+        }
+
+        // channels = ノードごとのTRSカーブ
+        for (unsigned int ci = 0; ci < a->mNumChannels; ++ci) {
+            const aiNodeAnim* ch = a->mChannels[ci];
+            if (!ch) continue;
+
+            std::string nodeName = ch->mNodeName.C_Str();
+            if (nodeName.empty()) continue;
+
+            NodeAnimation na{};
+
+            if (ch->mNumPositionKeys > 0) {
+                ReadVectorKeys(na.translate, ch->mPositionKeys, ch->mNumPositionKeys, tps);
+            }
+            if (ch->mNumRotationKeys > 0) {
+                ReadQuatKeys(na.rotate, ch->mRotationKeys, ch->mNumRotationKeys, tps);
+            }
+            if (ch->mNumScalingKeys > 0) {
+                ReadVectorKeys(na.scale, ch->mScalingKeys, ch->mNumScalingKeys, tps);
+            }
+
+            clip.nodeAnimations.emplace(std::move(nodeName), std::move(na));
+        }
+
+        out.animations.emplace(std::move(animName), std::move(clip));
+    }
+}
 
 
 void Model::Initialize(ModelCommon* modelCommon,
@@ -470,11 +564,19 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     // 1) パス確認
     {
         OutputDebugStringA(("[Assimp] fullPath = " + fullPath + "\n").c_str());
+
+        // ★ここに追加（絶対パス確認）
+        OutputDebugStringA(
+            ("[Assimp] abs = " +
+                std::filesystem::absolute(fullPath).string() + "\n").c_str()
+        );
+
         if (!std::filesystem::exists(fullPath)) {
             OutputDebugStringA("[Assimp] FILE NOT FOUND\n");
             return out;
         }
     }
+
 
     {
         std::ifstream f(fullPath, std::ios::binary);
@@ -518,13 +620,20 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
     try {
         scene = importer.ReadFile(fullPath.c_str(), flags);
-    } catch (...) {
-        OutputDebugStringA("[Assimp] ReadFile threw an exception\n");
+    }
+    catch (const std::exception& e) {
+        OutputDebugStringA("[Assimp] Exception in ReadFile\n");
+        OutputDebugStringA(e.what());
+        OutputDebugStringA("\n");
+        return out; // ★必ず抜ける
+    }
+    catch (...) {
+        OutputDebugStringA("[Assimp] Unknown exception in ReadFile\n");
         std::string err = importer.GetErrorString();
         if (!err.empty()) {
             OutputDebugStringA(("[Assimp] GetErrorString: " + err + "\n").c_str());
         }
-        return out;
+        return out; // ★必ず抜ける
     }
 
     if (!scene || !scene->HasMeshes()) {
@@ -532,6 +641,13 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
         return out;
     }
 
+    {
+        char buf[128];
+        std::snprintf(buf, sizeof(buf),
+            "[Scene] mNumMeshes=%u mNumAnimations=%u\n",
+            scene->mNumMeshes, scene->mNumAnimations);
+        OutputDebugStringA(buf);
+    }
 
     // --- directory (for texture paths) ---
     std::filesystem::path p(fullPath);
@@ -544,6 +660,9 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
         out.rootNode.localMatrix = Matrix4x4::MakeIdentity4x4();
         out.rootNode.name = "root";
     }
+
+    // --- animations ---
+    ReadAnimationsFromAssimp(out, scene);
 
     // --- materials ---
     out.materials.clear();
@@ -596,6 +715,31 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     for (unsigned int mi = 0; mi < scene->mNumMeshes; ++mi) {
         const aiMesh* mesh = scene->mMeshes[mi];
 
+        char buf[256];
+        std::snprintf(buf, sizeof(buf),
+            "[Mesh %u] vtx=%u idxFaces=%u bones=%u hasBones=%d\n",
+            mi,
+            mesh->mNumVertices,
+            mesh->mNumFaces,
+            mesh->HasBones() ? mesh->mNumBones : 0,
+            mesh->HasBones() ? 1 : 0);
+        OutputDebugStringA(buf);
+
+
+        {
+            char buf[256];
+            std::snprintf(buf, sizeof(buf),
+                "[Mesh %u] name=%s vtx=%u faces=%u bones=%u hasBones=%d\n",
+                mi,
+                mesh->mName.C_Str(),
+                mesh->mNumVertices,
+                mesh->mNumFaces,
+                mesh->HasBones() ? mesh->mNumBones : 0,
+                mesh->HasBones() ? 1 : 0);
+            OutputDebugStringA(buf);
+        }
+
+
         MeshData md{};
         md.materialIndex = mesh->mMaterialIndex;
 
@@ -638,8 +782,6 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     return out;
 }
 
-const Matrix4x4& Model::GetRootLocalMatrix() const
-{
-    static Matrix4x4 I = Matrix4x4::MakeIdentity4x4();
-    return I;
+const Matrix4x4& Model::GetRootLocalMatrix() const {
+    return modelData_.rootNode.localMatrix;
 }

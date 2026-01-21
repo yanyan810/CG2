@@ -113,6 +113,10 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
         if (moveLockSec_ < 0.0f) moveLockSec_ = 0.0f;
     }
 
+    debugAtkCube_->Update(dt);
+
+    model_->Update(dt);
+
     // ★I / O 押下した瞬間に「攻撃全体時間」ぶん移動をロックする
     // （PlayerCombo::GetData_ の I/O 強制仕様に追従）
     if (combo_) {
@@ -357,7 +361,7 @@ void Player::UpdateModel_() {
     const float sx = (facing_ > 0) ? 1.0f : -1.0f;
     model_->SetScale({ sx, 1.0f, 1.0f });
 
-    model_->Update();
+   
 }
 
 
@@ -378,7 +382,7 @@ void Player::DrawDebugHitBoxes(EnemyManager& enemyMgr) {
         // → scale = halfSize をそのまま入れれば一致
         debugAtkCube_->SetScale({ hb.hx, hb.hy, hb.hz });
 
-        debugAtkCube_->Update();
+      
         debugAtkCube_->Draw();
     }
 }

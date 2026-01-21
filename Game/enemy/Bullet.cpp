@@ -40,8 +40,13 @@ void BulletManager::Spawn(const Vector3& pos, int dir, int damage) {
 
 void BulletManager::Update(float dt, Player& player) {
     // 1) 弾の更新
+
+ 
+
     for (auto& b : bullets_) {
         if (!b.alive) continue;
+
+        b.model->Update(dt);
 
         b.life -= dt;
         if (b.life <= 0.0f) {
@@ -84,7 +89,7 @@ void BulletManager::Draw() {
             const float s = 0.25f;
             b.model->SetScale({ s, s, s });
 
-            b.model->Update();
+         
             b.model->Draw();
         }
     }
