@@ -9,6 +9,13 @@ struct Quaternion {
     float w = 1.0f;
 };
 
+struct QuaternionTransform
+{
+    Vector3 scale{ 1.0f, 1.0f, 1.0f };
+    Quaternion rotate{}; // (0,0,0,1)
+    Vector3 translate{ 0.0f, 0.0f, 0.0f };
+};
+
 static inline float Dot(const Quaternion& a, const Quaternion& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
@@ -68,4 +75,55 @@ static inline Quaternion Slerp(const Quaternion& aRaw, const Quaternion& bRaw, f
     out.z = a.z * w0 + b.z * w1;
     out.w = a.w * w0 + b.w * w1;
     return out;
+}
+
+static Matrix4x4 MakeRotateMatrixFromQuaternion_Row(const Quaternion& qRaw) {
+    Quaternion q = Normalize(qRaw);
+
+    const float x = q.x;
+    const float y = q.y;
+    const float z = q.z;
+    const float w = q.w;
+
+    Matrix4x4 m = Matrix4x4::MakeIdentity4x4();
+
+    // row-vector 用（列ベクトル式の転置）
+    m.m[0][0] = 1.0f - 2.0f * (y * y + z * z);
+    m.m[0][1] = 2.0f * (x * y + z * w);
+    m.m[0][2] = 2.0f * (x * z - y * w);
+
+    m.m[1][0] = 2.0f * (x * y - z * w);
+    m.m[1][1] = 1.0f - 2.0f * (x * x + z * z);
+    m.m[1][2] = 2.0f * (y * z + x * w);
+
+    m.m[2][0] = 2.0f * (x * z + y * w);
+    m.m[2][1] = 2.0f * (y * z - x * w);
+    m.m[2][2] = 1.0f - 2.0f * (x * x + y * y);
+
+    return m;
+}
+
+static Matrix4x4 MakeAffineMatrix(
+    const Vector3& scale,
+    const Quaternion& rotate,
+    const Vector3& translate) {
+    // Scale
+    Matrix4x4 S = Matrix4x4::MakeIdentity4x4();
+    S.m[0][0] = scale.x;
+    S.m[1][1] = scale.y;
+    S.m[2][2] = scale.z;
+
+    // Rotate
+    Matrix4x4 R = MakeRotateMatrixFromQuaternion_Row(rotate);
+
+    // S * R（row-vector想定）
+    Matrix4x4 M = Matrix4x4::Multiply(S, R);
+
+    // Translate（row-vector：最後の行）
+    M.m[3][0] = translate.x;
+    M.m[3][1] = translate.y;
+    M.m[3][2] = translate.z;
+    M.m[3][3] = 1.0f;
+
+    return M;
 }

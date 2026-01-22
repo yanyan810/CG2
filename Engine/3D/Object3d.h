@@ -160,6 +160,8 @@ private:
 
 	Model* model_ = nullptr;
 
+	Model::Skeleton poseSkeleton_; // ★再生用（modelのskeletonをコピーして使う）
+
 	//モデル用のTransformationMatrix用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModel;/* = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));*/
 	//データを書き込む
@@ -202,6 +204,10 @@ public:
 
 	bool HasAnimation() const;
 
+	//デバッグ用
+	void SetDebugDrawBones(bool enable) { debugDrawBones_ = enable; }
+	void SetBoneMarkerModel(const std::string& path) { boneMarkerModel_ = path; }
+
 private:
 
 	// Object3d.h （private でOK）
@@ -211,6 +217,10 @@ private:
 	std::string playingNodeName_ = "root"; // まずはroot/なければ先頭
 	bool loop_ = true;
 	
+	bool poseReady_ = false;
 
+	bool debugDrawBones_ = false;
+	std::string boneMarkerModel_ = "cube/cube.obj";
+	std::vector<std::unique_ptr<Object3d>> boneMarkers_;
 };
 
