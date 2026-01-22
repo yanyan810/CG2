@@ -60,7 +60,12 @@ public:
 		// GPUバッファに詰めた後の範囲
 		uint32_t startVertex = 0;
 		uint32_t vertexCount = 0;
+
+		// ★追加：IndexBuffer 内での範囲
+		uint32_t startIndex = 0;
+		uint32_t indexCount = 0;
 	};
+
 
 	struct ModelData {
 		std::vector<MaterialData> materials;
@@ -163,6 +168,12 @@ private:
 	Material* materialData_ = nullptr;
 
 	Skeleton skeleton_;
+
+	// Indexデータ（バッファ）★追加
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
+	uint32_t* indexData_ = nullptr;
+	D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
+
 
 };
 
