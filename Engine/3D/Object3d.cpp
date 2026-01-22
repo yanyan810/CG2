@@ -8,6 +8,31 @@
 //	return { v.x / length, v.y / length, v.z / length };
 //}
 
+static void ApplyAnimation(Model::Skeleton& skeleton, const Animation& animation, float time) {
+	for (auto& joint : skeleton.joints) {
+
+		auto it = animation.nodeAnimations.find(joint.name);
+		if (it == animation.nodeAnimations.end()) {
+			continue;
+		}
+
+		const NodeAnimation& na = it->second;
+
+		// “そのジョイントの元値” から始める（カーブが無い成分は維持）
+		Vector3 t = joint.transform.translate;
+		Quaternion r = joint.transform.rotate;
+		Vector3 s = joint.transform.scale;
+
+		if (!na.translate.keyframes.empty()) t = CalculateValue(na.translate.keyframes, time);
+		if (!na.rotate.keyframes.empty())    r = CalculateValue(na.rotate.keyframes, time);
+		if (!na.scale.keyframes.empty())     s = CalculateValue(na.scale.keyframes, time);
+
+		joint.transform.translate = t;
+		joint.transform.rotate = r;
+		joint.transform.scale = s;
+	}
+}
+
 
 void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 	// 初期化処理
@@ -73,71 +98,48 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
 
 }
 
-void Object3d::Update(float dt)
-{
+void Object3d::Update(float dt){
+
 	// 1) 通常のWorld（Object3dのTransform）
 	Matrix4x4 worldMatrixModel = Matrix4x4::MakeAffineMatrix(
-		transform.scale,
-		transform.rotate,
-		transform.translate
-	);
+		transform.scale, transform.rotate, transform.translate);
 
-	// ★ここに追加：Animation localMatrix を作って掛ける
+	// ===== アニメ再生（SkinnedならSkeletonへ適用）=====
 	if (model_ && isPlayAnimation_) {
 
 		const auto& anims = model_->GetAnimations();
 		if (!anims.empty()) {
 
-			// 使うアニメを選ぶ（名前指定が無ければ先頭）
+			// 使うアニメ選択（今のコードのまま）
 			const Animation* anim = nullptr;
-
 			if (!playingAnimName_.empty()) {
 				auto itA = anims.find(playingAnimName_);
-				if (itA != anims.end()) { anim = &itA->second; }
+				if (itA != anims.end()) anim = &itA->second;
 			}
-			if (!anim) { anim = &anims.begin()->second; }
+			if (!anim) anim = &anims.begin()->second;
 
-			// 時刻更新（ここでは固定dtじゃなく、あなたのdtに置き換えてOK）
-			// 例：60fps想定で仮
-			animationTime_ +=dt;
-
+			// time更新（今のコードのまま）
+			animationTime_ += dt;
 			const float duration = std::max(anim->duration, 0.0001f);
-			if (loop_) {
-				animationTime_ = std::fmod(animationTime_, duration);
+			if (loop_) animationTime_ = std::fmod(animationTime_, duration);
+			else       animationTime_ = std::min(animationTime_, duration);
+
+			if (model_->HasSkinning()) {
+				// ★Skinned：Skeletonに適用（worldに掛けない）
+				if (!poseReady_) {
+					poseSkeleton_ = model_->GetSkeleton();
+					poseReady_ = true;
+				}
+
+				ApplyAnimation(poseSkeleton_, *anim, animationTime_);
+
+				// skeletonSpace 更新（あなたの Multiply は m1*m2 なのでこの式でOK）
+				Model::UpdateSkeleton(poseSkeleton_); // ← Modelに静的関数でもOK
 			}
 			else {
-				animationTime_ = std::min(animationTime_, duration);
+				// ★Rigid：今まで通り world に前掛け（必要なら root ノードだけに絞る）
+				// 既存の playingNodeName_ 方式を残すならここに置く
 			}
-
-			// NodeAnimation を選ぶ（指定名→無ければ先頭）
-			const NodeAnimation* nodeAnim = nullptr;
-			auto itN = anim->nodeAnimations.find(playingNodeName_);
-			if (itN != anim->nodeAnimations.end()) {
-				nodeAnim = &itN->second;
-			}
-			else {
-				nodeAnim = &anim->nodeAnimations.begin()->second;
-			}
-
-			// T/R/S を time で評価（空はデフォルト）
-			Vector3 t{ 0,0,0 };
-			Quaternion r{ 0,0,0,1 };
-			Vector3 s{ 1,1,1 };
-
-			if (!nodeAnim->translate.keyframes.empty()) {
-				t = CalculateValue(nodeAnim->translate.keyframes, animationTime_);
-			}
-			if (!nodeAnim->rotate.keyframes.empty()) {
-				r = CalculateValue(nodeAnim->rotate.keyframes, animationTime_);
-			}
-			if (!nodeAnim->scale.keyframes.empty()) {
-				s = CalculateValue(nodeAnim->scale.keyframes, animationTime_);
-			}
-
-			Matrix4x4 localMatrix = MakeAffineMatrix(s, r, t);
-
-			// ★掛け順：local → root → objectWorld の順にしたいので「前に掛ける」
-			worldMatrixModel = Matrix4x4::Multiply(localMatrix, worldMatrixModel);
 		}
 	}
 
@@ -145,16 +147,40 @@ void Object3d::Update(float dt)
 	//    これで「glTFが回転してる/スケールが違う」みたいなのが補正される
 	if (model_) {
 		// Model に GetRootLocalMatrix() を追加した前提
-		const Matrix4x4& root = model_->GetRootLocalMatrix();
+		if (!model_->HasSkinning()) {
+			const Matrix4x4& root = model_->GetRootLocalMatrix();
 
-		// ★ここがポイント：
-		// あなたの式が wvp = world * vp なので、root を world の “前” に掛ける
-		worldMatrixModel = Matrix4x4::Multiply(root, worldMatrixModel);
+			// wvp = world * vp なので、root を world の “前” に掛ける
+			worldMatrixModel = Matrix4x4::Multiply(root, worldMatrixModel);
+		}
 	}
 
 	// 3) camera
 	if (!camera_) {
 		camera_ = object3dCommon->GetDefaultCamera();
+	}
+
+	// ★ボーン点表示更新（Line/Sphere無し版）
+	if (debugDrawBones_ && model_ && model_->HasSkinning() && poseReady_) {
+
+		for (size_t i = 0; i < poseSkeleton_.joints.size() && i < boneMarkers_.size(); ++i) {
+
+			const auto& j = poseSkeleton_.joints[i];
+
+			// SkeletonSpace -> World
+			Matrix4x4 jointWorld =
+				Matrix4x4::Multiply(j.skeletonSpaceMatrix, worldMatrixModel);
+
+			// 行ベクトル系：平行移動は m[3][0..2]
+			Vector3 pos{
+				jointWorld.m[3][0],
+				jointWorld.m[3][1],
+				jointWorld.m[3][2]
+			};
+
+			boneMarkers_[i]->SetTranslate(pos);
+			boneMarkers_[i]->Update(0.0f);
+		}
 	}
 
 	Matrix4x4 wvpModel = worldMatrixModel;
@@ -206,6 +232,12 @@ void Object3d::Draw() {
 	if (model_) {
 		model_->Draw(cmd);
 	}
+
+	if (debugDrawBones_ && !boneMarkers_.empty()) {
+		for (auto& m : boneMarkers_) {
+			m->Draw();
+		}
+	}
 }
 
 
@@ -222,8 +254,30 @@ void Object3d::SetModel(const std::string& filePath) {
 		mgr->LoadModel(filePath);
 		m = mgr->FindModel(filePath);
 	}
-
+	
 	model_ = m;
+
+	boneMarkers_.clear();
+
+	if (model_ && model_->HasSkinning()) {
+		const auto& skel = model_->GetSkeleton();
+
+		boneMarkers_.reserve(skel.joints.size());
+		for (size_t i = 0; i < skel.joints.size(); ++i) {
+
+			auto marker = std::make_unique<Object3d>();
+			marker->Initialize(object3dCommon, dx_);
+			marker->SetModel(boneMarkerModel_);
+
+			marker->SetScale({ 0.03f, 0.03f, 0.03f }); // 小さく
+			marker->SetRotate({ 0,0,0 });
+
+			// ライトいらないなら切る（見やすい）
+			marker->SetEnableLighting(0);
+
+			boneMarkers_.push_back(std::move(marker));
+		}
+	}
 
 }
 
@@ -246,3 +300,4 @@ void Object3d::SetDirection(const Vector3& direction)
 bool Object3d::HasAnimation() const {
 	return model_ && !model_->GetAnimations().empty();
 }
+

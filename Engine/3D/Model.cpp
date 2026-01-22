@@ -112,24 +112,41 @@ static Matrix4x4 ConvertAssimpMatrix(const aiMatrix4x4& mIn)
     out.m[3][0] = m.d1; out.m[3][1] = m.d2; out.m[3][2] = m.d3; out.m[3][3] = m.d4;
     return out;
 }
-
-static Model::Node ReadNodeRecursive(const aiNode* node)
-{
+static Model::Node ReadNodeRecursive(const aiNode* node) {
     Model::Node out{};
     out.name = node->mName.C_Str();
-    out.localMatrix = ConvertAssimpMatrix(node->mTransformation);
 
+    // (1) Assimp行列 -> SRT に分解
+    aiVector3D s, t;
+    aiQuaternion r;
+    node->mTransformation.Decompose(s, r, t);
+
+    // (2) RH->LH 変換（あなたのエンジンが LH 前提なら）
+    out.transform.scale = Vector3{ s.x, s.y, s.z };      // 多くはそのまま
+    out.transform.rotate = { r.x,-r.y,-r.z,r.w };
+    out.transform.translate = {-t.x,t.y,t.z};
+
+    // (3) transform から localMatrix を再構築
+    out.localMatrix = MakeAffineMatrix(
+        out.transform.scale,
+        out.transform.rotate,
+        out.transform.translate
+    );
+
+    // mesh index
     out.meshIndices.reserve(node->mNumMeshes);
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
-        out.meshIndices.push_back((uint32_t)node->mMeshes[i]); // scene->mMeshes の index
+        out.meshIndices.push_back((uint32_t)node->mMeshes[i]);
     }
 
+    // children
     out.children.resize(node->mNumChildren);
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
         out.children[i] = ReadNodeRecursive(node->mChildren[i]);
     }
     return out;
 }
+
 
 //AnumHelper
 static Quaternion ConvertAssimpQuat(const aiQuaternion& q) {
@@ -250,6 +267,11 @@ void Model::Initialize(ModelCommon* modelCommon,
     if (useAssimp) {
         OutputDebugStringA(("[Model] LoadAssimpFile: " + fullPath + "\n").c_str());
         modelData_ = LoadAssimpFile(fullPath);
+        // ★ここでSkeletonを作る（Assimp形式のみ）
+        skeleton_ = CreateSkeleton(modelData_.rootNode);
+        UpdateSkeleton(skeleton_); // bind pose の skeletonSpace を初期計算（1回だけ）
+
+      
     } else {
         // もし「OBJだけ別実装」を残したいならここに置く
         OutputDebugStringA(("[Model] LoadObjFile: " + directoryPath + "/" + filename + "\n").c_str());
@@ -715,6 +737,11 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     for (unsigned int mi = 0; mi < scene->mNumMeshes; ++mi) {
         const aiMesh* mesh = scene->mMeshes[mi];
 
+        // ★ここ（このメッシュにボーンがあるならスキニングモデル）
+        if (mesh->HasBones()) {
+            out.hasSkinning = true;
+        }
+
         char buf[256];
         std::snprintf(buf, sizeof(buf),
             "[Mesh %u] vtx=%u idxFaces=%u bones=%u hasBones=%d\n",
@@ -784,4 +811,69 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
 const Matrix4x4& Model::GetRootLocalMatrix() const {
     return modelData_.rootNode.localMatrix;
+}
+
+Model::Skeleton Model::CreateSkeleton(const Model::Node& rootNode) {
+
+    Model::Skeleton skeleton;
+    skeleton.root = CreateJoint(rootNode, {}, skeleton.joints);
+
+    //名前とインデックスのマッピング
+    for (const Model::Joint joint: skeleton.joints) {
+
+        skeleton.jointMap.emplace(joint.name, joint.index);
+
+    }
+
+    return skeleton;
+
+}
+
+int32_t Model::CreateJoint(const Model::Node& node, const std::optional<int32_t>& parent, std::vector<Model::Joint>& joints) {
+
+    Model::Joint joint;
+    joint.name = node.name;
+    joint.localMatrix = node.localMatrix;
+    joint.skeletonSpaceMatrix = Matrix4x4::MakeIdentity4x4();
+    joint.transform = node.transform;
+    joint.index = int32_t(joints.size());
+    joint.parent = parent;
+    const int32_t myIndex = (int32_t)joints.size();
+    joints.push_back(joint);
+    for (const Model::Node& child : node.children) {
+
+        //子jointを作成し、そのインデックスを取得
+        int32_t childIndex = CreateJoint(child, myIndex, joints);
+        joints[myIndex].children.push_back(childIndex);
+
+
+    }
+
+    return joint.index;
+
+}
+
+void Model::UpdateSkeleton(Skeleton& skeleton) {
+    for (auto& joint : skeleton.joints) {
+
+        // 1) Transform -> localMatrix
+        joint.localMatrix = MakeAffineMatrix(
+            joint.transform.scale,
+            joint.transform.rotate,
+            joint.transform.translate
+        );
+
+        // 2) local -> skeletonSpace（親から累積）
+        if (joint.parent.has_value()) {
+            const auto& parent = skeleton.joints[*joint.parent];
+
+            // 行ベクトル想定：子 * 親
+            joint.skeletonSpaceMatrix =
+                Matrix4x4::Multiply(joint.localMatrix, parent.skeletonSpaceMatrix);
+        }
+        else {
+            // root
+            joint.skeletonSpaceMatrix = joint.localMatrix;
+        }
+    }
 }

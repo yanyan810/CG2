@@ -26,8 +26,27 @@ public:
 
 	struct MaterialData { std::string textureFilePath; };
 
+	struct Joint {
+		QuaternionTransform transform;   // bind pose
+		Matrix4x4 localMatrix;
+		Matrix4x4 skeletonSpaceMatrix;
+		std::string name;
+
+		std::vector<int32_t> children;
+		int32_t index;//自身のインデックス
+		std::optional<int32_t> parent;
+	};
+
+	struct Skeleton {
+		int32_t root;
+		std::unordered_map<std::string, int32_t> jointMap;
+		std::vector<Joint> joints;
+	};
+
 	//ノード
 	struct Node {
+
+		QuaternionTransform transform;
 		Matrix4x4 localMatrix = Matrix4x4::MakeIdentity4x4();
 		std::string name;
 		std::vector<uint32_t> meshIndices; // aiNode::mMeshes を保持（scene->mMeshes の index）
@@ -48,6 +67,10 @@ public:
 		std::vector<MeshData> meshes;
 
 		Node rootNode;
+
+		bool hasSkinning=false;
+
+		std::vector<uint32_t> indices;
 
 		// ★追加：アニメーション（Assimpから読めたもの）
 		std::unordered_map<std::string, Animation> animations;
@@ -110,6 +133,18 @@ public:
 		return modelData_.animations;
 	}
 
+	bool HasSkinning() const { return modelData_.hasSkinning; }
+	
+	const Skeleton& GetSkeleton() const { return skeleton_; }
+
+	static void UpdateSkeleton(Skeleton& skeleton);
+
+	private:
+		static Skeleton CreateSkeleton(const Node& rootNode);
+
+		static int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints);
+
+		
 
 private:
 
@@ -126,6 +161,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	//マテリアルにデータを書き込む
 	Material* materialData_ = nullptr;
+
+	Skeleton skeleton_;
 
 };
 

@@ -79,8 +79,11 @@ void TitleScene::OnEnter(GameApp& app) {
     terrainObj_ = std::make_unique<Object3d>();
     terrainObj_->Initialize(app.ObjCom(), app.Dx());
 
-    terrainObj_->SetModel("AnimatedCube/AnimatedCube.gltf"); 
-    terrainObj_->PlayAnimation("", true);
+    terrainObj_->SetModel("human/walk.gltf"); 
+    terrainObj_->PlayAnimation("", false);
+
+    terrainObj_->SetDebugDrawBones(true); // ★追加：ボーン点表示ON
+terrainObj_->SetBoneMarkerModel("cube/cube.obj"); // ★追加：関節表示に使うモデル（小さいキューブ）
 
     terrainObj_->SetTranslate(testPos_);
     terrainObj_->SetScale(testScale_);
