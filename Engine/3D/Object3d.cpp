@@ -33,12 +33,28 @@ static void ApplyAnimation(Model::Skeleton& skeleton, const Animation& animation
 	}
 }
 
+static uint32_t CalcTotalVertexCount(const Model::ModelData& modelData) {
+	uint64_t total = 0;
+	for (const auto& m : modelData.meshes) {
+		total += m.vertices.size();
+	}
+	return static_cast<uint32_t>(total);
+}
 
 void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
+	Initialize(object3dCommon, dx, nullptr,nullptr);
+}
+
+
+void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, SrvManager* srv, SkinningCommon* skinCom) {
 	// 初期化処理
 	this->object3dCommon = object3dCommon;
 
 	dx_ = dx;
+
+	srvManager_ = srv;
+
+	skinningCommon_ = skinCom;
 
 	transformationMatrixResourceModel= dx->CreateBufferResource(sizeof(TransformationMatrix));
 	//書き込むためのアドレスを取得
@@ -135,6 +151,13 @@ void Object3d::Update(float dt){
 
 				// skeletonSpace 更新（あなたの Multiply は m1*m2 なのでこの式でOK）
 				Model::UpdateSkeleton(poseSkeleton_); // ← Modelに静的関数でもOK
+
+				// ★ここで SkinCluster（palette）更新
+				if (poseReady_) {
+					UpdateSkinCluster_();
+				}
+
+
 			}
 			else {
 				// ★Rigid：今まで通り world に前掛け（必要なら root ノードだけに絞る）
@@ -199,7 +222,9 @@ void Object3d::Update(float dt){
 
 
 
-void Object3d::Draw() {
+void Object3d::Draw()
+{
+	if (!model_) { return; }
 
 	if (cameraData_ && camera_) {
 		cameraData_->worldPosition = camera_->GetTranslate();
@@ -207,78 +232,101 @@ void Object3d::Draw() {
 
 	auto* cmd = dx_->GetCommandList();
 
-	// ★ SRVヒープを必ずセット（これがないとテクスチャが読めない）
+	// SRV heap
 	ID3D12DescriptorHeap* heaps[] = {
 		TextureManager::GetInstance()->GetSrvDescriptorHeap()
 	};
 	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	// Transform（WVP/World）
-	cmd->SetGraphicsRootConstantBufferView(
-		1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+	if (model_->HasSkinning()) {
 
-	// DirectionalLight
-	cmd->SetGraphicsRootConstantBufferView(
-		3, directionalLightResource->GetGPUVirtualAddress());
+		// ★スキン用 PSO/RootSig
+		skinningCommon_->SetGraphicsPipelineState();
 
-	cmd->SetGraphicsRootConstantBufferView(
-		4, cameraResource_->GetGPUVirtualAddress());
+		// Transform (Root 1)
+		cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
 
-	cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
+		// Lights (Root 4..7)
+		cmd->SetGraphicsRootConstantBufferView(4, directionalLightResource->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(5, cameraResource_->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(6, pointLightResource_->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(7, spotLightResource_->GetGPUVirtualAddress());
 
-	cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
+		// Palette SRV (Root 2, VS t0)
+		cmd->SetGraphicsRootDescriptorTable(2, skinCluster_.paletteSrvHandle.second);
 
-	// Model
-	if (model_) {
+		// Draw skinned (textureは Root 3 に入れる)
+		model_->DrawSkinned(cmd, skinCluster_);
+	}
+	else {
+		// ★通常モデル用 PSO/RootSig（あなたの Object3dCommon 側で設定してる想定）
+		object3dCommon->SetGraphicsPipelineState();
+
+		cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
+
 		model_->Draw(cmd);
 	}
 
+	// debug bones
 	if (debugDrawBones_ && !boneMarkers_.empty()) {
-		for (auto& m : boneMarkers_) {
-			m->Draw();
-		}
+		for (auto& m : boneMarkers_) { m->Draw(); }
 	}
 }
 
 
 
 void Object3d::SetModel(const std::string& filePath) {
-	//モデルを検索してセットする
 	auto* mgr = ModelManager::GetInstance();
 
-	// まず探す
 	Model* m = mgr->FindModel(filePath);
-
-	// なければロードして再取得
 	if (!m) {
 		mgr->LoadModel(filePath);
 		m = mgr->FindModel(filePath);
 	}
-	
 	model_ = m;
 
 	boneMarkers_.clear();
 
-	if (model_ && model_->HasSkinning()) {
+	if (!model_) { return; }
+
+	if (model_->HasSkinning()) {
+
+		// ★先に保証（boneMarkers作成より前）
+		assert(srvManager_ && "Object3d: srvManager_ is null. Pass it in Initialize()");
+
+		// ==== SkinCluster 作成 ====
+		ID3D12Device* device = dx_->GetDevice();
+		ID3D12DescriptorHeap* srvHeap = TextureManager::GetInstance()->GetSrvDescriptorHeap();
+		uint32_t descriptorSize =
+			device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		skinCluster_ = CreateSkinCluster(
+			device,
+			model_->GetSkeleton(),
+			model_->GetSkinClusterData(),
+			model_->GetVertexCount(),
+			srvHeap,
+			descriptorSize
+		);
+
+		// ==== boneMarkers 作成（デバッグ用） ====
 		const auto& skel = model_->GetSkeleton();
-
 		boneMarkers_.reserve(skel.joints.size());
+
 		for (size_t i = 0; i < skel.joints.size(); ++i) {
-
 			auto marker = std::make_unique<Object3d>();
-			marker->Initialize(object3dCommon, dx_);
+			marker->Initialize(object3dCommon, dx_, srvManager_,skinningCommon_);
 			marker->SetModel(boneMarkerModel_);
-
-			marker->SetScale({ 0.03f, 0.03f, 0.03f }); // 小さく
+			marker->SetScale({ 0.03f, 0.03f, 0.03f });
 			marker->SetRotate({ 0,0,0 });
-
-			// ライトいらないなら切る（見やすい）
 			marker->SetEnableLighting(0);
-
 			boneMarkers_.push_back(std::move(marker));
 		}
 	}
-
 }
 
 void Object3d::SetDirection(const Vector3& direction)
@@ -301,3 +349,145 @@ bool Object3d::HasAnimation() const {
 	return model_ && !model_->GetAnimations().empty();
 }
 
+SkinCluster Object3d::CreateSkinCluster(
+	ID3D12Device* device,
+	const Model::Skeleton& skeleton,
+	const std::map<std::string, Model::JointWeightData>& skinData,
+	uint32_t vertexCount,
+	ID3D12DescriptorHeap* srvHeap,
+	uint32_t descriptorSize)
+{
+	SkinCluster sc{};
+
+	// ========= palette (StructuredBuffer<WellForGPU>) =========
+	sc.paletteResource = dx_->CreateBufferResource(sizeof(WellForGPU) * skeleton.joints.size());
+
+	WellForGPU* mappedPalette = nullptr;
+	sc.paletteResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedPalette));
+	sc.mappedPalette = { mappedPalette, skeleton.joints.size() };
+
+	// SRV index (TextureManagerのヒープと同じヒープに切る前提)
+	assert(srvManager_ && "Object3d::CreateSkinCluster: srvManager_ is null");
+	uint32_t srvIndex = srvManager_->Allocate();
+
+	sc.paletteSrvHandle.first = dx_->GetCPUDescriptorHandle(srvHeap, descriptorSize, srvIndex);
+	sc.paletteSrvHandle.second = dx_->GetGPUDescriptorHandle(srvHeap, descriptorSize, srvIndex);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC paletteSrvDesc{};
+	paletteSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	paletteSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	paletteSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	paletteSrvDesc.Buffer.FirstElement = 0;
+	paletteSrvDesc.Buffer.NumElements = static_cast<UINT>(skeleton.joints.size());
+	paletteSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	paletteSrvDesc.Buffer.StructureByteStride = sizeof(WellForGPU);
+
+	device->CreateShaderResourceView(sc.paletteResource.Get(), &paletteSrvDesc, sc.paletteSrvHandle.first);
+
+	// ========= influence (VertexCount 分の VB) =========
+	sc.influenceResource = dx_->CreateBufferResource(sizeof(VertexInfluence) * vertexCount);
+
+	VertexInfluence* mappedInfluence = nullptr;
+	sc.influenceResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedInfluence));
+	std::memset(mappedInfluence, 0, sizeof(VertexInfluence) * vertexCount);
+	sc.mappedInfluence = { mappedInfluence, vertexCount };
+
+	sc.influenceBufferView.BufferLocation = sc.influenceResource->GetGPUVirtualAddress();
+	sc.influenceBufferView.SizeInBytes = static_cast<UINT>(sizeof(VertexInfluence) * vertexCount);
+	sc.influenceBufferView.StrideInBytes = sizeof(VertexInfluence);
+
+	// ========= inverse bind pose =========
+	sc.inverseBindPoseMatrices.resize(skeleton.joints.size());
+	std::generate(sc.inverseBindPoseMatrices.begin(), sc.inverseBindPoseMatrices.end(), Matrix4x4::MakeIdentity4x4);
+
+	// ========= fill influences =========
+	for (const auto& jw : skinData) {
+
+		auto it = skeleton.jointMap.find(jw.first);
+		if (it == skeleton.jointMap.end()) { continue; }
+
+		const int32_t jointIndex = it->second;
+
+		// inverse bind
+		sc.inverseBindPoseMatrices[jointIndex] = jw.second.inverseBindPoseMatrix;
+
+		// weights
+		for (const auto& vw : jw.second.vertexWeights) {
+
+			// 範囲外防止（安全）
+			if (vw.vertexIndex >= vertexCount) { continue; }
+
+			auto& inf = sc.mappedInfluence[vw.vertexIndex];
+
+			for (uint32_t k = 0; k < kNumMaxInfluence; ++k) {
+				if (inf.weights[k] == 0.0f) {
+					inf.weights[k] = vw.weight;
+					inf.jointIndices[k] = jointIndex;
+					break;
+				}
+			}
+		}
+	}
+
+
+	OutputDebugStringA(("[Skin] vertexCount=" + std::to_string(vertexCount) + "\n").c_str());
+	for (const auto& jw : skinData) {
+		for (const auto& vw : jw.second.vertexWeights) {
+			if (vw.vertexIndex >= vertexCount) {
+				OutputDebugStringA("[Skin] ERROR: weight vertexIndex out of range!\n");
+				break;
+			}
+		}
+	}
+
+	// --- debug: max vertex index in skinData ---
+	uint32_t maxV = 0;
+	uint64_t totalWeights = 0;
+
+	for (const auto& jw : skinData) {
+		for (const auto& vw : jw.second.vertexWeights) {
+			maxV = (std::max)(maxV, vw.vertexIndex);
+			totalWeights++;
+		}
+	}
+
+	char buf[256];
+	std::snprintf(buf, sizeof(buf),
+		"[SkinDBG] vertexCount=%u maxVertexIndex=%u totalWeights=%llu\n",
+		vertexCount, maxV, (unsigned long long)totalWeights);
+	OutputDebugStringA(buf);
+
+
+	return sc;
+}
+
+
+void Object3d::UpdateSkinCluster_()
+{
+	// 前提：poseSkeleton_ は UpdateSkeleton 済み
+	// 前提：skinCluster_ は CreateSkinCluster 済み（mappedPalette / inverseBindPoseMatrices が揃っている）
+
+	if (!model_ || !model_->HasSkinning()) { return; }
+
+	const auto jointCount = poseSkeleton_.joints.size();
+	if (skinCluster_.mappedPalette.size() != jointCount) { return; }
+	if (skinCluster_.inverseBindPoseMatrices.size() != jointCount) { return; }
+
+	for (size_t jointIndex = 0; jointIndex < jointCount; ++jointIndex) {
+
+		// T_i = B_i^{-1} * S_i
+		// ※あなたの Multiply が「m1*m2」なのでこの順でOK（スライドと一致）
+		skinCluster_.mappedPalette[jointIndex].skeletonSpaceMatrix =
+			Matrix4x4::Multiply(
+				skinCluster_.inverseBindPoseMatrices[jointIndex],
+				poseSkeleton_.joints[jointIndex].skeletonSpaceMatrix
+			);
+
+		// 法線用：InverseTranspose
+		Matrix4x4 inv =
+			Matrix4x4::Inverse(skinCluster_.mappedPalette[jointIndex].skeletonSpaceMatrix);
+
+		skinCluster_.mappedPalette[jointIndex].skeletonSpaceInverseTransposeMatrix =
+			Matrix4x4::Transpose(inv);
+	}
+}

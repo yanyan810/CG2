@@ -177,6 +177,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\3D\ModelManager.cpp" />
     <ClCompile Include="Engine\3D\Object3d.cpp" />
     <ClCompile Include="Engine\3D\Object3dCommon.cpp" />
+    <ClCompile Include="Engine\3D\SkinningCommon.cpp" />
     <ClCompile Include="Game\GameClearScene.cpp" />
     <ClCompile Include="Game\GameOverScene.cpp" />
     <ClCompile Include="Game\enemy\BossAI.cpp" />
@@ -256,6 +257,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="resources\shaders\SkinnedObject.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="resources\shaders\Sprite2d.VS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
@@ -286,6 +290,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\3D\ModelManager.h" />
     <ClInclude Include="Engine\3D\Object3d.h" />
     <ClInclude Include="Engine\3D\Object3dCommon.h" />
+    <ClInclude Include="Engine\3D\SkinningCommon.h" />
+    <ClInclude Include="Engine\3D\SkinningTypes.h" />
     <ClInclude Include="Engine\Animation.h" />
     <ClInclude Include="Engine\AnimationEvaluate.h" />
     <ClInclude Include="Engine\math\MathStruct.h" />

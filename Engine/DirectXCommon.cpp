@@ -81,7 +81,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetCPUDescriptorHandle(const Microsof
 	return handleCPU;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriporSize, uint32_t index) {
+D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr < ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriporSize, uint32_t index) {
 	//CPU側のディスクリプタハンドルを取得
 	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handleGPU.ptr += (descriporSize * index);
@@ -89,9 +89,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(ID3D12Descript
 }
 
 // ---- CPUハンドル取得 ----
-D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVCPUDescriptorHandle(uint32_t index) {
-	return GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, index);
-}
+
 
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetRTVCPUDescriptorHandle(uint32_t index) {
 	return GetCPUDescriptorHandle(rtvDescriptorHeap, descriptorSizeRTV, index);
@@ -102,9 +100,6 @@ D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetDSVCPUDescriptorHandle(uint32_t in
 }
 
 // ---- GPUハンドル取得 ----
-D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetSRVGPUDescriptorHandle(uint32_t index) {
-	return GetGPUDescriptorHandle(srvDescriptorHeap.Get(), descriptorSizeSRV, index);
-}
 
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetRTVGPUDescriptorHandle(uint32_t index) {
 	return GetGPUDescriptorHandle(rtvDescriptorHeap.Get(), descriptorSizeRTV, index);
@@ -295,11 +290,13 @@ void DirectXCommon::UploadTextureData(
 	hr = commandList->Reset(commandAllocator.Get(), nullptr);  assert(SUCCEEDED(hr));
 }
 
-void DirectXCommon::SetDescriptorHeaps() {
-	// SRVヒープをGPUコマンドリストにバインド
-	ID3D12DescriptorHeap* heaps[] = { srvDescriptorHeap.Get() };
+// DirectXCommon 側に SrvManager* を持たせる or 引数で渡す
+void DirectXCommon::SetDescriptorHeaps(ID3D12DescriptorHeap* srvHeap)
+{
+	ID3D12DescriptorHeap* heaps[] = { srvHeap };
 	commandList->SetDescriptorHeaps(1, heaps);
 }
+
 
 void DirectXCommon::Initialize(WinApp* winApp) {
 
@@ -513,15 +510,14 @@ void DirectXCommon::DepthBufferSpawn() {
 void DirectXCommon::DethCriptorHeapSpawn() {
 
 	// Descriptor サイズ取得
-	descriptorSizeSRV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	descriptorSizeRTV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descriptorSizeDSV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 	// RTVヒープ作成（2個）
 	rtvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 
-	// SRVヒープ作成（128個）
-	srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxSRVCount, true);
+	
 }
 
 void DirectXCommon::RenderTargetViewInitialize() {
@@ -629,24 +625,24 @@ void DirectXCommon::DXCCompilerSpawn() {
 	// ★既存のミス綴り実装へ転送
 	DXCCompilierSpawn();
 }
-
-void DirectXCommon::ImGuiInitialize() {
-
-
-	//ImGuiの初期化。
-	//こういうもの
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
-	ImGui_ImplWin32_Init(winApp_->GetHwnd());
-	ImGui_ImplDX12_Init(device_.Get(),
-		swapChainDesc.BufferCount,
-		rtvDesc.Format,
-		srvDescriptorHeap.Get(),
-		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-}
+//
+//void DirectXCommon::ImGuiInitialize() {
+//
+//
+//	//ImGuiの初期化。
+//	//こういうもの
+//	IMGUI_CHECKVERSION();
+//	ImGui::CreateContext();
+//	ImGui::StyleColorsDark();
+//	ImGui_ImplWin32_Init(winApp_->GetHwnd());
+//	ImGui_ImplDX12_Init(device_.Get(),
+//		swapChainDesc.BufferCount,
+//		rtvDesc.Format,
+//		srvDescriptorHeap.Get(),
+//		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+//		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+//
+//}
 
 void DirectXCommon::InitializeFixFPS() {
 

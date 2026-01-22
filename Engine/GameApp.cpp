@@ -92,6 +92,11 @@ bool GameApp::Initialize_() {
     imgui_->Initialize(win_.get(), dx_.get(), srv_.get());
 #endif
 
+    // GameApp::Initialize など
+    skinCom_ = std::make_unique<SkinningCommon>();
+    skinCom_->Initialize(dx_.get());
+
+
     // ★ Input は Scene を動かす前に作る（最重要）
     input_ = std::make_unique<Input>();
     input_->Initialize(win_.get());

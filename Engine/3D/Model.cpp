@@ -158,6 +158,17 @@ static Quaternion ConvertAssimpQuat(const aiQuaternion& q) {
     return out;
 }
 
+static Quaternion ConvertAssimpQuat_LH(const aiQuaternion& q) {
+    // ノード側で { x,-y,-z,w } にしてるのと同じ
+    Quaternion out{};
+    out.x = q.x;
+    out.y = -q.y;
+    out.z = -q.z;
+    out.w = q.w;
+    return out;
+}
+
+
 //========================
 //キーフレーム読み取り
 //========================
@@ -179,6 +190,29 @@ static void ReadVectorKeys(AnimationCurveVector3& outCurve, const aiVectorKey* k
         [](auto& a, auto& b) { return a.time < b.time; });
 }
 
+static void ReadTranslateKeys_LH(AnimationCurveVector3& outCurve,
+    const aiVectorKey* keys, unsigned int count, double tps)
+{
+    outCurve.keyframes.clear();
+    outCurve.keyframes.reserve(count);
+
+    const double inv = (tps > 0.0) ? (1.0 / tps) : (1.0 / 25.0);
+
+    for (unsigned int i = 0; i < count; ++i) {
+        KeyframeVector3 k{};
+        k.time = float(keys[i].mTime * inv);
+
+        // ノード側で translate を {-x, y, z} にしてるのと同じ
+        k.value = Vector3{ -keys[i].mValue.x, keys[i].mValue.y, keys[i].mValue.z };
+
+        outCurve.keyframes.push_back(k);
+    }
+
+    std::sort(outCurve.keyframes.begin(), outCurve.keyframes.end(),
+        [](auto& a, auto& b) { return a.time < b.time; });
+}
+
+
 static void ReadQuatKeys(AnimationCurveQuaternion& outCurve, const aiQuatKey* keys, unsigned int count, double tps) {
     outCurve.keyframes.clear();
     outCurve.keyframes.reserve(count);
@@ -188,7 +222,7 @@ static void ReadQuatKeys(AnimationCurveQuaternion& outCurve, const aiQuatKey* ke
     for (unsigned int i = 0; i < count; ++i) {
         KeyframeQuaternion k{};
         k.time = static_cast<float>(keys[i].mTime * inv);
-        k.value = ConvertAssimpQuat(keys[i].mValue);
+        k.value = ConvertAssimpQuat_LH(keys[i].mValue);
         outCurve.keyframes.push_back(k);
     }
 
@@ -225,16 +259,16 @@ static void ReadAnimationsFromAssimp(Model::ModelData& out, const aiScene* scene
             if (nodeName.empty()) continue;
 
             NodeAnimation na{};
-
             if (ch->mNumPositionKeys > 0) {
-                ReadVectorKeys(na.translate, ch->mPositionKeys, ch->mNumPositionKeys, tps);
+                ReadTranslateKeys_LH(na.translate, ch->mPositionKeys, ch->mNumPositionKeys, tps);
             }
             if (ch->mNumRotationKeys > 0) {
-                ReadQuatKeys(na.rotate, ch->mRotationKeys, ch->mNumRotationKeys, tps);
+                ReadQuatKeys(na.rotate, ch->mRotationKeys, ch->mNumRotationKeys, tps); // 中でLH化済み
             }
             if (ch->mNumScalingKeys > 0) {
-                ReadVectorKeys(na.scale, ch->mScalingKeys, ch->mNumScalingKeys, tps);
+                ReadVectorKeys(na.scale, ch->mScalingKeys, ch->mNumScalingKeys, tps); // scaleはそのまま
             }
+
 
             clip.nodeAnimations.emplace(std::move(nodeName), std::move(na));
         }
@@ -363,7 +397,7 @@ void Model::Initialize(ModelCommon* modelCommon,
     vertexResource_ = dx->CreateBufferResource(sizeof(VertexData) * totalVtx);
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData_));
 
-    uint32_t cursor = 0;
+   /* uint32_t cursor = 0;
     for (auto& mesh : modelData_.meshes) {
         mesh.startVertex = cursor;
         mesh.vertexCount = static_cast<uint32_t>(mesh.vertices.size());
@@ -374,7 +408,23 @@ void Model::Initialize(ModelCommon* modelCommon,
                 sizeof(VertexData) * mesh.vertices.size());
         }
         cursor += mesh.vertexCount;
+    }*/
+
+    uint32_t cursor = 0;
+    for (auto& mesh : modelData_.meshes) {
+
+        // ★Assimpロード時に startVertex を確定してるなら一致チェックだけにする
+        assert(mesh.startVertex == cursor);
+
+        mesh.vertexCount = static_cast<uint32_t>(mesh.vertices.size());
+
+        std::memcpy(vertexData_ + cursor,
+            mesh.vertices.data(),
+            sizeof(VertexData) * mesh.vertices.size());
+
+        cursor += mesh.vertexCount;
     }
+
 
     vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
     vertexBufferView_.SizeInBytes = static_cast<UINT>(sizeof(VertexData) * totalVtx);
@@ -579,6 +629,55 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount) {
         }
     }
 }
+
+
+// Model.cpp
+void Model::DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc)
+{
+    if (!vertexResource_ || !indexResource_ || !materialResource_ || !materialData_) {
+        OutputDebugStringA("[Model] DrawSkinned skipped: resources not initialized\n");
+        return;
+    }
+
+    // ★VBV2本：slot0=VertexData, slot1=VertexInfluence
+    D3D12_VERTEX_BUFFER_VIEW vbvs[2] = {
+        vertexBufferView_,
+        sc.influenceBufferView
+    };
+    cmd->IASetVertexBuffers(0, 2, vbvs);
+    cmd->IASetIndexBuffer(&indexBufferView_);
+
+    // Material (b0)
+    cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+
+    for (const auto& mesh : modelData_.meshes) {
+
+        // ---- texture path ----
+        std::string texPath;
+        if (mesh.materialIndex < modelData_.materials.size()) {
+            texPath = modelData_.materials[mesh.materialIndex].textureFilePath;
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+        if (!texPath.empty()) {
+            if (!TextureManager::GetInstance()->HasTexture(texPath)) {
+                TextureManager::GetInstance()->LoadTexture(texPath);
+            }
+            handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
+        }
+        else {
+            // 白テクスチャ（あなたの仕様）
+            handle = TextureManager::GetInstance()->GetSrvHandleGPU("");
+        }
+
+        // ★SkinningCommon: RootParam(3) が PS Texture SRV(t1)
+        cmd->SetGraphicsRootDescriptorTable(3, handle);
+
+        // ★IB は vOffset 足し込み済みなので BaseVertexLocation=0
+        cmd->DrawIndexedInstanced(mesh.indexCount, 1, mesh.startIndex, 0, 0);
+    }
+}
+
 
 
 
@@ -812,6 +911,8 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
     aiVector3D zero3(0, 0, 0);
 
+    uint32_t globalVertexBase = 0; // ★追加：VB連結を想定した頂点オフセット
+
     for (unsigned int mi = 0; mi < scene->mNumMeshes; ++mi) {
         const aiMesh* mesh = scene->mMeshes[mi];
 
@@ -821,7 +922,6 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
         MeshData md{};
         md.materialIndex = mesh->mMaterialIndex;
-
         // ===== vertices: mNumVertices をそのまま =====
         md.vertices.resize(mesh->mNumVertices);
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
@@ -830,12 +930,19 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
             const aiVector3D* uv = mesh->HasTextureCoords(0) ? &mesh->mTextureCoords[0][i] : &zero3;
 
             VertexData v{};
-            v.position = { pos->x, pos->y, pos->z, 1.0f };
-            v.normal = { nrm->x, nrm->y, nrm->z };
-            v.texcoord = { uv->x, 1.0f - uv->y }; // 自前反転
+
+            // ★RH->LH：X反転（ノード側と合わせる）
+            v.position = { -pos->x, pos->y, pos->z, 1.0f };
+
+            // ★法線もX反転（重要）
+            v.normal = { -nrm->x, nrm->y, nrm->z };
+
+            // UVは今のままでOK（V反転方針は維持）
+            v.texcoord = { uv->x, 1.0f - uv->y };
 
             md.vertices[i] = v;
         }
+
 
         // ===== indices: faces から結合して out.indices に入れる =====
         md.startIndex = static_cast<uint32_t>(out.indices.size());
@@ -859,7 +966,41 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
             md.indexCount += 3;
         }
 
+        for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
+
+            aiBone* bone = mesh->mBones[boneIndex];
+            std::string jointName = bone->mName.C_Str();
+            JointWeightData& jointWeightData = out.skinClusterData[jointName];
+
+            aiMatrix4x4 bindPoseMatrixAssimp = bone->mOffsetMatrix.Inverse();
+            aiVector3D scale, translate;
+            aiQuaternion rotate;
+            bindPoseMatrixAssimp.Decompose(scale, rotate, translate);
+            Matrix4x4 bindPoseMatrix = MakeAffineMatrix(
+                {scale.x,scale.y,scale.z},
+                {rotate.x,-rotate.y,-rotate.z,rotate.w},
+                {-translate.x,translate.y,translate.z}
+            );
+            jointWeightData.inverseBindPoseMatrix = Matrix4x4::Inverse(bindPoseMatrix);
+
+            for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex) {
+
+                const float w = bone->mWeights[weightIndex].mWeight;
+                const uint32_t localV = bone->mWeights[weightIndex].mVertexId;
+
+
+                const uint32_t globalV = globalVertexBase + localV;
+                jointWeightData.vertexWeights.push_back({ w, globalV }); // ★globalV を入れる
+
+            }
+
+
+        }
+
+
         out.meshes.push_back(std::move(md));
+        globalVertexBase += static_cast<uint32_t>(mesh->mNumVertices);
+
     }
 
 

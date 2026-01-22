@@ -14,7 +14,7 @@ void Object3dCommon::CreateRootSignature() {
     D3D12_DESCRIPTOR_RANGE range{};
     range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     range.NumDescriptors = 1;
-    range.BaseShaderRegister = 0;
+    range.BaseShaderRegister = 1;
     range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
     // ==== RootParameters ====
@@ -195,6 +195,12 @@ void Object3dCommon::CreateGraphicsPipelineState() {
     psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
     HRESULT hr = dx_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso_));
+    if (FAILED(hr)) {
+        OutputDebugStringA("[PSO] CreateGraphicsPipelineState FAILED\n");
+        dx_->ReportLiveObjects(); // 任意
+        assert(false);
+    }
+
     assert(SUCCEEDED(hr));
 }
 
