@@ -381,6 +381,48 @@ void Model::Initialize(ModelCommon* modelCommon,
     vertexBufferView_.StrideInBytes = sizeof(VertexData);
 
     // ======================
+// IB 作成（全meshのindexを1本に連結）★追加
+// ======================
+    const size_t totalIdx = modelData_.indices.size();
+    if (totalIdx == 0) {
+        OutputDebugStringA("[Model] WARN: totalIdx == 0 (non-indexed). Skip creating IB.\n");
+    }
+    else {
+
+        indexResource_ = dx->CreateBufferResource(sizeof(uint32_t) * totalIdx);
+        indexResource_->Map(0, nullptr, reinterpret_cast<void**>(&indexData_));
+
+        // GPU上のIBは「VB連結後の頂点番号」に直したものを詰める
+        uint32_t ibCursor = 0;
+
+        for (auto& mesh : modelData_.meshes) {
+
+            // mesh.startVertex は VB 連結で設定済み（vertexOffset）
+            const uint32_t vOffset = mesh.startVertex;
+
+            const uint32_t srcStart = mesh.startIndex;  // LoadAssimpFileで入れた ModelData::indices の範囲
+            const uint32_t count = mesh.indexCount;
+
+            // このmeshが使う GPU IB 範囲に付け替える
+            mesh.startIndex = ibCursor;
+
+            for (uint32_t k = 0; k < count; ++k) {
+                const uint32_t localIndex = modelData_.indices[srcStart + k];
+                indexData_[ibCursor + k] = localIndex + vOffset; // ★ここが超重要
+            }
+
+            ibCursor += count;
+        }
+
+        indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+        indexBufferView_.SizeInBytes = static_cast<UINT>(sizeof(uint32_t) * totalIdx);
+        indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+        OutputDebugStringA(("[Model] total index count = " + std::to_string(totalIdx) + "\n").c_str());
+    }
+
+
+    // ======================
     // Material CB
     // ======================
     materialResource_ = dx->CreateBufferResource(sizeof(Material));
@@ -415,18 +457,20 @@ void Model::Initialize(ModelCommon* modelCommon,
 }
 
 
-void Model::Draw(ID3D12GraphicsCommandList* cmd)
-{
-
+void Model::Draw(ID3D12GraphicsCommandList* cmd) {
     if (!vertexResource_ || !materialResource_ || !materialData_) {
         OutputDebugStringA("[Model] Draw skipped: resources not initialized\n");
         return;
     }
+    if (!indexResource_) {
+        OutputDebugStringA("[Model] Draw skipped: indexResource_ is null (not indexed)\n");
+        return;
+    }
 
     cmd->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    cmd->IASetIndexBuffer(&indexBufferView_);
 
-    cmd->SetGraphicsRootConstantBufferView(
-        0, materialResource_->GetGPUVirtualAddress());
+    cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     for (const auto& mesh : modelData_.meshes) {
 
@@ -435,8 +479,6 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd)
             texPath = modelData_.materials[mesh.materialIndex].textureFilePath;
         }
 
-        // ★ 空は TextureManager が白にしてくれるのでそのまま渡してOK
-        // ★ ただし「未ロードの非空パス」は at() で落ちる可能性があるので保険
         D3D12_GPU_DESCRIPTOR_HANDLE handle{};
         bool useWhite = false;
 
@@ -445,25 +487,32 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd)
                 TextureManager::GetInstance()->LoadTexture(texPath);
             }
             handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
-        } else {
+        }
+        else {
             useWhite = true;
         }
-
 
         if (useWhite) {
             handle = TextureManager::GetInstance()->GetSrvHandleGPU(""); // 空→白
         }
 
         cmd->SetGraphicsRootDescriptorTable(2, handle);
-        cmd->DrawInstanced(mesh.vertexCount, 1, mesh.startVertex, 0);
+
+        // ★Indexed
+        cmd->DrawIndexedInstanced(
+            mesh.indexCount,
+            1,
+            mesh.startIndex,
+            0, // BaseVertexLocation は IB を vOffset 加算済みなので 0 でOK
+            0
+        );
     }
 }
 
 
 
-void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount)
-{
 
+void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount) {
     if (!vertexResource_ || !materialResource_ || !materialData_) {
         OutputDebugStringA("[Model] Draw skipped: resources not initialized\n");
         return;
@@ -471,11 +520,18 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount)
 
     cmd->IASetVertexBuffers(0, 1, &vertexBufferView_);
 
+    // ★IBがある場合だけセット（無い場合は非Indexed）
+    const bool useIndexed = (indexResource_ != nullptr);
+    if (useIndexed) {
+        cmd->IASetIndexBuffer(&indexBufferView_);
+    }
+
     cmd->SetGraphicsRootConstantBufferView(
         0, materialResource_->GetGPUVirtualAddress());
 
     for (const auto& mesh : modelData_.meshes) {
 
+        // ---- texture ----
         std::string texPath;
         if (mesh.materialIndex < modelData_.materials.size()) {
             texPath = modelData_.materials[mesh.materialIndex].textureFilePath;
@@ -489,17 +545,38 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount)
                 TextureManager::GetInstance()->LoadTexture(texPath);
             }
             handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
-        } else {
+        }
+        else {
             useWhite = true;
         }
-
 
         if (useWhite) {
             handle = TextureManager::GetInstance()->GetSrvHandleGPU("");
         }
 
         cmd->SetGraphicsRootDescriptorTable(2, handle);
-        cmd->DrawInstanced(mesh.vertexCount, instanceCount, mesh.startVertex, 0);
+
+        // ---- draw ----
+        if (useIndexed && mesh.indexCount > 0) {
+            // ★Indexed描画
+            // IB詰めで index に vOffset 足してるなら BaseVertexLocation は 0 でOK
+            cmd->DrawIndexedInstanced(
+                mesh.indexCount,   // IndexCountPerInstance
+                instanceCount,     // InstanceCount
+                mesh.startIndex,   // StartIndexLocation
+                0,                 // BaseVertexLocation
+                0                  // StartInstanceLocation
+            );
+        }
+        else {
+            // ★非Indexed描画（従来）
+            cmd->DrawInstanced(
+                mesh.vertexCount,
+                instanceCount,
+                mesh.startVertex,
+                0
+            );
+        }
     }
 }
 
@@ -731,47 +808,22 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     // --- meshes ---
     out.meshes.clear();
     out.meshes.reserve(scene->mNumMeshes);
+    out.indices.clear();
 
     aiVector3D zero3(0, 0, 0);
 
     for (unsigned int mi = 0; mi < scene->mNumMeshes; ++mi) {
         const aiMesh* mesh = scene->mMeshes[mi];
 
-        // ★ここ（このメッシュにボーンがあるならスキニングモデル）
         if (mesh->HasBones()) {
             out.hasSkinning = true;
         }
 
-        char buf[256];
-        std::snprintf(buf, sizeof(buf),
-            "[Mesh %u] vtx=%u idxFaces=%u bones=%u hasBones=%d\n",
-            mi,
-            mesh->mNumVertices,
-            mesh->mNumFaces,
-            mesh->HasBones() ? mesh->mNumBones : 0,
-            mesh->HasBones() ? 1 : 0);
-        OutputDebugStringA(buf);
-
-
-        {
-            char buf[256];
-            std::snprintf(buf, sizeof(buf),
-                "[Mesh %u] name=%s vtx=%u faces=%u bones=%u hasBones=%d\n",
-                mi,
-                mesh->mName.C_Str(),
-                mesh->mNumVertices,
-                mesh->mNumFaces,
-                mesh->HasBones() ? mesh->mNumBones : 0,
-                mesh->HasBones() ? 1 : 0);
-            OutputDebugStringA(buf);
-        }
-
-
         MeshData md{};
         md.materialIndex = mesh->mMaterialIndex;
 
-        // base vertices
-        std::vector<VertexData> base(mesh->mNumVertices);
+        // ===== vertices: mNumVertices をそのまま =====
+        md.vertices.resize(mesh->mNumVertices);
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
             const aiVector3D* pos = &mesh->mVertices[i];
             const aiVector3D* nrm = mesh->HasNormals() ? &mesh->mNormals[i] : &zero3;
@@ -779,32 +831,37 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
             VertexData v{};
             v.position = { pos->x, pos->y, pos->z, 1.0f };
-
-            // ★FlipUVs を flags に付けてない前提で自前反転
-            v.texcoord = { uv->x, 1.0f - uv->y };
-
             v.normal = { nrm->x, nrm->y, nrm->z };
-            base[i] = v;
+            v.texcoord = { uv->x, 1.0f - uv->y }; // 自前反転
+
+            md.vertices[i] = v;
         }
 
-        // tri list expand
-        md.vertices.reserve(mesh->mNumFaces * 3);
+        // ===== indices: faces から結合して out.indices に入れる =====
+        md.startIndex = static_cast<uint32_t>(out.indices.size());
+        md.indexCount = 0;
+
+        out.indices.reserve(out.indices.size() + mesh->mNumFaces * 3);
+
         for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
             const aiFace& face = mesh->mFaces[f];
             if (face.mNumIndices != 3) continue;
 
-            VertexData v0 = base[face.mIndices[0]];
-            VertexData v1 = base[face.mIndices[1]];
-            VertexData v2 = base[face.mIndices[2]];
+            const uint32_t i0 = static_cast<uint32_t>(face.mIndices[0]);
+            const uint32_t i1 = static_cast<uint32_t>(face.mIndices[1]);
+            const uint32_t i2 = static_cast<uint32_t>(face.mIndices[2]);
 
-            // あなたの左手系寄せ（v2,v1,v0）
-            md.vertices.push_back(v2);
-            md.vertices.push_back(v1);
-            md.vertices.push_back(v0);
+            // ★あなたの左手系寄せ（v2,v1,v0）を index で再現
+            out.indices.push_back(i2);
+            out.indices.push_back(i1);
+            out.indices.push_back(i0);
+
+            md.indexCount += 3;
         }
 
         out.meshes.push_back(std::move(md));
     }
+
 
     return out;
 }
