@@ -8,6 +8,8 @@
 #include "Animation.h"
 #include <unordered_map>
 #include <algorithm>
+#include <map>      // std::map
+#include "SkinningTypes.h"
 
 class Model
 {
@@ -19,6 +21,8 @@ public:
 		Vector2 texcoord;
 		Vector3 normal;
 	};
+
+
 
 	static_assert(offsetof(Model::VertexData, position) == 0);
 	static_assert(offsetof(Model::VertexData, texcoord) == 16);
@@ -67,13 +71,29 @@ public:
 	};
 
 
+	struct VertexWeightData {
+
+		float weight;
+		uint32_t vertexIndex;
+
+	};
+
+	struct JointWeightData {
+
+		Matrix4x4 inverseBindPoseMatrix;
+		std::vector<VertexWeightData> vertexWeights;
+
+	};
+
+
 	struct ModelData {
+		std::map<std::string, JointWeightData> skinClusterData;
 		std::vector<MaterialData> materials;
 		std::vector<MeshData> meshes;
 
 		Node rootNode;
 
-		bool hasSkinning=false;
+		bool hasSkinning = false;
 
 		std::vector<uint32_t> indices;
 
@@ -103,6 +123,9 @@ public:
 	void Draw(ID3D12GraphicsCommandList* cmd);
 	//パーティクル用
 	void Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount);
+
+	void DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc);
+
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
@@ -139,17 +162,33 @@ public:
 	}
 
 	bool HasSkinning() const { return modelData_.hasSkinning; }
-	
+
 	const Skeleton& GetSkeleton() const { return skeleton_; }
 
 	static void UpdateSkeleton(Skeleton& skeleton);
 
-	private:
-		static Skeleton CreateSkeleton(const Node& rootNode);
+	// 頂点数（Influence配列サイズ用）
+	uint32_t GetVertexCount() const {
+		uint32_t total = 0;
+		for (const auto& m : modelData_.meshes) { total += m.vertexCount; }
+		// もし vertexCount をまだ埋めてないなら meshes[i].vertices.size() にする
+		if (total == 0) {
+			for (const auto& m : modelData_.meshes) { total += (uint32_t)m.vertices.size(); }
+		}
+		return total;
+	}
 
-		static int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints);
+	// skinClusterData（jointName -> weights/invBind）
+	const std::map<std::string, JointWeightData>& GetSkinClusterData() const {
+		return modelData_.skinClusterData;
+	}
 
-		
+private:
+	static Skeleton CreateSkeleton(const Node& rootNode);
+
+	static int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints);
+
+
 
 private:
 

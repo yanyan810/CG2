@@ -45,13 +45,13 @@ public:
 	/// <summary>
 /// SRVディスクリプタヒープをコマンドリストにセットする
 /// </summary>
-	void SetDescriptorHeaps();
+	void SetDescriptorHeaps(ID3D12DescriptorHeap* srvHeap);
 
 	//getter
 	ID3D12Device* GetDevice() const { return device_.Get(); }
 	ID3D12GraphicsCommandList* GetCommandList() const { return commandList.Get(); }
 
-	ID3D12DescriptorHeap* GetSRVDescriptorHeap() const { return srvDescriptorHeap.Get(); }
+
 
 	void ReportLiveObjects();
 
@@ -92,6 +92,18 @@ public:
 		const wchar_t* profile
 	);
 
+	/// <summary>
+/// 指定番号のCPUでスクリプタハンドルを取得する
+/// </summary>
+	static	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr < ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriporSize, uint32_t index);
+
+	/// <summary>
+	/// 指定番号のGPUでスクリプタハンドルを取得する
+	/// </summary>
+	static	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr < ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriporSize, uint32_t index);
+
+
+
 private:
 
 	void DeviceInitialize();
@@ -106,25 +118,12 @@ private:
 	void SizeringInitialize();
 	void DXCCompilerSpawn();   // ★正しい綴り（リンクエラー側）
 	void DXCCompilierSpawn();  // ★今あるやつ（残す）
-	void ImGuiInitialize();
+	//void ImGuiInitialize();
 
 	//FPS固定初期化
 	void InitializeFixFPS();
 	//FPS固定更新
 	void UpdateFixFPS();
-
-	
-
-	/// <summary>
-	/// 指定番号のCPUでスクリプタハンドルを取得する
-	/// </summary>
-	static	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr < ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriporSize, uint32_t index);
-
-	/// <summary>
-	/// 指定番号のGPUでスクリプタハンドルを取得する
-	/// </summary>
-	static	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriporSize, uint32_t index);
-
 
 
 private:
@@ -148,7 +147,6 @@ private:
 	std::array<Microsoft::WRL::ComPtr < ID3D12Resource>, 2 > swapChainResources;
 
 	//各種デスクリプタヒープの生成
-	uint32_t descriptorSizeSRV;
 	uint32_t descriptorSizeRTV;
 	uint32_t descriptorSizeDSV;
 
@@ -159,7 +157,6 @@ private:
 	//RTV用のヒープでディスクリプタの数は2。RTVはshader内で触るものではないので、ShaderVisibleはfalse
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
 	//SRV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
 
 	//DSVの設定
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};

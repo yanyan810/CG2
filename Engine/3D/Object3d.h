@@ -12,6 +12,11 @@
 #include "Object3dCommon.h"
 #include "Camera.h"
 #include "AnimationEvaluate.h"
+#include <array>
+#include <span>
+#include "SrvManager.h"
+#include "SkinningTypes.h"
+#include "SkinningCommon.h"
 
 //class Object3dCommon;
 
@@ -62,10 +67,34 @@ public:
 
 	};
 
+	//struct WellForGPU {
+	//	Matrix4x4 skeletonSpaceMatrix;
+	//	Matrix4x4 skeletonSpaceInverseTransposeMatrix;
+	//};
+
+	//struct SkinCluster {
+	//	// ---- inverse bind (jointIndex順) ----
+	//	std::vector<Matrix4x4> inverseBindPoseMatrices;
+
+	//	// ---- influence (vertexCount分) ----
+	//	Microsoft::WRL::ComPtr<ID3D12Resource> influenceResource;
+	//	D3D12_VERTEX_BUFFER_VIEW influenceBufferView;
+	//	std::span<Model::VertexInfluence> mappedInfluence;
+	//	
+	//	// ---- palette (jointCount分) ----
+	//	Microsoft::WRL::ComPtr<ID3D12Resource> paletteResource;
+	//	std::span<WellForGPU> mappedPalette;
+	//	std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE> paletteSrvHandle{};
+	//};
+
+
+
 
 public:
 
 	void Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx);
+	void Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, SrvManager* srv, SkinningCommon* skinCom);
+
 
 	void Update(float dt);
 
@@ -158,6 +187,8 @@ private:
 
 	Object3dCommon* object3dCommon = nullptr;
 
+	SkinningCommon* skinningCommon_ = nullptr;
+
 	Model* model_ = nullptr;
 
 	Model::Skeleton poseSkeleton_; // ★再生用（modelのskeletonをコピーして使う）
@@ -222,5 +253,25 @@ private:
 	bool debugDrawBones_ = false;
 	std::string boneMarkerModel_ = "cube/cube.obj";
 	std::vector<std::unique_ptr<Object3d>> boneMarkers_;
+
+	SkinCluster skinCluster_;
+
+	SrvManager* srvManager_ = nullptr; // ★参照
+
+	private:
+		SkinCluster CreateSkinCluster(
+			ID3D12Device* device,
+			const Model::Skeleton& skeleton,
+			const std::map<std::string, Model::JointWeightData>& skinData,
+			uint32_t vertexCount,
+			ID3D12DescriptorHeap* srvHeap,
+			uint32_t descriptorSize
+		);
+
+		void UpdateSkinCluster_();
+
+
+
+
 };
 

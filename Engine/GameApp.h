@@ -10,6 +10,7 @@ class SpriteCommon;
 class Object3dCommon;
 class ParticleCommon;
 class ImGuiManagaer;
+class SkinningCommon;
 
 class SceneManager;
 
@@ -29,6 +30,8 @@ public:
     Object3dCommon* ObjCom() const { return objCommon_.get(); }
     ParticleCommon* ParticleCom() const { return particleCommon_.get(); }
     ImGuiManagaer* ImGui() const { return imgui_.get(); }
+
+    SkinningCommon* SkinCom() { return skinCom_.get(); }
 
     SceneManager& Scenes() { return *sceneMgr_; }
 
@@ -56,7 +59,6 @@ private:
     std::unique_ptr<ImGuiManagaer> imgui_;
 
     std::unique_ptr<SceneManager> sceneMgr_;
-
     std::unique_ptr<Input> input_; 
-
+    std::unique_ptr<SkinningCommon> skinCom_;
 };
