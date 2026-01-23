@@ -114,66 +114,85 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, Srv
 
 }
 
-void Object3d::Update(float dt){
-
+void Object3d::Update(float dt)
+{
 	// 1) 通常のWorld（Object3dのTransform）
 	Matrix4x4 worldMatrixModel = Matrix4x4::MakeAffineMatrix(
 		transform.scale, transform.rotate, transform.translate);
 
-	// ===== アニメ再生（SkinnedならSkeletonへ適用）=====
-	if (model_ && isPlayAnimation_) {
+	// =========================================================
+	// ★Skinned：アニメ再生の有無に関わらず poseSkeleton_ を用意し、
+	//           最終的に palette を毎フレ更新する
+	// =========================================================
+	if (model_ && model_->HasSkinning())
+	{
+		// (A) 初回：bind pose を用意（アニメ0本でも描けるようにする）
+		if (!poseReady_) {
+			poseSkeleton_ = model_->GetSkeleton();
+			poseReady_ = true;
 
-		const auto& anims = model_->GetAnimations();
-		if (!anims.empty()) {
+			// bind pose の skeletonSpace を計算
+			Model::UpdateSkeleton(poseSkeleton_);
+		}
 
-			// 使うアニメ選択（今のコードのまま）
+		// (B) アニメ再生中なら Skeleton に適用
+		if (isPlayAnimation_)
+		{
+			const auto& anims = model_->GetAnimations();
+			if (!anims.empty())
+			{
+				const Animation* anim = nullptr;
+
+				if (!playingAnimName_.empty()) {
+					auto itA = anims.find(playingAnimName_);
+					if (itA != anims.end()) { anim = &itA->second; }
+				}
+				if (!anim) { anim = &anims.begin()->second; }
+
+				// time更新
+				animationTime_ += dt;
+				const float duration = std::max(anim->duration, 0.0001f);
+				if (loop_) { animationTime_ = std::fmod(animationTime_, duration); }
+				else { animationTime_ = std::min(animationTime_, duration); }
+
+				// Skeletonへ適用 → skeletonSpace更新
+				ApplyAnimation(poseSkeleton_, *anim, animationTime_);
+				Model::UpdateSkeleton(poseSkeleton_);
+			}
+		}
+
+		// (C) ★最重要：palette へ反映（毎フレ）
+		UpdateSkinCluster_();
+	}
+	else
+	{
+		// =========================================================
+		// Rigid：ノードアニメ用に animationTime_ を進める
+		// =========================================================
+		if (model_ && isPlayAnimation_ && HasAnimation())
+		{
+			const auto& anims = model_->GetAnimations();
 			const Animation* anim = nullptr;
+
 			if (!playingAnimName_.empty()) {
 				auto itA = anims.find(playingAnimName_);
-				if (itA != anims.end()) anim = &itA->second;
+				if (itA != anims.end()) { anim = &itA->second; }
 			}
-			if (!anim) anim = &anims.begin()->second;
+			if (!anim) { anim = &anims.begin()->second; }
 
-			// time更新（今のコードのまま）
+			// time更新（Skinnedと同じ）
 			animationTime_ += dt;
 			const float duration = std::max(anim->duration, 0.0001f);
-			if (loop_) animationTime_ = std::fmod(animationTime_, duration);
-			else       animationTime_ = std::min(animationTime_, duration);
-
-			if (model_->HasSkinning()) {
-				// ★Skinned：Skeletonに適用（worldに掛けない）
-				if (!poseReady_) {
-					poseSkeleton_ = model_->GetSkeleton();
-					poseReady_ = true;
-				}
-
-				ApplyAnimation(poseSkeleton_, *anim, animationTime_);
-
-				// skeletonSpace 更新（あなたの Multiply は m1*m2 なのでこの式でOK）
-				Model::UpdateSkeleton(poseSkeleton_); // ← Modelに静的関数でもOK
-
-				// ★ここで SkinCluster（palette）更新
-				if (poseReady_) {
-					UpdateSkinCluster_();
-				}
-
-
-			}
-			else {
-				// ★Rigid：今まで通り world に前掛け（必要なら root ノードだけに絞る）
-				// 既存の playingNodeName_ 方式を残すならここに置く
-			}
+			if (loop_) { animationTime_ = std::fmod(animationTime_, duration); }
+			else { animationTime_ = std::min(animationTime_, duration); }
 		}
 	}
 
-	// 2) ★glTF/FBX/OBJ共通：ModelのRootNode行列を適用（あれば）
-	//    これで「glTFが回転してる/スケールが違う」みたいなのが補正される
+
+	// 2) glTF/FBX/OBJ共通：ModelのRootNode行列を適用（Rigidのみ）
 	if (model_) {
-		// Model に GetRootLocalMatrix() を追加した前提
 		if (!model_->HasSkinning()) {
 			const Matrix4x4& root = model_->GetRootLocalMatrix();
-
-			// wvp = world * vp なので、root を world の “前” に掛ける
 			worldMatrixModel = Matrix4x4::Multiply(root, worldMatrixModel);
 		}
 	}
@@ -190,11 +209,9 @@ void Object3d::Update(float dt){
 
 			const auto& j = poseSkeleton_.joints[i];
 
-			// SkeletonSpace -> World
 			Matrix4x4 jointWorld =
 				Matrix4x4::Multiply(j.skeletonSpaceMatrix, worldMatrixModel);
 
-			// 行ベクトル系：平行移動は m[3][0..2]
 			Vector3 pos{
 				jointWorld.m[3][0],
 				jointWorld.m[3][1],
@@ -206,10 +223,11 @@ void Object3d::Update(float dt){
 		}
 	}
 
+	// WVP
 	Matrix4x4 wvpModel = worldMatrixModel;
 	if (camera_) {
-		const Matrix4x4& vp = camera_->GetViewProjectionMatrix(); // View*Proj
-		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);     // World * VP
+		const Matrix4x4& vp = camera_->GetViewProjectionMatrix();
+		wvpModel = Matrix4x4::Multiply(worldMatrixModel, vp);
 	}
 
 	transformationMatrixDataModel->WVP = wvpModel;
@@ -259,17 +277,68 @@ void Object3d::Draw()
 		model_->DrawSkinned(cmd, skinCluster_);
 	}
 	else {
-		// ★通常モデル用 PSO/RootSig（あなたの Object3dCommon 側で設定してる想定）
 		object3dCommon->SetGraphicsPipelineState();
 
-		cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+		// light/camera CBV は今まで通り
 		cmd->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 		cmd->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
 		cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
 		cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
 
-		model_->Draw(cmd);
+		// VB/IB/Material はここで一回だけセット（Model::DrawOneMesh は触らない）
+		cmd->IASetVertexBuffers(0, 1, &model_->GetVBV());  // ※ getter作るか、Modelに関数用意
+		cmd->IASetIndexBuffer(&model_->GetIBV());
+		cmd->SetGraphicsRootConstantBufferView(0, model_->GetMaterialCBV());
+
+		// ---- ノードアニメがあるなら node毎に描く ----
+		if (isPlayAnimation_ && HasAnimation()) {
+
+			const auto& anims = model_->GetAnimations();
+			const Animation* anim = nullptr;
+
+			if (!playingAnimName_.empty()) {
+				auto itA = anims.find(playingAnimName_);
+				if (itA != anims.end()) anim = &itA->second;
+			}
+			if (!anim) anim = &anims.begin()->second;
+
+			// time更新（Updateでやってるならここは不要）
+			// animationTime_ += dt; ...
+
+			// ノードglobal
+			std::vector<Matrix4x4> nodeGlobals;
+			model_->ComputeNodeGlobalMatrices(anim, animationTime_, nodeGlobals);
+
+			const Matrix4x4& vp = camera_->GetViewProjectionMatrix();
+
+			const Matrix4x4 baseWorld = transformationMatrixDataModel->World;
+
+			// インスタンスごとに World/WVP を差し替え
+			for (const auto& inst : model_->GetNodeInstances()) {
+				const Matrix4x4 nodeWorld = nodeGlobals[inst.nodeIndex];
+
+				Matrix4x4 world = Matrix4x4::Multiply(nodeWorld, baseWorld);
+				Matrix4x4 wvp = Matrix4x4::Multiply(world, vp);
+
+				transformationMatrixDataModel->World = world;
+				transformationMatrixDataModel->WVP = wvp;
+				transformationMatrixDataModel->WorldInverseTranspose =
+					Matrix4x4::Transpose(Matrix4x4::Inverse(world));
+
+				cmd->SetGraphicsRootConstantBufferView(
+					1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+
+				model_->DrawOneMesh(cmd, inst.meshIndex, 2);
+			}
+
+		}
+		else {
+			// 従来：モデル全体を1回描画
+			cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+			model_->Draw(cmd);
+		}
 	}
+
 
 	// debug bones
 	if (debugDrawBones_ && !boneMarkers_.empty()) {
@@ -312,6 +381,17 @@ void Object3d::SetModel(const std::string& filePath) {
 			srvHeap,
 			descriptorSize
 		);
+
+		// ==== bind pose で palette を初期化（アニメ0本でも描けるようにする）====
+		poseSkeleton_ = model_->GetSkeleton();
+		poseReady_ = true;
+
+		// bind pose の skeletonSpace を更新
+		Model::UpdateSkeleton(poseSkeleton_);
+
+		// パレット（SRV）へ反映
+		UpdateSkinCluster_();
+
 
 		// ==== boneMarkers 作成（デバッグ用） ====
 		const auto& skel = model_->GetSkeleton();
@@ -490,4 +570,13 @@ void Object3d::UpdateSkinCluster_()
 		skinCluster_.mappedPalette[jointIndex].skeletonSpaceInverseTransposeMatrix =
 			Matrix4x4::Transpose(inv);
 	}
+
+	auto& m = skinCluster_.mappedPalette[0].skeletonSpaceMatrix;
+	char b[256];
+	std::snprintf(b, sizeof(b),
+		"[Pal0] m00=%.3f m11=%.3f m22=%.3f tx=%.3f ty=%.3f tz=%.3f\n",
+		m.m[0][0], m.m[1][1], m.m[2][2], m.m[3][0], m.m[3][1], m.m[3][2]);
+	OutputDebugStringA(b);
+
+
 }

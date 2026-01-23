@@ -277,6 +277,29 @@ static void ReadAnimationsFromAssimp(Model::ModelData& out, const aiScene* scene
     }
 }
 
+static void BuildMeshInstances(
+    const aiNode* node,
+    const Matrix4x4& parent,
+    std::vector<Model::MeshInstance>& out)
+{
+    Matrix4x4 local = ConvertAssimpMatrix(node->mTransformation);
+
+    // ★ここはあなたの掛け順規約に合わせる
+    // 行ベクトル運用なら: global = parent * local
+    // 列ベクトル運用なら: global = local * parent
+    Matrix4x4 global = parent * local;
+
+    for (unsigned i = 0; i < node->mNumMeshes; ++i) {
+        Model::MeshInstance inst{};
+        inst.meshIndex = node->mMeshes[i];
+        inst.nodeGlobal = global;
+        out.push_back(inst);
+    }
+
+    for (unsigned i = 0; i < node->mNumChildren; ++i) {
+        BuildMeshInstances(node->mChildren[i], global, out);
+    }
+}
 
 void Model::Initialize(ModelCommon* modelCommon,
     const std::string& directoryPath,
@@ -301,6 +324,10 @@ void Model::Initialize(ModelCommon* modelCommon,
     if (useAssimp) {
         OutputDebugStringA(("[Model] LoadAssimpFile: " + fullPath + "\n").c_str());
         modelData_ = LoadAssimpFile(fullPath);
+
+        // ★ノード→描画インスタンス表を作る
+        BuildNodeRuntime_();
+
         // ★ここでSkeletonを作る（Assimp形式のみ）
         skeleton_ = CreateSkeleton(modelData_.rootNode);
         UpdateSkeleton(skeleton_); // bind pose の skeletonSpace を初期計算（1回だけ）
@@ -469,6 +496,17 @@ void Model::Initialize(ModelCommon* modelCommon,
         indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
 
         OutputDebugStringA(("[Model] total index count = " + std::to_string(totalIdx) + "\n").c_str());
+    
+        for (size_t i = 0; i < modelData_.meshes.size(); ++i) {
+            auto& m = modelData_.meshes[i];
+            char b[256];
+            std::snprintf(b, sizeof(b),
+                "[Mesh%zu] vStart=%u vCount=%u iStart=%u iCount=%u mat=%u\n",
+                i, m.startVertex, m.vertexCount, m.startIndex, m.indexCount, m.materialIndex);
+            OutputDebugStringA(b);
+        }
+
+    
     }
 
 
@@ -678,6 +716,38 @@ void Model::DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc)
     }
 }
 
+void Model::DrawMeshIndexed(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, uint32_t instanceCount)
+{
+    const auto& mesh = modelData_.meshes[meshIndex];
+
+    // ---- texture ----
+    std::string texPath;
+    if (mesh.materialIndex < modelData_.materials.size()) {
+        texPath = modelData_.materials[mesh.materialIndex].textureFilePath;
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+    if (!texPath.empty()) {
+        if (!TextureManager::GetInstance()->HasTexture(texPath)) {
+            TextureManager::GetInstance()->LoadTexture(texPath);
+        }
+        handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
+    }
+    else {
+        handle = TextureManager::GetInstance()->GetSrvHandleGPU(""); // 白
+    }
+
+    cmd->SetGraphicsRootDescriptorTable(2, handle);
+
+    // ---- draw ----
+    cmd->DrawIndexedInstanced(
+        mesh.indexCount,
+        instanceCount,
+        mesh.startIndex,
+        0,
+        0
+    );
+}
 
 
 
@@ -808,15 +878,24 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     // 2) 拡張子サポート確認（glb/gltf が 0 なら Assimp 側の問題）
     DebugAssimpSupport_(importer);
 
-    unsigned int flags = 0;
-    flags |= aiProcess_Triangulate;
-    flags |= aiProcess_JoinIdenticalVertices;
-    flags |= aiProcess_GenSmoothNormals;
-    // flags |= aiProcess_FlipUVs; // ← 自前で 1-v するなら付けない
+
+      unsigned int flags = 0;
+      flags |= aiProcess_Triangulate;
+      flags |= aiProcess_JoinIdenticalVertices;
+      flags |= aiProcess_GenSmoothNormals;
+       flags |= aiProcess_FlipUVs; // ← 自前で 1-v するなら付けない
 
     const aiScene* scene = nullptr;
 
+    //テスト
+   
+
+
     try {
+
+        OutputDebugStringA("[Assimp] about to ReadFile...\n");
+        OutputDebugStringA(("[Assimp] file=" + fullPath + "\n").c_str());
+
         scene = importer.ReadFile(fullPath.c_str(), flags);
     }
     catch (const std::exception& e) {
@@ -922,6 +1001,10 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
         MeshData md{};
         md.materialIndex = mesh->mMaterialIndex;
+
+        md.startVertex = globalVertexBase;
+        md.vertexCount = static_cast<uint32_t>(mesh->mNumVertices);
+
         // ===== vertices: mNumVertices をそのまま =====
         md.vertices.resize(mesh->mNumVertices);
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
@@ -950,21 +1033,23 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 
         out.indices.reserve(out.indices.size() + mesh->mNumFaces * 3);
 
+        // ★ indices: faces
         for (unsigned int f = 0; f < mesh->mNumFaces; ++f) {
             const aiFace& face = mesh->mFaces[f];
             if (face.mNumIndices != 3) continue;
 
-            const uint32_t i0 = static_cast<uint32_t>(face.mIndices[0]);
-            const uint32_t i1 = static_cast<uint32_t>(face.mIndices[1]);
-            const uint32_t i2 = static_cast<uint32_t>(face.mIndices[2]);
+            const uint32_t i0 = globalVertexBase + static_cast<uint32_t>(face.mIndices[0]);
+            const uint32_t i1 = globalVertexBase + static_cast<uint32_t>(face.mIndices[1]);
+            const uint32_t i2 = globalVertexBase + static_cast<uint32_t>(face.mIndices[2]);
 
-            // ★あなたの左手系寄せ（v2,v1,v0）を index で再現
+            // 左手系の並び替えを維持
             out.indices.push_back(i2);
             out.indices.push_back(i1);
             out.indices.push_back(i0);
 
             md.indexCount += 3;
         }
+
 
         for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
 
@@ -1002,6 +1087,13 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
         globalVertexBase += static_cast<uint32_t>(mesh->mNumVertices);
 
     }
+
+    out.instances.clear();
+    BuildMeshInstances(scene->mRootNode, Matrix4x4::MakeIdentity4x4(), out.instances);
+
+    char buf[128];
+    sprintf_s(buf, "meshes=%zu instances=%zu\n", out.meshes.size(), out.instances.size());
+    OutputDebugStringA(buf);
 
 
     return out;
@@ -1074,4 +1166,130 @@ void Model::UpdateSkeleton(Skeleton& skeleton) {
             joint.skeletonSpaceMatrix = joint.localMatrix;
         }
     }
+}
+
+//=================================
+//ノード描画用
+//=================================
+
+void Model::BuildNodeRuntime_()
+{
+    nodePtrs_.clear();
+    parentIndex_.clear();
+    nodeNameToIndex_.clear();
+    nodeInstances_.clear();
+
+    TraverseNode_(&modelData_.rootNode, -1);
+
+    // デバッグ：インスタンス数
+    {
+        std::string s = "[Model] NodeInstances=" + std::to_string(nodeInstances_.size()) + "\n";
+        OutputDebugStringA(s.c_str());
+    }
+
+    char buf[256];
+    std::snprintf(buf, sizeof(buf),
+        "[NodeRuntime] nodes=%zu instances=%zu\n",
+        nodePtrs_.size(), nodeInstances_.size());
+    OutputDebugStringA(buf);
+
+
+
+}
+
+void Model::TraverseNode_(const Node* n, int32_t parent)
+{
+    const uint32_t myIndex = static_cast<uint32_t>(nodePtrs_.size());
+    nodePtrs_.push_back(n);
+    parentIndex_.push_back(parent);
+
+    if (!n->name.empty()) {
+        nodeNameToIndex_[n->name] = myIndex;
+    }
+
+    // ★このノードが参照する mesh を全部「インスタンス」として追加
+    for (uint32_t meshIndex : n->meshIndices) {
+        nodeInstances_.push_back({ myIndex, meshIndex });
+    }
+
+    // 子へ
+    for (const auto& c : n->children) {
+        TraverseNode_(&c, static_cast<int32_t>(myIndex));
+    }
+}
+
+void Model::ComputeNodeGlobalMatrices(const Animation* anim, float time,
+    std::vector<Matrix4x4>& outGlobals) const
+{
+    const size_t n = nodePtrs_.size();
+    outGlobals.resize(n);
+
+    std::vector<Matrix4x4> locals(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        // 元のノードTransform
+        Vector3 t = nodePtrs_[i]->transform.translate;
+        Quaternion r = nodePtrs_[i]->transform.rotate;
+        Vector3 s = nodePtrs_[i]->transform.scale;
+
+        // アニメがあるなら上書き
+        if (anim) {
+            auto it = anim->nodeAnimations.find(nodePtrs_[i]->name);
+            if (it != anim->nodeAnimations.end()) {
+                const NodeAnimation& na = it->second;
+                if (!na.translate.keyframes.empty()) t = CalculateValue(na.translate.keyframes, time);
+                if (!na.rotate.keyframes.empty())    r = CalculateValue(na.rotate.keyframes, time);
+                if (!na.scale.keyframes.empty())     s = CalculateValue(na.scale.keyframes, time);
+            }
+        }
+
+        locals[i] = MakeAffineMatrix(s, r, t);
+    }
+
+    // TraverseNode_ は親→子の順で積んでるので、順番に累積でOK
+    for (size_t i = 0; i < n; ++i) {
+        const int32_t p = parentIndex_[i];
+        if (p >= 0) {
+            outGlobals[i] = Matrix4x4::Multiply(locals[i], outGlobals[p]); // 子 * 親（あなたの流儀）
+        }
+        else {
+            outGlobals[i] = locals[i];
+        }
+    }
+    auto& anims = GetAnimations();
+    OutputDebugStringA(("[Anim] count=" + std::to_string(anims.size()) + "\n").c_str());
+    if (!anims.empty()) {
+        OutputDebugStringA(("[Anim] tracks=" + std::to_string(anims.begin()->second.nodeAnimations.size()) + "\n").c_str());
+    }
+
+
+
+}
+
+void Model::DrawOneMesh(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, uint32_t texRootParam)
+{
+    if (meshIndex >= modelData_.meshes.size()) return;
+
+    const auto& mesh = modelData_.meshes[meshIndex];
+
+    std::string texPath;
+    if (mesh.materialIndex < modelData_.materials.size()) {
+        texPath = modelData_.materials[mesh.materialIndex].textureFilePath;
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+    if (!texPath.empty()) {
+        if (!TextureManager::GetInstance()->HasTexture(texPath)) {
+            TextureManager::GetInstance()->LoadTexture(texPath);
+        }
+        handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
+    }
+    else {
+        handle = TextureManager::GetInstance()->GetSrvHandleGPU("");
+    }
+
+    cmd->SetGraphicsRootDescriptorTable(texRootParam, handle);
+
+    // ★Indexed 前提（あなたの Model::Draw と同じ）
+    cmd->DrawIndexedInstanced(mesh.indexCount, 1, mesh.startIndex, 0, 0);
 }

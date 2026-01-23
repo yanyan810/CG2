@@ -75,30 +75,119 @@ void TitleScene::OnEnter(GameApp& app) {
     testObj_->SetShininess(shininess_);
 	testObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
+    // TitleScene.cpp（OnEnter内の nodeObj_ 部分だけ置き換え）
 
-    terrainObj_ = std::make_unique<Object3d>();
-    terrainObj_->Initialize(app.ObjCom(), app.Dx(), app.Srv(), app.SkinCom());
+    nodeObj_ = std::make_unique<Object3d>();
+    nodeObj_->Initialize(app.ObjCom(), app.Dx(), app.Srv(), app.SkinCom());
 
-    terrainObj_->SetModel("human/walk.gltf"); 
-    terrainObj_->PlayAnimation("", true);
+    // ★初期モデル（今は 05）
+    nodeObj_->SetModel(nodeModelPaths_[nodeModelIndex_]);
+    nodeObj_->PlayAnimation("", true);
 
-    terrainObj_->SetDebugDrawBones(true); // ★追加：ボーン点表示ON
-terrainObj_->SetBoneMarkerModel("cube/cube.obj"); // ★追加：関節表示に使うモデル（小さいキューブ）
+    nodeObj_->SetDebugDrawBones(false);
+    nodeObj_->SetBoneMarkerModel("cube/cube.obj");
 
-    terrainObj_->SetTranslate(testPos_);
-    terrainObj_->SetScale(testScale_);
-    // 回転も使うなら
-    terrainObj_->SetRotate(testRot_);
+    nodeObj_->SetTranslate({ 0, 0.0f, 0 });
+    nodeObj_->SetScale(testScale_);
+    nodeObj_->SetRotate(testRot_);
 
-    // 鏡面反射が分かりやすいように：白っぽく、ライティングON、shininess高め
-    terrainObj_->SetMaterialColor({ 1,1,1,1 });
-    terrainObj_->SetEnableLighting(lightingMode_);
-    terrainObj_->SetShininess(shininess_);
-    terrainObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+    nodeObj_->SetMaterialColor({ 1,1,1,1 });
+    nodeObj_->SetShininess(shininess_);
+    nodeObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
-    if (terrainObj_->HasAnimation()) {
+    if (nodeObj_->HasAnimation()) {
         OutputDebugStringA("has animation\n");
     }
+
+    nodeMiscObj_ = std::make_unique<Object3d>();
+    nodeMiscObj_->Initialize(app.ObjCom(), app.Dx(), app.Srv(), app.SkinCom());
+
+    // 初期モデル
+    nodeMiscObj_->SetModel(nodeMiscModelPaths_[nodeMiscModelIndex_]);
+    nodeMiscObj_->PlayAnimation("", true);
+
+    nodeMiscObj_->SetDebugDrawBones(false);
+    nodeMiscObj_->SetBoneMarkerModel("cube/cube.obj");
+
+    // 位置が被ると見づらいので少しずらす（任意）
+    nodeMiscObj_->SetTranslate({ 3.0f, 0.0f, 0.0f });
+    nodeMiscObj_->SetScale(testScale_);
+    nodeMiscObj_->SetRotate(testRot_);
+
+    nodeMiscObj_->SetMaterialColor({ 1,1,1,1 });
+    nodeMiscObj_->SetShininess(shininess_);
+    nodeMiscObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    if (nodeMiscObj_->HasAnimation()) {
+        OutputDebugStringA("nodeMisc: has animation\n");
+    }
+
+
+    skinObj_ = std::make_unique<Object3d>();
+    skinObj_->Initialize(app.ObjCom(), app.Dx(), app.Srv(), app.SkinCom());
+
+    // 初期モデル
+    skinObj_->SetModel(skinModelPaths_[skinModelIndex_]);
+    skinObj_->PlayAnimation("", true);
+
+    skinObj_->SetDebugDrawBones(false);
+    skinObj_->SetBoneMarkerModel("cube/cube.obj");
+
+    // 位置は被らないようにずらす（任意）
+    skinObj_->SetTranslate({ -3.0f, 0.0f, 0.0f });
+    skinObj_->SetScale(testScale_);
+    skinObj_->SetRotate(testRot_);
+
+    skinObj_->SetMaterialColor({ 1,1,1,1 });
+    skinObj_->SetShininess(shininess_);
+    skinObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    if (skinObj_->HasAnimation()) {
+        OutputDebugStringA("skin: has animation\n");
+    }
+
+    // ----------------------------
+// Mesh_Primitives
+// ----------------------------
+    meshPrimObj_ = std::make_unique<Object3d>();
+    meshPrimObj_->Initialize(app.ObjCom(), app.Dx(), app.Srv(), app.SkinCom());
+    meshPrimObj_->SetModel(meshPrimPaths_[meshPrimIndex_]);
+    meshPrimObj_->PlayAnimation("", true);
+    meshPrimObj_->SetTranslate({ -6.0f, 0.0f, 0.0f });
+    meshPrimObj_->SetScale(testScale_);
+    meshPrimObj_->SetRotate(testRot_);
+    meshPrimObj_->SetMaterialColor({ 1,1,1,1 });
+    meshPrimObj_->SetShininess(shininess_);
+    meshPrimObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    // ----------------------------
+    // Material_AlphaBlend
+    // ----------------------------
+    alphaBlendObj_ = std::make_unique<Object3d>();
+    alphaBlendObj_->Initialize(app.ObjCom(), app.Dx(), app.Srv(), app.SkinCom());
+    alphaBlendObj_->SetModel(alphaBlendPaths_[alphaBlendIndex_]);
+    alphaBlendObj_->PlayAnimation("", true);
+    alphaBlendObj_->SetTranslate({ 6.0f, 0.0f, 0.0f });
+    alphaBlendObj_->SetScale(testScale_);
+    alphaBlendObj_->SetRotate(testRot_);
+    alphaBlendObj_->SetMaterialColor({ 1,1,1,1 });
+    alphaBlendObj_->SetShininess(shininess_);
+    // ★透明テスト用：通常αブレンド（あなたのenum名に合わせて変更）
+    alphaBlendObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNormal);
+
+    // ----------------------------
+    // Texture_Sampler
+    // ----------------------------
+    texSamplerObj_ = std::make_unique<Object3d>();
+    texSamplerObj_->Initialize(app.ObjCom(), app.Dx(), app.Srv(), app.SkinCom());
+    texSamplerObj_->SetModel(texSamplerPaths_[texSamplerIndex_]);
+    texSamplerObj_->PlayAnimation("", true);
+    texSamplerObj_->SetTranslate({ 0.0f, 0.0f, 6.0f });
+    texSamplerObj_->SetScale(testScale_);
+    texSamplerObj_->SetRotate(testRot_);
+    texSamplerObj_->SetMaterialColor({ 1,1,1,1 });
+    texSamplerObj_->SetShininess(shininess_);
+    texSamplerObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
 
 }
@@ -107,6 +196,13 @@ void TitleScene::OnExit(GameApp&) {
     skyDome_.reset();
     particle_.reset();
     camera_.reset();
+	nodeObj_.reset();
+    nodeMiscObj_.reset();
+    skinObj_.reset();
+    meshPrimObj_.reset();
+    alphaBlendObj_.reset();
+    texSamplerObj_.reset();
+
 }
 
 void TitleScene::Update(GameApp& app, float dt) {
@@ -238,6 +334,60 @@ void TitleScene::Update(GameApp& app, float dt) {
         particle_->DebugImGui(); // ★Particle側のウィンドウを出す
     }
 
+
+    ImGui::Begin("Node Model Switch");
+
+    // 00～05を選べる（表示はファイル名でもOK）
+    static const char* labels[] = { "00", "01", "02", "03", "04", "05" };
+
+    ImGui::Text("Animation_Node");
+    ImGui::Combo("Index", &nodeModelIndex_, labels, IM_ARRAYSIZE(labels));
+
+    ImGui::Text("Path: %s", nodeModelPaths_[nodeModelIndex_]);
+
+    ImGui::End();
+
+    ImGui::Begin("NodeMisc Model Switch");
+
+    static const char* labelsMisc[] = { "00","01","02","03","04","05","06","07","08" };
+
+    ImGui::Text("Animation_NodeMisc");
+    ImGui::Combo("Index", &nodeMiscModelIndex_, labelsMisc, IM_ARRAYSIZE(labelsMisc));
+    ImGui::Text("Path: %s", nodeMiscModelPaths_[nodeMiscModelIndex_]);
+
+    ImGui::End();
+
+    ImGui::Begin("Skin Model Switch");
+
+    static const char* labelsSkin[] = {
+        "00","01","02","03","04","05","06","07","08","09","10","11"
+    };
+
+    ImGui::Text("Animation_Skin");
+    ImGui::Combo("Index", &skinModelIndex_, labelsSkin, IM_ARRAYSIZE(labelsSkin));
+    ImGui::Text("Path: %s", skinModelPaths_[skinModelIndex_]);
+
+    ImGui::End();
+
+    ImGui::Begin("Mesh_Primitives Switch");
+    static const char* labelMeshPrim[] = { "00" };
+    ImGui::Combo("Index", &meshPrimIndex_, labelMeshPrim, IM_ARRAYSIZE(labelMeshPrim));
+    ImGui::Text("Path: %s", meshPrimPaths_[meshPrimIndex_]);
+    ImGui::End();
+
+    ImGui::Begin("Material_AlphaBlend Switch");
+    static const char* labelAlpha[] = { "00","01","02","03","04","05","06" };
+    ImGui::Combo("Index", &alphaBlendIndex_, labelAlpha, IM_ARRAYSIZE(labelAlpha));
+    ImGui::Text("Path: %s", alphaBlendPaths_[alphaBlendIndex_]);
+    ImGui::End();
+
+    ImGui::Begin("Texture_Sampler Switch");
+    static const char* labelSampler[] = { "00","01","02","03","04","05","06","07","08","09","10","11","12","13" };
+    ImGui::Combo("Index", &texSamplerIndex_, labelSampler, IM_ARRAYSIZE(labelSampler));
+    ImGui::Text("Path: %s", texSamplerPaths_[texSamplerIndex_]);
+    ImGui::End();
+
+
 #endif
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
 
@@ -312,42 +462,252 @@ void TitleScene::Update(GameApp& app, float dt) {
         testObj_->Update(dt);
     }
 
-    if (terrainObj_) {
+    if (nodeObj_) {
+
+        // ★モデル切替：indexが変わった瞬間に読み直す
+        if (nodeObj_ && nodeModelIndex_ != nodeModelIndexPrev_) {
+            nodeModelIndexPrev_ = nodeModelIndex_;
+
+            nodeObj_->SetModel(nodeModelPaths_[nodeModelIndex_]);
+            nodeObj_->PlayAnimation("", true);
+
+            // もしモデル変更で内部状態がリセットされるなら、必要に応じて再設定
+            nodeObj_->SetDebugDrawBones(false);
+            nodeObj_->SetBoneMarkerModel("cube/cube.obj");
+        }
+
 
         // ★SRT反映
-        terrainObj_->SetTranslate(testPos_);
-        terrainObj_->SetRotate(testRot_);
-        terrainObj_->SetScale(testScale_);
+        nodeObj_->SetTranslate(testPos_);
+        nodeObj_->SetRotate(testRot_);
+        nodeObj_->SetScale(testScale_);
 
         // 既存
-        terrainObj_->SetEnableLighting(lighting);
-        terrainObj_->SetShininess(shininess_);
-        terrainObj_->SetDirection(lightDir_);
-        terrainObj_->SetIntensity(lightIntensity_);
-        terrainObj_->SetLightColor(lightColor_);
+        nodeObj_->SetEnableLighting(lighting);
+        nodeObj_->SetShininess(shininess_);
+        nodeObj_->SetDirection(lightDir_);
+        nodeObj_->SetIntensity(lightIntensity_);
+        nodeObj_->SetLightColor(lightColor_);
 
-        terrainObj_->SetPointLightPos(pointPos_);
-        terrainObj_->SetPointLightIntensity(pointIntensity_);
-        terrainObj_->SetPointLightColor(pointColor_);
+        nodeObj_->SetPointLightPos(pointPos_);
+        nodeObj_->SetPointLightIntensity(pointIntensity_);
+        nodeObj_->SetPointLightColor(pointColor_);
 
-        terrainObj_->SetPointLightRadius(pointRadius_);
-        terrainObj_->SetPointLightDecay(pointDecay_);
+        nodeObj_->SetPointLightRadius(pointRadius_);
+        nodeObj_->SetPointLightDecay(pointDecay_);
 
         // SpotLight 反映
-        terrainObj_->SetSpotLightPos(spotPos_);
-        terrainObj_->SetSpotLightDirection(spotDir_);
-        terrainObj_->SetSpotLightIntensity(spotIntensity_);
-        terrainObj_->SetSpotLightDistance(spotDistance_);
-        terrainObj_->SetSpotLightDecay(spotDecay_);
-        terrainObj_->SetSpotLightCosAngle(cosOuter);
-        terrainObj_->SetSpotLightCosFalloffStart(cosInner);
-        terrainObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+        nodeObj_->SetSpotLightPos(spotPos_);
+        nodeObj_->SetSpotLightDirection(spotDir_);
+        nodeObj_->SetSpotLightIntensity(spotIntensity_);
+        nodeObj_->SetSpotLightDistance(spotDistance_);
+        nodeObj_->SetSpotLightDecay(spotDecay_);
+        nodeObj_->SetSpotLightCosAngle(cosOuter);
+        nodeObj_->SetSpotLightCosFalloffStart(cosInner);
+        nodeObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
 
 
-        terrainObj_->Update(dt);
+        nodeObj_->Update(dt);
 
 
     }
+
+    if (nodeMiscObj_) {
+
+        // ★モデル切替
+        if (nodeMiscModelIndex_ != nodeMiscModelIndexPrev_) {
+            nodeMiscModelIndexPrev_ = nodeMiscModelIndex_;
+
+            nodeMiscObj_->SetModel(nodeMiscModelPaths_[nodeMiscModelIndex_]);
+            nodeMiscObj_->PlayAnimation("", true);
+
+            nodeMiscObj_->SetDebugDrawBones(false);
+            nodeMiscObj_->SetBoneMarkerModel("cube/cube.obj");
+        }
+
+        // ★SRT反映（位置だけ少しずらす例）
+        nodeMiscObj_->SetTranslate({ testPos_.x + 3.0f, testPos_.y, testPos_.z });
+        nodeMiscObj_->SetRotate(testRot_);
+        nodeMiscObj_->SetScale(testScale_);
+
+        // ライト
+        nodeMiscObj_->SetEnableLighting(lighting);
+        nodeMiscObj_->SetShininess(shininess_);
+        nodeMiscObj_->SetDirection(lightDir_);
+        nodeMiscObj_->SetIntensity(lightIntensity_);
+        nodeMiscObj_->SetLightColor(lightColor_);
+
+        nodeMiscObj_->SetPointLightPos(pointPos_);
+        nodeMiscObj_->SetPointLightIntensity(pointIntensity_);
+        nodeMiscObj_->SetPointLightColor(pointColor_);
+        nodeMiscObj_->SetPointLightRadius(pointRadius_);
+        nodeMiscObj_->SetPointLightDecay(pointDecay_);
+
+        nodeMiscObj_->SetSpotLightPos(spotPos_);
+        nodeMiscObj_->SetSpotLightDirection(spotDir_);
+        nodeMiscObj_->SetSpotLightIntensity(spotIntensity_);
+        nodeMiscObj_->SetSpotLightDistance(spotDistance_);
+        nodeMiscObj_->SetSpotLightDecay(spotDecay_);
+        nodeMiscObj_->SetSpotLightCosAngle(cosOuter);
+        nodeMiscObj_->SetSpotLightCosFalloffStart(cosInner);
+        nodeMiscObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
+        nodeMiscObj_->Update(dt);
+    }
+
+    if (skinObj_) {
+
+        // ★モデル切替
+        if (skinModelIndex_ != skinModelIndexPrev_) {
+            skinModelIndexPrev_ = skinModelIndex_;
+
+            skinObj_->SetModel(skinModelPaths_[skinModelIndex_]);
+            skinObj_->PlayAnimation("", true);
+
+            skinObj_->SetDebugDrawBones(false);
+            skinObj_->SetBoneMarkerModel("cube/cube.obj");
+        }
+
+        // ★SRT（位置だけさらにずらす例）
+        skinObj_->SetTranslate({ testPos_.x - 3.0f, testPos_.y, testPos_.z });
+        skinObj_->SetRotate(testRot_);
+        skinObj_->SetScale(testScale_);
+
+        // ライト（nodeMisc と同じ）
+        skinObj_->SetEnableLighting(lighting);
+        skinObj_->SetShininess(shininess_);
+        skinObj_->SetDirection(lightDir_);
+        skinObj_->SetIntensity(lightIntensity_);
+        skinObj_->SetLightColor(lightColor_);
+
+        skinObj_->SetPointLightPos(pointPos_);
+        skinObj_->SetPointLightIntensity(pointIntensity_);
+        skinObj_->SetPointLightColor(pointColor_);
+        skinObj_->SetPointLightRadius(pointRadius_);
+        skinObj_->SetPointLightDecay(pointDecay_);
+
+        skinObj_->SetSpotLightPos(spotPos_);
+        skinObj_->SetSpotLightDirection(spotDir_);
+        skinObj_->SetSpotLightIntensity(spotIntensity_);
+        skinObj_->SetSpotLightDistance(spotDistance_);
+        skinObj_->SetSpotLightDecay(spotDecay_);
+        skinObj_->SetSpotLightCosAngle(cosOuter);
+        skinObj_->SetSpotLightCosFalloffStart(cosInner);
+        skinObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
+        skinObj_->Update(dt);
+    }
+
+    if (meshPrimObj_) {
+
+        if (meshPrimIndex_ != meshPrimIndexPrev_) {
+            meshPrimIndexPrev_ = meshPrimIndex_;
+            meshPrimObj_->SetModel(meshPrimPaths_[meshPrimIndex_]);
+            meshPrimObj_->PlayAnimation("", true);
+        }
+
+        meshPrimObj_->SetTranslate({ testPos_.x - 6.0f, testPos_.y, testPos_.z });
+        meshPrimObj_->SetRotate(testRot_);
+        meshPrimObj_->SetScale(testScale_);
+
+        meshPrimObj_->SetEnableLighting(lighting);
+        meshPrimObj_->SetShininess(shininess_);
+        meshPrimObj_->SetDirection(lightDir_);
+        meshPrimObj_->SetIntensity(lightIntensity_);
+        meshPrimObj_->SetLightColor(lightColor_);
+
+        meshPrimObj_->SetPointLightPos(pointPos_);
+        meshPrimObj_->SetPointLightIntensity(pointIntensity_);
+        meshPrimObj_->SetPointLightColor(pointColor_);
+        meshPrimObj_->SetPointLightRadius(pointRadius_);
+        meshPrimObj_->SetPointLightDecay(pointDecay_);
+
+        meshPrimObj_->SetSpotLightPos(spotPos_);
+        meshPrimObj_->SetSpotLightDirection(spotDir_);
+        meshPrimObj_->SetSpotLightIntensity(spotIntensity_);
+        meshPrimObj_->SetSpotLightDistance(spotDistance_);
+        meshPrimObj_->SetSpotLightDecay(spotDecay_);
+        meshPrimObj_->SetSpotLightCosAngle(cosOuter);
+        meshPrimObj_->SetSpotLightCosFalloffStart(cosInner);
+        meshPrimObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
+        meshPrimObj_->Update(dt);
+    }
+
+    if (alphaBlendObj_) {
+
+        if (alphaBlendIndex_ != alphaBlendIndexPrev_) {
+            alphaBlendIndexPrev_ = alphaBlendIndex_;
+            alphaBlendObj_->SetModel(alphaBlendPaths_[alphaBlendIndex_]);
+            alphaBlendObj_->PlayAnimation("", true);
+            // ★透明確認：モデル切替してもブレンドを維持したいならここでもセット
+            alphaBlendObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNormal);
+        }
+
+        alphaBlendObj_->SetTranslate({ testPos_.x + 6.0f, testPos_.y, testPos_.z });
+        alphaBlendObj_->SetRotate(testRot_);
+        alphaBlendObj_->SetScale(testScale_);
+
+        alphaBlendObj_->SetEnableLighting(lighting);
+        alphaBlendObj_->SetShininess(shininess_);
+        alphaBlendObj_->SetDirection(lightDir_);
+        alphaBlendObj_->SetIntensity(lightIntensity_);
+        alphaBlendObj_->SetLightColor(lightColor_);
+
+        alphaBlendObj_->SetPointLightPos(pointPos_);
+        alphaBlendObj_->SetPointLightIntensity(pointIntensity_);
+        alphaBlendObj_->SetPointLightColor(pointColor_);
+        alphaBlendObj_->SetPointLightRadius(pointRadius_);
+        alphaBlendObj_->SetPointLightDecay(pointDecay_);
+
+        alphaBlendObj_->SetSpotLightPos(spotPos_);
+        alphaBlendObj_->SetSpotLightDirection(spotDir_);
+        alphaBlendObj_->SetSpotLightIntensity(spotIntensity_);
+        alphaBlendObj_->SetSpotLightDistance(spotDistance_);
+        alphaBlendObj_->SetSpotLightDecay(spotDecay_);
+        alphaBlendObj_->SetSpotLightCosAngle(cosOuter);
+        alphaBlendObj_->SetSpotLightCosFalloffStart(cosInner);
+        alphaBlendObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
+        alphaBlendObj_->Update(dt);
+    }
+
+    if (texSamplerObj_) {
+
+        if (texSamplerIndex_ != texSamplerIndexPrev_) {
+            texSamplerIndexPrev_ = texSamplerIndex_;
+            texSamplerObj_->SetModel(texSamplerPaths_[texSamplerIndex_]);
+            texSamplerObj_->PlayAnimation("", true);
+        }
+
+        texSamplerObj_->SetTranslate({ testPos_.x, testPos_.y, testPos_.z + 6.0f });
+        texSamplerObj_->SetRotate(testRot_);
+        texSamplerObj_->SetScale(testScale_);
+
+        texSamplerObj_->SetEnableLighting(lighting);
+        texSamplerObj_->SetShininess(shininess_);
+        texSamplerObj_->SetDirection(lightDir_);
+        texSamplerObj_->SetIntensity(lightIntensity_);
+        texSamplerObj_->SetLightColor(lightColor_);
+
+        texSamplerObj_->SetPointLightPos(pointPos_);
+        texSamplerObj_->SetPointLightIntensity(pointIntensity_);
+        texSamplerObj_->SetPointLightColor(pointColor_);
+        texSamplerObj_->SetPointLightRadius(pointRadius_);
+        texSamplerObj_->SetPointLightDecay(pointDecay_);
+
+        texSamplerObj_->SetSpotLightPos(spotPos_);
+        texSamplerObj_->SetSpotLightDirection(spotDir_);
+        texSamplerObj_->SetSpotLightIntensity(spotIntensity_);
+        texSamplerObj_->SetSpotLightDistance(spotDistance_);
+        texSamplerObj_->SetSpotLightDecay(spotDecay_);
+        texSamplerObj_->SetSpotLightCosAngle(cosOuter);
+        texSamplerObj_->SetSpotLightCosFalloffStart(cosInner);
+        texSamplerObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
+        texSamplerObj_->Update(dt);
+    }
+
 
     // ===== カメラ反映 =====
     if (camera_) {
@@ -370,7 +730,12 @@ void TitleScene::Draw(GameApp& app) {
 	//skyDome_->Draw();
 
     //if (testObj_) testObj_->Draw();
-	if (terrainObj_) terrainObj_->Draw();
+	if (nodeObj_) nodeObj_->Draw();
+    if (nodeMiscObj_) nodeMiscObj_->Draw();
+    if (skinObj_) skinObj_->Draw();
+    if (meshPrimObj_)   meshPrimObj_->Draw();
+    if (alphaBlendObj_) alphaBlendObj_->Draw();
+    if (texSamplerObj_) texSamplerObj_->Draw();
 
     // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
     app.ParticleCom()->SetGraphicsPipelineState();

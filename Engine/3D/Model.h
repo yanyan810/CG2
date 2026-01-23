@@ -5,11 +5,12 @@
 #include <format>
 #include <filesystem>
 #include <fstream>
-#include "Animation.h"
+//#include "Animation.h"
 #include <unordered_map>
 #include <algorithm>
 #include <map>      // std::map
 #include "SkinningTypes.h"
+#include "AnimationEvaluate.h"
 
 class Model
 {
@@ -57,6 +58,11 @@ public:
 		std::vector<Node> children;
 	};
 
+	struct NodeInstance {
+		uint32_t nodeIndex; // nodePtrs_ の index
+		uint32_t meshIndex; // modelData_.meshes の index
+	};
+
 	struct MeshData {
 		std::vector<VertexData> vertices; // 読み込み直後のデータ（CPU側）
 		uint32_t materialIndex = 0;
@@ -85,6 +91,10 @@ public:
 
 	};
 
+	struct MeshInstance {
+		uint32_t meshIndex = 0;     // aiNode->mMeshes[i]
+		Matrix4x4 nodeGlobal;       // ノードのグローバル行列
+	};
 
 	struct ModelData {
 		std::map<std::string, JointWeightData> skinClusterData;
@@ -99,6 +109,8 @@ public:
 
 		// ★追加：アニメーション（Assimpから読めたもの）
 		std::unordered_map<std::string, Animation> animations;
+		std::vector<MeshInstance> instances;
+
 	};
 
 
@@ -126,6 +138,8 @@ public:
 
 	void DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc);
 
+	void DrawMeshIndexed(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, uint32_t instanceCount);
+	
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
@@ -183,11 +197,34 @@ public:
 		return modelData_.skinClusterData;
 	}
 
+	const std::vector<NodeInstance>& GetNodeInstances() const { return nodeInstances_; }
+
+	// anim==nullptr なら「元のノードTransform（bind/local）」で計算
+	void ComputeNodeGlobalMatrices(const Animation* anim, float time,
+		std::vector<Matrix4x4>& outGlobals) const;
+
+	// mesh 1個だけ描く（TransformCB/PSOは外側でセット済み前提）
+	void DrawOneMesh(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, uint32_t texRootParam);
+
+	// ---- getters for binding ----
+	const D3D12_VERTEX_BUFFER_VIEW& GetVBV() const { return vertexBufferView_; }
+
+	// Indexあり前提。無い場合に備えて bool も用意
+	const D3D12_INDEX_BUFFER_VIEW& GetIBV() const { return indexBufferView_; }
+	bool HasIndexBuffer() const { return indexResource_ != nullptr; }
+
+	// Material CBV の GPU仮想アドレス
+	D3D12_GPU_VIRTUAL_ADDRESS GetMaterialCBV() const {
+		return materialResource_ ? materialResource_->GetGPUVirtualAddress() : 0;
+	}
+
 private:
 	static Skeleton CreateSkeleton(const Node& rootNode);
 
 	static int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints);
 
+	void BuildNodeRuntime_(); // LoadAssimpFile後に呼ぶ
+	void TraverseNode_(const Node* n, int32_t parent);
 
 
 private:
@@ -213,6 +250,10 @@ private:
 	uint32_t* indexData_ = nullptr;
 	D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
 
+	std::vector<const Node*> nodePtrs_;
+	std::vector<int32_t> parentIndex_;
+	std::unordered_map<std::string, uint32_t> nodeNameToIndex_;
+	std::vector<NodeInstance> nodeInstances_;
 
 };
 
