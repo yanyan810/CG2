@@ -22,6 +22,18 @@ public:
 	void Draw(GameApp& app) override;
 
 private:
+
+private:
+	void DrawImGui_ModelSwitchersOneWindow();
+	void DrawImGui_ModelSwitchBlock(const char* header,
+		const char* comboLabel,
+		int& index,
+		const char* const* paths,
+		int count,
+		const char* const* labels,
+		int labelCount);
+
+
 	bool prevSpace_ = false;
 
 	std::unique_ptr<Camera> camera_;
@@ -51,6 +63,7 @@ private:
 
 	//確認
 	std::unique_ptr<Object3d> testObj_;
+	std::unique_ptr<Object3d> terrainObj_;
 	std::unique_ptr<Object3d> nodeObj_;
 
 	Vector3 testPos_{ 0.0f, 1.0f, 0.0f };
@@ -199,5 +212,41 @@ private:
 	int texSamplerIndexPrev_ = 0;
 	std::unique_ptr<Object3d> texSamplerObj_;
 
+	enum class EditTarget {
+		TestObj,
+		Terrain,
+		Node,
+		NodeMisc,
+		Skin,
+		MeshPrim,
+		AlphaBlend,
+		TexSampler,
+		Count
+	};
+
+	int editTarget_ = 0; // ImGui Combo用（EditTarget を int で持つ）
+
+	struct SRT {
+		Vector3 pos{ 0.0f, 1.0f, 0.0f };
+		Vector3 rot{ 0.0f, 0.0f, 0.0f };
+		Vector3 scale{ 2.0f, 2.0f, 2.0f };
+	};
+
+	SRT srtTest_{};
+	SRT srtTerrain_{};
+	SRT srtNode_{};
+	SRT srtNodeMisc_{};
+	SRT srtSkin_{};
+	SRT srtMeshPrim_{};
+	SRT srtAlphaBlend_{};
+	SRT srtTexSampler_{};
+
+	// === Assimp plane 切替 ===
+	std::array<const char*, 2> assimpPlanePaths_ = {
+		"plane.obj",
+		"plane.gltf",
+	};
+	int assimpPlaneIndex_ = 0;
+	int assimpPlaneIndexPrev_ = 0;
 
 };

@@ -29,7 +29,8 @@ void TitleScene::OnEnter(GameApp& app) {
     particle_->Initialize(app.ParticleCom(), app.Dx(), app.Srv());
 
     // ★これが無いと「model_ が null」で Draw しても何も出ません
-    particle_->SetModel("plane.obj"); // 既にある板ポリ等に合わせて
+    particle_->SetModel(assimpPlanePaths_[assimpPlaneIndex_]);
+    assimpPlaneIndexPrev_ = assimpPlaneIndex_;
 
     // カメラを渡せるなら渡す（Particle.cpp は camera_ があればそれを使う仕様）
     particle_->SetCamera(camera_.get());
@@ -64,7 +65,7 @@ void TitleScene::OnEnter(GameApp& app) {
     // 手元にあるモデル名にしてOK（例：sphere.obj / cube.obj / Suzanne.obj 等）
     testObj_->SetModel("enemy/shooter/bullet/bullet.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
 
-    testObj_->SetTranslate(testPos_);
+    testObj_->SetTranslate({0.0f,5.0f,0.0f});
     testObj_->SetScale(testScale_);
     // 回転も使うなら
     testObj_->SetRotate(testRot_);
@@ -74,6 +75,24 @@ void TitleScene::OnEnter(GameApp& app) {
     testObj_->SetEnableLighting(lightingMode_);
     testObj_->SetShininess(shininess_);
 	testObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    terrainObj_ = std::make_unique<Object3d>();
+    terrainObj_->Initialize(app.ObjCom(), app.Dx());
+
+    // 手元にあるモデル名にしてOK（例：sphere.obj / cube.obj / Suzanne.obj 等）
+    terrainObj_->SetModel("terrain/terrain.obj");  // ★あなたのresourcesにあるやつに合わせて変えてOK
+
+    terrainObj_->SetTranslate({ 0.0f,5.0f,0.0f });
+    terrainObj_->SetScale(testScale_);
+    // 回転も使うなら
+    terrainObj_->SetRotate(testRot_);
+
+    // 鏡面反射が分かりやすいように：白っぽく、ライティングON、shininess高め
+    terrainObj_->SetMaterialColor({ 1,1,1,1 });
+    terrainObj_->SetEnableLighting(lightingMode_);
+    terrainObj_->SetShininess(shininess_);
+    terrainObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
 
     // TitleScene.cpp（OnEnter内の nodeObj_ 部分だけ置き換え）
 
@@ -189,6 +208,20 @@ void TitleScene::OnEnter(GameApp& app) {
     texSamplerObj_->SetShininess(shininess_);
     texSamplerObj_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
+ 
+    srtTest_.pos = { 0.0f, 5.0f, 0.0f };
+    srtTerrain_.pos = { 0.0f, 0.0f, 0.0f };
+
+    srtNode_.pos = { 0.0f, 0.0f, 0.0f };
+    srtNodeMisc_.pos = { 3.0f, 0.0f, 0.0f };
+    srtSkin_.pos = { -3.0f, 0.0f, 0.0f };
+
+    srtMeshPrim_.pos = { -6.0f, 0.0f, 0.0f };
+    srtAlphaBlend_.pos = { 6.0f, 0.0f, 0.0f };
+    srtTexSampler_.pos = { 0.0f, 0.0f, 6.0f };
+
+    // scale/rot も必要なら個別に
+
 
 }
 
@@ -273,16 +306,39 @@ void TitleScene::Update(GameApp& app, float dt) {
 
     ImGui::End();
 
-	ImGui::Begin("Test Object SRT");
+    ImGui::Begin("Object SRT (Per-Object)");
 
-    // 位置
-    ImGui::DragFloat3("T", &testPos_.x, 0.1f);
+    static const char* targetLabels[] = {
+        "TestObj",
+        "Terrain",
+        "Node",
+        "NodeMisc",
+        "Skin",
+        "MeshPrim",
+        "AlphaBlend",
+        "TexSampler"
+    };
+    ImGui::Combo("Target", &editTarget_, targetLabels, IM_ARRAYSIZE(targetLabels));
 
-    // 回転：ラジアン想定なら 0.01f 刻みが扱いやすい
-    ImGui::DragFloat3("R", &testRot_.x, 0.01f);
+    // ターゲットに応じて参照先を切り替え
+    SRT* cur = nullptr;
+    switch (static_cast<EditTarget>(editTarget_)) {
+    case EditTarget::TestObj:     cur = &srtTest_; break;
+    case EditTarget::Terrain:     cur = &srtTerrain_; break;
+    case EditTarget::Node:        cur = &srtNode_; break;
+    case EditTarget::NodeMisc:    cur = &srtNodeMisc_; break;
+    case EditTarget::Skin:        cur = &srtSkin_; break;
+    case EditTarget::MeshPrim:    cur = &srtMeshPrim_; break;
+    case EditTarget::AlphaBlend:  cur = &srtAlphaBlend_; break;
+    case EditTarget::TexSampler:  cur = &srtTexSampler_; break;
+    default: break;
+    }
 
-    // スケール
-    ImGui::DragFloat3("S", &testScale_.x, 0.1f, 0.001f, 100.0f);
+    if (cur) {
+        ImGui::DragFloat3("T", &cur->pos.x, 0.1f);
+        ImGui::DragFloat3("R", &cur->rot.x, 0.01f);
+        ImGui::DragFloat3("S", &cur->scale.x, 0.1f, 0.001f, 100.0f);
+    }
 
     ImGui::Separator();
     ImGui::Text("PointLight");
@@ -335,57 +391,8 @@ void TitleScene::Update(GameApp& app, float dt) {
     }
 
 
-    ImGui::Begin("Node Model Switch");
+    DrawImGui_ModelSwitchersOneWindow();
 
-    // 00～05を選べる（表示はファイル名でもOK）
-    static const char* labels[] = { "00", "01", "02", "03", "04", "05" };
-
-    ImGui::Text("Animation_Node");
-    ImGui::Combo("Index", &nodeModelIndex_, labels, IM_ARRAYSIZE(labels));
-
-    ImGui::Text("Path: %s", nodeModelPaths_[nodeModelIndex_]);
-
-    ImGui::End();
-
-    ImGui::Begin("NodeMisc Model Switch");
-
-    static const char* labelsMisc[] = { "00","01","02","03","04","05","06","07","08" };
-
-    ImGui::Text("Animation_NodeMisc");
-    ImGui::Combo("Index", &nodeMiscModelIndex_, labelsMisc, IM_ARRAYSIZE(labelsMisc));
-    ImGui::Text("Path: %s", nodeMiscModelPaths_[nodeMiscModelIndex_]);
-
-    ImGui::End();
-
-    ImGui::Begin("Skin Model Switch");
-
-    static const char* labelsSkin[] = {
-        "00","01","02","03","04","05","06","07","08","09","10","11"
-    };
-
-    ImGui::Text("Animation_Skin");
-    ImGui::Combo("Index", &skinModelIndex_, labelsSkin, IM_ARRAYSIZE(labelsSkin));
-    ImGui::Text("Path: %s", skinModelPaths_[skinModelIndex_]);
-
-    ImGui::End();
-
-    ImGui::Begin("Mesh_Primitives Switch");
-    static const char* labelMeshPrim[] = { "00" };
-    ImGui::Combo("Index", &meshPrimIndex_, labelMeshPrim, IM_ARRAYSIZE(labelMeshPrim));
-    ImGui::Text("Path: %s", meshPrimPaths_[meshPrimIndex_]);
-    ImGui::End();
-
-    ImGui::Begin("Material_AlphaBlend Switch");
-    static const char* labelAlpha[] = { "00","01","02","03","04","05","06" };
-    ImGui::Combo("Index", &alphaBlendIndex_, labelAlpha, IM_ARRAYSIZE(labelAlpha));
-    ImGui::Text("Path: %s", alphaBlendPaths_[alphaBlendIndex_]);
-    ImGui::End();
-
-    ImGui::Begin("Texture_Sampler Switch");
-    static const char* labelSampler[] = { "00","01","02","03","04","05","06","07","08","09","10","11","12","13" };
-    ImGui::Combo("Index", &texSamplerIndex_, labelSampler, IM_ARRAYSIZE(labelSampler));
-    ImGui::Text("Path: %s", texSamplerPaths_[texSamplerIndex_]);
-    ImGui::End();
 
 
 #endif
@@ -429,9 +436,9 @@ void TitleScene::Update(GameApp& app, float dt) {
 
     if (testObj_) {
         // ★SRT反映
-        testObj_->SetTranslate(testPos_);
-        testObj_->SetRotate(testRot_);
-        testObj_->SetScale(testScale_);
+        testObj_->SetTranslate(srtTest_.pos);
+        testObj_->SetRotate(srtTest_.rot);
+        testObj_->SetScale(srtTest_.scale);
 
         // 既存
         testObj_->SetEnableLighting(lighting);
@@ -462,6 +469,42 @@ void TitleScene::Update(GameApp& app, float dt) {
         testObj_->Update(dt);
     }
 
+
+    if (terrainObj_) {
+        // ★SRT反映
+        terrainObj_->SetTranslate(srtTerrain_.pos);
+        terrainObj_->SetRotate(srtTerrain_.rot);
+        terrainObj_->SetScale(srtTerrain_.scale);
+
+        // 既存
+        terrainObj_->SetEnableLighting(lighting);
+        terrainObj_->SetShininess(shininess_);
+        terrainObj_->SetDirection(lightDir_);
+        terrainObj_->SetIntensity(lightIntensity_);
+        terrainObj_->SetLightColor(lightColor_);
+
+        // PointLight 反映
+        terrainObj_->SetPointLightPos(pointPos_);
+        terrainObj_->SetPointLightIntensity(pointIntensity_);
+        terrainObj_->SetPointLightColor(pointColor_);
+
+        terrainObj_->SetPointLightRadius(pointRadius_);
+        terrainObj_->SetPointLightDecay(pointDecay_);
+
+        // SpotLight 反映
+        terrainObj_->SetSpotLightPos(spotPos_);
+        terrainObj_->SetSpotLightDirection(spotDir_);
+        terrainObj_->SetSpotLightIntensity(spotIntensity_);
+        terrainObj_->SetSpotLightDistance(spotDistance_);
+        terrainObj_->SetSpotLightDecay(spotDecay_);
+        terrainObj_->SetSpotLightCosAngle(cosOuter);
+        terrainObj_->SetSpotLightCosFalloffStart(cosInner);
+        terrainObj_->SetSpotLightColor({ spotColor_.x, spotColor_.y, spotColor_.z, 1.0f });
+
+
+        terrainObj_->Update(dt);
+    }
+
     if (nodeObj_) {
 
         // ★モデル切替：indexが変わった瞬間に読み直す
@@ -478,9 +521,9 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 
         // ★SRT反映
-        nodeObj_->SetTranslate(testPos_);
-        nodeObj_->SetRotate(testRot_);
-        nodeObj_->SetScale(testScale_);
+        nodeObj_->SetTranslate(srtNode_.pos);
+        nodeObj_->SetRotate(srtNode_.rot);
+        nodeObj_->SetScale(srtNode_.scale);
 
         // 既存
         nodeObj_->SetEnableLighting(lighting);
@@ -526,9 +569,9 @@ void TitleScene::Update(GameApp& app, float dt) {
         }
 
         // ★SRT反映（位置だけ少しずらす例）
-        nodeMiscObj_->SetTranslate({ testPos_.x + 3.0f, testPos_.y, testPos_.z });
-        nodeMiscObj_->SetRotate(testRot_);
-        nodeMiscObj_->SetScale(testScale_);
+        nodeMiscObj_->SetTranslate(srtNodeMisc_.pos);
+        nodeMiscObj_->SetRotate(srtNodeMisc_.rot);
+        nodeMiscObj_->SetScale(srtNodeMisc_.scale);
 
         // ライト
         nodeMiscObj_->SetEnableLighting(lighting);
@@ -569,9 +612,9 @@ void TitleScene::Update(GameApp& app, float dt) {
         }
 
         // ★SRT（位置だけさらにずらす例）
-        skinObj_->SetTranslate({ testPos_.x - 3.0f, testPos_.y, testPos_.z });
-        skinObj_->SetRotate(testRot_);
-        skinObj_->SetScale(testScale_);
+        skinObj_->SetTranslate(srtSkin_.pos);
+        skinObj_->SetRotate(srtSkin_.rot);
+        skinObj_->SetScale(srtSkin_.scale);
 
         // ライト（nodeMisc と同じ）
         skinObj_->SetEnableLighting(lighting);
@@ -708,6 +751,14 @@ void TitleScene::Update(GameApp& app, float dt) {
         texSamplerObj_->Update(dt);
     }
 
+    if (particle_ && assimpPlaneIndex_ != assimpPlaneIndexPrev_) {
+        assimpPlaneIndexPrev_ = assimpPlaneIndex_;
+
+        particle_->SetModel(assimpPlanePaths_[assimpPlaneIndex_]);
+
+        // 見えなくなった時の保険（任意）
+        // particle_->Reset(); みたいな関数があるなら呼ぶ
+    }
 
     // ===== カメラ反映 =====
     if (camera_) {
@@ -729,13 +780,14 @@ void TitleScene::Draw(GameApp& app) {
 
 	//skyDome_->Draw();
 
-    //if (testObj_) testObj_->Draw();
+    if (testObj_) testObj_->Draw();
+    if (terrainObj_) terrainObj_->Draw();
 	if (nodeObj_) nodeObj_->Draw();
     if (nodeMiscObj_) nodeMiscObj_->Draw();
     if (skinObj_) skinObj_->Draw();
     if (meshPrimObj_)   meshPrimObj_->Draw();
-    if (alphaBlendObj_) alphaBlendObj_->Draw();
     if (texSamplerObj_) texSamplerObj_->Draw();
+    if (alphaBlendObj_) alphaBlendObj_->Draw();
 
     // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
     app.ParticleCom()->SetGraphicsPipelineState();
@@ -766,4 +818,132 @@ void TitleScene::Draw(GameApp& app) {
     if (!particle_) return;
 
 
+}
+
+void TitleScene::DrawImGui_ModelSwitchBlock(const char* header,
+    const char* comboLabel,
+    int& index,
+    const char* const* paths,
+    int count,
+    const char* const* labels,
+    int labelCount)
+{
+    // 折りたたみ（好きなら TreeNode でもOK）
+    if (ImGui::CollapsingHeader(header, ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        if (labels && labelCount == count) {
+            ImGui::Combo(comboLabel, &index, labels, labelCount);
+        }
+        else {
+            ImGui::Combo(comboLabel, &index, paths, count);
+        }
+
+        ImGui::Text("Path: %s", paths[index]);
+        ImGui::Separator();
+    }
+}
+
+void TitleScene::DrawImGui_ModelSwitchersOneWindow()
+{
+    ImGui::Begin("Model Switchers");  // ★ウィンドウはこれ1個だけ
+
+    // Node
+    {
+        static const char* labelsNode[] = { "00","01","02","03","04","05" };
+        DrawImGui_ModelSwitchBlock(
+            "Animation_Node",
+            "Index##Node",
+            nodeModelIndex_,
+            nodeModelPaths_.data(),
+            (int)nodeModelPaths_.size(),
+            labelsNode,
+            IM_ARRAYSIZE(labelsNode)
+        );
+    }
+
+    // NodeMisc
+    {
+        static const char* labelsMisc[] = { "00","01","02","03","04","05","06","07","08" };
+        DrawImGui_ModelSwitchBlock(
+            "Animation_NodeMisc",
+            "Index##NodeMisc",
+            nodeMiscModelIndex_,
+            nodeMiscModelPaths_.data(),
+            (int)nodeMiscModelPaths_.size(),
+            labelsMisc,
+            IM_ARRAYSIZE(labelsMisc)
+        );
+    }
+
+    // Skin
+    {
+        static const char* labelsSkin[] = { "00","01","02","03","04","05","06","07","08","09","10","11" };
+        DrawImGui_ModelSwitchBlock(
+            "Animation_Skin",
+            "Index##Skin",
+            skinModelIndex_,
+            skinModelPaths_.data(),
+            (int)skinModelPaths_.size(),
+            labelsSkin,
+            IM_ARRAYSIZE(labelsSkin)
+        );
+    }
+
+    // Mesh_Primitives
+    {
+        static const char* labelsMeshPrim[] = { "00" };
+        DrawImGui_ModelSwitchBlock(
+            "Mesh_Primitives",
+            "Index##MeshPrim",
+            meshPrimIndex_,
+            meshPrimPaths_.data(),
+            (int)meshPrimPaths_.size(),
+            labelsMeshPrim,
+            IM_ARRAYSIZE(labelsMeshPrim)
+        );
+    }
+
+    // Material_AlphaBlend
+    {
+        static const char* labelsAlpha[] = { "00","01","02","03","04","05","06" };
+        DrawImGui_ModelSwitchBlock(
+            "Material_AlphaBlend",
+            "Index##Alpha",
+            alphaBlendIndex_,
+            alphaBlendPaths_.data(),
+            (int)alphaBlendPaths_.size(),
+            labelsAlpha,
+            IM_ARRAYSIZE(labelsAlpha)
+        );
+    }
+
+    // Texture_Sampler
+    {
+        static const char* labelsSampler[] = { "00","01","02","03","04","05","06","07","08","09","10","11","12","13" };
+        DrawImGui_ModelSwitchBlock(
+            "Texture_Sampler",
+            "Index##Sampler",
+            texSamplerIndex_,
+            texSamplerPaths_.data(),
+            (int)texSamplerPaths_.size(),
+            labelsSampler,
+            IM_ARRAYSIZE(labelsSampler)
+        );
+    }
+
+    // Assimp Plane
+    {
+        static const char* labelsPlane[] = { "plane.obj", "plane.gltf" };
+        DrawImGui_ModelSwitchBlock(
+            "Assimp Plane",
+            "Plane##Assimp",
+            assimpPlaneIndex_,
+            assimpPlanePaths_.data(),
+            (int)assimpPlanePaths_.size(),
+            labelsPlane,
+            IM_ARRAYSIZE(labelsPlane)
+        );
+    }
+
+    ImGui::End();
 }
