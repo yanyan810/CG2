@@ -80,8 +80,8 @@ PixelShaderOutput main(VertexShaderOutput input)
     float4 uv = mul(float4(input.texcoord, 0, 1), gMaterial.uvTransform);
     float4 tex = gTexture.Sample(gSampler, uv.xy);
 
-    if (tex.a == 0.0f)
-        discard;
+    //if (tex.a == 0.0f)
+    //    discard;
 
     output.color = gMaterial.color * tex;
 
