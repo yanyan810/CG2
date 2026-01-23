@@ -93,6 +93,7 @@ void Object3dCommon::CreateGraphicsPipelineState() {
 
     // === Shaders ===
     // ※ まずは既存の Object3D シェーダを流用（あなたの main と同じ）
+
     Microsoft::WRL::ComPtr<IDxcBlob> vs = dx_->CompilesSharder(L"resources/shaders/Object3D.VS.hlsl", L"vs_6_0");
     Microsoft::WRL::ComPtr<IDxcBlob> ps = dx_->CompilesSharder(L"resources/shaders/Object3D.PS.hlsl", L"ps_6_0");
 
