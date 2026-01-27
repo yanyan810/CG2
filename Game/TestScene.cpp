@@ -51,20 +51,86 @@ void TestScene::OnEnter(GameApp& app) {
     playTxst_->AdjustTextureSize();
     playTxst_->SetScale({ 1.0f, 1.0f ,1.0f });
 
+    light_.dirIntensity = 1.6f;
+    light_.pointIntensity = 2.5f;
+    light_.spotIntensity = 0.0f;
+
+    player_->SetLighting(light_);
+    enemyMgr_.SetLighting(light_);
+
+
     // どこかで（OnEnterの中）
-    auto* mgr = ModelManager::GetInstance();
-    mgr->LoadModel("ground/ground.obj");   // resources/ground/ground.obj を想定
+    //auto* mgr = ModelManager::GetInstance();
+    //mgr->LoadModel("ground/ground.obj");   // resources/ground/ground.obj を想定
 
     ground_ = std::make_unique<Object3d>();
     ground_->Initialize(app.ObjCom(), app.Dx());
     ground_->SetCamera(camera_.get());
     ground_->SetModel("ground/ground.obj");
 
+    
+
     // 位置・大きさは好みで調整
     ground_->SetTranslate({ 0.0f, -5.0f, 0.0f });
     ground_->SetScale({ 1.0f, 1.0f, 1.0f });
     ground_->SetRotate({ 0.0f, 0.0f, 0.0f });
-   
+    ground_->SetEnableLighting(2);     // 2はハーフランバート
+    ground_->SetIntensity(2.0f);
+    ground_->SetLightColor(light_.dirColor);
+    ground_->SetEnableLighting(0);
+    // Groundは pointだけ使う
+    groundLight_ = light_;              // とりあえず既存をコピーしてもOK
+    groundLight_.dirIntensity = 0.0f;   // ★Directional 無効
+    groundLight_.spotIntensity = 0.0f;  // ★Spot 無効
+
+    groundLight_.pointIntensity = 16.0f;
+    groundLight_.pointPos = { 0.0f, -42.0f, -1.0f };
+    groundLight_.pointRadius = 200.0f;
+    groundLight_.pointDecay = 1.0f;
+    groundLight_.pointColor = { 1.0f, 1.0f, 1.0f }; // Vector3想定
+
+    // Spot ON
+    groundLight_.spotIntensity = 20.0f;
+    groundLight_.spotPos = { 0.0f, 15.0f, 15.0f };
+
+    // ★direction は「どこを向くか」
+    // とりあえず地面の中央へ向ける（後で毎フレ更新してもOK）
+    Vector3 target = { 0.0f, 0.0f, 15.0f };
+    Vector3 d = { target.x - groundLight_.spotPos.x, target.y - groundLight_.spotPos.y, target.z - groundLight_.spotPos.z };
+    {
+        float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+        if (len > 1e-6f) { d.x /= len; d.y /= len; d.z /= len; }
+    }
+    groundLight_.spotDir = d;
+
+    groundLight_.spotDistance = 80.0f;
+    groundLight_.spotDecay = 1.0f;
+
+    // 角度（degree管理してる前提）
+    groundLight_.spotAngleDeg = 25.0f;
+    groundLight_.spotFalloffStartDeg = 15.0f;
+    groundLight_.spotColor = { 1.0f, 1.0f, 1.0f };
+
+    // --- Spot マーカー ---
+    spotMarker_ = std::make_unique<Object3d>();
+    spotMarker_->Initialize(app.ObjCom(), app.Dx());
+    spotMarker_->SetCamera(camera_.get());
+    spotMarker_->SetModel("cube/cube.obj");
+    spotMarker_->SetEnableLighting(0);
+    spotMarker_->SetMaterialColor({ 0, 1, 1, 1 }); // シアン
+    spotMarker_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    // PointLightマーカー
+    pointMarker_ = std::make_unique<Object3d>();
+    pointMarker_->Initialize(app.ObjCom(), app.Dx());
+    pointMarker_->SetCamera(camera_.get());
+    pointMarker_->SetModel("cube/cube.obj");
+
+    // 見た目
+    pointMarker_->SetEnableLighting(0);                 // ★ライトの影響を受けない
+    pointMarker_->SetMaterialColor({ 1, 1, 0, 1 });     // 黄色とか（好みで）
+    pointMarker_->SetShininess(1.0f);
+    pointMarker_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
 }
 
@@ -121,6 +187,120 @@ void TestScene::Update(GameApp& app, float dt) {
 
 #endif // DEBUG
 
+    player_->SetLighting(light_);
+    enemyMgr_.SetLighting(light_);
+    //// ground は SpotLightのみ反映
+    //if (ground_) {
+    //    ground_->SetEnableLighting(2);
+
+    //    // ★Directional OFF
+    //    ground_->SetIntensity(0.0f);
+
+    //    // ★Point OFF
+    //    ground_->SetPointLightIntensity(0.0f);
+
+    //    // ★Spot ON
+    //    const float cosOuter = std::cosf(groundLight_.spotAngleDeg * (std::numbers::pi_v<float> / 180.0f));
+    //    const float cosInner = std::cosf(groundLight_.spotFalloffStartDeg * (std::numbers::pi_v<float> / 180.0f));
+    //    ground_->SetShininess(128.0f);
+    //    ground_->SetSpotLightPos(groundLight_.spotPos);
+    //    ground_->SetSpotLightDirection(groundLight_.spotDir); // 正規化されてる前提
+    //    ground_->SetSpotLightIntensity(groundLight_.spotIntensity);
+    //    ground_->SetSpotLightDistance(groundLight_.spotDistance);
+    //    ground_->SetSpotLightDecay(groundLight_.spotDecay);
+    //    ground_->SetSpotLightCosAngle(cosOuter);
+    //    ground_->SetSpotLightCosFalloffStart(cosInner);
+    //    ground_->SetSpotLightColor({ groundLight_.spotColor.x, groundLight_.spotColor.y, groundLight_.spotColor.z, 1.0f });
+    //}
+
+    //// Spot マーカー追従
+    //if (spotMarker_) {
+    //    spotMarker_->SetTranslate(groundLight_.spotPos);
+    //    spotMarker_->SetScale({ spotMarkerScale_, spotMarkerScale_, spotMarkerScale_ });
+    //    spotMarker_->Update(dt);
+    //}
+
+
+
+#ifdef USE_IMGUI
+    ImGui::Begin("Ground PointLight");
+
+    ImGui::Checkbox("Point Only (ground)", &groundPointOnly_);
+
+    ImGui::DragFloat3("Point Pos", &groundLight_.pointPos.x, 0.1f);
+    ImGui::DragFloat("Point Intensity", &groundLight_.pointIntensity, 0.05f, 0.0f, 50.0f);
+    ImGui::DragFloat("Point Radius", &groundLight_.pointRadius, 0.1f, 0.1f, 200.0f);
+    ImGui::DragFloat("Point Decay", &groundLight_.pointDecay, 0.01f, 0.0f, 10.0f);
+
+    ImGui::ColorEdit3("Point Color", &groundLight_.pointColor.x);
+
+    if (ImGui::Button("Reset")) {
+        groundLight_.dirIntensity = 0.0f;
+        groundLight_.spotIntensity = 0.0f;
+        groundLight_.pointIntensity = 2.5f;
+        groundLight_.pointPos = { 0.0f, 5.0f, 15.0f };
+        groundLight_.pointRadius = 15.0f;
+        groundLight_.pointDecay = 1.0f;
+        groundLight_.pointColor = { 1.0f, 1.0f, 1.0f };
+    }
+
+    ImGui::Checkbox("Draw Point Marker", &drawPointMarker_);
+    ImGui::DragFloat("Marker Scale", &pointMarkerScale_, 0.01f, 0.01f, 5.0f);
+
+
+    ImGui::End();
+#endif
+
+#ifdef USE_IMGUI
+    ImGui::Begin("Ground SpotLight");
+
+    ImGui::Checkbox("Spot Only (ground)", &groundSpotOnly_);
+
+    ImGui::DragFloat3("Spot Pos", &groundLight_.spotPos.x, 0.1f);
+    ImGui::DragFloat3("Spot Dir", &groundLight_.spotDir.x, 0.01f, -1.0f, 1.0f);
+
+    // ★Dirは正規化しないと壊れやすいので、ボタンで正規化も入れる
+    if (ImGui::Button("Normalize Dir")) {
+        Vector3 d = groundLight_.spotDir;
+        float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+        if (len > 1e-6f) { groundLight_.spotDir = { d.x / len, d.y / len, d.z / len }; }
+    }
+
+    ImGui::DragFloat("Spot Intensity", &groundLight_.spotIntensity, 0.05f, 0.0f, 200.0f);
+    ImGui::DragFloat("Spot Distance", &groundLight_.spotDistance, 0.1f, 0.1f, 500.0f);
+    ImGui::DragFloat("Spot Decay", &groundLight_.spotDecay, 0.01f, 0.0f, 10.0f);
+
+    ImGui::DragFloat("Spot Angle (deg)", &groundLight_.spotAngleDeg, 0.1f, 1.0f, 89.0f);
+    ImGui::DragFloat("Falloff Start (deg)", &groundLight_.spotFalloffStartDeg, 0.1f, 0.0f, 89.0f);
+
+    if (groundLight_.spotFalloffStartDeg > groundLight_.spotAngleDeg - 0.1f) {
+        groundLight_.spotFalloffStartDeg = groundLight_.spotAngleDeg - 0.1f;
+    }
+
+    ImGui::ColorEdit3("Spot Color", &groundLight_.spotColor.x);
+
+    if (ImGui::Button("Reset Spot")) {
+        groundLight_.dirIntensity = 0.0f;
+        groundLight_.pointIntensity = 0.0f;
+
+        groundLight_.spotIntensity = 20.0f;
+        groundLight_.spotPos = { 0.0f, 15.0f, 15.0f };
+        groundLight_.spotDir = { 0.0f, -1.0f, 0.0f };
+        groundLight_.spotDistance = 80.0f;
+        groundLight_.spotDecay = 1.0f;
+        groundLight_.spotAngleDeg = 25.0f;
+        groundLight_.spotFalloffStartDeg = 15.0f;
+        groundLight_.spotColor = { 1.0f,1.0f,1.0f };
+    }
+
+    ImGui::Checkbox("Draw Spot Marker", &drawSpotMarker_);
+    ImGui::DragFloat("Marker Scale", &spotMarkerScale_, 0.01f, 0.01f, 5.0f);
+
+    ImGui::End();
+#endif
+
+
+
 }
 
 
@@ -132,6 +312,9 @@ void TestScene::Draw(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
     if (ground_) ground_->Draw();
+
+    if (drawPointMarker_ && pointMarker_) pointMarker_->Draw();
+    if (drawSpotMarker_ && spotMarker_) spotMarker_->Draw();
 
     if (player_) player_->Draw();
     enemyMgr_.Draw();

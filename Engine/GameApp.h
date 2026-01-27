@@ -45,7 +45,7 @@ public:
 private:
     bool Initialize_();
     void Finalize_();
-
+    void WarmupAssets_();
 private:
     bool quit_ = false;
 

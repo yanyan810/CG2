@@ -84,6 +84,9 @@ bool GameApp::Initialize_() {
     objCommon_ = std::make_unique<Object3dCommon>();
     objCommon_->Initialize(dx_.get());
 
+    objCommon_->SetSrvManager(srv_.get());
+  
+
     particleCommon_ = std::make_unique<ParticleCommon>();
     particleCommon_->Initialize(dx_.get());
 
@@ -95,12 +98,15 @@ bool GameApp::Initialize_() {
     // GameApp::Initialize など
     skinCom_ = std::make_unique<SkinningCommon>();
     skinCom_->Initialize(dx_.get());
-
+    objCommon_->SetSkinningCommon(skinCom_.get());
 
     // ★ Input は Scene を動かす前に作る（最重要）
     input_ = std::make_unique<Input>();
     input_->Initialize(win_.get());
     input_->Update(); // 初回
+
+
+    WarmupAssets_();
 
     // SceneManager
     sceneMgr_ = std::make_unique<SceneManager>();
@@ -161,3 +167,16 @@ void GameApp::Draw() {
 
 }
 
+void GameApp::WarmupAssets_() {
+    OutputDebugStringA("[Warmup] START\n");
+
+    // もしテクスチャも初回で刺さるならここで
+    TextureManager::GetInstance()->LoadTexture("resources/shadow/shadow.png");
+
+    // モデル（ModelManager がキャッシュする前提）
+    ModelManager::GetInstance()->LoadModel("human/walk.gltf");
+    ModelManager::GetInstance()->LoadModel("human/sneakWalk.gltf");
+    ModelManager::GetInstance()->LoadModel("gltf/walk.glb");
+
+    OutputDebugStringA("[Warmup] END\n");
+}

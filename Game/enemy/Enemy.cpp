@@ -6,37 +6,37 @@
 #include <algorithm>
 #include <cmath>
 
-static const char* kShooterWalkModels[] = {
-	"enemy/shooter/walk/walk1.obj",
-	"enemy/shooter/walk/walk2.obj",
-	"enemy/shooter/walk/walk3.obj",
-	"enemy/shooter/walk/walk4.obj",
-	"enemy/shooter/walk/walk5.obj",
-};
-
-static const char* kMeleeWalkModels[] = {
-	"enemy/melee/dush/dush.fbx",   // ★1枚目はFBX
-	"enemy/melee/dush/dush2.obj",
-	"enemy/melee/dush/dush3.obj",
-	"enemy/melee/dush/dush4.obj",
-	"enemy/melee/dush/dush5.obj",
-};
-
-
-static const char* kMeleeAttackModels[] = {
-	"enemy/melee/iAttak/attak1.fbx",
-	"enemy/melee/iAttak/attak2.fbx",
-	"enemy/melee/iAttak/attak3.fbx",
-};
-
-static const char* kMeleeDamageModel = "enemy/melee/damage/damage.obj";
-static const char* kShooterDamageModel = "enemy/shooter/damage/damage.obj";
-
-static const char* kBossIdleModels[] = {
-	"enemy/boss/idol/idol1.obj",
-	"enemy/boss/idol/idol2.obj",
-	"enemy/boss/idol/idol3.obj",
-};
+//static const char* kShooterWalkModels[] = {
+//	"enemy/shooter/walk/walk1.obj",
+//	"enemy/shooter/walk/walk2.obj",
+//	"enemy/shooter/walk/walk3.obj",
+//	"enemy/shooter/walk/walk4.obj",
+//	"enemy/shooter/walk/walk5.obj",
+//};
+//
+//static const char* kMeleeWalkModels[] = {
+//	"enemy/melee/dush/dush.fbx",   // ★1枚目はFBX
+//	"enemy/melee/dush/dush2.obj",
+//	"enemy/melee/dush/dush3.obj",
+//	"enemy/melee/dush/dush4.obj",
+//	"enemy/melee/dush/dush5.obj",
+//};
+//
+//
+//static const char* kMeleeAttackModels[] = {
+//	"enemy/melee/iAttak/attak1.fbx",
+//	"enemy/melee/iAttak/attak2.fbx",
+//	"enemy/melee/iAttak/attak3.fbx",
+//};
+//
+//static const char* kMeleeDamageModel = "enemy/melee/damage/damage.obj";
+//static const char* kShooterDamageModel = "enemy/shooter/damage/damage.obj";
+//
+//static const char* kBossIdleModels[] = {
+//	"enemy/boss/idol/idol1.obj",
+//	"enemy/boss/idol/idol2.obj",
+//	"enemy/boss/idol/idol3.obj",
+//};
 
 
 
@@ -104,7 +104,7 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	//model_->SetModel("cube/cube.obj");
 
 	UpdateBody_();
-	UpdateModel_();
+	//UpdateModel_(dt);
 
 	meleeState_ = MeleeState::Approach;
 	shooterState_ = ShooterState::Retreat;
@@ -128,72 +128,74 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 
 	auto* mgr = ModelManager::GetInstance();
 
-	if (type_ == EnemyType::Shooter) {
+	currentModelSet_ = EnemyModelSet::HumanSneakWalk; // まず停止扱いで
+	model_->SetModel(GetEnemyModelPath_(currentModelSet_));
+	model_->PlayAnimation("", true);
 
-		for (auto& path : kShooterWalkModels) { mgr->LoadModel(path); }
-		for (int i = 0; i < 5; ++i) {
-			shooterWalkModels_[i] = mgr->FindModel(kShooterWalkModels[i]);
-			assert(shooterWalkModels_[i]);
-		}
 
-		// ★ダメージモデル
-		mgr->LoadModel(kShooterDamageModel);
-		shooterDamageModel_ = mgr->FindModel(kShooterDamageModel);
-		assert(shooterDamageModel_);
+	//if (type_ == EnemyType::Shooter) {
 
-		model_->SetModel(shooterWalkModels_[0]);
+	//	for (auto& path : kShooterWalkModels) { mgr->LoadModel(path); }
+	//	for (int i = 0; i < 5; ++i) {
+	//		shooterWalkModels_[i] = mgr->FindModel(kShooterWalkModels[i]);
+	//		assert(shooterWalkModels_[i]);
+	//	}
 
-	} else  if (type_ == EnemyType::Melee) {
+	//	// ★ダメージモデル
+	//	mgr->LoadModel(kShooterDamageModel);
+	//	shooterDamageModel_ = mgr->FindModel(kShooterDamageModel);
+	//	assert(shooterDamageModel_);
 
-		for (auto& path : kMeleeWalkModels) { mgr->LoadModel(path); }
-		for (int i = 0; i < 5; ++i) {
-			meleeWalkModels_[i] = mgr->FindModel(kMeleeWalkModels[i]);
-			assert(meleeWalkModels_[i]);
-		}
+	//	model_->SetModel(shooterWalkModels_[0]);
 
-		// ★攻撃（iAttak）ロード
-		for (auto& path : kMeleeAttackModels) { mgr->LoadModel(path); }
-		for (int i = 0; i < 3; ++i) {
-			meleeAttackModels_[i] = mgr->FindModel(kMeleeAttackModels[i]);
-			assert(meleeAttackModels_[i]);
-		}
+	//} else  if (type_ == EnemyType::Melee) {
 
-		// ★ダメージモデル
-		mgr->LoadModel(kMeleeDamageModel);
-		meleeDamageModel_ = mgr->FindModel(kMeleeDamageModel);
-		assert(meleeDamageModel_);
+	//	for (auto& path : kMeleeWalkModels) { mgr->LoadModel(path); }
+	//	for (int i = 0; i < 5; ++i) {
+	//		meleeWalkModels_[i] = mgr->FindModel(kMeleeWalkModels[i]);
+	//		assert(meleeWalkModels_[i]);
+	//	}
 
-		model_->SetModel(meleeWalkModels_[0]);
+	//	// ★攻撃（iAttak）ロード
+	//	for (auto& path : kMeleeAttackModels) { mgr->LoadModel(path); }
+	//	for (int i = 0; i < 3; ++i) {
+	//		meleeAttackModels_[i] = mgr->FindModel(kMeleeAttackModels[i]);
+	//		assert(meleeAttackModels_[i]);
+	//	}
 
-	} else {
-		// Bossなど
-		//model_->SetModel("cube/cube.obj");
-	}
+	//	// ★ダメージモデル
+	//	mgr->LoadModel(kMeleeDamageModel);
+	//	meleeDamageModel_ = mgr->FindModel(kMeleeDamageModel);
+	//	assert(meleeDamageModel_);
 
-	if (type_ == EnemyType::Melee) {
-		damageScaleMul_ = 3.0f; // ←まずは3倍くらいから。後で調整
-	} else {
-		damageScaleMul_ = 1.0f;
-	}
+	//	model_->SetModel(meleeWalkModels_[0]);
 
-	if (type_ == EnemyType::Boss) {
-		for (auto& path : kBossIdleModels) { mgr->LoadModel(path); }
-		for (int i = 0; i < kBossIdleFrameCount; ++i) {
-			bossIdleModels_[i] = mgr->FindModel(kBossIdleModels[i]);
-			assert(bossIdleModels_[i]);
-		}
-		model_->SetModel(bossIdleModels_[0]);
-	} else {
-	//	model_->SetModel("cube/cube.obj");
-	}
+	//} else {
+	//	// Bossなど
+	//	//model_->SetModel("cube/cube.obj");
+	//}
+
+	//if (type_ == EnemyType::Melee) {
+	//	damageScaleMul_ = 3.0f; // ←まずは3倍くらいから。後で調整
+	//} else {
+	//	damageScaleMul_ = 1.0f;
+	//}
+
+	//if (type_ == EnemyType::Boss) {
+	//	for (auto& path : kBossIdleModels) { mgr->LoadModel(path); }
+	//	for (int i = 0; i < kBossIdleFrameCount; ++i) {
+	//		bossIdleModels_[i] = mgr->FindModel(kBossIdleModels[i]);
+	//		assert(bossIdleModels_[i]);
+	//	}
+	//	model_->SetModel(bossIdleModels_[0]);
+	//} else {
+	////	model_->SetModel("cube/cube.obj");
+	//}
 
 }
 
 void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 	if (!alive_) return;
-
-	model_->Update(dt);
-	debugHitboxCube_->Update(dt);
 
 	// ★Test用：完全停止
 	if (frozen_) {
@@ -203,7 +205,7 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 
 		// 見た目と当たり判定は更新しておく（攻撃判定がちゃんと当たる）
 		UpdateBody_();
-		UpdateModel_();
+		UpdateModel_(dt);
 		return;
 	}
 
@@ -238,44 +240,19 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 		else                      model_->SetMaterialColor(normalColor_);
 	}
 
-	// ===== Melee 歩きアニメ（動いてる時だけ）=====
-	if (type_ == EnemyType::Melee && meleeWalkModels_[0]) {
+	
 
-		const bool moving =
-			(std::abs(vel_.x) > 0.01f) ||
-			(std::abs(vel_.z) > 0.01f);
-
-		if (moving) {
-			walkAnimTime_ += dt;
-			int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
-			model_->SetModel(meleeWalkModels_[frame]);
-		} else {
-			walkAnimTime_ = 0.0f;
-			model_->SetModel(meleeWalkModels_[0]); // idle扱い
-		}
-	}
-
-	// ===== Shooter 歩きアニメ（AIが動かしてる時だけ）=====
-	if (type_ == EnemyType::Shooter && shooterWalkModels_[0]) {
-
-		const bool moving =
-			(std::abs(vel_.x) > 0.01f) ||
-			(std::abs(vel_.z) > 0.01f);
-
-		if (moving) {
-			walkAnimTime_ += dt;
-			int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
-			model_->SetModel(shooterWalkModels_[frame]);
-		} else {
-			walkAnimTime_ = 0.0f;
-			model_->SetModel(shooterWalkModels_[0]); // idle扱い
-		}
-	}
+	
 
 	// ★物理は常に回す（吹き飛びたいので）
 	ApplyPhysics_(dt);
 	UpdateBody_();
-	UpdateModel_();
+	UpdateModel_(dt);
+	SetLighting(light_);
+
+	if (model_) model_->Update(dt);
+	if (debugHitboxCube_) debugHitboxCube_->Update(dt);
+
 
 }
 
@@ -574,7 +551,7 @@ void Enemy::UpdateBody_() {
 	body_.max = { pos_.x + hx, pos_.y + hy * 2.0f, pos_.z + hz }; // ★Zもpos_.z基準
 }
 
-void Enemy::UpdateModel_() {
+void Enemy::UpdateModel_(float dt) {
 	if (!model_) return;
 
 	model_->SetTranslate({ pos_.x, pos_.y, pos_.z });
@@ -583,84 +560,115 @@ void Enemy::UpdateModel_() {
 	if (type_ == EnemyType::Boss) model_->SetScale({ 2.0f * flipX, 2.0f, 2.0f });
 	else                         model_->SetScale({ 1.0f * flipX, 1.0f, 1.0f });
 
-	// -------------------------
-	// ★ここから「見た目モデル選択」を1本化
-	// -------------------------
-	Model* chosen = nullptr;
+	//// -------------------------
+	//// ★ここから「見た目モデル選択」を1本化
+	//// -------------------------
+	//Model* chosen = nullptr;
 
-	bool usingDamageModel =
-		(chosen == meleeDamageModel_) ||
-		(chosen == shooterDamageModel_);
+	//bool usingDamageModel =
+	//	(chosen == meleeDamageModel_) ||
+	//	(chosen == shooterDamageModel_);
 
-	// 1) 被弾中は damage を優先
-	if (hitFlashSec_ > 0.0f) {
-		if (type_ == EnemyType::Melee && meleeDamageModel_) {
-			chosen = meleeDamageModel_;
-		} else if (type_ == EnemyType::Shooter && shooterDamageModel_) {
-			chosen = shooterDamageModel_;
-		}
+	//// 1) 被弾中は damage を優先
+	//if (hitFlashSec_ > 0.0f) {
+	//	if (type_ == EnemyType::Melee && meleeDamageModel_) {
+	//		chosen = meleeDamageModel_;
+	//	} else if (type_ == EnemyType::Shooter && shooterDamageModel_) {
+	//		chosen = shooterDamageModel_;
+	//	}
+	//}
+
+	//// 2) 近接の攻撃（Windup / Attack）は iAttak
+	//if (!chosen && type_ == EnemyType::Melee && meleeAttackModels_[0]) {
+	//	if (meleeState_ == MeleeState::Windup) {
+	//		chosen = meleeAttackModels_[0]; // 溜め
+	//		meleeAtkAnimTime_ = 0.0f;       // 溜め中は固定でもOK
+	//	} else if (meleeState_ == MeleeState::Attack) {
+	//		// 攻撃中だけ時間進める（Update()側で進めてもOK）
+	//		meleeAtkAnimTime_ += (1.0f / 60.0f); // dt渡せないならこう。渡せるなら dt を使うのが理想
+
+	//		// 例：攻撃時間を 3コマに割る
+	//		float t = meleeAtkAnimTime_;
+	//		if (t < 0.06f)      chosen = meleeAttackModels_[0];
+	//		else if (t < 0.12f) chosen = meleeAttackModels_[1];
+	//		else                chosen = meleeAttackModels_[2];
+	//	} else {
+	//		meleeAtkAnimTime_ = 0.0f;
+	//	}
+	//}
+
+	//// 3) それ以外：walk
+	//if (!chosen) {
+	//	if (type_ == EnemyType::Boss && bossIdleModels_[0]) {
+
+	//		const bool moving =
+	//			(std::abs(vel_.x) > 0.01f) ||
+	//			(std::abs(vel_.z) > 0.01f) ||
+	//			(std::abs(vel_.y) > 0.01f);
+
+	//		if (moving) {
+	//			walkAnimTime_ += dt;
+	//			int frame = int(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
+	//			if (frame != lastWalkFrame_) {
+	//				lastWalkFrame_ = frame;
+	//				chosen = meleeWalkModels_[frame];
+	//			}
+	//			else {
+	//				chosen = currentModel_; // 変えない
+	//			}
+	//		}
+	//		else {
+	//			lastWalkFrame_ = -1;
+	//			chosen = meleeWalkModels_[0];
+	//		}
+
+
+
+	//	} else if (type_ == EnemyType::Shooter && shooterWalkModels_[0]) {
+	//		const bool moving = (std::abs(vel_.x) > 0.01f) || (std::abs(vel_.z) > 0.01f);
+	//		if (moving) {
+	//			int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
+	//			chosen = shooterWalkModels_[frame];
+	//		} else {
+	//			chosen = shooterWalkModels_[0];
+	//		}
+	//	} else if (type_ == EnemyType::Melee && meleeWalkModels_[0]) {
+	//		const bool moving = (std::abs(vel_.x) > 0.01f) || (std::abs(vel_.z) > 0.01f);
+	//		if (moving) {
+	//			int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
+	//			chosen = meleeWalkModels_[frame];
+	//		} else {
+	//			chosen = meleeWalkModels_[0];
+	//		}
+	//	}
+	//}
+
+	//if (chosen) SetModelIfChanged_(chosen);
+	//
+
+	// ===== 仮モデル切替（Playerと同じ）=====
+	const bool isAttacking =
+		(type_ == EnemyType::Melee) &&
+		(meleeState_ == MeleeState::Windup || meleeState_ == MeleeState::Attack);
+
+	// “動いてる” 判定（閾値つき）
+	const float moveEps = 0.05f;
+	const bool isMoving =
+		(std::abs(vel_.x) > moveEps) ||
+		(std::abs(vel_.z) > moveEps) ||
+		(std::abs(vel_.y) > moveEps);
+
+	if (isAttacking) {
+		ChangeModelSet_(EnemyModelSet::GltfWalkGlb);
+	}
+	else if (isMoving) {
+		ChangeModelSet_(EnemyModelSet::HumanWalk);
+	}
+	else {
+		ChangeModelSet_(EnemyModelSet::HumanSneakWalk);
 	}
 
-	// 2) 近接の攻撃（Windup / Attack）は iAttak
-	if (!chosen && type_ == EnemyType::Melee && meleeAttackModels_[0]) {
-		if (meleeState_ == MeleeState::Windup) {
-			chosen = meleeAttackModels_[0]; // 溜め
-			meleeAtkAnimTime_ = 0.0f;       // 溜め中は固定でもOK
-		} else if (meleeState_ == MeleeState::Attack) {
-			// 攻撃中だけ時間進める（Update()側で進めてもOK）
-			meleeAtkAnimTime_ += (1.0f / 60.0f); // dt渡せないならこう。渡せるなら dt を使うのが理想
 
-			// 例：攻撃時間を 3コマに割る
-			float t = meleeAtkAnimTime_;
-			if (t < 0.06f)      chosen = meleeAttackModels_[0];
-			else if (t < 0.12f) chosen = meleeAttackModels_[1];
-			else                chosen = meleeAttackModels_[2];
-		} else {
-			meleeAtkAnimTime_ = 0.0f;
-		}
-	}
-
-	// 3) それ以外：walk
-	if (!chosen) {
-		if (type_ == EnemyType::Boss && bossIdleModels_[0]) {
-
-			const bool moving =
-				(std::abs(vel_.x) > 0.01f) ||
-				(std::abs(vel_.z) > 0.01f) ||
-				(std::abs(vel_.y) > 0.01f);
-
-			if (moving) {
-				bossIdleAnimTime_ += (1.0f / 60.0f); // dtを渡せないなら今はこれ
-				int frame = int(bossIdleAnimTime_ * kBossIdleFps_) % kBossIdleFrameCount;
-				chosen = bossIdleModels_[frame];
-			} else {
-				bossIdleAnimTime_ = 0.0f;
-				chosen = bossIdleModels_[0];
-			}
-
-
-		} else if (type_ == EnemyType::Shooter && shooterWalkModels_[0]) {
-			const bool moving = (std::abs(vel_.x) > 0.01f) || (std::abs(vel_.z) > 0.01f);
-			if (moving) {
-				int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
-				chosen = shooterWalkModels_[frame];
-			} else {
-				chosen = shooterWalkModels_[0];
-			}
-		} else if (type_ == EnemyType::Melee && meleeWalkModels_[0]) {
-			const bool moving = (std::abs(vel_.x) > 0.01f) || (std::abs(vel_.z) > 0.01f);
-			if (moving) {
-				int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
-				chosen = meleeWalkModels_[frame];
-			} else {
-				chosen = meleeWalkModels_[0];
-			}
-		}
-	}
-
-	if (chosen) model_->SetModel(chosen);
-
-	
 }
 
 
@@ -705,6 +713,7 @@ void EnemyManager::Clear() {
 void EnemyManager::Spawn(EnemyType type, const Vector3& posXYZ) {
 	Enemy e;
 	e.Initialize(objCommon_, dx_, cam_, type, posXYZ);
+	e.SetLighting(light_);
 	enemies_.push_back(std::move(e));
 }
 
@@ -712,6 +721,7 @@ void EnemyManager::Update(float dt, const Vector2& playerXY, float playerZ, Play
 	// 1) 敵本体の更新
 	for (auto& e : enemies_) {
 		e.Update(dt, playerXY, playerZ); // ← もし使うなら引数を戻してOK
+		e.SetLighting(light_);
 	}
 
 	// 2) 近接ヒットボックス寿命更新
@@ -848,6 +858,7 @@ void EnemyManager::Update(float dt, const Vector2& playerXY, float playerZ, Play
 	UpdateHealDrops_(dt, player);
 
 	UpdatePendingSpawns_(dt, playerXY, playerZ);
+
 
 }
 
@@ -1011,3 +1022,42 @@ void EnemyManager::UpdatePendingSpawns_(float dt, const Vector2& playerXY, float
 	}
 }
 
+void Enemy::SetLighting(const LightingParam& p)
+{
+	light_ = p;
+	if (!model_) return;
+
+	model_->SetEnableLighting(light_.lightingMode);
+
+	model_->SetDirection(light_.dir);
+	model_->SetIntensity(light_.dirIntensity);
+	model_->SetLightColor(light_.dirColor);
+
+	model_->SetPointLightPos(light_.pointPos);
+	model_->SetPointLightIntensity(light_.pointIntensity);
+	model_->SetPointLightColor(light_.pointColor);
+	model_->SetPointLightRadius(light_.pointRadius);
+	model_->SetPointLightDecay(light_.pointDecay);
+
+	light_.spotFalloffStartDeg = std::min(light_.spotFalloffStartDeg, light_.spotAngleDeg - 0.1f);
+
+	const float cosOuter = std::cosf(light_.spotAngleDeg * (std::numbers::pi_v<float> / 180.0f));
+	const float cosInner = std::cosf(light_.spotFalloffStartDeg * (std::numbers::pi_v<float> / 180.0f));
+
+	model_->SetSpotLightPos(light_.spotPos);
+	model_->SetSpotLightDirection(light_.spotDir);
+	model_->SetSpotLightIntensity(light_.spotIntensity);
+	model_->SetSpotLightDistance(light_.spotDistance);
+	model_->SetSpotLightDecay(light_.spotDecay);
+	model_->SetSpotLightCosAngle(cosOuter);
+	model_->SetSpotLightCosFalloffStart(cosInner);
+	model_->SetSpotLightColor({ light_.spotColor.x, light_.spotColor.y, light_.spotColor.z, 1.0f });
+}
+
+void EnemyManager::SetLighting(const LightingParam& p)
+{
+	light_ = p;
+	for (auto& e : enemies_) {
+		e.SetLighting(light_);
+	}
+}
