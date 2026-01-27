@@ -3,6 +3,9 @@
 #include "Camera.h"
 #include "Model.h"
 
+class SrvManager;
+class SkinningCommon;
+
 class Object3dCommon
 {
 
@@ -33,6 +36,13 @@ public:
     void SetGraphicsPipelineState();
 
     void SetBlendMode(BlendMode m) { blendMode_ = m; CreateGraphicsPipelineState(); }
+
+    // ★追加：共通依存を持たせる
+    void SetSrvManager(SrvManager* srv) { srv_ = srv; }
+    void SetSkinningCommon(SkinningCommon* skin) { skinCom_ = skin; }
+
+    SrvManager* GetSrvManager() const { return srv_; }
+    SkinningCommon* GetSkinningCommon() const { return skinCom_; }
 
     //setter
 	void SetDefaultCamera(Camera* camera) { this->defaultCamera_ = camera; }
@@ -76,6 +86,11 @@ private:
     BlendMode blendMode_;
 
 	Camera* defaultCamera_ = nullptr;
+
+
+    // ★追加
+    SrvManager* srv_ = nullptr;
+    SkinningCommon* skinCom_ = nullptr;
 
 };
 

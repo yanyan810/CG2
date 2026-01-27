@@ -42,9 +42,12 @@ static uint32_t CalcTotalVertexCount(const Model::ModelData& modelData) {
 }
 
 void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {
-	Initialize(object3dCommon, dx, nullptr,nullptr);
-}
+	// ★Object3dCommon から拾う
+	SrvManager* srv = object3dCommon ? object3dCommon->GetSrvManager() : nullptr;
+	SkinningCommon* skin = object3dCommon ? object3dCommon->GetSkinningCommon() : nullptr;
 
+	Initialize(object3dCommon, dx, srv, skin);
+}
 
 void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, SrvManager* srv, SkinningCommon* skinCom) {
 	// 初期化処理
@@ -242,7 +245,10 @@ void Object3d::Update(float dt)
 
 void Object3d::Draw()
 {
-	if (!model_) { return; }
+	if (!model_) {
+		OutputDebugStringA("[Object3d] Draw skipped: model_ is null\n");
+		return;
+	}
 
 	if (cameraData_ && camera_) {
 		cameraData_->worldPosition = camera_->GetTranslate();
@@ -365,8 +371,10 @@ void Object3d::SetModel(const std::string& filePath) {
 	if (model_->HasSkinning()) {
 
 		// ★先に保証（boneMarkers作成より前）
-		assert(srvManager_ && "Object3d: srvManager_ is null. Pass it in Initialize()");
-
+		if (!srvManager_ || !skinningCommon_) {
+			OutputDebugStringA("[Object3d] ERROR: srvManager_ or skinningCommon_ is null\n");
+			assert(false);
+		}
 		// ==== SkinCluster 作成 ====
 		ID3D12Device* device = dx_->GetDevice();
 		ID3D12DescriptorHeap* srvHeap = TextureManager::GetInstance()->GetSrvDescriptorHeap();

@@ -76,8 +76,8 @@ void GameScene::OnEnter(GameApp& app) {
 
 
     // テストスポーン
-    enemyMgr_.Spawn(EnemyType::Melee, { 5.0f, 0.0f ,0.0f});
-    enemyMgr_.Spawn(EnemyType::Shooter, { 9.0f, 0.0f ,0.0f});
+    enemyMgr_.Spawn(EnemyType::Melee, { 5.0f, 0.0f ,15.0f});
+    enemyMgr_.Spawn(EnemyType::Shooter, { 9.0f, 0.0f ,15.0f});
     // bossはステージ5で
 
     TextureManager::GetInstance()->LoadTexture("resources/white1x1.png");

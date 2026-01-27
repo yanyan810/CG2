@@ -12,6 +12,7 @@
 
 #include "BossAI.h" 
 
+#include "LightingParam.h"
 
 class Object3dCommon;
 class DirectXCommon;
@@ -81,6 +82,12 @@ public:
 
     void SetDebugDrawMeleeHitbox(bool enable) { debugDrawMeleeHitbox_ = enable; }
 
+    enum class EnemyModelSet : uint8_t {
+        HumanWalk,
+        HumanSneakWalk,
+        GltfWalkGlb,
+    };
+
 public:
     // === BossAI 用の最小API ===
     EnemyType GetType() const { return type_; }
@@ -113,6 +120,28 @@ public:
     bool IsInvincible() const { return invincible_; }
     void SetAIDisabled(bool v) { aiDisabled_ = v; }
 
+    void SetLighting(const LightingParam& p);
+
+    EnemyModelSet currentModelSet_ = EnemyModelSet::HumanWalk;
+
+    static const char* GetEnemyModelPath_(EnemyModelSet set) {
+        switch (set) {
+        case EnemyModelSet::HumanWalk:      return "human/walk.gltf";
+        case EnemyModelSet::HumanSneakWalk: return "human/sneakWalk.gltf";
+        case EnemyModelSet::GltfWalkGlb:    return "gltf/walk.glb";
+        default:                            return "human/walk.gltf";
+        }
+    }
+
+    void ChangeModelSet_(EnemyModelSet set) {
+        if (!model_) return;
+        if (currentModelSet_ == set) return; // ★同じなら何もしない
+
+        currentModelSet_ = set;
+        model_->SetModel(GetEnemyModelPath_(set));
+        model_->PlayAnimation("", true);
+    }
+
 private:
     void UpdateAI_Melee_(float dt, const Vector2& playerXY, float playerZ);
     void UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ);
@@ -121,9 +150,24 @@ private:
 
     void ApplyPhysics_(float dt);
     void UpdateBody_();
-    void UpdateModel_();
+    void UpdateModel_(float dt);
 
 private:
+
+
+
+
+    void SetModelIfChanged_(Model* m) {
+        if (!model_ || !m) return;
+        if (currentModel_ == m) return;   // ★同じなら何もしない
+        currentModel_ = m;
+        model_->SetModel(m);
+    }
+
+
+
+private:
+
     EnemyType type_ = EnemyType::Melee;
     bool alive_ = true;
 
@@ -146,6 +190,7 @@ private:
 
     // 見た目
     std::unique_ptr<Object3d> model_;
+    Model* currentModel_ = nullptr;
     float zView_ = 15.0f;
 
     // 当たり判定（3D AABB だが、判定はXYだけ使う想定）
@@ -237,6 +282,13 @@ private:
     float bossIdleAnimTime_ = 0.0f;
     static constexpr float kBossIdleFps_ = 8.0f;  // 好きに調整
 
+    LightingParam light_;
+
+    int lastWalkFrame_ = -1;
+    int lastBossFrame_ = -1;
+    int lastAtkFrame_ = -1;
+
+
 };
 
 
@@ -274,6 +326,9 @@ public:
 
     bool IsBossDefeated() const { return bossDefeated_; }
     void ClearBossDefeatedFlag() { bossDefeated_ = false; } // 任意
+
+    void SetLighting(const LightingParam& p);
+
 
 private:
     Object3dCommon* objCommon_ = nullptr;
@@ -327,5 +382,7 @@ private:
     float RandRange_(float a, float b);
 
     bool bossDefeated_ = false;
+
+    LightingParam light_;
 
 };

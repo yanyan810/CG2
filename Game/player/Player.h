@@ -5,6 +5,7 @@
 #include "Input.h"
 #include "Model.h"
 #include "ModelManager.h"
+#include "LightingParam.h"
 
 class Object3d;
 class Object3dCommon;
@@ -19,6 +20,12 @@ class PlayerCombo;
 
 class Player {
 public:
+
+    enum class PlayerModelSet {
+        HumanWalk,
+        HumanSneakWalk,
+        GltfWalkGlb,
+    };
 
     enum class ModelId { Walk, I0, I1, I2, O0, O1, O2 /*など*/ };
 
@@ -65,6 +72,10 @@ public:
     void SetSpawnPos(const Vector3& p);
 
     bool IsDead() const { return dead_; }
+
+    void SetLighting(const LightingParam& p);
+
+    void ChangeModelSet_(Player::PlayerModelSet set);
 
 private:
     void UpdateMove_(float dt, const Input& input);
@@ -133,4 +144,16 @@ private:
 
     bool dead_ = false;
  
+    LightingParam light_;
+
+    std::unique_ptr<Object3d> shadow_;
+    float shadowBaseScale_ = 1.2f;   // 影の基本サイズ
+    float shadowMaxAlpha_ = 0.45f;  // 影の最大濃さ
+    float shadowLiftY_ = 0.02f;  // 地面から少し浮かせる（z-fight回避）
+    float shadowMinAlpha_ = 0.05f;  // 最低でもうっすら
+
+    PlayerModelSet currentModelSet_ = PlayerModelSet::HumanWalk;
+
+    bool isMoving = false;
+
 };
