@@ -177,6 +177,8 @@ void GameApp::WarmupAssets_() {
     ModelManager::GetInstance()->LoadModel("human/walk.gltf");
     ModelManager::GetInstance()->LoadModel("human/sneakWalk.gltf");
     ModelManager::GetInstance()->LoadModel("gltf/walk.glb");
+    ModelManager::GetInstance()->LoadModel("Player/player.gltf");
 
+    
     OutputDebugStringA("[Warmup] END\n");
 }

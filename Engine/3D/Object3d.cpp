@@ -400,6 +400,13 @@ void Object3d::SetModel(const std::string& filePath) {
 		// パレット（SRV）へ反映
 		UpdateSkinCluster_();
 
+		OutputDebugStringA(("[DBG] skeleton joints = " + std::to_string(model_->GetSkeleton().joints.size()) + "\n").c_str());
+		OutputDebugStringA(("[DBG] skinData joints = " + std::to_string(model_->GetSkinClusterData().size()) + "\n").c_str());
+		OutputDebugStringA(("[DBG] animations = " + std::to_string(model_->GetAnimations().size()) + "\n").c_str());
+		if (!model_->GetAnimations().empty()) {
+			auto& a = model_->GetAnimations().begin()->second;
+			OutputDebugStringA(("[DBG] first anim tracks = " + std::to_string(a.nodeAnimations.size()) + "\n").c_str());
+		}
 
 		// ==== boneMarkers 作成（デバッグ用） ====
 		const auto& skel = model_->GetSkeleton();
@@ -588,3 +595,35 @@ void Object3d::UpdateSkinCluster_()
 
 
 }
+
+void Object3d::PlayAnimation(const std::string& name, bool loop)
+{
+	if (!model_ || model_->GetAnimations().empty()) { return; }
+
+	// 同じなら再スタートしない（★重要）
+	if (isPlayAnimation_ && playingAnimName_ == name && loop_ == loop) { return; }
+
+	isPlayAnimation_ = true;
+	playingAnimName_ = name;   // "" なら Update 側の fallback で先頭再生
+	loop_ = loop;
+	animationTime_ = 0.0f;
+}
+
+bool Object3d::IsAnimationFinished() const
+{
+	if (!model_ || model_->GetAnimations().empty()) return true;
+	if (loop_) return false;
+
+	const auto& anims = model_->GetAnimations();
+	const Animation* anim = nullptr;
+
+	if (!playingAnimName_.empty()) {
+		auto it = anims.find(playingAnimName_);
+		if (it != anims.end()) anim = &it->second;
+	}
+	if (!anim) anim = &anims.begin()->second;
+
+	return animationTime_ >= anim->duration;
+}
+
+const std::string& Object3d::GetPlayingAnimName() const { return playingAnimName_; }

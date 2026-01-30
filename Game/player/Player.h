@@ -156,4 +156,10 @@ private:
 
     bool isMoving = false;
 
+    // Player.h
+    std::string curAnim_ = "";
+    bool prevAtkI_ = false;
+    bool prevAtkO_ = false;
+
+
 };
