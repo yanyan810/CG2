@@ -140,6 +140,7 @@ public:
 
 	void DrawMeshIndexed(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, uint32_t instanceCount);
 	
+	void DrawSkinnedOneMesh(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc, uint32_t meshIndex);
 
 	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
@@ -218,6 +219,16 @@ public:
 		return materialResource_ ? materialResource_->GetGPUVirtualAddress() : 0;
 	}
 
+	int32_t GetMeshOwnerNodeIndex(uint32_t meshIndex) const {
+		if (meshIndex >= meshOwnerNodeIndex_.size()) return -1;
+		return meshOwnerNodeIndex_[meshIndex];
+	}
+
+	uint32_t GetMeshCount() const {
+		return (uint32_t)modelData_.meshes.size();
+	}
+
+
 private:
 	static Skeleton CreateSkeleton(const Node& rootNode);
 
@@ -254,6 +265,7 @@ private:
 	std::vector<int32_t> parentIndex_;
 	std::unordered_map<std::string, uint32_t> nodeNameToIndex_;
 	std::vector<NodeInstance> nodeInstances_;
+	std::vector<int32_t> meshOwnerNodeIndex_;
 
 };
 

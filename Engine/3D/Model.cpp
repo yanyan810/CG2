@@ -112,6 +112,30 @@ static Matrix4x4 ConvertAssimpMatrix(const aiMatrix4x4& mIn)
     out.m[3][0] = m.d1; out.m[3][1] = m.d2; out.m[3][2] = m.d3; out.m[3][3] = m.d4;
     return out;
 }
+
+static Matrix4x4 ConvertAssimpMatrix_LH(const aiMatrix4x4& mIn)
+{
+    // まず transpose（あなたの流儀）
+    aiMatrix4x4 m = mIn;
+    m.Transpose();
+
+    Matrix4x4 out = Matrix4x4::MakeIdentity4x4();
+    out.m[0][0] = m.a1; out.m[0][1] = m.a2; out.m[0][2] = m.a3; out.m[0][3] = m.a4;
+    out.m[1][0] = m.b1; out.m[1][1] = m.b2; out.m[1][2] = m.b3; out.m[1][3] = m.b4;
+    out.m[2][0] = m.c1; out.m[2][1] = m.c2; out.m[2][2] = m.c3; out.m[2][3] = m.c4;
+    out.m[3][0] = m.d1; out.m[3][1] = m.d2; out.m[3][2] = m.d3; out.m[3][3] = m.d4;
+
+    // ===== RH -> LH（X反転）=====
+    // 行列で座標系反転： S = diag(-1,1,1,1)
+    // 変換は out = S * out * S （row-vector運用でもこれが一番事故りにくい）
+    Matrix4x4 S = Matrix4x4::MakeIdentity4x4();
+    S.m[0][0] = -1.0f;
+
+    out = Matrix4x4::Multiply(Matrix4x4::Multiply(S, out), S);
+    return out;
+}
+
+
 static Model::Node ReadNodeRecursive(const aiNode* node) {
     Model::Node out{};
     out.name = node->mName.C_Str();
@@ -749,7 +773,30 @@ void Model::DrawMeshIndexed(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, 
     );
 }
 
+void Model::DrawSkinnedOneMesh(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc, uint32_t meshIndex)
+{
+    const auto& mesh = modelData_.meshes[meshIndex];
 
+    // VB slot0/1 + IB
+    D3D12_VERTEX_BUFFER_VIEW vbvs[2] = { vertexBufferView_, sc.influenceBufferView };
+    cmd->IASetVertexBuffers(0, 2, vbvs);
+    cmd->IASetIndexBuffer(&indexBufferView_);
+
+    // Material
+    cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+
+    // texture (Root 3)
+    std::string texPath;
+    if (mesh.materialIndex < modelData_.materials.size()) texPath = modelData_.materials[mesh.materialIndex].textureFilePath;
+
+    D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+    if (!texPath.empty()) handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
+    else handle = TextureManager::GetInstance()->GetSrvHandleGPU("");
+
+    cmd->SetGraphicsRootDescriptorTable(3, handle);
+
+    cmd->DrawIndexedInstanced(mesh.indexCount, 1, mesh.startIndex, 0, 0);
+}
 
 Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
 	MaterialData materialData;//構築するMaterialData
@@ -941,6 +988,12 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     // --- animations ---
     ReadAnimationsFromAssimp(out, scene);
 
+    // --- debug: animation names ---
+    for (const auto& [name, clip] : out.animations) {
+        OutputDebugStringA(("[AnimName] " + name + " dur=" + std::to_string(clip.duration) + "\n").c_str());
+    }
+
+
     // --- materials ---
     out.materials.clear();
     out.materials.resize(scene->mNumMaterials);
@@ -1038,9 +1091,9 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
             const aiFace& face = mesh->mFaces[f];
             if (face.mNumIndices != 3) continue;
 
-            const uint32_t i0 = globalVertexBase + static_cast<uint32_t>(face.mIndices[0]);
-            const uint32_t i1 = globalVertexBase + static_cast<uint32_t>(face.mIndices[1]);
-            const uint32_t i2 = globalVertexBase + static_cast<uint32_t>(face.mIndices[2]);
+            const uint32_t i0 = (uint32_t)face.mIndices[0];
+            const uint32_t i1 = (uint32_t)face.mIndices[1];
+            const uint32_t i2 = (uint32_t)face.mIndices[2];
 
             // 左手系の並び替えを維持
             out.indices.push_back(i2);
@@ -1051,36 +1104,56 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
         }
 
 
+        //for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
+
+        //    aiBone* bone = mesh->mBones[boneIndex];
+        //    std::string jointName = bone->mName.C_Str();
+        //    JointWeightData& jointWeightData = out.skinClusterData[jointName];
+
+        //    aiMatrix4x4 bindPoseMatrixAssimp = bone->mOffsetMatrix.Inverse();
+        //    aiVector3D scale, translate;
+        //    aiQuaternion rotate;
+        //    bindPoseMatrixAssimp.Decompose(scale, rotate, translate);
+        //    Matrix4x4 bindPoseMatrix = MakeAffineMatrix(
+        //        {scale.x,scale.y,scale.z},
+        //        {rotate.x,-rotate.y,-rotate.z,rotate.w},
+        //        {-translate.x,translate.y,translate.z}
+        //    );
+        //    jointWeightData.inverseBindPoseMatrix = Matrix4x4::Inverse(bindPoseMatrix);
+
+        //    for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex) {
+
+        //        const float w = bone->mWeights[weightIndex].mWeight;
+        //        const uint32_t localV = bone->mWeights[weightIndex].mVertexId;
+
+
+        //        const uint32_t globalV = globalVertexBase + localV;
+        //        jointWeightData.vertexWeights.push_back({ w, globalV }); // ★globalV を入れる
+
+        //    }
+
+
+        //}
+
         for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
 
             aiBone* bone = mesh->mBones[boneIndex];
             std::string jointName = bone->mName.C_Str();
             JointWeightData& jointWeightData = out.skinClusterData[jointName];
 
-            aiMatrix4x4 bindPoseMatrixAssimp = bone->mOffsetMatrix.Inverse();
-            aiVector3D scale, translate;
-            aiQuaternion rotate;
-            bindPoseMatrixAssimp.Decompose(scale, rotate, translate);
-            Matrix4x4 bindPoseMatrix = MakeAffineMatrix(
-                {scale.x,scale.y,scale.z},
-                {rotate.x,-rotate.y,-rotate.z,rotate.w},
-                {-translate.x,translate.y,translate.z}
-            );
-            jointWeightData.inverseBindPoseMatrix = Matrix4x4::Inverse(bindPoseMatrix);
+            // ✅ mOffsetMatrix は「inverse bind pose」そのもの
+            jointWeightData.inverseBindPoseMatrix =
+                ConvertAssimpMatrix_LH(bone->mOffsetMatrix);
 
             for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex) {
-
                 const float w = bone->mWeights[weightIndex].mWeight;
                 const uint32_t localV = bone->mWeights[weightIndex].mVertexId;
 
-
                 const uint32_t globalV = globalVertexBase + localV;
-                jointWeightData.vertexWeights.push_back({ w, globalV }); // ★globalV を入れる
-
+                jointWeightData.vertexWeights.push_back({ w, globalV });
             }
-
-
         }
+
 
 
         out.meshes.push_back(std::move(md));
@@ -1094,6 +1167,8 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     char buf[128];
     sprintf_s(buf, "meshes=%zu instances=%zu\n", out.meshes.size(), out.instances.size());
     OutputDebugStringA(buf);
+
+    OutputDebugStringA(("[DBG] skinClusterData joints = " + std::to_string(out.skinClusterData.size()) + "\n").c_str());
 
 
     return out;
@@ -1181,6 +1256,8 @@ void Model::BuildNodeRuntime_()
 
     TraverseNode_(&modelData_.rootNode, -1);
 
+    meshOwnerNodeIndex_.assign(modelData_.meshes.size(), -1);
+
     // デバッグ：インスタンス数
     {
         std::string s = "[Model] NodeInstances=" + std::to_string(nodeInstances_.size()) + "\n";
@@ -1210,6 +1287,12 @@ void Model::TraverseNode_(const Node* n, int32_t parent)
     // ★このノードが参照する mesh を全部「インスタンス」として追加
     for (uint32_t meshIndex : n->meshIndices) {
         nodeInstances_.push_back({ myIndex, meshIndex });
+
+        // ★このmeshを最初に見つけたnodeを「owner」とする
+        if (meshIndex < meshOwnerNodeIndex_.size() && meshOwnerNodeIndex_[meshIndex] < 0) {
+            meshOwnerNodeIndex_[meshIndex] = (int32_t)myIndex;
+        }
+
     }
 
     // 子へ

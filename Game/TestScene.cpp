@@ -36,7 +36,7 @@ void TestScene::OnEnter(GameApp& app) {
     // ★真ん中に「動かない敵」を1体
     const Vector3 enemyPos{ 0.0f, 0.0f, 15.0f };
     enemyMgr_.Spawn(EnemyType::Melee, enemyPos);
-
+    
     // ★凍結（GetEnemies() は PlayerCombo でも使ってるので存在してる前提）
     auto& enemies = enemyMgr_.GetEnemies();
     if (!enemies.empty()) {

@@ -224,12 +224,10 @@ public:
 	//アニメーション
 	//=============
 
-	void PlayAnimation(const std::string& animName = "", bool loop = true) {
-		isPlayAnimation_ = true;
-		playingAnimName_ = animName;
-		loop_ = loop;
-		animationTime_ = 0.0f;
-	}
+	void PlayAnimation(const std::string& animName = "", bool loop = true);
+
+	bool IsAnimationFinished() const;
+	const std::string& GetPlayingAnimName() const;
 	void StopAnimation() { isPlayAnimation_ = false; }
 	void SetAnimationNodeName(const std::string& node) { playingNodeName_ = node; }
 

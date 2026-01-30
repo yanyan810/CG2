@@ -127,7 +127,7 @@ public:
     static const char* GetEnemyModelPath_(EnemyModelSet set) {
         switch (set) {
         case EnemyModelSet::HumanWalk:      return "human/walk.gltf";
-        case EnemyModelSet::HumanSneakWalk: return "human/sneakWalk.gltf";
+        case EnemyModelSet::HumanSneakWalk: return "human/walk.gltf";
         case EnemyModelSet::GltfWalkGlb:    return "gltf/walk.glb";
         default:                            return "human/walk.gltf";
         }

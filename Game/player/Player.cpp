@@ -55,8 +55,9 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
     model_->SetCamera(cam_);
 
     currentModelSet_ = PlayerModelSet::HumanWalk;
-    model_->SetModel(GetPlayerModelPath(currentModelSet_));
-    model_->PlayAnimation("", true);
+    model_->SetModel("Player/player.gltf"); // あなたの実パスに合わせる
+    model_->PlayAnimation("Idle", true); 
+    curAnim_ = "Idle";
 
     // 見た目初期反映
     model_->SetTranslate({ pos_.x, pos_.y, pos_.z });
@@ -154,19 +155,66 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
         pos_.y = p.y;
     }
 
-    // ===== モデル仮切り替え =====
-    if (isAttacking) {
-        // 攻撃中 → glb（仮）
-        ChangeModelSet_(PlayerModelSet::GltfWalkGlb);
+    // ===== アニメ切り替え（モデル切り替えはしない） =====
+    if (model_) {
+
+        // 攻撃開始トリガ（必要なら combo_ 側の入力と同じに合わせる）
+        const bool atkITrig = input.IsKeyTrigger(DIK_I);
+        const bool atkOTrig = input.IsKeyTrigger(DIK_O);
+
+        // まず攻撃開始（単発）
+        if (atkITrig) {
+            model_->PlayAnimation("Attak_I", false); // ★非ループ
+            curAnim_ = "Attak_I";
+        }
+        else if (atkOTrig) {
+            model_->PlayAnimation("Attak_O", false); // ★非ループ
+            curAnim_ = "Attak_O";
+        }
+        else {
+
+            // 攻撃中か？（comboが攻撃中扱いならそれを優先してOK）
+            const bool inAttackAnim = (curAnim_ == "Attak_I" || curAnim_ == "Attak_O");
+            const bool inAttack = isAttacking || inAttackAnim;
+
+            if (inAttack) {
+                // 攻撃中は、終わるまで待つ
+                // ※ Object3d::IsAnimationFinished() を用意してある前提（前の提案）
+                if (model_->IsAnimationFinished()) {
+
+                    // 攻撃が終わった → 移動状態に応じて戻す
+                    if (isMoving) {
+                        if (curAnim_ != "Walk") {
+                            model_->PlayAnimation("Walk", true);
+                            curAnim_ = "Walk";
+                        }
+                    }
+                    else {
+                        if (curAnim_ != "Idle") {
+                            model_->PlayAnimation("Idle", true);
+                            curAnim_ = "Idle";
+                        }
+                    }
+                }
+            }
+            else {
+                // 通常（Idle / Walk ループ）
+                if (isMoving) {
+                    if (curAnim_ != "Walk") {
+                        model_->PlayAnimation("Walk", true);
+                        curAnim_ = "Walk";
+                    }
+                }
+                else {
+                    if (curAnim_ != "Idle") {
+                        model_->PlayAnimation("Idle", true);
+                        curAnim_ = "Idle";
+                    }
+                }
+            }
+        }
     }
-    else if (isMoving) {
-        // 移動中 → 通常歩き
-        ChangeModelSet_(PlayerModelSet::HumanWalk);
-    }
-    else {
-        // 立ち状態 → スニーク（仮）
-        ChangeModelSet_(PlayerModelSet::HumanSneakWalk);
-    }
+
 
     // 2) 物理（重力・座標更新）
     ApplyPhysics_(dt);
@@ -218,6 +266,10 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
 
     // ライト
     SetLighting(light_);
+
+    OutputDebugStringA(("[PlayerAnim] " + curAnim_ + "\n").c_str());
+
+
 }
 
 
