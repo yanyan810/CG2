@@ -135,12 +135,84 @@ static Matrix4x4 ConvertAssimpMatrix_LH(const aiMatrix4x4& mIn)
     return out;
 }
 
+static std::string AiStringToStdStringRawDump(const aiString& s)
+{
+    // 1) length を信じてコピー
+    std::string out;
+    out.assign(s.data, s.data + s.length);
 
-static Model::Node ReadNodeRecursive(const aiNode* node) {
+    // 2) dump（先頭32byteまで）
+    char buf[1024]{};
+    int n = 0;
+    n += sprintf_s(buf + n, sizeof(buf) - n, "[AiStr] len=%u firstBytes=", (unsigned)s.length);
+    for (unsigned i = 0; i < s.length && i < 32; ++i) {
+        n += sprintf_s(buf + n, sizeof(buf) - n, "%02X ", (unsigned char)s.data[i]);
+    }
+    n += sprintf_s(buf + n, sizeof(buf) - n, "\n");
+    OutputDebugStringA(buf);
+
+    // 3) out 側の長さもログ
+    OutputDebugStringA(("[AiStr] out.size=" + std::to_string(out.size()) + "\n").c_str());
+    return out;
+}
+
+
+//static Model::Node ReadNodeRecursiveImpl(const aiNode* node, int depth) {
+//    Model::Node out{};
+//    out.name = node->mName.C_Str();
+//
+//    // (1) Assimp行列 -> SRT に分解
+//    aiVector3D s, t;
+//    aiQuaternion r;
+//    node->mTransformation.Decompose(s, r, t);
+//
+//    // (2) RH->LH 変換（あなたのエンジンが LH 前提なら）
+//    out.transform.scale = Vector3{ s.x, s.y, s.z };      // 多くはそのまま
+//    out.transform.rotate = { r.x,-r.y,-r.z,r.w };
+//    out.transform.translate = {-t.x,t.y,t.z};
+//
+//    // (3) transform から localMatrix を再構築
+//    out.localMatrix = MakeAffineMatrix(
+//        out.transform.scale,
+//        out.transform.rotate,
+//        out.transform.translate
+//    );
+//
+//    // mesh index
+//    out.meshIndices.reserve(node->mNumMeshes);
+//    for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+//        out.meshIndices.push_back((uint32_t)node->mMeshes[i]);
+//    }
+//
+//    // ★階層ログ
+//    {
+//        std::string indent(depth * 2, ' ');
+//        std::string s = indent + "[Node] '" + out.name + "' meshes=" + std::to_string(out.meshIndices.size()) + " [";
+//        for (size_t k = 0; k < out.meshIndices.size(); ++k) {
+//            s += std::to_string(out.meshIndices[k]);
+//            if (k + 1 < out.meshIndices.size()) s += ",";
+//        }
+//        s += "]\n";
+//        OutputDebugStringA(s.c_str());
+//    }
+//
+//    // children
+//    out.children.resize(node->mNumChildren);
+//    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+//        out.children[i] = ReadNodeRecursive(node->mChildren[i]);
+//    }
+//    return out;
+//}
+//
+//static Model::Node ReadNodeRecursive(const aiNode* node) {
+//    return ReadNodeRecursiveImpl(node, 0);
+//}
+
+static Model::Node ReadNodeRecursiveImpl(const aiNode* node, int depth) {
     Model::Node out{};
     out.name = node->mName.C_Str();
 
-    // (1) Assimp行列 -> SRT に分解
+        // (1) Assimp行列 -> SRT に分解
     aiVector3D s, t;
     aiQuaternion r;
     node->mTransformation.Decompose(s, r, t);
@@ -157,18 +229,47 @@ static Model::Node ReadNodeRecursive(const aiNode* node) {
         out.transform.translate
     );
 
-    // mesh index
+
+    // mesh indices
     out.meshIndices.reserve(node->mNumMeshes);
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
         out.meshIndices.push_back((uint32_t)node->mMeshes[i]);
     }
 
+    // ★階層ログ
+    {
+        std::string indent(depth * 2, ' ');
+        std::string s = indent + "[Node] '" + out.name + "' meshes=" + std::to_string(out.meshIndices.size()) + " [";
+        for (size_t k = 0; k < out.meshIndices.size(); ++k) {
+            s += std::to_string(out.meshIndices[k]);
+            if (k + 1 < out.meshIndices.size()) s += ",";
+        }
+        s += "]\n";
+        OutputDebugStringA(s.c_str());
+    }
+
     // children
     out.children.resize(node->mNumChildren);
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        out.children[i] = ReadNodeRecursive(node->mChildren[i]);
+        out.children[i] = ReadNodeRecursiveImpl(node->mChildren[i], depth + 1);
     }
     return out;
+}
+
+static Model::Node ReadNodeRecursive(const aiNode* node) {
+    return ReadNodeRecursiveImpl(node, 0);
+}
+
+
+static void DBGAnimCh(const char* animName, const std::string& nodeName, unsigned rawLen, unsigned rawFirst)
+{
+    std::string msg =
+        std::string("[AnimCh] anim='") + animName +
+        "' node='" + nodeName + "' nodeName.size=" + std::to_string(nodeName.size()) +
+        " rawLen=" + std::to_string(rawLen) +
+        " rawFirst=" + std::to_string(rawFirst) +
+        "\n";
+    OutputDebugStringA(msg.c_str());
 }
 
 
@@ -279,7 +380,10 @@ static void ReadAnimationsFromAssimp(Model::ModelData& out, const aiScene* scene
             const aiNodeAnim* ch = a->mChannels[ci];
             if (!ch) continue;
 
-            std::string nodeName = ch->mNodeName.C_Str();
+            std::string nodeName = AiStringToStdStringRawDump(ch->mNodeName);
+
+            OutputDebugStringA(("[AnimChFixed] nodeName.size=" + std::to_string(nodeName.size()) + "\n").c_str());
+
             if (nodeName.empty()) continue;
 
             NodeAnimation na{};
@@ -295,6 +399,18 @@ static void ReadAnimationsFromAssimp(Model::ModelData& out, const aiScene* scene
 
 
             clip.nodeAnimations.emplace(std::move(nodeName), std::move(na));
+        
+            OutputDebugStringA(("[AnimCh] anim='" + animName + "' node='" + nodeName + "'\n").c_str());
+        
+            char bb[256];
+            std::snprintf(bb, sizeof(bb),
+                "[AnimChRaw] anim='%s' nodeLen=%u nodeFirst=%d\n",
+                animName.c_str(),
+                ch->mNodeName.length,
+                (ch->mNodeName.length > 0) ? (unsigned char)ch->mNodeName.data[0] : -1
+            );
+            OutputDebugStringA(bb);
+
         }
 
         out.animations.emplace(std::move(animName), std::move(clip));
@@ -324,6 +440,26 @@ static void BuildMeshInstances(
         BuildMeshInstances(node->mChildren[i], global, out);
     }
 }
+
+void Model::DebugValidateAnimationTracks_() const
+{
+    for (const auto& [animName, clip] : modelData_.animations) {
+
+        for (const auto& [nodeName, na] : clip.nodeAnimations) {
+
+            bool exists =
+                skeleton_.jointMap.contains(nodeName) ||
+                nodeNameToIndex_.contains(nodeName); // ←あなたの nodeRuntime マップ名に合わせて
+
+            OutputDebugStringA(
+                (std::string("[AnimMap] anim='") + animName +
+                    "' node='" + nodeName +
+                    "' exists=" + (exists ? "1" : "0") + "\n").c_str()
+            );
+        }
+    }
+}
+
 
 void Model::Initialize(ModelCommon* modelCommon,
     const std::string& directoryPath,
@@ -356,7 +492,27 @@ void Model::Initialize(ModelCommon* modelCommon,
         skeleton_ = CreateSkeleton(modelData_.rootNode);
         UpdateSkeleton(skeleton_); // bind pose の skeletonSpace を初期計算（1回だけ）
 
-      
+        // BuildNodeRuntime_();
+// skeleton_ = CreateSkeleton(...);
+// UpdateSkeleton(...);
+
+// ===== Anim channel name が Skeleton/NodeRuntime に存在するか検査 =====
+        for (const auto& [animName, clip] : modelData_.animations) {
+            for (const auto& [nodeName, na] : clip.nodeAnimations) {
+                bool exists =
+                    skeleton_.jointMap.contains(nodeName) ||
+                    nodeNameToIndex_.contains(nodeName); // nodeRuntime_ の name->index マップ
+
+                OutputDebugStringA(
+                    (std::string("[AnimMap] anim='") + animName +
+                        "' node='" + nodeName +
+                        "' exists=" + (exists ? "1" : "0") + "\n").c_str()
+                );
+            }
+        }
+
+
+        //DebugValidateAnimationTracks_();
     } else {
         // もし「OBJだけ別実装」を残したいならここに置く
         OutputDebugStringA(("[Model] LoadObjFile: " + directoryPath + "/" + filename + "\n").c_str());
@@ -566,6 +722,9 @@ void Model::Initialize(ModelCommon* modelCommon,
         offsetof(Model::VertexData, normal),
         sizeof(Model::VertexData));
     OutputDebugStringA(buf2);
+
+   // BuildNodeRuntime_();
+
 }
 
 
@@ -713,6 +872,10 @@ void Model::DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc)
     cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     for (const auto& mesh : modelData_.meshes) {
+
+        if (!mesh.skinned) {
+            continue; // ★剣などスキン無しはここでは描かない
+        }
 
         // ---- texture path ----
         std::string texPath;
@@ -1048,12 +1211,70 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
     for (unsigned int mi = 0; mi < scene->mNumMeshes; ++mi) {
         const aiMesh* mesh = scene->mMeshes[mi];
 
+        auto LogMi = [&](const char* tag) {
+            char b[512];
+            std::snprintf(b, sizeof(b),
+                "[mi=%u] %s name='%s' verts=%u faces=%u hasNormals=%d hasUV0=%d prim=0x%X mat=%u bones=%u\n",
+                mi, tag, mesh->mName.C_Str(),
+                mesh->mNumVertices, mesh->mNumFaces,
+                mesh->HasNormals() ? 1 : 0,
+                mesh->HasTextureCoords(0) ? 1 : 0,
+                (unsigned)mesh->mPrimitiveTypes,
+                mesh->mMaterialIndex,
+                mesh->mNumBones
+            );
+            OutputDebugStringA(b);
+            };
+
+        LogMi("ENTER");
+
+
+        {
+            char b[256];
+            std::snprintf(b, sizeof(b),
+                "[MeshLoop] mi=%u/%u name='%s'\n",
+                mi, scene->mNumMeshes, mesh->mName.C_Str());
+            OutputDebugStringA(b);
+        }
+
+        {
+            char b[256];
+            std::snprintf(b, sizeof(b),
+                "[MeshCheck] mi=%u name='%s' hasBones=%d numBones=%u verts=%u faces=%u\n",
+                mi, mesh->mName.C_Str(),
+                mesh->HasBones() ? 1 : 0,
+                mesh->mNumBones,
+                mesh->mNumVertices,
+                mesh->mNumFaces
+            );
+            OutputDebugStringA(b);
+        }
+
+        if (mesh->HasBones()) {
+            for (unsigned int bi = 0; bi < mesh->mNumBones; ++bi) {
+                aiBone* bone = mesh->mBones[bi];
+                std::string bn = bone->mName.C_Str();
+                char bb[512];
+                std::snprintf(bb, sizeof(bb),
+                    "  [Bone] mesh='%s' bi=%u bone='%s' weights=%u\n",
+                    mesh->mName.C_Str(), bi, bn.c_str(), bone->mNumWeights
+                );
+                OutputDebugStringA(bb);
+            }
+        }
+   
+
         if (mesh->HasBones()) {
             out.hasSkinning = true;
         }
 
         MeshData md{};
         md.materialIndex = mesh->mMaterialIndex;
+
+        md.skinned = mesh->HasBones();   // ★追加
+        if (md.skinned) {
+            out.hasSkinning = true;
+        }
 
         md.startVertex = globalVertexBase;
         md.vertexCount = static_cast<uint32_t>(mesh->mNumVertices);
@@ -1155,6 +1376,20 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
         }
 
 
+        {
+            std::string meshName = mesh->mName.C_Str();
+            char b[512];
+            std::snprintf(b, sizeof(b),
+                "[Mesh] mi=%u name='%s' verts=%u faces=%u hasBones=%d numBones=%u\n",
+                mi,
+                meshName.c_str(),
+                mesh->mNumVertices,
+                mesh->mNumFaces,
+                mesh->HasBones() ? 1 : 0,
+                mesh->mNumBones
+            );
+            OutputDebugStringA(b);
+        }
 
         out.meshes.push_back(std::move(md));
         globalVertexBase += static_cast<uint32_t>(mesh->mNumVertices);
@@ -1247,59 +1482,59 @@ void Model::UpdateSkeleton(Skeleton& skeleton) {
 //ノード描画用
 //=================================
 
-void Model::BuildNodeRuntime_()
-{
-    nodePtrs_.clear();
-    parentIndex_.clear();
-    nodeNameToIndex_.clear();
-    nodeInstances_.clear();
-
-    TraverseNode_(&modelData_.rootNode, -1);
-
-    meshOwnerNodeIndex_.assign(modelData_.meshes.size(), -1);
-
-    // デバッグ：インスタンス数
-    {
-        std::string s = "[Model] NodeInstances=" + std::to_string(nodeInstances_.size()) + "\n";
-        OutputDebugStringA(s.c_str());
-    }
-
-    char buf[256];
-    std::snprintf(buf, sizeof(buf),
-        "[NodeRuntime] nodes=%zu instances=%zu\n",
-        nodePtrs_.size(), nodeInstances_.size());
-    OutputDebugStringA(buf);
-
-
-
-}
-
-void Model::TraverseNode_(const Node* n, int32_t parent)
-{
-    const uint32_t myIndex = static_cast<uint32_t>(nodePtrs_.size());
-    nodePtrs_.push_back(n);
-    parentIndex_.push_back(parent);
-
-    if (!n->name.empty()) {
-        nodeNameToIndex_[n->name] = myIndex;
-    }
-
-    // ★このノードが参照する mesh を全部「インスタンス」として追加
-    for (uint32_t meshIndex : n->meshIndices) {
-        nodeInstances_.push_back({ myIndex, meshIndex });
-
-        // ★このmeshを最初に見つけたnodeを「owner」とする
-        if (meshIndex < meshOwnerNodeIndex_.size() && meshOwnerNodeIndex_[meshIndex] < 0) {
-            meshOwnerNodeIndex_[meshIndex] = (int32_t)myIndex;
-        }
-
-    }
-
-    // 子へ
-    for (const auto& c : n->children) {
-        TraverseNode_(&c, static_cast<int32_t>(myIndex));
-    }
-}
+//{
+//    nodePtrs_.clear();
+//    parentIndex_.clear();
+//    nodeNameToIndex_.clear();
+//    void Model::BuildNodeRuntime_()
+//nodeInstances_.clear();
+//
+//    TraverseNode_(&modelData_.rootNode, -1);
+//
+//    meshOwnerNodeIndex_.assign(modelData_.meshes.size(), -1);
+//
+//    // デバッグ：インスタンス数
+//    {
+//        std::string s = "[Model] NodeInstances=" + std::to_string(nodeInstances_.size()) + "\n";
+//        OutputDebugStringA(s.c_str());
+//    }
+//
+//    char buf[256];
+//    std::snprintf(buf, sizeof(buf),
+//        "[NodeRuntime] nodes=%zu instances=%zu\n",
+//        nodePtrs_.size(), nodeInstances_.size());
+//    OutputDebugStringA(buf);
+//
+//
+//
+//}
+//
+//void Model::TraverseNode_(const Node* n, int32_t parent)
+//{
+//    const uint32_t myIndex = static_cast<uint32_t>(nodePtrs_.size());
+//    nodePtrs_.push_back(n);
+//    parentIndex_.push_back(parent);
+//
+//    if (!n->name.empty()) {
+//        nodeNameToIndex_[n->name] = myIndex;
+//    }
+//
+//    // ★このノードが参照する mesh を全部「インスタンス」として追加
+//    for (uint32_t meshIndex : n->meshIndices) {
+//        nodeInstances_.push_back({ myIndex, meshIndex });
+//
+//        // ★このmeshを最初に見つけたnodeを「owner」とする
+//        if (meshIndex < meshOwnerNodeIndex_.size() && meshOwnerNodeIndex_[meshIndex] < 0) {
+//            meshOwnerNodeIndex_[meshIndex] = (int32_t)myIndex;
+//        }
+//
+//    }
+//
+//    // 子へ
+//    for (const auto& c : n->children) {
+//        TraverseNode_(&c, static_cast<int32_t>(myIndex));
+//    }
+//}
 
 void Model::ComputeNodeGlobalMatrices(const Animation* anim, float time,
     std::vector<Matrix4x4>& outGlobals) const
@@ -1375,4 +1610,97 @@ void Model::DrawOneMesh(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, uint
 
     // ★Indexed 前提（あなたの Model::Draw と同じ）
     cmd->DrawIndexedInstanced(mesh.indexCount, 1, mesh.startIndex, 0, 0);
+}
+
+bool Model::IsMeshSkinned(uint32_t meshIndex) const {
+    if (meshIndex >= modelData_.meshes.size()) return false;
+    return modelData_.meshes[meshIndex].skinned;
+}
+
+void Model::BuildNodeRuntime_()
+{
+    OutputDebugStringA("[DBG] BuildNodeRuntime_ CALLED\n");
+
+    nodePtrs_.clear();
+    parentIndex_.clear();
+    nodeNameToIndex_.clear();
+    nodeInstances_.clear();
+    meshOwnerNodeIndex_.clear();
+    nodeRuntime_.nodes.clear();
+
+    meshOwnerNodeIndex_.assign(modelData_.meshes.size(), -1);
+
+    TraverseNode_(&modelData_.rootNode, -1);
+
+    char buf[256];
+    std::snprintf(buf, sizeof(buf),
+        "[NodeRuntime] nodes=%zu instances=%zu\n",
+        nodePtrs_.size(), nodeInstances_.size());
+    OutputDebugStringA(buf);
+}
+
+
+void Model::TraverseNode_(const Node* n, int32_t parent)
+{
+    if (!n) { return; }
+
+    const int32_t myIndex = (int32_t)nodePtrs_.size();
+
+    char dbg[256];
+    std::snprintf(dbg, sizeof(dbg),
+        "[TraverseNode] node='%s' meshes=%zu\n",
+        n->name.c_str(),
+        n->meshIndices.size());
+    OutputDebugStringA(dbg);
+
+    nodePtrs_.push_back(n);
+    parentIndex_.push_back(parent);
+
+    // runtime node
+    NodeRuntime::FlatNode fn;
+    fn.name = n->name;
+    fn.transform = n->transform;
+    fn.localMatrix = n->localMatrix;
+    fn.parent = parent;
+    nodeRuntime_.nodes.push_back(fn);
+
+    // name -> index
+    if (!fn.name.empty()) {
+        nodeNameToIndex_[fn.name] = (uint32_t)myIndex;
+    }
+
+    // ★ここが重要：このノードが持つ mesh を NodeInstance として登録
+    for (uint32_t meshIdx : n->meshIndices) {
+        NodeInstance inst{};
+        inst.nodeIndex = (uint32_t)myIndex;
+        inst.meshIndex = meshIdx;
+        nodeInstances_.push_back(inst);
+
+        if (meshIdx < meshOwnerNodeIndex_.size()) {
+            meshOwnerNodeIndex_[meshIdx] = myIndex;
+        }
+    }
+
+    // children
+    for (const auto& c : n->children) {
+        TraverseNode_(&c, myIndex);
+    }
+}
+
+Matrix4x4 Model::GetNodeWorldMatrix(int nodeIndex) const
+{
+    if (nodeIndex < 0 || nodeIndex >= (int)nodeRuntime_.nodes.size()) {
+        return Matrix4x4::MakeIdentity4x4();
+    }
+
+    Matrix4x4 world = Matrix4x4::MakeIdentity4x4();
+
+    int idx = nodeIndex;
+    while (idx >= 0) {
+        const auto& n = nodeRuntime_.nodes[idx];
+        world = n.localMatrix * world;
+        idx = n.parent;
+    }
+
+    return world;
 }

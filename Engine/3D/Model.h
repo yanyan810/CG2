@@ -74,6 +74,8 @@ public:
 		// ★追加：IndexBuffer 内での範囲
 		uint32_t startIndex = 0;
 		uint32_t indexCount = 0;
+
+		bool skinned = false;
 	};
 
 
@@ -228,6 +230,26 @@ public:
 		return (uint32_t)modelData_.meshes.size();
 	}
 
+	bool IsMeshSkinned(uint32_t meshIndex) const;
+
+	int32_t FindNodeIndexByName(const std::string& name) const {
+		auto it = nodeNameToIndex_.find(name);
+		if (it == nodeNameToIndex_.end()) return -1;
+		return (int32_t)it->second;
+	}
+
+	const std::string& GetNodeName(int nodeIndex) const {
+		static const std::string kEmpty = "";
+		if (nodeIndex < 0 || nodeIndex >= (int)nodePtrs_.size() || nodePtrs_[nodeIndex] == nullptr) {
+			return kEmpty;
+		}
+		return nodePtrs_[nodeIndex]->name;
+	}
+
+	// ノードのワールド行列を取得
+	Matrix4x4 GetNodeWorldMatrix(int nodeIndex) const;
+
+
 
 private:
 	static Skeleton CreateSkeleton(const Node& rootNode);
@@ -237,6 +259,7 @@ private:
 	void BuildNodeRuntime_(); // LoadAssimpFile後に呼ぶ
 	void TraverseNode_(const Node* n, int32_t parent);
 
+	void DebugValidateAnimationTracks_() const;
 
 private:
 
@@ -260,6 +283,19 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
 	uint32_t* indexData_ = nullptr;
 	D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
+
+	// ===== ノードをフラット管理するランタイム =====
+	struct NodeRuntime {
+		struct FlatNode {
+			std::string name;
+			QuaternionTransform transform;
+			Matrix4x4 localMatrix = Matrix4x4::MakeIdentity4x4();
+			int32_t parent = -1;
+		};
+		std::vector<FlatNode> nodes;
+	};
+
+	NodeRuntime nodeRuntime_;
 
 	std::vector<const Node*> nodePtrs_;
 	std::vector<int32_t> parentIndex_;

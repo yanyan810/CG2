@@ -94,9 +94,9 @@ AttackData PlayerCombo::GetData_(bool airborne, int step, AttackBtn btn) const {
   // O(Strong): 全体0.5秒、0.3秒で判定出て、0.5秒で消える
   // =========================
 	if (btn == AttackBtn::Weak) { // I
-		a.duration = 0.20f;
-		a.hitStart = 0.10f;
-		a.hitEnd = 0.20f;
+		a.duration = 0.75f;
+		a.hitStart = 0.20f;
+		a.hitEnd = 0.60f;
 		a.chainOpen = 0.12f;
 		a.chainClose = 0.18f;
 
@@ -108,7 +108,7 @@ AttackData PlayerCombo::GetData_(bool airborne, int step, AttackBtn btn) const {
 		
 
 	} else { // O
-		a.duration = 0.50f;
+		a.duration = 1.20f;
 		a.hitStart = 0.30f;
 		a.hitEnd = 0.50f;
 		a.chainOpen = 0.35f;

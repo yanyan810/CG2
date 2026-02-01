@@ -176,9 +176,9 @@ void GameApp::WarmupAssets_() {
     // モデル（ModelManager がキャッシュする前提）
     ModelManager::GetInstance()->LoadModel("human/walk.gltf");
     ModelManager::GetInstance()->LoadModel("human/sneakWalk.gltf");
-    ModelManager::GetInstance()->LoadModel("gltf/walk.glb");
+    //ModelManager::GetInstance()->LoadModel("gltf/walk.glb");
     ModelManager::GetInstance()->LoadModel("Player/player.gltf");
-
+    ModelManager::GetInstance()->LoadModel("Player/sword.obj");
     
     OutputDebugStringA("[Warmup] END\n");
 }

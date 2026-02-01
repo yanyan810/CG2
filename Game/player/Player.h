@@ -96,6 +96,8 @@ private:
     std::unique_ptr<Object3d> model_;
     std::unique_ptr<Object3d> debugAtkCube_;   // 攻撃HB用
     std::unique_ptr<Object3d> debugEnemyCube_; // 敵AABB用
+    std::unique_ptr<Object3d> swordObj_;
+
     Camera* cam_ = nullptr;
 
     // 内部は3Dで持つが、Zは固定（見た目だけ）

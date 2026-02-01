@@ -181,6 +181,15 @@ public:
 	}
 
 
+	Model* GetModel() const { return model_; }
+
+
+	bool GetJointWorldMatrix(const std::string& jointName, Matrix4x4& out) const;
+
+
+	Matrix4x4 GetJointWorldMatrix(const std::string& jointName) const;
+
+
 private:
 
 	DirectXCommon* dx_ = nullptr;
@@ -269,6 +278,8 @@ private:
 		void UpdateSkinCluster_();
 
 
+		int32_t swordNodeIndex_ = -1;   // ノード index
+		uint32_t swordMeshIndex_ = 2;   // 今ログ的に sword は mesh[2]
 
 
 };

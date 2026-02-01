@@ -56,7 +56,7 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
 
     currentModelSet_ = PlayerModelSet::HumanWalk;
     model_->SetModel("Player/player.gltf"); // あなたの実パスに合わせる
-    model_->PlayAnimation("Idle", true); 
+    model_->PlayAnimation("Idle", true);
     curAnim_ = "Idle";
 
     // 見た目初期反映
@@ -73,7 +73,7 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
     debugAtkCube_ = std::make_unique<Object3d>();
     debugAtkCube_->Initialize(objCommon, dx);
     debugAtkCube_->SetCamera(cam_);
-    // debugAtkCube_->SetModel("cube/cube.obj");
+    debugAtkCube_->SetModel("cube/cube.obj");
 
     debugEnemyCube_ = std::make_unique<Object3d>();
     debugEnemyCube_->Initialize(objCommon, dx);
@@ -96,6 +96,14 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
     // 影の色（黒 + α） ※ここでは初期値
     shadow_->SetMaterialColor({ 255,255,255, shadowMaxAlpha_ });
 
+    //剣
+    swordObj_ = std::make_unique<Object3d>();
+    swordObj_->Initialize(objCommon, dx);
+    swordObj_->SetModel("Player/sword.obj");
+    swordObj_->SetCamera(cam_);
+    swordObj_->SetTranslate({ 0,0,0 }); // 初期確認用
+
+
 }
 
 
@@ -109,7 +117,7 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
     isMoving = false;
     bool isAttacking = combo_ && combo_->IsAttacking(); // ←無ければ後述
 
-   
+
 
     // ★移動ロック更新
     if (moveLockSec_ > 0.0f) {
@@ -125,7 +133,7 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
         if (input.IsKeyTrigger(DIK_O)) {
             LockMove(combo_->PreviewAttackDuration(!onGround_, 0, AttackBtn::Strong));
         }
-    }    
+    }
 
     // --- ジャンプ（Y） ---
     if (onGround_ && input.IsKeyTrigger(DIK_SPACE)) {
@@ -215,6 +223,8 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
         }
     }
 
+   
+
 
     // 2) 物理（重力・座標更新）
     ApplyPhysics_(dt);
@@ -251,6 +261,40 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
 
     // ★ここで Object3d 更新（WVP / palette更新）
     if (model_) model_->Update(dt);
+    // ===== 剣追従（スキンのボーンから取る）=====
+    if (model_ && swordObj_) {
+
+        Matrix4x4 handW = model_->GetJointWorldMatrix("RightHand");
+
+        // 手の位置（あなたの行列は translation が m[3][0..2]）
+        Vector3 handPos{ handW.m[3][0], handW.m[3][1], handW.m[3][2] };
+
+        // 位置オフセット（手の中での微調整）
+        Vector3 offset{ 0.0f, 0.0f, 0.0f };
+
+        swordObj_->SetTranslate({
+            handPos.x + offset.x,
+            handPos.y + offset.y,
+            handPos.z + offset.z
+            });
+
+        // （まず位置だけでOK。回転も合わせたいなら次で追加）
+    }
+
+
+    //static bool once = true;
+    //if (once && swordObj_) {
+    //    once = false;
+    //    swordObj_->SetTranslate({ 5.0f, 0.0f, 15.0f }); // 明らかにズレる値
+    //}
+
+    if (swordObj_) {
+        const auto& t = swordObj_->GetTranslate();
+        OutputDebugStringA(std::format("[SwordObj] translate=({:.3f},{:.3f},{:.3f})\n", t.x, t.y, t.z).c_str());
+    }
+
+
+	if (swordObj_) swordObj_->Update(dt);
     if (debugAtkCube_) debugAtkCube_->Update(dt);
 
     // 被弾フラッシュ
@@ -277,8 +321,8 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
 void Player::UpdateMove_(float /*dt*/, const Input& input) {
     // --- 左右（X） ---
     float mx = 0.0f;
-    if (input.IsKeyPressed(DIK_LEFT) || input.IsKeyPressed(DIK_A))  mx -= 1.0f, isMoving=true;
-    if (input.IsKeyPressed(DIK_RIGHT) || input.IsKeyPressed(DIK_D))  mx += 1.0f, isMoving=true;
+    if (input.IsKeyPressed(DIK_LEFT) || input.IsKeyPressed(DIK_A))  mx -= 1.0f, isMoving = true;
+    if (input.IsKeyPressed(DIK_RIGHT) || input.IsKeyPressed(DIK_D))  mx += 1.0f, isMoving = true;
 
     if (mx < -0.1f) facing_ = -1;
     if (mx > +0.1f) facing_ = +1;
@@ -292,7 +336,7 @@ void Player::UpdateMove_(float /*dt*/, const Input& input) {
 
     vel_.z = mz * depthSpeed_;
 
- 
+
 }
 
 void Player::ApplyPhysics_(float dt) {
@@ -361,13 +405,14 @@ void Player::UpdateModel_() {
     const float sx = (facing_ > 0) ? 1.0f : -1.0f;
     model_->SetScale({ sx, 1.0f, 1.0f });
 
-   
+
 }
 
 
 void Player::Draw() {
-    if (shadow_) shadow_->Draw();  // ★先に影
-    if (model_)  model_->Draw();
+    if (shadow_) shadow_->Draw();
+    if (model_) model_->Draw();
+    //if (swordObj_) swordObj_->Draw();
 }
 
 void Player::DrawDebugHitBoxes(EnemyManager& enemyMgr) {
@@ -382,7 +427,7 @@ void Player::DrawDebugHitBoxes(EnemyManager& enemyMgr) {
         // → scale = halfSize をそのまま入れれば一致
         debugAtkCube_->SetScale({ hb.hx, hb.hy, hb.hz });
 
-      
+
         debugAtkCube_->Draw();
     }
 }
@@ -399,8 +444,8 @@ void Player::UpdateBody_() {
 }
 
 void Player::AddHP(int heal) {
-	hp_ += heal;
-	if (hp_ > GetMaxHP()) hp_ = GetMaxHP();
+    hp_ += heal;
+    if (hp_ > GetMaxHP()) hp_ = GetMaxHP();
 }
 
 void Player::SetLighting(const LightingParam& p)
@@ -433,4 +478,30 @@ void Player::SetLighting(const LightingParam& p)
     model_->SetSpotLightCosAngle(cosOuter);
     model_->SetSpotLightCosFalloffStart(cosInner);
     model_->SetSpotLightColor({ light_.spotColor.x, light_.spotColor.y, light_.spotColor.z, 1.0f });
+    if (!swordObj_) return;
+
+    swordObj_->SetEnableLighting(light_.lightingMode);
+
+    swordObj_->SetDirection(light_.dir);
+    swordObj_->SetIntensity(light_.dirIntensity);
+    swordObj_->SetLightColor(light_.dirColor);
+
+    swordObj_->SetPointLightPos(light_.pointPos);
+    swordObj_->SetPointLightIntensity(light_.pointIntensity);
+    swordObj_->SetPointLightColor(light_.pointColor);
+    swordObj_->SetPointLightRadius(light_.pointRadius);
+    swordObj_->SetPointLightDecay(light_.pointDecay);
+
+    light_.spotFalloffStartDeg = std::min(light_.spotFalloffStartDeg, light_.spotAngleDeg - 0.1f);
+
+  
+    swordObj_->SetSpotLightPos(light_.spotPos);
+    swordObj_->SetSpotLightDirection(light_.spotDir);
+    swordObj_->SetSpotLightIntensity(light_.spotIntensity);
+    swordObj_->SetSpotLightDistance(light_.spotDistance);
+    swordObj_->SetSpotLightDecay(light_.spotDecay);
+    swordObj_->SetSpotLightCosAngle(cosOuter);
+    swordObj_->SetSpotLightCosFalloffStart(cosInner);
+    swordObj_->SetSpotLightColor({ light_.spotColor.x, light_.spotColor.y, light_.spotColor.z, 1.0f });
+
 }
