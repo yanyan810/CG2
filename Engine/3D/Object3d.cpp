@@ -281,6 +281,155 @@ void Object3d::Draw()
 
 		// Draw skinned (textureは Root 3 に入れる)
 		model_->DrawSkinned(cmd, skinCluster_);
+		// =====================================================
+// スキン無し（剣など）を描く
+//  ★剣は「RightHandボーン」＋「swordノードのローカル（手基準）」で追従させる
+// =====================================================
+		{
+			object3dCommon->SetGraphicsPipelineState();
+			cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			// lights/camera (Rigid側RootSigに合わせる)
+			cmd->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			cmd->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
+			cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
+			cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
+
+			// Material / VB / IB
+			cmd->SetGraphicsRootConstantBufferView(0, model_->GetMaterialCBV());
+			cmd->IASetVertexBuffers(0, 1, &model_->GetVBV());
+			cmd->IASetIndexBuffer(&model_->GetIBV());
+
+			const Matrix4x4& vp = camera_->GetViewProjectionMatrix();
+			const Matrix4x4 baseWorld = transformationMatrixDataModel->World;
+
+			// -------------------------------------------------
+			// 1) “sword” ノードの instance（meshIndex / nodeIndex）を探す
+			// -------------------------------------------------
+			int swordMeshIndex = -1;
+			int swordNodeIndex = -1;
+			for (const auto& inst : model_->GetNodeInstances()) {
+				// node名で探す（関数名はあなたの実装に合わせて）
+				const std::string& nodeName = model_->GetNodeName(inst.nodeIndex);
+				if (nodeName == "sword") {
+					swordMeshIndex = inst.meshIndex;
+					swordNodeIndex = inst.nodeIndex;
+					break;
+				}
+			}
+
+			// RightHand ノード index（ノード階層用）
+			const int rhNodeIndex = model_->FindNodeIndexByName("RightHand");
+
+			// RightHand ボーン jointIndex（スケルトン用）
+			int rhJointIndex = -1;
+			{
+				auto it = poseSkeleton_.jointMap.find("RightHand");
+				if (it != poseSkeleton_.jointMap.end()) {
+					rhJointIndex = it->second;
+				}
+			}
+
+			// -------------------------------------------------
+			// 2) 剣が見つかったら、RightHandボーンに追従させて描く
+			//    （bind pose の “RightHand→sword” ローカルを作って、それを毎フレ掛ける）
+			// -------------------------------------------------
+			if (swordMeshIndex >= 0 && swordNodeIndex >= 0 && rhNodeIndex >= 0 && rhJointIndex >= 0) {
+
+				// ★ bind pose の nodeGlobals を作る（anim=null で、ベース姿勢の階層合成）
+				std::vector<Matrix4x4> bindGlobals;
+				model_->ComputeNodeGlobalMatrices(nullptr, 0.0f, bindGlobals);
+
+				// RightHand と sword の bind global
+				const Matrix4x4 bindRH = bindGlobals[rhNodeIndex];
+				const Matrix4x4 bindSword = bindGlobals[swordNodeIndex];
+
+				// ★ row-vector行列想定： local = inv(parentGlobal) * childGlobal
+				// （あなたの Multiply の順番は nodeWorld * baseWorld で使ってるのでこれでOK）
+				const Matrix4x4 swordLocalFromRH =
+					Matrix4x4::Multiply(Matrix4x4::Inverse(bindRH), bindSword);
+
+				// ★ 今フレームの RightHand “ボーン” の global（モデル空間）
+				const Matrix4x4 rhBoneGlobal = poseSkeleton_.joints[rhJointIndex].skeletonSpaceMatrix;
+
+				// swordModel = swordLocal(手基準) * rhBoneGlobal
+				const Matrix4x4 swordModel = Matrix4x4::Multiply(swordLocalFromRH, rhBoneGlobal);
+
+				// swordWorld = swordModel * baseWorld（ObjectのWorldは最後）
+				const Matrix4x4 swordWorld = Matrix4x4::Multiply(swordModel, baseWorld);
+
+				transformationMatrixDataModel->World = swordWorld;
+				transformationMatrixDataModel->WVP = Matrix4x4::Multiply(swordWorld, vp);
+				transformationMatrixDataModel->WorldInverseTranspose =
+					Matrix4x4::Transpose(Matrix4x4::Inverse(swordWorld));
+
+				cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+
+				// 剣だけ描く
+				model_->DrawOneMesh(cmd, swordMeshIndex, 2);
+
+				// 戻す（任意）
+				transformationMatrixDataModel->World = baseWorld;
+				transformationMatrixDataModel->WVP = Matrix4x4::Multiply(baseWorld, vp);
+				transformationMatrixDataModel->WorldInverseTranspose =
+					Matrix4x4::Transpose(Matrix4x4::Inverse(baseWorld));
+			}
+
+			// -------------------------------------------------
+			// 3) その他の非スキンがあれば nodeGlobals で描く（剣は二重描画しない）
+			// -------------------------------------------------
+			const Animation* anim = nullptr;
+			if (isPlayAnimation_ && HasAnimation()) {
+				const auto& anims = model_->GetAnimations();
+				if (!playingAnimName_.empty()) {
+					auto itA = anims.find(playingAnimName_);
+					if (itA != anims.end()) anim = &itA->second;
+				}
+				if (!anim && !anims.empty()) anim = &anims.begin()->second;
+			}
+
+			std::vector<Matrix4x4> nodeGlobals;
+			model_->ComputeNodeGlobalMatrices(anim, animationTime_, nodeGlobals);
+
+			for (const auto& inst : model_->GetNodeInstances()) {
+				if (model_->IsMeshSkinned(inst.meshIndex)) continue;
+
+				// ★剣は上で描いたのでスキップ
+				if (inst.meshIndex == swordMeshIndex) continue;
+
+				const Matrix4x4 nodeWorld = nodeGlobals[inst.nodeIndex];
+				Matrix4x4 world = Matrix4x4::Multiply(nodeWorld, baseWorld);
+				Matrix4x4 wvpM = Matrix4x4::Multiply(world, vp);
+
+				transformationMatrixDataModel->World = world;
+				transformationMatrixDataModel->WVP = wvpM;
+				transformationMatrixDataModel->WorldInverseTranspose =
+					Matrix4x4::Transpose(Matrix4x4::Inverse(world));
+
+				cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+				model_->DrawOneMesh(cmd, inst.meshIndex, 2);
+			}
+
+			// 戻す（任意）
+			transformationMatrixDataModel->World = baseWorld;
+			transformationMatrixDataModel->WVP = Matrix4x4::Multiply(baseWorld, vp);
+			transformationMatrixDataModel->WorldInverseTranspose =
+				Matrix4x4::Transpose(Matrix4x4::Inverse(baseWorld));
+
+			if (swordMeshIndex < 0) {
+				OutputDebugStringA("[SwordDBG] sword node NOT FOUND in nodeInstances\n");
+			}
+			else {
+				char b[128];
+				std::snprintf(b, sizeof(b), "[SwordDBG] sword found: meshIndex=%d nodeIndex=%d\n",
+					swordMeshIndex, swordNodeIndex);
+				OutputDebugStringA(b);
+			}
+
+
+		}
+
+
 	}
 	else {
 		object3dCommon->SetGraphicsPipelineState();
@@ -356,7 +505,7 @@ void Object3d::Draw()
 
 void Object3d::SetModel(const std::string& filePath) {
 	auto* mgr = ModelManager::GetInstance();
-
+	
 	Model* m = mgr->FindModel(filePath);
 	if (!m) {
 		mgr->LoadModel(filePath);
@@ -422,6 +571,15 @@ void Object3d::SetModel(const std::string& filePath) {
 			boneMarkers_.push_back(std::move(marker));
 		}
 	}
+
+	swordNodeIndex_ = -1;
+	swordMeshIndex_ = 2; // まずは固定でOK（あとで検索にしてもいい）
+
+	if (model_) {
+		swordNodeIndex_ = model_->FindNodeIndexByName("sword");
+	}
+
+
 }
 
 void Object3d::SetDirection(const Vector3& direction)
@@ -627,3 +785,27 @@ bool Object3d::IsAnimationFinished() const
 }
 
 const std::string& Object3d::GetPlayingAnimName() const { return playingAnimName_; }
+
+
+Matrix4x4 Object3d::GetJointWorldMatrix(const std::string& jointName) const
+{
+	if (!model_ || !model_->HasSkinning() || !poseReady_) {
+		return Matrix4x4::MakeIdentity4x4();
+	}
+
+	auto it = poseSkeleton_.jointMap.find(jointName);
+	if (it == poseSkeleton_.jointMap.end()) {
+		return Matrix4x4::MakeIdentity4x4();
+	}
+	const int32_t jointIndex = it->second;
+
+	// Object3d の World（Updateで使ってるのと同じ）
+	Matrix4x4 worldMatrixModel = Matrix4x4::MakeAffineMatrix(
+		transform.scale, transform.rotate, transform.translate);
+
+	// ★あなたの行列系は「jointWorld = skeletonSpace * objectWorld」で統一してる
+	Matrix4x4 jointWorld =
+		Matrix4x4::Multiply(poseSkeleton_.joints[jointIndex].skeletonSpaceMatrix, worldMatrixModel);
+
+	return jointWorld;
+}

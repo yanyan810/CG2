@@ -317,6 +317,7 @@ void TestScene::Draw(GameApp& app) {
     if (drawSpotMarker_ && spotMarker_) spotMarker_->Draw();
 
     if (player_) player_->Draw();
+	player_->DrawDebugHitBoxes(enemyMgr_);
     enemyMgr_.Draw();
 
     // ===== 2D (Sprite) =====
