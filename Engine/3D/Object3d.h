@@ -17,6 +17,7 @@
 #include "SrvManager.h"
 #include "SkinningTypes.h"
 #include "SkinningCommon.h"
+#include "VideoPlayerMF.h"
 
 //class Object3dCommon;
 
@@ -281,6 +282,25 @@ private:
 		int32_t swordNodeIndex_ = -1;   // ノード index
 		uint32_t swordMeshIndex_ = 2;   // 今ログ的に sword は mesh[2]
 
+
+		public:
+
+			//========================
+			//video
+			//========================
+
+			void SetVideo(VideoPlayerMF* v) { video_ = v; useVideo_ = (v != nullptr); }
+
+			void DrawWithOverrideSrv(const D3D12_GPU_DESCRIPTOR_HANDLE& srv);
+
+
+		private:
+			//=======
+			//video
+			//=======
+
+			bool useVideo_ = false;
+			VideoPlayerMF* video_ = nullptr;
 
 };
 

@@ -9,6 +9,7 @@
 #include <string>   
 #include "SpriteCommon.h"
 #include "Particle.h"
+#include "VideoPlayerMF.h"
 
 class Particle;
 class Camera;
@@ -248,5 +249,9 @@ private:
 	};
 	int assimpPlaneIndex_ = 0;
 	int assimpPlaneIndexPrev_ = 0;
+
+	std::unique_ptr<Object3d> videoPlane_;
+	std::unique_ptr<VideoPlayerMF> video_; // もしくは値型でもOK
+	bool enableVideo_ = true;              // ImGuiでON/OFFできるように
 
 };

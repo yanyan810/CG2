@@ -226,7 +226,7 @@ private:
     ShooterState shooterState_ = ShooterState::Retreat;
 
     // --- 追加：Melee（止まってから殴る） ---
-    float meleeWindupTime_ = 0.30f;   // 止まってから攻撃するまで
+    float meleeWindupTime_ = 0.0f;   // 止まってから攻撃するまで
     float meleeAttackTime_ = 0.05f;   // 攻撃が出てる時間（判定を出すなら）
     float meleeWindup_ = 0.0f;
     float meleeAttack_ = 0.0f;

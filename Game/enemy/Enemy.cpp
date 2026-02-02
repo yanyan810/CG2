@@ -269,8 +269,14 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 
 void Enemy::Draw() {
 	if (!alive_) return;
-	if (model_) model_->Draw();
+	if (!model_) return;
+
+	if (hitFlashSec_ > 0.0f) model_->SetMaterialColor(hitColor_);
+	else                      model_->SetMaterialColor(normalColor_);
+
+	model_->Draw();
 }
+
 
 EnemyHitResult Enemy::ApplyHit2D(float knockVx, float launchVy, bool requestHitstun) {
 	EnemyHitResult r{};
@@ -516,7 +522,7 @@ void Enemy::UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ)
 
 			shootMuzzlePos_.x = pos_.x + 1.0f * float(facing_);
 			shootMuzzlePos_.y = pos_.y + 0.8f;
-			shootMuzzlePos_.z = playerZ;
+			shootMuzzlePos_.z = pos_.z;
 
 			shootDir_ = facing_;
 

@@ -851,6 +851,56 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount) {
     }
 }
 
+void Model::Draw(ID3D12GraphicsCommandList* cmd,
+    uint32_t instanceCount,
+    const D3D12_GPU_DESCRIPTOR_HANDLE* overrideSrv)
+{
+    if (!vertexResource_ || !materialResource_ || !materialData_) {
+        OutputDebugStringA("[Model] Draw skipped: resources not initialized\n");
+        return;
+    }
+
+    cmd->IASetVertexBuffers(0, 1, &vertexBufferView_);
+
+    const bool useIndexed = (indexResource_ != nullptr);
+    if (useIndexed) cmd->IASetIndexBuffer(&indexBufferView_);
+
+    cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+
+    for (const auto& mesh : modelData_.meshes) {
+
+        D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+
+        if (overrideSrv) {
+            // ★動画など外部SRVを強制使用
+            handle = *overrideSrv;
+        } else {
+            // ---- いつものテクスチャ ----
+            std::string texPath;
+            if (mesh.materialIndex < modelData_.materials.size()) {
+                texPath = modelData_.materials[mesh.materialIndex].textureFilePath;
+            }
+
+            if (!texPath.empty()) {
+                if (!TextureManager::GetInstance()->HasTexture(texPath)) {
+                    TextureManager::GetInstance()->LoadTexture(texPath);
+                }
+                handle = TextureManager::GetInstance()->GetSrvHandleGPU(texPath);
+            } else {
+                handle = TextureManager::GetInstance()->GetSrvHandleGPU(""); // 白
+            }
+        }
+
+        // ★Rigid の RootParam(2) = Texture SRV(t0想定に直す)
+        cmd->SetGraphicsRootDescriptorTable(2, handle);
+
+        if (useIndexed && mesh.indexCount > 0) {
+            cmd->DrawIndexedInstanced(mesh.indexCount, instanceCount, mesh.startIndex, 0, 0);
+        } else {
+            cmd->DrawInstanced(mesh.vertexCount, instanceCount, mesh.startVertex, 0);
+        }
+    }
+}
 
 // Model.cpp
 void Model::DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc)
@@ -1093,7 +1143,7 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
       flags |= aiProcess_Triangulate;
       flags |= aiProcess_JoinIdenticalVertices;
       flags |= aiProcess_GenSmoothNormals;
-       flags |= aiProcess_FlipUVs; // ← 自前で 1-v するなら付けない
+       //flags |= aiProcess_FlipUVs;flags |= aiProcess_FlipUVs; // ← 自前で 1-v するなら付けない
 
     const aiScene* scene = nullptr;
 

@@ -74,12 +74,6 @@ void GameScene::OnEnter(GameApp& app) {
 
     enemyMgr_.Spawn(EnemyType::Boss, Vector3{ 0.0f, 0.0f, 15.0f });
 
-
-    // テストスポーン
- /*   enemyMgr_.Spawn(EnemyType::Melee, { 5.0f, 0.0f ,15.0f});
-    enemyMgr_.Spawn(EnemyType::Shooter, { 9.0f, 0.0f ,15.0f});*/
-    // bossはステージ5で
-
     TextureManager::GetInstance()->LoadTexture("resources/white1x1.png");
 
     hpBack_ = std::make_unique<Sprite>();
@@ -325,12 +319,7 @@ void GameScene::UpdateHPDigits_(int hp) {
 
         hpDigits_[idx]->SetPosition({ x, y });
         hpDigits_[idx]->SetScale({ 1.0f, 1.0f, 1.0f }); // 必要なら
-        // サイズは Sprite の size_ が textureサイズになるので、
-        // ここで見た目の大きさを変えたいなら scale_ を使うのが簡単
-        // 例：hpDigits_[idx]->SetScale({ w/texW, h/texH, 1 });
-        //
-        // ただあなたのSpriteは size_ = textureCutSize_ でピクセルサイズになるので、
-        // 「固定サイズ」にしたいなら Sprite に SetSize を足すのがベスト。
+     
         };
 
     // 右詰め配置：一の位を一番右
@@ -338,9 +327,6 @@ void GameScene::UpdateHPDigits_(int hp) {
     float x1 = x2 - (w + sp);
     float x0 = x1 - (w + sp);
 
-    // ※あなたのSpriteは size_ を直接変えられないので、今は scale_ で縮める運用が楽。
-    // ここでは position だけ決めて、見た目サイズは画像の元サイズに依存します。
-    // 数字画像が大きい場合は scale_ を 0.5 などに。
     setDigit(0, d0, x0, baseY, show0);
     setDigit(1, d1, x1, baseY, show1);
     setDigit(2, d2, x2, baseY, show2);

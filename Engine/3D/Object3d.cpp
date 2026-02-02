@@ -488,10 +488,21 @@ void Object3d::Draw()
 
 		}
 		else {
-			// 従来：モデル全体を1回描画
 			cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
-			model_->Draw(cmd);
+
+			if (video_ && video_->IsReady()) { // ←あなたの実装に合わせて
+				video_->ReadNextFrame();
+				video_->UploadToGpu(cmd);
+
+				D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
+				model_->Draw(cmd, 1, &vh);
+
+				video_->EndFrame(cmd); // 運用するなら
+			} else {
+				model_->Draw(cmd); // 通常
+			}
 		}
+
 	}
 
 
@@ -499,6 +510,37 @@ void Object3d::Draw()
 	if (debugDrawBones_ && !boneMarkers_.empty()) {
 		for (auto& m : boneMarkers_) { m->Draw(); }
 	}
+}
+
+void Object3d::DrawWithOverrideSrv(const D3D12_GPU_DESCRIPTOR_HANDLE& srv)
+{
+	if (!model_) return;
+
+	auto* cmd = dx_->GetCommandList();
+
+	// SRV heap（いつも通り）
+	ID3D12DescriptorHeap* heaps[] = { TextureManager::GetInstance()->GetSrvDescriptorHeap() };
+	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	// Rigid PSO
+	object3dCommon->SetGraphicsPipelineState();
+
+	// lights/camera（必要なら。動画は lighting=0 なら実質使わない）
+	cmd->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
+
+	// VB/IB/Material
+	cmd->IASetVertexBuffers(0, 1, &model_->GetVBV());
+	cmd->IASetIndexBuffer(&model_->GetIBV());
+	cmd->SetGraphicsRootConstantBufferView(0, model_->GetMaterialCBV());
+
+	// Transform
+	cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+
+	// ★ここが本題：動画SRVで描く
+	model_->Draw(cmd, 1, &srv);
 }
 
 

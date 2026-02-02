@@ -10,7 +10,7 @@ void Object3dCommon::Initialize(DirectXCommon* dxCommon) {
 }
 
 void Object3dCommon::CreateRootSignature() {
-    // ==== DescriptorRange (t0: SRV) ====
+    // ==== DescriptorRange (t1: SRV) ====
     D3D12_DESCRIPTOR_RANGE range{};
     range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     range.NumDescriptors = 1;
