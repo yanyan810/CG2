@@ -31,6 +31,12 @@ void BulletManager::Spawn(const Vector3& pos, int dir, int damage) {
     b.model->SetCamera(cam_);
     b.model->SetModel("enemy/shooter/bullet/bullet.obj");
 
+    b.model->SetTranslate(b.pos);
+    const float s = 0.25f;
+    b.model->SetScale({ s, s, s });
+    b.model->Update(0.0f);      // ★この1行が「一瞬原点」を消す特効薬
+
+
     UpdateBody_(b);
 
     bullets_.push_back(std::move(b));
@@ -46,13 +52,8 @@ void BulletManager::Update(float dt, Player& player) {
     for (auto& b : bullets_) {
         if (!b.alive) continue;
 
-        b.model->Update(dt);
-
         b.life -= dt;
-        if (b.life <= 0.0f) {
-            b.alive = false;
-            continue;
-        }
+        if (b.life <= 0.0f) { b.alive = false; continue; }
 
         // 移動
         b.pos.x += b.vel.x * dt;
@@ -61,14 +62,21 @@ void BulletManager::Update(float dt, Player& player) {
 
         UpdateBody_(b);
 
-        // 2) プレイヤーに当たったら消す
-        // Player 側に GetBodyAABB() がある前提（Enemy.cppでも使ってるのでOK）
+        // ★ここでモデルへ反映してから Update
+        if (b.model) {
+            b.model->SetTranslate(b.pos);
+            const float s = 0.25f;
+            b.model->SetScale({ s, s, s });
+            b.model->Update(dt);
+        }
+
         if (IntersectAABB_(b.body, player.GetBodyAABB())) {
             player.TriggerHitFlash(0.25f);
-            player.Damage(b.damage);   // ★ここで弾ごとのダメージ
+            player.Damage(b.damage);
             b.alive = false;
         }
     }
+
 
     // 3) 死んだ弾を削除
     bullets_.erase(
@@ -81,20 +89,8 @@ void BulletManager::Update(float dt, Player& player) {
 void BulletManager::Draw() {
     for (auto& b : bullets_) {
         if (!b.alive) continue;
-
-        if (b.model) {
-            b.model->SetTranslate(b.pos);
-
-            // cube のサイズ（好みで調整）
-            const float s = 0.25f;
-            b.model->SetScale({ s, s, s });
-
-         
-            b.model->Draw();
-        }
+        if (b.model) b.model->Draw();
     }
-
-    // debugDraw_ を使って「別の表示」をしたいならここに追加
 }
 
 void BulletManager::UpdateBody_(Bullet& b) {

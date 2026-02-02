@@ -76,8 +76,8 @@ void GameScene::OnEnter(GameApp& app) {
 
 
     // テストスポーン
-    enemyMgr_.Spawn(EnemyType::Melee, { 5.0f, 0.0f ,15.0f});
-    enemyMgr_.Spawn(EnemyType::Shooter, { 9.0f, 0.0f ,15.0f});
+ /*   enemyMgr_.Spawn(EnemyType::Melee, { 5.0f, 0.0f ,15.0f});
+    enemyMgr_.Spawn(EnemyType::Shooter, { 9.0f, 0.0f ,15.0f});*/
     // bossはステージ5で
 
     TextureManager::GetInstance()->LoadTexture("resources/white1x1.png");
@@ -124,7 +124,7 @@ void GameScene::OnEnter(GameApp& app) {
     ground_->SetCamera(camera_.get());
     ground_->SetModel("ground/ground.obj");
 
-    ground_->SetTranslate({ 0.0f, 0.0f, -20.0f });
+    ground_->SetTranslate({ 0.0f, 0.0f, 50.0f });
     ground_->SetScale({ 1.0f, 1.0f, 1.0f });
     ground_->SetRotate({ 0.0f, 0.0f, 0.0f });
  
