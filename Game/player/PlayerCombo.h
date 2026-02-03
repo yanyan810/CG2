@@ -4,6 +4,7 @@
 #include <cmath>
 #include <dinput.h>
 #include "Object3d.h"
+#include <unordered_set>
 
 class Input;
 class EnemyManager;
@@ -37,8 +38,8 @@ struct AttackData {
     float hitStart = 0.08f;
     float hitEnd = 0.18f;
 
-    float chainOpen = 0.12f;
-    float chainClose = 0.30f;
+    float chainOpen = 999.0f;
+    float chainClose = -999.0f;
 
     float knockX = 6.0f;
     float launchY = 7.0f;
@@ -48,6 +49,7 @@ struct AttackData {
     float hbHalfX = 0.6f;
     float hbHalfY = 0.5f;
 
+    int damage = 1;
 
     float hitZ = 0.5f; // ★Z方向の半幅（奥行き）
     bool airFloatOnHit = true; // 空中ヒット中浮遊
@@ -119,6 +121,11 @@ public:
     }
 
 
+#ifdef USE_IMGUI
+    void DebugImGui();
+#endif
+
+
 private:
     // 入力バッファ
     struct BufItem { AttackBtn btn; float life; };
@@ -147,6 +154,8 @@ private:
     AttackData lastData_{};
     bool lastDataValid_ = false;
 
+    std::unordered_set<const Enemy*> hitSet_;
+
 private:
     void Push_(AttackBtn b);
     bool Pop_(AttackBtn& out);
@@ -160,5 +169,30 @@ private:
     AABB2 MakeEnemyBody2D_(const Enemy& e) const;
 
     void StartAttack_(bool airborne, AttackBtn btn, int dirY);
-    void NextStep_(bool airborne, AttackBtn btn);
+  //  void NextStep_(bool airborne, AttackBtn btn);
+
+    // ===== O(Strong) 調整（ImGuiからいじる用）=====
+    AttackData tuningO_{}; // O用の上書きデータ
+
+    static AttackData DefaultO_() {
+        AttackData a{};
+        a.duration = 1.20f;
+        a.hitStart = 0.40f;
+        a.hitEnd = 1.0f;
+
+        a.chainOpen = 999.0f;
+        a.chainClose = -999.0f;
+
+        a.hbHalfX = 1.9f;
+        a.hbHalfY = 1.3f;
+        a.hbOffX = 1.6f;
+        a.hbOffY = 0.7f;
+
+        a.hitZ = 2.5f;
+        a.damage = 20;
+
+        return a;
+    }
+
+
 };

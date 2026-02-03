@@ -72,6 +72,10 @@ public:
     int  GetAudioTrackIndex() const { return audioTrackIndex_; }
     bool SetAudioTrack(int trackIndex); // 0..count-1
 
+    double GetTimeSec() const { return (double)lastTs100ns_ / 10000000.0; }       // 現在秒
+    double GetDurationSec() const { return (double)duration100ns_ / 10000000.0; } // 総秒(0なら未取得)
+    LONGLONG GetTime100ns() const { return lastTs100ns_; }
+    bool HasDuration() const { return duration100ns_ > 0; }
 
 private:
 

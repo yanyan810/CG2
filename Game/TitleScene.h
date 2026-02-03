@@ -11,6 +11,9 @@
 #include "Particle.h"
 #include "VideoPlayerMF.h"
 
+#include "Player.h"
+#include "PlayerCombo.h"
+
 class Particle;
 class Camera;
 
@@ -213,14 +216,16 @@ private:
 	int texSamplerIndexPrev_ = 0;
 	std::unique_ptr<Object3d> texSamplerObj_;
 
-	enum class EditTarget : int {
+	enum class EditTarget {
 		SkyDome,
 		VideoPlane,
 		Particle,
+		Ground,      // 追加
+		TitlePlayer, // 追加
 		BG,
 		PressStart,
-		// 必要なら追加…
 	};
+
 
 
 	int editTarget_ = 0; // ImGui Combo用（EditTarget を int で持つ）
@@ -255,7 +260,26 @@ private:
 	int assimpPlaneIndexPrev_ = 0;
 
 	std::unique_ptr<Object3d> videoPlane_;
+	std::unique_ptr<Player> titlePlayer;
 	std::unique_ptr<VideoPlayerMF> video_; // もしくは値型でもOK
 	bool enableVideo_ = true;              // ImGuiでON/OFFできるように
+
+	// ===== Lighting params =====
+	LightingParam light_;
+
+	std::unique_ptr<Object3d> ground_;
+
+	// TitleScene.h の private に追加
+	bool showVideo_ = true;        // true: Video表示 / false: Player表示
+	float showTimer_ = 0.0f;       // 経過時間
+	float switchInterval_ = 2.0f;  // 何秒ごとに切り替えるか（好み）
+	float dt_;
+
+	float switchT_ = 0.0f;
+	float playerSec_ = 28.0f; // 前半プレイヤー秒
+	float videoSec_ = 28.0f; // 後半動画秒
+
+	SRT srtGround_{};
+	SRT srtPlayer_{};
 
 };

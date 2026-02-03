@@ -54,7 +54,7 @@ public:
     PlayerCombo* GetCombo() { return combo_.get(); }
     const PlayerCombo* GetCombo() const { return combo_.get(); }
 
-    void ClampToScreenX_(const Camera& cam, float marginNdc /*例:0.08f*/);
+    //void ClampToScreenX_(const Camera& cam, float marginNdc /*例:0.08f*/);
 
     AABB GetBodyAABB() const { return body_; }
 
@@ -77,6 +77,12 @@ public:
 
     void ChangeModelSet_(Player::PlayerModelSet set);
 
+    // タイトル用デモ
+    void UpdateTitleAttackDemo(float dt, float intervalSec = 1.0f);
+    void ResetTitleAttackDemo();
+    //void UpdateTitleAttackDemo(float dt, float intervalSec = 1.0f);
+    void SetTitleTransform(const Vector3& t, const Vector3& r, const Vector3& s);
+
 private:
     void UpdateMove_(float dt, const Input& input);
     void ApplyPhysics_(float dt);
@@ -84,9 +90,6 @@ private:
 
     void UpdateBody_();
 
-    void ApplyModel_(ModelId want);
-
-    void SetModelIfChanged_(void* asset, const char* logTag);
 
 private:
     
@@ -162,6 +165,10 @@ private:
     std::string curAnim_ = "";
     bool prevAtkI_ = false;
     bool prevAtkO_ = false;
+
+    // Title demo
+    float titleDemoTimer_ = 0.0f;
+    bool  titleDemoNextIsI_ = true;
 
 
 };

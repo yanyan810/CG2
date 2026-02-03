@@ -3,6 +3,7 @@
 #include <memory>
 #include "Sprite.h"
 #include "SpriteCommon.h"
+#include "VideoPlayerMF.h"
 
 class Camera;
 
@@ -45,5 +46,19 @@ private:
     std::unique_ptr<Sprite> bg_;          // clear.png (1280x720)
     std::unique_ptr<Sprite> goTitle_;     // goTitle.png (128x128)
     float uiTime_ = 0.0f;
+
+    // ===== Video =====
+    std::unique_ptr<Object3d> videoPlane_;
+    std::unique_ptr<VideoPlayerMF> video_;
+    bool enableVideo_ = true;
+
+    // 演出が終わってからの待ち時間（Idleに入ってから）
+    float idleTime_ = 0.0f;
+    static constexpr float kAutoReturnSeconds_ = 30.0f;
+
+    // 位置調整用
+    struct SRT { Vector3 pos{ 0,0,0 }; Vector3 rot{ 0,0,0 }; Vector3 scale{ 1,1,1 }; };
+    SRT srtVideo_{};
+
 
 };
