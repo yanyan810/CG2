@@ -13,6 +13,9 @@
 #include "Enemy.h"
 #include "Player.h"
 
+
+#include "VideoPlayerMF.h"
+
 class GameScene : public IScene {
 public:
     GameScene() = default;
@@ -78,6 +81,26 @@ private:
     Vector2 bossHpBarPos_{ 800.0f, 690.0f };   // 例：プレイヤーの下に置く
     float   bossHpBarW_ = 300.0f;
     float   bossHpBarH_ = 16.0f;
+
+    //動画関係
+    enum class Phase {
+        IntroVideo,
+        Battle,
+		OutroVideo,
+    };
+    Phase phase_ = Phase::IntroVideo;
+
+    // 120f 管理（Updateが1フレーム=1回呼ばれる前提ならこれが一番ラク）
+    int introFrame_ = 0;
+    static constexpr int kIntroFrames_ = 120;
+
+    // dtベースでやるならこっち（可変fpsでも安定）
+    float introTime_ = 0.0f;
+    static constexpr float kIntroSeconds_ = 2.0f; // 120f@60fps
+
+    std::unique_ptr<Object3d> videoPlane_;
+    std::unique_ptr<VideoPlayerMF> video_;
+    bool enableVideo_ = true;
 
 
 };

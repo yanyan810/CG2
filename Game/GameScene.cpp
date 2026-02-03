@@ -162,6 +162,43 @@ void GameScene::OnEnter(GameApp& app) {
         bossHpDigits_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
     }
 
+    // ---- Intro Phase 初期化 ----
+    phase_ = Phase::IntroVideo;
+    introFrame_ = 0;
+    introTime_ = 0.0f;
+
+    // ---- Video Plane ----
+    videoPlane_ = std::make_unique<Object3d>();
+    videoPlane_->Initialize(app.ObjCom(), app.Dx());
+    videoPlane_->SetCamera(camera_.get());
+    videoPlane_->SetModel("video/plane.obj");
+
+    // 動画は「ライト無視」が基本（色そのまま出したい）
+    videoPlane_->SetEnableLighting(0);
+    videoPlane_->SetMaterialColor({ 1,1,1,1 });
+    videoPlane_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    // 位置：カメラ前に置く（あなたのカメラ向きに合わせて調整）
+    // GameSceneカメラは俯瞰なので、地面に貼るようにするなら回転させてもOK
+    videoPlane_->SetTranslate({ 0.0f, 3.0f, 3.1f });
+    videoPlane_->SetScale({ 9.5f, 5.3f, 2.0f });
+    videoPlane_->SetRotate({ 0.0f, 0.0f, 0.0f });
+
+    // ---- Video Player ----
+    video_ = std::make_unique<VideoPlayerMF>();
+    video_->Open("resources/video/test.mp4", false);
+    video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv());
+    video_->SetVolume(1.0f);
+
+    // ★最初のフレームを必ず作る
+    video_->ReadNextVideoFrame();
+
+    // 最初の1枚
+    if (!video_->ReadNextFrame()) {
+        OutputDebugStringA("[GameScene] First ReadNextFrame failed\n");
+    }
+
+    enableVideo_ = true;
 
 
 }
@@ -192,83 +229,102 @@ void GameScene::Update(GameApp& app, float dt) {
 
     skyDome_->Update(dt);
 
-    /*if (particle_) {
-        particle_->SpawnParticle();
-        particle_->Update();
-    }*/
-
   
-
-  /*  debugTitleParticle_->SpawnParticle();
-    debugTitleParticle_->Update();*/
-
     if (player_) {
         player_->Update(dt, *input_, enemyMgr_);
     }
 
-    //if (player_.IsDead()) {
-    //    app.ChangeScene(std::make_unique<GameOverScene>()); // あなたの方式に合わせて
-    //    return;
-    //}
+    // ----------------------------
+    // Intro Video フェーズ
+    // ----------------------------
+    if (phase_ == Phase::IntroVideo) {
+
+        // dt方式（推奨）
+        introTime_ += dt;
+        if (introTime_ >= kIntroSeconds_) {
+            phase_ = Phase::Battle;
+
+            // 戦闘開始時に「最初のスポーンをここでやる」ならここに置く
+            // enemyMgr_.QueueSpawn(...) をここでやる / BGM開始などもここ
+        }
+
+        // フレーム方式（60fps固定前提）でやるなら↓
+        // introFrame_++;
+        // if (introFrame_ >= kIntroFrames_) { phase_ = Phase::Battle; }
+
+        // 動画の更新（映像 + 音）
+        if (enableVideo_ && video_) {
+            // もしあなたのVideoPlayerMFがこの名前なら
+
+            videoPlane_->Update(dt);
+
+            // あなたが今使ってる形に合わせるなら：
+            video_->ReadNextVideoFrame(); // 1フレーム進める（映像+音の実装によりけり）
+            video_->PumpAudio();
+
+        }
+
+    } else if (phase_ == Phase::Battle) {
+        // 戦闘フェーズ中の処理（特になし）
+
 
 
     // enemyMgr_ に渡す playerPos を Player から取る
-    Vector2 playerPos2D{ 0.0f, 0.0f };
-    if (player_) {
-        playerPos2D = player_->GetPos2D();
-    }
+        Vector2 playerPos2D{ 0.0f, 0.0f };
+        if (player_) {
+            playerPos2D = player_->GetPos2D();
+        }
 
-    float playerZ = 15.0f;
-    if (player_) {
-        playerZ = player_->GetZ(); // 追加したgetter
-    }
-    enemyMgr_.Update(dt, playerPos2D, playerZ,*player_);
+        float playerZ = 15.0f;
+        if (player_) {
+            playerZ = player_->GetZ(); // 追加したgetter
+        }
+        enemyMgr_.Update(dt, playerPos2D, playerZ, *player_);
 
-    if (bossHpFill_) {
-        if (Enemy* boss = enemyMgr_.GetBoss()) {
-            int hp = boss->GetHP();
-            int maxHp = boss->GetMaxHP();
+        if (bossHpFill_) {
+            if (Enemy* boss = enemyMgr_.GetBoss()) {
+                int hp = boss->GetHP();
+                int maxHp = boss->GetMaxHP();
 
-            float t = (maxHp > 0) ? float(hp) / float(maxHp) : 0.0f;
+                float t = (maxHp > 0) ? float(hp) / float(maxHp) : 0.0f;
+                t = std::clamp(t, 0.0f, 1.0f);
+
+                bossHpFill_->SetScale({ bossHpBarW_ * t, bossHpBarH_, 1.0f });
+
+                UpdateBossHPDigits_(hp);
+            } else {
+                // ボスがいない（倒した後など）→UI消す
+                bossHpFill_->SetScale({ 0.0f, bossHpBarH_, 1.0f });
+                UpdateBossHPDigits_(0);
+            }
+        }
+
+
+        if (player_ && hpFill_) {
+            int hp = player_->GetHP();      // ← getter作る（無ければ）
+            int maxHp = player_->GetMaxHP();// ← getter作る（無ければ）
+
+            float t = (maxHp > 0) ? (float(hp) / float(maxHp)) : 0.0f;
             t = std::clamp(t, 0.0f, 1.0f);
 
-            bossHpFill_->SetScale({ bossHpBarW_ * t, bossHpBarH_, 1.0f });
-
-            UpdateBossHPDigits_(hp);
+            const float fullW = 300.0f;
+            hpFill_->SetScale({ fullW * t, 20.0f ,1.0f });
         }
-        else {
-            // ボスがいない（倒した後など）→UI消す
-            bossHpFill_->SetScale({ 0.0f, bossHpBarH_, 1.0f });
-            UpdateBossHPDigits_(0);
+
+        if (player_) {
+            UpdateHPDigits_(player_->GetHP());
+        }
+
+        if (player_->IsDead()) {
+            RequestChangeScene_("GameOver");
+            return;
+        }
+
+        if (enemyMgr_.IsBossDefeated()) {
+            RequestChangeScene_("GameClear");
+            return;
         }
     }
-
-
-    if (player_ && hpFill_) {
-        int hp = player_->GetHP();      // ← getter作る（無ければ）
-        int maxHp = player_->GetMaxHP();// ← getter作る（無ければ）
-
-        float t = (maxHp > 0) ? (float(hp) / float(maxHp)) : 0.0f;
-        t = std::clamp(t, 0.0f, 1.0f);
-
-        const float fullW = 300.0f;
-        hpFill_->SetScale({ fullW * t, 20.0f ,1.0f});
-    }
-
-    if (player_) {
-        UpdateHPDigits_(player_->GetHP());
-    }
-
-    if (player_->IsDead()) {
-        RequestChangeScene_("GameOver");
-        return;
-    }
-
-    if (enemyMgr_.IsBossDefeated()) {
-        RequestChangeScene_("GameClear");
-        return;
-    }
-
 }
 
 void GameScene::Draw(GameApp& app) {
@@ -285,15 +341,41 @@ void GameScene::Draw(GameApp& app) {
     //if (objB_) objB_->Draw();
 
      skyDome_->Draw();
-
-    if (ground_) ground_->Draw();
    
-    //player
-    if (player_) player_->Draw();
-  
-    enemyMgr_.Draw();
+    // --- Intro中は動画を最前面に出したいなら、描画順を最後にする ---
+    if (phase_ == Phase::IntroVideo) {
+        if (enableVideo_ && video_ && videoPlane_) {
 
-   
+            // Video SRV を作った heap を、いまの draw で確実にセットする
+            ID3D12DescriptorHeap* heaps[] = { app.Srv()->GetDescriptorHeap() }; // ←あなたのSrvManagerの取得関数名に合わせる
+            cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
+
+            // ここでGPUに転送
+            video_->UploadToGpu(cmd);
+
+            // SRVで描画（あなたのObject3dに override描画がある前提）
+            D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
+
+          
+             videoPlane_->DrawWithOverrideSrv(vh);
+
+             video_->EndFrame(cmd);
+        }
+
+     
+    } else if (phase_ == Phase::Battle) {
+        // 戦闘フェーズ中は普通に描画
+
+
+        if (ground_) ground_->Draw();
+
+        //player
+        if (player_) player_->Draw();
+
+        enemyMgr_.Draw();
+
+    }
 
     // Particle
     app.ParticleCom()->SetGraphicsPipelineState();
@@ -307,38 +389,40 @@ void GameScene::Draw(GameApp& app) {
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
-    // ★ 背景
-    if (hpBack_) {
-        hpBack_->Update(view, proj);
-        hpBack_->Draw();
-    }
-    // ★ 中身
-    if (hpFill_) {
-        hpFill_->Update(view, proj);
-        hpFill_->Draw();
-    }
+    if (phase_ == Phase::Battle) {
 
-    // 数字（後 = 上に乗る）
-    for (int i = 0; i < 3; ++i) {
-        if (!hpDigits_[i]) continue;
-        hpDigits_[i]->Update(view, proj);
-        hpDigits_[i]->Draw();
-    }
-    // ===== Boss HP（追加）=====
-    if (bossHpBack_) {
-        bossHpBack_->Update(view, proj);
-        bossHpBack_->Draw();
-    }
-    if (bossHpFill_) {
-        bossHpFill_->Update(view, proj);
-        bossHpFill_->Draw();
-    }
-    for (int i = 0; i < 3; ++i) {
-        if (!bossHpDigits_[i]) continue;
-        bossHpDigits_[i]->Update(view, proj);
-        bossHpDigits_[i]->Draw();
-    }
+        // ★ 背景
+        if (hpBack_) {
+            hpBack_->Update(view, proj);
+            hpBack_->Draw();
+        }
+        // ★ 中身
+        if (hpFill_) {
+            hpFill_->Update(view, proj);
+            hpFill_->Draw();
+        }
 
+        // 数字（後 = 上に乗る）
+        for (int i = 0; i < 3; ++i) {
+            if (!hpDigits_[i]) continue;
+            hpDigits_[i]->Update(view, proj);
+            hpDigits_[i]->Draw();
+        }
+        // ===== Boss HP（追加）=====
+        if (bossHpBack_) {
+            bossHpBack_->Update(view, proj);
+            bossHpBack_->Draw();
+        }
+        if (bossHpFill_) {
+            bossHpFill_->Update(view, proj);
+            bossHpFill_->Draw();
+        }
+        for (int i = 0; i < 3; ++i) {
+            if (!bossHpDigits_[i]) continue;
+            bossHpDigits_[i]->Update(view, proj);
+            bossHpDigits_[i]->Draw();
+        }
+    }
    
 }
 

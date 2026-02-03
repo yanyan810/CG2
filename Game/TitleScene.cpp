@@ -77,7 +77,7 @@ void TitleScene::OnEnter(GameApp& app) {
     // ===== Video Plane =====
     videoPlane_ = std::make_unique<Object3d>();
     videoPlane_->Initialize(app.ObjCom(), app.Dx());
-    videoPlane_->SetModel("plane.obj");
+    videoPlane_->SetModel("video/plane.obj");
 
     // 表示しやすい設定（ライト無視）
     videoPlane_->SetEnableLighting(0);
@@ -85,15 +85,15 @@ void TitleScene::OnEnter(GameApp& app) {
     videoPlane_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
     // 位置調整（カメラの前に置く）
-    videoPlane_->SetTranslate({ 0.0f, 1.0f, 3.0f });  // 例：Zはカメラ向きに合わせて調整
-    videoPlane_->SetScale({ 2.0f, 2.0f, 2.0f });
+    videoPlane_->SetTranslate({ 0.0f, 3.0f, 3.1f });  // 例：Zはカメラ向きに合わせて調整
+    videoPlane_->SetScale({ 9.5f, 5.3f, 2.0f });
     videoPlane_->SetRotate({ 0.0f, 0.0f, 0.0f });
 
     // ===== Video Player =====
     video_ = std::make_unique<VideoPlayerMF>();
 
     // ※ ここはあなたの実装の関数名に合わせて
-    video_->Open("resources/battle.mp4", true); // loop = true
+    video_->Open("resources/video/battle.mp4", true); // loop = true
     video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv()); // SRV確保 + texture作成
 	video_->SetVolume(1.5f); // 音量セット（0.0f〜1.0f）
     enableVideo_ = true;
@@ -133,6 +133,8 @@ void TitleScene::OnExit(GameApp&) {
     meshPrimObj_.reset();
     alphaBlendObj_.reset();
     texSamplerObj_.reset();
+    video_->Close();
+    video_.reset();
 
 }
 
@@ -432,7 +434,7 @@ void TitleScene::Draw(GameApp& app) {
         videoPlane_->DrawWithOverrideSrv(vh);
 
         // 次のCopyに備える運用なら
-       // video_->EndFrame(cmd);
+        video_->EndFrame(cmd);
     }
 
     // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
