@@ -6,10 +6,7 @@ class Enemy;
 
 class BossAI {
 public:
-    void Reset(int maxHP);
-    void Update(Enemy& e, float dt, const Vector2& playerXY, float playerZ);
 
-private:
     enum class Phase : uint8_t { P1, P2, P3 };
     enum class State : uint8_t {
         Wander,
@@ -31,8 +28,15 @@ private:
         Super25,
     };
 
-    Phase phase_ = Phase::P1;
-    State st_ = State::Wander;
+    void Reset(int maxHP);
+    void Update(Enemy& e, float dt, const Vector2& playerXY, float playerZ);
+
+    // Enemy側（見た目制御）用
+    State GetState() const { return st_; }
+    Phase GetPhase() const { return phase_; } // 必要なら
+
+private:
+ 
 
     int maxHP_ = 300;
     bool did50_ = false;
@@ -65,6 +69,9 @@ private:
 
     float rushZMin_ = -10.0f;
     float rushZMax_ = 20.0f;
+
+	State st_ = State::Wander;
+	Phase phase_ = Phase::P1;
 
 private:
     void UpdatePhase_(Enemy& e);

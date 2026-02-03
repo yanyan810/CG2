@@ -44,6 +44,8 @@ private:
 
     std::unique_ptr<Object3d> ground_;
 
+    std::unique_ptr<Object3d> skyDome_;
+
     // ===== Lighting params =====
     LightingParam light_;
 

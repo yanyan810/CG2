@@ -488,10 +488,21 @@ void Object3d::Draw()
 
 		}
 		else {
-			// 従来：モデル全体を1回描画
 			cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
-			model_->Draw(cmd);
+
+			if (video_ && video_->IsReady()) { // ←あなたの実装に合わせて
+				video_->ReadNextFrame();
+				video_->UploadToGpu(cmd);
+
+				D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
+				model_->Draw(cmd, 1, &vh);
+
+				video_->EndFrame(cmd); // 運用するなら
+			} else {
+				model_->Draw(cmd); // 通常
+			}
 		}
+
 	}
 
 
@@ -501,7 +512,30 @@ void Object3d::Draw()
 	}
 }
 
+void Object3d::DrawWithOverrideSrv(const D3D12_GPU_DESCRIPTOR_HANDLE& srv)
+{
+	if (!model_) return;
 
+	auto* cmd = dx_->GetCommandList();
+
+	// ★動画SRVがいるので SrvManager の heap をセット
+	ID3D12DescriptorHeap* heaps[] = { srvManager_->GetDescriptorHeap() }; // ←あなたの関数名に合わせて
+	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	object3dCommon->SetGraphicsPipelineState();
+
+	cmd->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
+
+	cmd->IASetVertexBuffers(0, 1, &model_->GetVBV());
+	cmd->IASetIndexBuffer(&model_->GetIBV());
+	cmd->SetGraphicsRootConstantBufferView(0, model_->GetMaterialCBV());
+	cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+
+	model_->Draw(cmd, 1, &srv);
+}
 
 void Object3d::SetModel(const std::string& filePath) {
 	auto* mgr = ModelManager::GetInstance();

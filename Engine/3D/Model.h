@@ -138,6 +138,10 @@ public:
 	//パーティクル用
 	void Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount);
 
+	void Draw(ID3D12GraphicsCommandList* cmd,
+		uint32_t instanceCount,
+		const D3D12_GPU_DESCRIPTOR_HANDLE* overrideSrv);
+
 	void DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc);
 
 	void DrawMeshIndexed(ID3D12GraphicsCommandList* cmd, uint32_t meshIndex, uint32_t instanceCount);
