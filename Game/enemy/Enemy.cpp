@@ -38,6 +38,20 @@
 //	"enemy/boss/idol/idol3.obj",
 //};
 
+static float CalcXMaxByZ_Boss(float z) {
+	// ★ボスはプレイヤーより Z 範囲を狭く
+	// 例：プレイヤー (-15..20) → ボス (-10..15)
+	const float zNear = -10.0f;
+	const float zFar = 15.0f;
+
+	// ★X幅も少し狭める（好み）
+	const float xMaxNear = 13.0f; // 手前側
+	const float xMaxFar = 17.0f; // 奥側
+
+	float t = (z - zNear) / (zFar - zNear);
+	t = std::clamp(t, 0.0f, 1.0f);
+	return xMaxNear + (xMaxFar - xMaxNear) * t;
+}
 
 
 struct AttackHitboxParam {
@@ -82,18 +96,22 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	onGround_ = true;
 	airborne_ = false;
 	if (type_ == EnemyType::Boss) {
-		hp_ = 400;
-		damageTaken_ = 1; // 仕様でダメージ無効なら0
-		bossAI_.Reset(400);
-
-	} else if (type_ == EnemyType::Shooter) {
-		hp_ = 20;
-		damageTaken_ = 1; // Shooterは2減る（例）
-
-	} else if (type_ == EnemyType::Melee) {
-		hp_ = 20;
-		damageTaken_ = 1; // Meleeは1減る（例）
+		maxHp_ = 400;
+		hp_ = maxHp_;
+		damageTaken_ = 1;
+		bossAI_.Reset(maxHp_);
 	}
+	else if (type_ == EnemyType::Shooter) {
+		maxHp_ = 20;
+		hp_ = maxHp_;
+		damageTaken_ = 1;
+	}
+	else {
+		maxHp_ = 20;
+		hp_ = maxHp_;
+		damageTaken_ = 1;
+	}
+	
 
 
 	model_ = std::make_unique<Object3d>();
@@ -128,71 +146,64 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 
 	auto* mgr = ModelManager::GetInstance();
 
-	currentModelSet_ = EnemyModelSet::HumanSneakWalk; // まず停止扱いで
-	model_->SetModel(GetEnemyModelPath_(currentModelSet_));
-	model_->PlayAnimation("", true);
+	if (type_ == EnemyType::Melee) {
+		model_->SetModel("enemy/melee/melee.gltf");
+		currentAnim_.clear();
+		currentAnimLoop_ = true;
+		ChangeAnimIfChanged_(meleeAnimIdle_, true);
+		prevMeleeState_ = meleeState_;
+	} else if (type_ == EnemyType::Shooter) {
+		model_->SetModel("enemy/shooter/enemyShooter.gltf"); // ←パスはあなたのresources構成に合わせて
+
+		currentAnim_.clear();
+		currentAnimLoop_ = true;
+
+		// Idle（日本語名）をループ
+		ChangeAnimIfChanged_(shooterAnimIdle_, true);
+
+		prevShooterState_ = shooterState_;
+	}
+	else {
+		// ★Boss
+		model_->SetModel("enemy/boss/boss.gltf");   // ← あなたの resources 構成に合わせて
+		currentAnim_.clear();
+		currentAnimLoop_ = true;
+
+		// 初期は Idle
+		ChangeAnimIfChanged_("Idle", true);
+	}
 
 
-	//if (type_ == EnemyType::Shooter) {
+	// Initializeの最後付近（モデル決めた後）
+	UpdateBody_();
 
-	//	for (auto& path : kShooterWalkModels) { mgr->LoadModel(path); }
-	//	for (int i = 0; i < 5; ++i) {
-	//		shooterWalkModels_[i] = mgr->FindModel(kShooterWalkModels[i]);
-	//		assert(shooterWalkModels_[i]);
-	//	}
+	// ★初期位置を即反映（重要）
+	UpdateModel_(0.0f);     // privateなら、ここだけは呼べる位置なのでOK
+	if (model_) model_->Update(0.0f);
 
-	//	// ★ダメージモデル
-	//	mgr->LoadModel(kShooterDamageModel);
-	//	shooterDamageModel_ = mgr->FindModel(kShooterDamageModel);
-	//	assert(shooterDamageModel_);
-
-	//	model_->SetModel(shooterWalkModels_[0]);
-
-	//} else  if (type_ == EnemyType::Melee) {
-
-	//	for (auto& path : kMeleeWalkModels) { mgr->LoadModel(path); }
-	//	for (int i = 0; i < 5; ++i) {
-	//		meleeWalkModels_[i] = mgr->FindModel(kMeleeWalkModels[i]);
-	//		assert(meleeWalkModels_[i]);
-	//	}
-
-	//	// ★攻撃（iAttak）ロード
-	//	for (auto& path : kMeleeAttackModels) { mgr->LoadModel(path); }
-	//	for (int i = 0; i < 3; ++i) {
-	//		meleeAttackModels_[i] = mgr->FindModel(kMeleeAttackModels[i]);
-	//		assert(meleeAttackModels_[i]);
-	//	}
-
-	//	// ★ダメージモデル
-	//	mgr->LoadModel(kMeleeDamageModel);
-	//	meleeDamageModel_ = mgr->FindModel(kMeleeDamageModel);
-	//	assert(meleeDamageModel_);
-
-	//	model_->SetModel(meleeWalkModels_[0]);
-
-	//} else {
-	//	// Bossなど
-	//	//model_->SetModel("cube/cube.obj");
-	//}
-
-	//if (type_ == EnemyType::Melee) {
-	//	damageScaleMul_ = 3.0f; // ←まずは3倍くらいから。後で調整
-	//} else {
-	//	damageScaleMul_ = 1.0f;
-	//}
-
-	//if (type_ == EnemyType::Boss) {
-	//	for (auto& path : kBossIdleModels) { mgr->LoadModel(path); }
-	//	for (int i = 0; i < kBossIdleFrameCount; ++i) {
-	//		bossIdleModels_[i] = mgr->FindModel(kBossIdleModels[i]);
-	//		assert(bossIdleModels_[i]);
-	//	}
-	//	model_->SetModel(bossIdleModels_[0]);
-	//} else {
-	////	model_->SetModel("cube/cube.obj");
-	//}
 
 }
+
+void Enemy::ChangeAnimIfChanged_(const char* name, bool loop) {
+	if (!model_ || !name) return;
+
+	// 同じなら何もしない（毎フレームリスタート防止）
+	if (currentAnim_ == name && currentAnimLoop_ == loop) return;
+
+	currentAnim_ = name;
+	currentAnimLoop_ = loop;
+	model_->PlayAnimation(currentAnim_.c_str(), loop);
+}
+
+void Enemy::StartOneShot_(const char* name, float lengthSec) {
+	if (!model_ || !name) return;
+
+	oneShotPlaying_ = true;
+	oneShotTimer_ = lengthSec;
+	oneShotLength_ = lengthSec;
+	ChangeAnimIfChanged_(name, false);
+}
+
 
 void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 	if (!alive_) return;
@@ -217,14 +228,50 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 	}
 
 	if (meleeTimer_ > 0.0f) meleeTimer_ -= dt;
-	if (shootTimer_ > 0.0f) shootTimer_ -= dt;
+	//if (shootTimer_ > 0.0f) shootTimer_ -= dt;
+	
+// 先に OneShot タイマーだけ進める（重要）
+	if (oneShotPlaying_) {
+		oneShotTimer_ -= dt;
+		if (oneShotTimer_ <= 0.0f) {
+			oneShotPlaying_ = false;
+		}
+	}
 
-	if (!aiDisabled_) {
+	// ★OneShot中は移動を止める（ここが肝）
+	if (oneShotPlaying_) {
+		vel_.x = 0.0f;
+		vel_.z = 0.0f;
+
+		// 空中で吹き飛んでる最中なら Y は止めない方が自然なので、基本は触らない
+		// ただ「地上攻撃中は完全停止」にしたいなら onGround_ の時だけ止める
+		if (onGround_) {
+			vel_.y = 0.0f;
+		}
+	}
+
+
+	// AIは「OneShot中は止める」
+	// ただしBossは例外にしたいなら条件を調整
+	if (!aiDisabled_ && !oneShotPlaying_) {
 		if (!hitstun_ || type_ == EnemyType::Boss) {
 			if (type_ == EnemyType::Melee) UpdateAI_Melee_(dt, playerXY, playerZ);
 			else if (type_ == EnemyType::Shooter) UpdateAI_Shooter_(dt, playerXY, playerZ);
 			else UpdateAI_Boss_(dt, playerXY, playerZ);
 		}
+	}
+
+	// ★Boss Rush中の向きは速度で固定（Charge中は維持）
+	if (type_ == EnemyType::Boss) {
+		const auto st = bossAI_.GetState();
+
+		if (st == BossAI::State::Rush_ToRight || st == BossAI::State::Rush_Return) {
+			facing_ = +1;
+		}
+		else if (st == BossAI::State::Rush_ExitLeft) {
+			facing_ = -1;
+		}
+		// Rush_Charge は向き維持（何もしない）
 	}
 
 
@@ -258,8 +305,14 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 
 void Enemy::Draw() {
 	if (!alive_) return;
-	if (model_) model_->Draw();
+	if (!model_) return;
+
+	if (hitFlashSec_ > 0.0f) model_->SetMaterialColor(hitColor_);
+	else                      model_->SetMaterialColor(normalColor_);
+
+	model_->Draw();
 }
+
 
 EnemyHitResult Enemy::ApplyHit2D(float knockVx, float launchVy, bool requestHitstun) {
 	EnemyHitResult r{};
@@ -281,6 +334,13 @@ EnemyHitResult Enemy::ApplyHit2D(float knockVx, float launchVy, bool requestHits
 	}
 
 	hitFlashSec_ = std::max(hitFlashSec_, 0.20f); // 0.2秒赤く
+
+	if (type_ == EnemyType::Melee) {
+		StartOneShot_(meleeAnimDamage_, 0.20f);
+	} else if (type_ == EnemyType::Shooter) {
+		StartOneShot_(shooterAnimDamage_, 0.20f);
+	}
+
 
 	// =========================
 	// ★攻撃（AI）リセット：殴られたら最初から
@@ -387,12 +447,43 @@ void Enemy::UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ)
 		return;
 	}
 
+	// ★Fire/Damage など OneShot 中はAI停止（動かない）
+	if (oneShotPlaying_) {
+		vel_.x = 0.0f;
+		vel_.y = 0.0f;
+		vel_.z = 0.0f;
+		return;
+	}
+
+
 	// プレイヤー方向
 	const float dx = playerXY.x - pos_.x;
 	const float dy = playerXY.y - pos_.y;
 
 	// 向き更新
-	facing_ = (dx < 0.0f) ? -1 : +1;
+	auto CalcFacingToPlayer = [&]() {
+		return (playerXY.x < pos_.x) ? -1 : +1;
+		};
+
+	if (type_ != EnemyType::Boss) {
+		facing_ = CalcFacingToPlayer();
+	}
+	else {
+		// ★ボスはRush中だけ向きを固定（パカパカ防止）
+		const auto st = bossAI_.GetState();
+
+		const bool isRush =
+			(st == BossAI::State::Rush_ToRight) ||
+			(st == BossAI::State::Rush_Charge) ||
+			(st == BossAI::State::Rush_ExitLeft) ||
+			(st == BossAI::State::Rush_Return);
+
+		if (!isRush) {
+			facing_ = CalcFacingToPlayer();
+		}
+		// isRush の時は facing_ をここでは更新しない
+	}
+
 
 	// =========================
 // ★ステージ境界へ戻す（X/Zが制限外なら、入るまで移動）
@@ -436,8 +527,8 @@ void Enemy::UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ)
 	}
 
 
-	// ★Z追従（プレイヤーZに寄せる）
-	{
+	// ★Z追従（チャージ中はしない）
+	if (shooterState_ != ShooterState::Windup) {
 		const float dz = playerZ - pos_.z;
 		if (std::abs(dz) > zFollowDeadZone_) {
 			vel_.z = (dz > 0.0f) ? depthSpeed_ : -depthSpeed_;
@@ -445,6 +536,7 @@ void Enemy::UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ)
 			vel_.z = 0.0f;
 		}
 	}
+
 
 	// ShooterState：簡易ステートマシン
 	switch (shooterState_) {
@@ -478,25 +570,31 @@ void Enemy::UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ)
 	{
 		vel_.x = 0.0f;
 		vel_.y = 0.0f;
+		vel_.z = 0.0f;
 
 		shootWindup_ -= dt;
 		if (shootWindup_ <= 0.0f) {
-			// ★ここが一番重要：発射要求を立てる
+
+			// 発射要求
 			requestShoot_ = true;
 
-			// 銃口位置（適当にオフセット）
 			shootMuzzlePos_.x = pos_.x + 1.0f * float(facing_);
 			shootMuzzlePos_.y = pos_.y + 0.8f;
-			shootMuzzlePos_.z = playerZ; // Z見た目だけならプレイヤーZに合わせると確実に見える
+			shootMuzzlePos_.z = pos_.z;
 
 			shootDir_ = facing_;
 
-			// クールダウンへ
+			// ★ここで Fire を開始（発射した瞬間）
+			const float fireLen = 0.35f; // 見た目で調整（0.25だと短いかも）
+			StartOneShot_(shooterAnimFire_, fireLen);
+
+			// ★Cooldown は Fire より短くしない（ここ超重要）
 			shooterState_ = ShooterState::Cooldown;
-			shootTimer_ = shootCooldown_;
+			shootTimer_ = std::max(shootCooldown_, fireLen);
 		}
 	}
 	break;
+
 
 	case ShooterState::Cooldown:
 	{
@@ -510,9 +608,6 @@ void Enemy::UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ)
 	}
 	break;
 	}
-
-	// Zは見た目だけ運用なら pos_.z は固定でもOK
-	// pos_.z = zView_;
 }
 
 
@@ -529,18 +624,29 @@ void Enemy::ApplyPhysics_(float dt) {
 
 	pos_.x += vel_.x * dt;
 	pos_.y += vel_.y * dt;
-
-	// ★Zも動かす（見た目用）
 	pos_.z += vel_.z * dt;
-	//  pos_.z = std::clamp(pos_.z, zMin_, zMax_);
 
+	// 地面
 	if (pos_.y <= 0.0f) {
 		pos_.y = 0.0f;
 		vel_.y = 0.0f;
 		onGround_ = true;
 		airborne_ = false;
 	}
+
+	// ★ボスだけ：ステージ範囲にクランプ（Z範囲はプレイヤーより狭く）
+	if (type_ == EnemyType::Boss) {
+		const float zNearBoss = -10.0f;
+		const float zFarBoss = 15.0f;
+
+		pos_.z = std::clamp(pos_.z, zNearBoss, zFarBoss);
+
+		if ((pos_.z <= zNearBoss && vel_.z < 0.0f) || (pos_.z >= zFarBoss && vel_.z > 0.0f)) {
+			vel_.z = 0.0f;
+		}
+	}
 }
+
 
 void Enemy::UpdateBody_() {
 	// 足元基準の簡易AABB（ボスは大きく）
@@ -556,117 +662,187 @@ void Enemy::UpdateModel_(float dt) {
 
 	model_->SetTranslate({ pos_.x, pos_.y, pos_.z });
 
-	const float flipX = (facing_ > 0) ? 1.0f : -1.0f;
+	float flipX = (facing_ > 0) ? 1.0f : -1.0f;
+
+	// ★boss.gltf が「逆向き」なら見た目だけ反転補正
+	if (type_ == EnemyType::Boss) {
+		flipX *= -1.0f;
+	}
+
 	if (type_ == EnemyType::Boss) model_->SetScale({ 2.0f * flipX, 2.0f, 2.0f });
 	else                         model_->SetScale({ 1.0f * flipX, 1.0f, 1.0f });
 
-	//// -------------------------
-	//// ★ここから「見た目モデル選択」を1本化
-	//// -------------------------
-	//Model* chosen = nullptr;
+// ===== Melee は「アニメ」で切替（モデル差し替えしない）=====
+	if (type_ == EnemyType::Melee) {
 
-	//bool usingDamageModel =
-	//	(chosen == meleeDamageModel_) ||
-	//	(chosen == shooterDamageModel_);
+		// 攻撃中判定（あなたの既存ロジック）
+		const bool isAttacking =
+			(meleeState_ == MeleeState::Windup || meleeState_ == MeleeState::Attack);
 
-	//// 1) 被弾中は damage を優先
-	//if (hitFlashSec_ > 0.0f) {
-	//	if (type_ == EnemyType::Melee && meleeDamageModel_) {
-	//		chosen = meleeDamageModel_;
-	//	} else if (type_ == EnemyType::Shooter && shooterDamageModel_) {
-	//		chosen = shooterDamageModel_;
-	//	}
-	//}
+		const float moveEps = 0.05f;
+		const bool isMoving =
+			(std::abs(vel_.x) > moveEps) ||
+			(std::abs(vel_.z) > moveEps) ||
+			(std::abs(vel_.y) > moveEps);
 
-	//// 2) 近接の攻撃（Windup / Attack）は iAttak
-	//if (!chosen && type_ == EnemyType::Melee && meleeAttackModels_[0]) {
-	//	if (meleeState_ == MeleeState::Windup) {
-	//		chosen = meleeAttackModels_[0]; // 溜め
-	//		meleeAtkAnimTime_ = 0.0f;       // 溜め中は固定でもOK
-	//	} else if (meleeState_ == MeleeState::Attack) {
-	//		// 攻撃中だけ時間進める（Update()側で進めてもOK）
-	//		meleeAtkAnimTime_ += (1.0f / 60.0f); // dt渡せないならこう。渡せるなら dt を使うのが理想
+		// ---- 1) OneShot 再生中（攻撃/被弾など）なら時間で終わらせる
+		//if (oneShotPlaying_) {
+		//	oneShotTimer_ -= dt;
+		//	if (oneShotTimer_ <= 0.0f) {
+		//		oneShotPlaying_ = false;
+		//	} else {
+		//		// OneShot中は他に切り替えない
+		//		return;
+		//	}
+		//}
 
-	//		// 例：攻撃時間を 3コマに割る
-	//		float t = meleeAtkAnimTime_;
-	//		if (t < 0.06f)      chosen = meleeAttackModels_[0];
-	//		else if (t < 0.12f) chosen = meleeAttackModels_[1];
-	//		else                chosen = meleeAttackModels_[2];
-	//	} else {
-	//		meleeAtkAnimTime_ = 0.0f;
-	//	}
-	//}
-
-	//// 3) それ以外：walk
-	//if (!chosen) {
-	//	if (type_ == EnemyType::Boss && bossIdleModels_[0]) {
-
-	//		const bool moving =
-	//			(std::abs(vel_.x) > 0.01f) ||
-	//			(std::abs(vel_.z) > 0.01f) ||
-	//			(std::abs(vel_.y) > 0.01f);
-
-	//		if (moving) {
-	//			walkAnimTime_ += dt;
-	//			int frame = int(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
-	//			if (frame != lastWalkFrame_) {
-	//				lastWalkFrame_ = frame;
-	//				chosen = meleeWalkModels_[frame];
-	//			}
-	//			else {
-	//				chosen = currentModel_; // 変えない
-	//			}
-	//		}
-	//		else {
-	//			lastWalkFrame_ = -1;
-	//			chosen = meleeWalkModels_[0];
-	//		}
+		if (oneShotPlaying_) {
+			// タイマー減算は Update() 側だけでやる
+			return; // OneShot中は他に切り替えない
+		}
 
 
+		// ---- 2) 状態遷移の瞬間だけ Attack を開始（毎フレーム開始しない）
+		if ((meleeState_ == MeleeState::Windup || meleeState_ == MeleeState::Attack) &&
+			!(prevMeleeState_ == MeleeState::Windup || prevMeleeState_ == MeleeState::Attack)) {
 
-	//	} else if (type_ == EnemyType::Shooter && shooterWalkModels_[0]) {
-	//		const bool moving = (std::abs(vel_.x) > 0.01f) || (std::abs(vel_.z) > 0.01f);
-	//		if (moving) {
-	//			int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
-	//			chosen = shooterWalkModels_[frame];
-	//		} else {
-	//			chosen = shooterWalkModels_[0];
-	//		}
-	//	} else if (type_ == EnemyType::Melee && meleeWalkModels_[0]) {
-	//		const bool moving = (std::abs(vel_.x) > 0.01f) || (std::abs(vel_.z) > 0.01f);
-	//		if (moving) {
-	//			int frame = static_cast<int>(walkAnimTime_ * kWalkFps_) % kWalkFrameCount_;
-	//			chosen = meleeWalkModels_[frame];
-	//		} else {
-	//			chosen = meleeWalkModels_[0];
-	//		}
-	//	}
-	//}
+			const float atkLen = float(kMeleeAttackFrames_) / kAnimFps_; // 40fを秒へ
+			StartOneShot_(meleeAnimAttack_, atkLen);
 
-	//if (chosen) SetModelIfChanged_(chosen);
-	//
 
-	// ===== 仮モデル切替（Playerと同じ）=====
-	const bool isAttacking =
-		(type_ == EnemyType::Melee) &&
-		(meleeState_ == MeleeState::Windup || meleeState_ == MeleeState::Attack);
+			// ★ここで即return：このフレームでIdle/Walkに上書きしない
+			prevMeleeState_ = meleeState_;
+			return;
+		}
+		prevMeleeState_ = meleeState_;
 
-	// “動いてる” 判定（閾値つき）
-	const float moveEps = 0.05f;
-	const bool isMoving =
-		(std::abs(vel_.x) > moveEps) ||
-		(std::abs(vel_.z) > moveEps) ||
-		(std::abs(vel_.y) > moveEps);
 
-	if (isAttacking) {
-		ChangeModelSet_(EnemyModelSet::GltfWalkGlb);
+		// ---- 3) 通常時：Walk / Idle
+		if (isMoving) {
+			ChangeAnimIfChanged_(meleeAnimWalk_, true);
+		} else {
+			ChangeAnimIfChanged_(meleeAnimIdle_, true);
+		}
+
+		return;
 	}
-	else if (isMoving) {
-		ChangeModelSet_(EnemyModelSet::HumanWalk);
+
+	// ===== Shooter は「アニメ」で切替（モデル差し替えしない）=====
+	if (type_ == EnemyType::Shooter) {
+
+		const float moveEps = 0.05f;
+		const bool isMoving =
+			(std::abs(vel_.x) > moveEps) ||
+			(std::abs(vel_.z) > moveEps) ||
+			(std::abs(vel_.y) > moveEps);
+
+		// ---- 1) OneShot 再生中は他へ切り替えない
+	// ---- 1) OneShot 再生中は他へ切り替えない（タイマー減算は Update() 側）
+		if (oneShotPlaying_) {
+			return;
+		}
+
+		// ---- 2) 状態に応じてアニメ決める
+		switch (shooterState_) {
+		case ShooterState::Windup:
+			// 溜め：Charge（ループ）
+			ChangeAnimIfChanged_(shooterAnimCharge_, true);
+			break;
+
+		case ShooterState::Cooldown:
+		case ShooterState::Aim:
+		case ShooterState::Retreat:
+		default:
+			// それ以外：動いてたらWalk / 止まってたらIdle
+			if (isMoving) ChangeAnimIfChanged_(shooterAnimWalk_, true);
+			else          ChangeAnimIfChanged_(shooterAnimIdle_, true);
+			break;
+		}
+
+		//// ---- 3) 「撃つ瞬間」に Fire を 1回だけ再生
+		//// Windup -> Cooldown に遷移した瞬間を「発射」扱いにする
+		//if (prevShooterState_ == ShooterState::Windup &&
+		//	shooterState_ == ShooterState::Cooldown) {
+
+		//	// Fireの長さは仮。見た目で調整
+		//	StartOneShot_(shooterAnimFire_, 0.25f);
+		//}
+
+		prevShooterState_ = shooterState_;
+		return;
 	}
-	else {
-		ChangeModelSet_(EnemyModelSet::HumanSneakWalk);
+
+
+	// ===== Boss は glTF アニメで切替 =====
+	if (type_ == EnemyType::Boss) {
+
+		// ★OneShot中は他に切り替えない（Meleeと同じ方針）
+		if (oneShotPlaying_) {
+			return;
+		}
+
+		// BossAI の State を見て切り替える
+		// ※BossAI::GetState() を追加した前提
+		const auto st = bossAI_.GetState();
+
+		switch (st) {
+		case BossAI::State::Wander: {
+			// Wander中は移動してるなら Walk、止まってるなら Idle
+			const float moveEps = 0.05f;
+			const bool isMoving =
+				(std::abs(vel_.x) > moveEps) ||
+				(std::abs(vel_.z) > moveEps) ||
+				(std::abs(vel_.y) > moveEps);
+
+			if (isMoving) ChangeAnimIfChanged_("Walk", true);
+			else          ChangeAnimIfChanged_("Idle", true);
+		} break;
+
+		case BossAI::State::Drop_Windup:
+			ChangeAnimIfChanged_("Drop_Windup", true); // ループでOK
+			break;
+		case BossAI::State::Drop_Fall:
+			ChangeAnimIfChanged_("Drop_Fall", true);
+			break;
+		case BossAI::State::Drop_Land:
+			ChangeAnimIfChanged_("Drop_Land", false);  // 1回っぽくしたいなら false
+			break;
+
+		case BossAI::State::Melee_Dash:
+			ChangeAnimIfChanged_("Melee_Dash", true);
+			break;
+		case BossAI::State::Melee_Attack:
+			ChangeAnimIfChanged_("Melee_Attack", false);
+			break;
+		case BossAI::State::Melee_Recover:
+			ChangeAnimIfChanged_("Idle", true);
+			break;
+
+		case BossAI::State::Rush_ToRight:
+			ChangeAnimIfChanged_("Rush_ToRight", true);
+			break;
+		case BossAI::State::Rush_Charge:
+			ChangeAnimIfChanged_("Rush_Charge", true);
+			break;
+		case BossAI::State::Rush_ExitLeft:
+			ChangeAnimIfChanged_("Rush_ExitLeft", true);
+			break;
+		case BossAI::State::Rush_Return:
+			ChangeAnimIfChanged_("Walk", true);
+			break;
+
+		case BossAI::State::Super50:
+		case BossAI::State::Super25:
+			// とりあえず溜め演出＝Idle
+			ChangeAnimIfChanged_("Idle", true);
+			break;
+		}
+
+		return;
 	}
+
+
+
 
 
 }

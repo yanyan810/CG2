@@ -132,6 +132,17 @@ void TestScene::OnEnter(GameApp& app) {
     pointMarker_->SetShininess(1.0f);
     pointMarker_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
+    skyDome_ = std::make_unique<Object3d>();
+    skyDome_->Initialize(app.ObjCom(), app.Dx());
+    skyDome_->SetModel("skydome/SkyDome.obj");
+
+    // ★スカイドームは基本「ライト無視」
+    skyDome_->SetEnableLighting(0);              // ← あなたの仕様の「無照明モード」に合わせて
+    skyDome_->SetMaterialColor({ 1,1,1,1 });       // 念のため
+    skyDome_->SetShininess(1.0f);                // 影響しないけど保険
+    skyDome_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+
 }
 
 void TestScene::OnExit(GameApp& /*app*/) {
@@ -146,6 +157,8 @@ void TestScene::Update(GameApp& app, float dt) {
     camera_->Update();
 
     ground_->Update(dt);
+
+    skyDome_->Update(dt);
 
     if (player_) {
         player_->Update(dt, *input_, enemyMgr_);
@@ -312,6 +325,8 @@ void TestScene::Draw(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
     if (ground_) ground_->Draw();
+
+    skyDome_->Draw();
 
     if (drawPointMarker_ && pointMarker_) pointMarker_->Draw();
     if (drawSpotMarker_ && spotMarker_) spotMarker_->Draw();

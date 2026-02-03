@@ -74,12 +74,6 @@ void GameScene::OnEnter(GameApp& app) {
 
     enemyMgr_.Spawn(EnemyType::Boss, Vector3{ 0.0f, 0.0f, 15.0f });
 
-
-    // テストスポーン
-    enemyMgr_.Spawn(EnemyType::Melee, { 5.0f, 0.0f ,15.0f});
-    enemyMgr_.Spawn(EnemyType::Shooter, { 9.0f, 0.0f ,15.0f});
-    // bossはステージ5で
-
     TextureManager::GetInstance()->LoadTexture("resources/white1x1.png");
 
     hpBack_ = std::make_unique<Sprite>();
@@ -117,17 +111,58 @@ void GameScene::OnEnter(GameApp& app) {
     hpFill_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f }); // 白
 
     auto* mgr = ModelManager::GetInstance();
-    mgr->LoadModel("ground/ground.obj");
+    mgr->LoadModel("ground/bossGround.obj");
 
     ground_ = std::make_unique<Object3d>();
     ground_->Initialize(app.ObjCom(), app.Dx());
     ground_->SetCamera(camera_.get());
-    ground_->SetModel("ground/ground.obj");
+    ground_->SetModel("ground/bossGround.obj");
 
-    ground_->SetTranslate({ 0.0f, 0.0f, -20.0f });
+    ground_->SetTranslate({ 0.0f, -5.0f, 0.0f });
     ground_->SetScale({ 1.0f, 1.0f, 1.0f });
     ground_->SetRotate({ 0.0f, 0.0f, 0.0f });
- 
+    //ground_->Update(0.0f);
+    ground_->SetEnableLighting(0);
+
+    skyDome_ = std::make_unique<Object3d>();
+    skyDome_->Initialize(app.ObjCom(), app.Dx());
+    skyDome_->SetModel("skydome/SkyDome.obj");
+    skyDome_->SetCamera(camera_.get());
+
+    skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });  
+    skyDome_->SetRotate({ 0.0f, 0.0f, 0.0f });
+    skyDome_->SetScale({ 5.0f, 5.0f, 5.0f });
+
+    // ★スカイドームは基本「ライト無視」
+    skyDome_->SetEnableLighting(0);              // ← あなたの仕様の「無照明モード」に合わせて
+    skyDome_->SetMaterialColor({ 1,1,1,1 });       // 念のため
+    skyDome_->SetShininess(1.0f);                // 影響しないけど保険
+    skyDome_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+    skyDome_->Update(0.0f);
+
+    // ===== Boss HP UI =====
+    bossHpBack_ = std::make_unique<Sprite>();
+    bossHpBack_->Initialize(app.SpriteCom(), app.Dx(), "resources/white1x1.png");
+    bossHpBack_->SetPosition({ bossHpBarPos_.x, bossHpBarPos_.y });
+    bossHpBack_->SetScale({ bossHpBarW_, bossHpBarH_, 1.0f });
+
+    bossHpFill_ = std::make_unique<Sprite>();
+    bossHpFill_->Initialize(app.SpriteCom(), app.Dx(), "resources/white1x1.png");
+    bossHpFill_->SetPosition({ bossHpBarPos_.x, bossHpBarPos_.y });
+    bossHpFill_->SetScale({ bossHpBarW_, bossHpBarH_, 1.0f });
+
+    bossHpBack_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
+    bossHpFill_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+
+    // 数字 3桁
+    for (int i = 0; i < 3; ++i) {
+        bossHpDigits_[i] = std::make_unique<Sprite>();
+        bossHpDigits_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
+        bossHpDigits_[i]->SetAnchorPoint({ 0.0f, 0.0f });
+        bossHpDigits_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+    }
+
+
 
 }
 
@@ -154,6 +189,8 @@ void GameScene::Update(GameApp& app, float dt) {
     camera_->Update();
 
     ground_->Update(dt);
+
+    skyDome_->Update(dt);
 
     /*if (particle_) {
         particle_->SpawnParticle();
@@ -186,6 +223,26 @@ void GameScene::Update(GameApp& app, float dt) {
         playerZ = player_->GetZ(); // 追加したgetter
     }
     enemyMgr_.Update(dt, playerPos2D, playerZ,*player_);
+
+    if (bossHpFill_) {
+        if (Enemy* boss = enemyMgr_.GetBoss()) {
+            int hp = boss->GetHP();
+            int maxHp = boss->GetMaxHP();
+
+            float t = (maxHp > 0) ? float(hp) / float(maxHp) : 0.0f;
+            t = std::clamp(t, 0.0f, 1.0f);
+
+            bossHpFill_->SetScale({ bossHpBarW_ * t, bossHpBarH_, 1.0f });
+
+            UpdateBossHPDigits_(hp);
+        }
+        else {
+            // ボスがいない（倒した後など）→UI消す
+            bossHpFill_->SetScale({ 0.0f, bossHpBarH_, 1.0f });
+            UpdateBossHPDigits_(0);
+        }
+    }
+
 
     if (player_ && hpFill_) {
         int hp = player_->GetHP();      // ← getter作る（無ければ）
@@ -227,8 +284,10 @@ void GameScene::Draw(GameApp& app) {
     //if (objA_) objA_->Draw();
     //if (objB_) objB_->Draw();
 
-    if (ground_) ground_->Draw();
+     skyDome_->Draw();
 
+    if (ground_) ground_->Draw();
+   
     //player
     if (player_) player_->Draw();
   
@@ -265,6 +324,21 @@ void GameScene::Draw(GameApp& app) {
         hpDigits_[i]->Update(view, proj);
         hpDigits_[i]->Draw();
     }
+    // ===== Boss HP（追加）=====
+    if (bossHpBack_) {
+        bossHpBack_->Update(view, proj);
+        bossHpBack_->Draw();
+    }
+    if (bossHpFill_) {
+        bossHpFill_->Update(view, proj);
+        bossHpFill_->Draw();
+    }
+    for (int i = 0; i < 3; ++i) {
+        if (!bossHpDigits_[i]) continue;
+        bossHpDigits_[i]->Update(view, proj);
+        bossHpDigits_[i]->Draw();
+    }
+
    
 }
 
@@ -325,12 +399,7 @@ void GameScene::UpdateHPDigits_(int hp) {
 
         hpDigits_[idx]->SetPosition({ x, y });
         hpDigits_[idx]->SetScale({ 1.0f, 1.0f, 1.0f }); // 必要なら
-        // サイズは Sprite の size_ が textureサイズになるので、
-        // ここで見た目の大きさを変えたいなら scale_ を使うのが簡単
-        // 例：hpDigits_[idx]->SetScale({ w/texW, h/texH, 1 });
-        //
-        // ただあなたのSpriteは size_ = textureCutSize_ でピクセルサイズになるので、
-        // 「固定サイズ」にしたいなら Sprite に SetSize を足すのがベスト。
+     
         };
 
     // 右詰め配置：一の位を一番右
@@ -338,9 +407,6 @@ void GameScene::UpdateHPDigits_(int hp) {
     float x1 = x2 - (w + sp);
     float x0 = x1 - (w + sp);
 
-    // ※あなたのSpriteは size_ を直接変えられないので、今は scale_ で縮める運用が楽。
-    // ここでは position だけ決めて、見た目サイズは画像の元サイズに依存します。
-    // 数字画像が大きい場合は scale_ を 0.5 などに。
     setDigit(0, d0, x0, baseY, show0);
     setDigit(1, d1, x1, baseY, show1);
     setDigit(2, d2, x2, baseY, show2);
@@ -349,4 +415,44 @@ void GameScene::UpdateHPDigits_(int hp) {
     for (int i = 0; i < 3; ++i) {
         if (hpDigits_[i]) hpDigits_[i]->SetScale({ 0.5f, 0.5f, 1.0f }); // 好みで調整
     }
+}
+
+void GameScene::UpdateBossHPDigits_(int hp)
+{
+    hp = std::clamp(hp, 0, 999);
+
+    int d0 = (hp / 100) % 10;
+    int d1 = (hp / 10) % 10;
+    int d2 = (hp / 1) % 10;
+
+    bool show0 = (hp >= 100);
+    bool show1 = (hp >= 10);
+    bool show2 = true;
+
+    const float baseX = bossHpBarPos_.x + bossHpBarW_ - 8.0f; // バー右端寄せ
+    const float baseY = bossHpBarPos_.y - 18.0f;
+
+    const float w = 16.0f;
+    const float sp = 2.0f;
+
+    auto setDigit = [&](int idx, int digit, float x, float y, bool visible) {
+        if (!bossHpDigits_[idx]) return;
+        if (!visible) {
+            bossHpDigits_[idx]->SetPosition({ -9999.0f, -9999.0f });
+            return;
+        }
+        char path[256];
+        sprintf_s(path, "resources/ui/num/%d.png", digit);
+        bossHpDigits_[idx]->SetTextureFilePath(path);
+        bossHpDigits_[idx]->SetPosition({ x, y });
+        bossHpDigits_[idx]->SetScale({ 0.5f, 0.5f, 1.0f });
+        };
+
+    float x2 = baseX - (w);
+    float x1 = x2 - (w + sp);
+    float x0 = x1 - (w + sp);
+
+    setDigit(0, d0, x0, baseY, show0);
+    setDigit(1, d1, x1, baseY, show1);
+    setDigit(2, d2, x2, baseY, show2);
 }

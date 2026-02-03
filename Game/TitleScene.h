@@ -9,6 +9,7 @@
 #include <string>   
 #include "SpriteCommon.h"
 #include "Particle.h"
+#include "VideoPlayerMF.h"
 
 class Particle;
 class Camera;
@@ -212,17 +213,15 @@ private:
 	int texSamplerIndexPrev_ = 0;
 	std::unique_ptr<Object3d> texSamplerObj_;
 
-	enum class EditTarget {
-		TestObj,
-		Terrain,
-		Node,
-		NodeMisc,
-		Skin,
-		MeshPrim,
-		AlphaBlend,
-		TexSampler,
-		Count
+	enum class EditTarget : int {
+		SkyDome,
+		VideoPlane,
+		Particle,
+		BG,
+		PressStart,
+		// 必要なら追加…
 	};
+
 
 	int editTarget_ = 0; // ImGui Combo用（EditTarget を int で持つ）
 
@@ -240,6 +239,12 @@ private:
 	SRT srtMeshPrim_{};
 	SRT srtAlphaBlend_{};
 	SRT srtTexSampler_{};
+	SRT srtSky_{};
+	SRT srtVideo_{};
+	SRT srtParticle_{};
+	SRT srtBG_{};
+	SRT srtPress_{};
+	
 
 	// === Assimp plane 切替 ===
 	std::array<const char*, 2> assimpPlanePaths_ = {
@@ -248,5 +253,9 @@ private:
 	};
 	int assimpPlaneIndex_ = 0;
 	int assimpPlaneIndexPrev_ = 0;
+
+	std::unique_ptr<Object3d> videoPlane_;
+	std::unique_ptr<VideoPlayerMF> video_; // もしくは値型でもOK
+	bool enableVideo_ = true;              // ImGuiでON/OFFできるように
 
 };

@@ -243,8 +243,7 @@ AudioSystem::Sound AudioSystem::DecodeToPCMWithMF_(const std::wstring& path, boo
 {
     using Microsoft::WRL::ComPtr;
 
-    HRESULT hr = MFStartup(MF_VERSION);
-    assert(SUCCEEDED(hr));
+    HRESULT hr;
 
     ComPtr<IMFSourceReader> reader;
     hr = MFCreateSourceReaderFromURL(path.c_str(), nullptr, &reader);

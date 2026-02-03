@@ -29,6 +29,8 @@ public:
 
     void  UpdateHPDigits_(int hp);
 
+    void UpdateBossHPDigits_(int hp);
+
 private:
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<Sprite> sprite_;
@@ -66,5 +68,16 @@ private:
     float   hpNumSpacing_ = 2.0f;
 
     std::unique_ptr<Object3d> ground_;
+    std::unique_ptr<Object3d> skyDome_;
+
+    // Boss HP UI
+    std::unique_ptr<Sprite> bossHpBack_;
+    std::unique_ptr<Sprite> bossHpFill_;
+    std::unique_ptr<Sprite> bossHpDigits_[3]{};
+
+    Vector2 bossHpBarPos_{ 800.0f, 690.0f };   // 例：プレイヤーの下に置く
+    float   bossHpBarW_ = 300.0f;
+    float   bossHpBarH_ = 16.0f;
+
 
 };

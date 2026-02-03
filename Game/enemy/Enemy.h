@@ -142,6 +142,9 @@ public:
         model_->PlayAnimation("", true);
     }
 
+    int GetMaxHP() const { return maxHp_; }
+
+
 private:
     void UpdateAI_Melee_(float dt, const Vector2& playerXY, float playerZ);
     void UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ);
@@ -151,6 +154,11 @@ private:
     void ApplyPhysics_(float dt);
     void UpdateBody_();
     void UpdateModel_(float dt);
+
+
+    void ChangeAnimIfChanged_(const char* name, bool loop);
+    void StartOneShot_(const char* name, float lengthSec);
+
 
 private:
 
@@ -188,6 +196,8 @@ private:
 
     int hp_ = 20;
 
+    int maxHp_ = 20;
+
     // 見た目
     std::unique_ptr<Object3d> model_;
     Model* currentModel_ = nullptr;
@@ -213,7 +223,7 @@ private:
     int damageTaken_ = 1;
 
     //AI
-    // --- 追加：状態 ---
+    // --- 状態 ---
     enum class MeleeState : uint8_t { Approach, Windup, Attack, Cooldown };
     enum class ShooterState : uint8_t { Retreat, Aim, Windup, Cooldown };
 
@@ -221,8 +231,8 @@ private:
     ShooterState shooterState_ = ShooterState::Retreat;
 
     // --- 追加：Melee（止まってから殴る） ---
-    float meleeWindupTime_ = 0.40f;   // 止まってから攻撃するまで
-    float meleeAttackTime_ = 0.10f;   // 攻撃が出てる時間（判定を出すなら）
+    float meleeWindupTime_ = 0.0f;   // 止まってから攻撃するまで
+    float meleeAttackTime_ = 0.05f;   // 攻撃が出てる時間（判定を出すなら）
     float meleeWindup_ = 0.0f;
     float meleeAttack_ = 0.0f;
     bool  requestMeleeAttack_ = false; // ★近接攻撃を出してね要求
@@ -288,6 +298,47 @@ private:
     int lastBossFrame_ = -1;
     int lastAtkFrame_ = -1;
 
+    bool lockMove_ = false;
+
+    private:
+
+
+        // --- Melee(Gltf) アニメ切替用 ---
+        MeleeState prevMeleeState_ = MeleeState::Approach;
+
+        const char* meleeAnimIdle_ = "Idle"; // ←必要なら差し替え
+        const char* meleeAnimWalk_ = "Walk";
+        const char* meleeAnimAttack_ = "Attak_1";
+        const char* meleeAnimDamage_ = "Damage";
+
+        std::string currentAnim_;
+        bool currentAnimLoop_ = true;
+
+        // 1回だけ再生したい用（攻撃/被弾）
+        float oneShotTimer_ = 0.0f;
+        float oneShotLength_ = 0.0f;
+        bool  oneShotPlaying_ = false;
+
+        // --- Melee Attack(Attak_1) の長さ合わせ用 ---
+        static constexpr int   kMeleeAttackFrames_ = 40;   // Attak_1 が 40f
+        static constexpr float kAnimFps_ = 60.0f;          // あなたのゲームの想定FPS
+
+
+
+
+        private:
+
+            // --- Shooter(Gltf) アニメ切替用 ---
+            ShooterState prevShooterState_ = ShooterState::Retreat;
+
+            // ※enemyShooter.gltf に Idle が無いので、たぶんこれが待機
+            const char* shooterAnimIdle_ = "Idle";
+            const char* shooterAnimWalk_ = "Walk";
+            const char* shooterAnimCharge_ = "Charge";
+            const char* shooterAnimFire_ = "Fire";
+            const char* shooterAnimDamage_ = "Damage";
+
+
 
 };
 
@@ -329,6 +380,19 @@ public:
 
     void SetLighting(const LightingParam& p);
 
+    Enemy* GetBoss() {
+        for (auto& e : enemies_) {
+            if (e.GetType() == EnemyType::Boss && e.IsAlive()) return &e;
+        }
+        return nullptr;
+    }
+    const Enemy* GetBoss() const {
+        for (auto& e : enemies_) {
+            if (e.GetType() == EnemyType::Boss && e.IsAlive()) return &e;
+        }
+        return nullptr;
+    }
+
 
 private:
     Object3dCommon* objCommon_ = nullptr;
@@ -355,7 +419,7 @@ private:
     std::vector<HealDrop> healDrops_;
 
     // 調整用
-    float healDropChance_ = 0.35f; // 35%で落ちる
+    float healDropChance_ = 0.0f; // 35%で落ちる
     int healDropAmount_ = 10;
 
     // 乱数
@@ -384,5 +448,6 @@ private:
     bool bossDefeated_ = false;
 
     LightingParam light_;
+
 
 };
