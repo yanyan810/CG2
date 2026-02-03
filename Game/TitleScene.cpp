@@ -165,11 +165,6 @@ void TitleScene::OnExit(GameApp&) {
     particle_.reset();
     camera_.reset();
 	nodeObj_.reset();
-    nodeMiscObj_.reset();
-    skinObj_.reset();
-    meshPrimObj_.reset();
-    alphaBlendObj_.reset();
-    texSamplerObj_.reset();
     video_->Close();
     video_.reset();
     if (titlePlayer) {
@@ -575,89 +570,6 @@ void TitleScene::DrawImGui_ModelSwitchersOneWindow()
 {
     ImGui::Begin("Model Switchers");  // ★ウィンドウはこれ1個だけ
 
-    // Node
-    {
-        static const char* labelsNode[] = { "00","01","02","03","04","05" };
-        DrawImGui_ModelSwitchBlock(
-            "Animation_Node",
-            "Index##Node",
-            nodeModelIndex_,
-            nodeModelPaths_.data(),
-            (int)nodeModelPaths_.size(),
-            labelsNode,
-            IM_ARRAYSIZE(labelsNode)
-        );
-    }
-
-    // NodeMisc
-    {
-        static const char* labelsMisc[] = { "00","01","02","03","04","05","06","07","08" };
-        DrawImGui_ModelSwitchBlock(
-            "Animation_NodeMisc",
-            "Index##NodeMisc",
-            nodeMiscModelIndex_,
-            nodeMiscModelPaths_.data(),
-            (int)nodeMiscModelPaths_.size(),
-            labelsMisc,
-            IM_ARRAYSIZE(labelsMisc)
-        );
-    }
-
-    // Skin
-    {
-        static const char* labelsSkin[] = { "00","01","02","03","04","05","06","07","08","09","10","11" };
-        DrawImGui_ModelSwitchBlock(
-            "Animation_Skin",
-            "Index##Skin",
-            skinModelIndex_,
-            skinModelPaths_.data(),
-            (int)skinModelPaths_.size(),
-            labelsSkin,
-            IM_ARRAYSIZE(labelsSkin)
-        );
-    }
-
-    // Mesh_Primitives
-    {
-        static const char* labelsMeshPrim[] = { "00" };
-        DrawImGui_ModelSwitchBlock(
-            "Mesh_Primitives",
-            "Index##MeshPrim",
-            meshPrimIndex_,
-            meshPrimPaths_.data(),
-            (int)meshPrimPaths_.size(),
-            labelsMeshPrim,
-            IM_ARRAYSIZE(labelsMeshPrim)
-        );
-    }
-
-    // Material_AlphaBlend
-    {
-        static const char* labelsAlpha[] = { "00","01","02","03","04","05","06" };
-        DrawImGui_ModelSwitchBlock(
-            "Material_AlphaBlend",
-            "Index##Alpha",
-            alphaBlendIndex_,
-            alphaBlendPaths_.data(),
-            (int)alphaBlendPaths_.size(),
-            labelsAlpha,
-            IM_ARRAYSIZE(labelsAlpha)
-        );
-    }
-
-    // Texture_Sampler
-    {
-        static const char* labelsSampler[] = { "00","01","02","03","04","05","06","07","08","09","10","11","12","13" };
-        DrawImGui_ModelSwitchBlock(
-            "Texture_Sampler",
-            "Index##Sampler",
-            texSamplerIndex_,
-            texSamplerPaths_.data(),
-            (int)texSamplerPaths_.size(),
-            labelsSampler,
-            IM_ARRAYSIZE(labelsSampler)
-        );
-    }
 
     // Assimp Plane
     {

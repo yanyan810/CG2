@@ -78,9 +78,9 @@ private:
     std::unique_ptr<Sprite> bossHpFill_;
     std::unique_ptr<Sprite> bossHpDigits_[3]{};
 
-    Vector2 bossHpBarPos_{ 800.0f, 690.0f };   // 例：プレイヤーの下に置く
+    Vector2 bossHpBarPos_{ 800.0f, 650.0f };   // 例：プレイヤーの下に置く
     float   bossHpBarW_ = 300.0f;
-    float   bossHpBarH_ = 16.0f;
+    float   bossHpBarH_ = 32.0f;
 
     //動画関係
     enum class Phase {

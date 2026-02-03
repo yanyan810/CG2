@@ -83,14 +83,7 @@ void GameClearScene::OnEnter(GameApp& app) {
     videoPlane_->SetMaterialColor({ 1,1,1,1 });
     videoPlane_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
-    // 位置はあなたのシーンに合わせて調整（ひとまず例）
-    srtVideo_.pos = { 0.0f, 0.0f, 10.0f };
-    srtVideo_.rot = { 0.0f, -3.15f, 0.0f };
-    srtVideo_.scale = { 4.2f, 2.3f, 1.0f };
-
-    videoPlane_->SetTranslate(srtVideo_.pos);
-    videoPlane_->SetRotate(srtVideo_.rot);
-    videoPlane_->SetScale(srtVideo_.scale);
+   
 
     // ===== Video Player =====
     video_ = std::make_unique<VideoPlayerMF>();
@@ -108,6 +101,17 @@ void GameClearScene::OnEnter(GameApp& app) {
     idleTime_ = 0.0f;
     uiTime_ = 0.0f; // ★点滅用、今はUpdateで増やしてないのでここもついでに
 
+
+    // 位置はあなたのシーンに合わせて調整（ひとまず例）
+    srtVideo_.pos = { 0.0f, 0.0f, 10.0f };
+    srtVideo_.rot = { 0.0f, -3.15f, 0.0f };
+    srtVideo_.scale = { 4.2f, 2.3f, 1.0f };
+
+    videoPlane_->SetTranslate(srtVideo_.pos);
+    videoPlane_->SetRotate(srtVideo_.rot);
+    videoPlane_->SetScale(srtVideo_.scale);
+
+    videoPlane_->Update(0.0f);
 
 }
 

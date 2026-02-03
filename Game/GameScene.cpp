@@ -151,7 +151,7 @@ void GameScene::OnEnter(GameApp& app) {
     bossHpFill_->SetPosition({ bossHpBarPos_.x, bossHpBarPos_.y });
     bossHpFill_->SetScale({ bossHpBarW_, bossHpBarH_, 1.0f });
 
-    bossHpBack_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
+    bossHpBack_->SetColor({ 1.8f, 0.0f, 0.0f, 1.0f });
     bossHpFill_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 
     // 数字 3桁
@@ -208,6 +208,8 @@ void GameScene::OnEnter(GameApp& app) {
     videoPlane_->SetTranslate(srtVideo_.pos);
     videoPlane_->SetRotate(srtVideo_.rot);
     videoPlane_->SetScale(srtVideo_.scale);
+
+    videoPlane_->Update(0.0f);
 
      prevSpace_ = false;
      prevEnter_ = false;
@@ -701,7 +703,7 @@ void GameScene::UpdateBossHPDigits_(int hp)
         sprintf_s(path, "resources/ui/num/%d.png", digit);
         bossHpDigits_[idx]->SetTextureFilePath(path);
         bossHpDigits_[idx]->SetPosition({ x-130, y });
-        bossHpDigits_[idx]->SetScale({ 0.5f, 0.5f, 1.0f });
+        bossHpDigits_[idx]->SetScale({ 0.7f, 0.7f, 1.0f });
         };
 
     float x2 = baseX - (w);

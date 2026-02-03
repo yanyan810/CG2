@@ -6,38 +6,6 @@
 #include <algorithm>
 #include <cmath>
 
-//static const char* kShooterWalkModels[] = {
-//	"enemy/shooter/walk/walk1.obj",
-//	"enemy/shooter/walk/walk2.obj",
-//	"enemy/shooter/walk/walk3.obj",
-//	"enemy/shooter/walk/walk4.obj",
-//	"enemy/shooter/walk/walk5.obj",
-//};
-//
-//static const char* kMeleeWalkModels[] = {
-//	"enemy/melee/dush/dush.fbx",   // ★1枚目はFBX
-//	"enemy/melee/dush/dush2.obj",
-//	"enemy/melee/dush/dush3.obj",
-//	"enemy/melee/dush/dush4.obj",
-//	"enemy/melee/dush/dush5.obj",
-//};
-//
-//
-//static const char* kMeleeAttackModels[] = {
-//	"enemy/melee/iAttak/attak1.fbx",
-//	"enemy/melee/iAttak/attak2.fbx",
-//	"enemy/melee/iAttak/attak3.fbx",
-//};
-//
-//static const char* kMeleeDamageModel = "enemy/melee/damage/damage.obj";
-//static const char* kShooterDamageModel = "enemy/shooter/damage/damage.obj";
-//
-//static const char* kBossIdleModels[] = {
-//	"enemy/boss/idol/idol1.obj",
-//	"enemy/boss/idol/idol2.obj",
-//	"enemy/boss/idol/idol3.obj",
-//};
-
 static float CalcXMaxByZ_Boss(float z) {
 	// ★ボスはプレイヤーより Z 範囲を狭く
 	// 例：プレイヤー (-15..20) → ボス (-10..15)
@@ -982,7 +950,7 @@ void EnemyManager::Update(float dt, const Vector2& playerXY, float playerZ, Play
 			switch (kind) {
 			case MeleeKind::Normal:
 
-
+				dmg = 5;
 
 				break;
 

@@ -360,7 +360,7 @@ public:
     struct MeleeHitbox {
         AABB3 box;
         float life;
-        int damage = 1;
+        int damage = 5;
     };
 
     void Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam);

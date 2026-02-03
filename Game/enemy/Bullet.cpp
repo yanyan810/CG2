@@ -18,12 +18,10 @@ void BulletManager::Spawn(const Vector3& pos, int dir, int damage) {
     Bullet b{};
     b.alive = true;
     b.pos = pos;
-
-    b.damage = damage; // ★追加（これが無いと渡したdamageが消える）
+    b.damage = damage;
 
     const float speed = 6.0f;
     b.vel = { speed * float(dir), 0.0f, 0.0f };
-
     b.life = 20.0f;
 
     b.model = std::make_unique<Object3d>();
@@ -31,9 +29,15 @@ void BulletManager::Spawn(const Vector3& pos, int dir, int damage) {
     b.model->SetCamera(cam_);
     b.model->SetModel("enemy/shooter/bullet/bullet.obj");
 
+    // ★ここで初期見た目を確定（push_backの前！）
+    const float s = 0.25f;
+    b.model->SetTranslate(b.pos);
+    b.model->SetScale({ s, s, s });
+    b.model->Update(0.0f);
+
     UpdateBody_(b);
 
-    bullets_.push_back(std::move(b));
+    bullets_.push_back(std::move(b)); // ←最後に入れる
 }
 
 
@@ -46,7 +50,7 @@ void BulletManager::Update(float dt, Player& player) {
     for (auto& b : bullets_) {
         if (!b.alive) continue;
 
-        b.model->Update(dt);
+      //  b.model->Update(dt);
 
         b.life -= dt;
         if (b.life <= 0.0f) {
@@ -60,6 +64,13 @@ void BulletManager::Update(float dt, Player& player) {
         b.pos.z += b.vel.z * dt;
 
         UpdateBody_(b);
+
+        if (b.model) {
+            b.model->SetTranslate(b.pos);
+            const float s = 0.25f;
+            b.model->SetScale({ s, s, s });
+            b.model->Update(dt);
+        }
 
         // 2) プレイヤーに当たったら消す
         // Player 側に GetBodyAABB() がある前提（Enemy.cppでも使ってるのでOK）
@@ -81,21 +92,10 @@ void BulletManager::Update(float dt, Player& player) {
 void BulletManager::Draw() {
     for (auto& b : bullets_) {
         if (!b.alive) continue;
-
-        if (b.model) {
-            b.model->SetTranslate(b.pos);
-
-            // cube のサイズ（好みで調整）
-            const float s = 0.25f;
-            b.model->SetScale({ s, s, s });
-
-         
-            b.model->Draw();
-        }
+        if (b.model) b.model->Draw();
     }
-
-    // debugDraw_ を使って「別の表示」をしたいならここに追加
 }
+
 
 void BulletManager::UpdateBody_(Bullet& b) {
     // 足元基準ではなく弾の中心基準でAABB作る
