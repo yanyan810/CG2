@@ -668,6 +668,10 @@ bool VideoPlayerMF::ReadNextVideoFrame()
 			reader_->Flush((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM);
 
 			audioEos_ = false;
+
+			lastTs100ns_ = 0;      // ★追加
+			hasNewFrame_ = false;  // 任意
+
 			return true; // 次フレーム以降また読ませる
 		}
 		return false;

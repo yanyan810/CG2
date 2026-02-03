@@ -67,12 +67,12 @@ void GameScene::OnEnter(GameApp& app) {
     //player
     player_ = std::make_unique<Player>();
     player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    player_->SetSpawnPos({ -12.0f, 0.0f, 15.0f });
+    player_->SetSpawnPos({ -12.0f, 0.0f, 5.0f });
 
     //enemy
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
 
-    enemyMgr_.Spawn(EnemyType::Boss, Vector3{ 0.0f, 0.0f, 15.0f });
+    enemyMgr_.Spawn(EnemyType::Boss, Vector3{ 0.0f, 0.0f, 5.0f });
 
     TextureManager::GetInstance()->LoadTexture("resources/white1x1.png");
 
@@ -182,11 +182,11 @@ void GameScene::OnEnter(GameApp& app) {
     // GameSceneカメラは俯瞰なので、地面に貼るようにするなら回転させてもOK
     videoPlane_->SetTranslate({ 0.0f, 3.0f, 3.1f });
     videoPlane_->SetScale({ 9.5f, 5.3f, 2.0f });
-    videoPlane_->SetRotate({ 0.0f, 0.0f, 0.0f });
+    videoPlane_->SetRotate({ 0.0f, 3.14f, 0.0f });
 
     // ---- Video Player ----
     video_ = std::make_unique<VideoPlayerMF>();
-    video_->Open("resources/video/test.mp4", false);
+    video_->Open("resources/video/battle.mp4", false);
     video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv());
     video_->SetVolume(1.0f);
 
@@ -200,6 +200,44 @@ void GameScene::OnEnter(GameApp& app) {
 
     enableVideo_ = true;
 
+    srtVideo_.pos = { 0.7f, 5.5f, -10.1f };
+    srtVideo_.rot = { -0.38f, -3.14f, 0.0f };
+    srtVideo_.scale = { 18.1f, 9.73f, 2.0f };
+
+    // 1回反映（任意。Updateで毎回反映してもOK）
+    videoPlane_->SetTranslate(srtVideo_.pos);
+    videoPlane_->SetRotate(srtVideo_.rot);
+    videoPlane_->SetScale(srtVideo_.scale);
+
+     prevSpace_ = false;
+     prevEnter_ = false;
+
+     // ---- Pause UI textures ----
+     TextureManager::GetInstance()->LoadTexture("resources/ui/char/close.png");
+     TextureManager::GetInstance()->LoadTexture("resources/ui/char/goTitle.png");
+
+     // ---- Pause UI sprites ----
+     pauseClose_ = std::make_unique<Sprite>();
+     pauseClose_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/close.png");
+     pauseClose_->AdjustTextureSize();
+     pauseClose_->SetAnchorPoint({ 0.0f, 0.0f });
+     pauseClose_->SetScale({ 1.0f, 1.0f, 1.0f });
+     pauseClose_->SetPosition({ pausePosClose_.x, pausePosClose_.y });
+     pauseClose_->SetColor(pauseNormal_);
+
+     pauseToTitle_ = std::make_unique<Sprite>();
+     pauseToTitle_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/goTitle.png");
+     pauseToTitle_->AdjustTextureSize();
+     pauseToTitle_->SetAnchorPoint({ 0.0f, 0.0f });
+     pauseToTitle_->SetScale({ 1.0f, 1.0f, 1.0f });
+     pauseToTitle_->SetPosition({ pausePosTitle_.x, pausePosTitle_.y });
+     pauseToTitle_->SetColor(pauseDim_);
+
+     // 初期
+     isPaused_ = false;
+     prevTab_ = false;
+     pauseSel_ = PauseSel::Close;
+
 
 }
 
@@ -211,6 +249,9 @@ void GameScene::OnExit(GameApp& /*app*/) {
     sprite_.reset();
     camera_.reset();
     debugTitleParticle_.reset();
+    pauseClose_.reset();
+    pauseToTitle_.reset();
+
 }
 
 
@@ -229,19 +270,20 @@ void GameScene::Update(GameApp& app, float dt) {
 
     skyDome_->Update(dt);
 
-  
-    if (player_) {
-        player_->Update(dt, *input_, enemyMgr_);
-    }
-
     // ----------------------------
     // Intro Video フェーズ
     // ----------------------------
     if (phase_ == Phase::IntroVideo) {
 
+        bool spaceNow = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
+        bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
+
+        bool spaceTrig = spaceNow && !prevSpace_;
+        bool enterTrig = enterNow && !prevEnter_;
+
         // dt方式（推奨）
         introTime_ += dt;
-        if (introTime_ >= kIntroSeconds_) {
+        if (introTime_ >= kIntroSeconds_|| enterTrig|| spaceTrig) {
             phase_ = Phase::Battle;
 
             // 戦闘開始時に「最初のスポーンをここでやる」ならここに置く
@@ -264,9 +306,65 @@ void GameScene::Update(GameApp& app, float dt) {
 
         }
 
-    } else if (phase_ == Phase::Battle) {
-        // 戦闘フェーズ中の処理（特になし）
+        prevSpace_ = spaceNow;
+        prevEnter_ = enterNow;
 
+    } else if (phase_ == Phase::Battle) {
+
+        // --- TABでポーズ切替（Battle中のみ）---
+        bool tabNow = (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
+        bool tabTrig = tabNow && !prevTab_;
+        prevTab_ = tabNow;
+
+        if (tabTrig) {
+            isPaused_ = !isPaused_;
+            // 開いた時は選択をCloseに戻す（好み）
+            if (isPaused_) pauseSel_ = PauseSel::Close;
+        }
+
+        if (isPaused_) {
+
+            // 左右で選択（A/D or ←/→）
+            bool left = (GetAsyncKeyState(VK_LEFT) & 0x8000) != 0 || (GetAsyncKeyState('A') & 0x8000) != 0;
+            bool right = (GetAsyncKeyState(VK_RIGHT) & 0x8000) != 0 || (GetAsyncKeyState('D') & 0x8000) != 0;
+
+            if (left)  pauseSel_ = PauseSel::Close;
+            if (right) pauseSel_ = PauseSel::ToTitle;
+
+            // 見た目（選択してる方を明るく）
+            if (pauseClose_ && pauseToTitle_) {
+                pauseClose_->SetColor(pauseSel_ == PauseSel::Close ? pauseNormal_ : pauseDim_);
+                pauseToTitle_->SetColor(pauseSel_ == PauseSel::ToTitle ? pauseNormal_ : pauseDim_);
+            }
+
+            // 決定（Enter/Space）
+            bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
+            bool spaceNow = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
+
+            // 連打で暴れないように「トリガ」扱いしたいなら prevEnter_/prevSpace_ を流用してOK
+            bool enterTrig = enterNow && !prevEnter_;
+            bool spaceTrig = spaceNow && !prevSpace_;
+            prevEnter_ = enterNow;
+            prevSpace_ = spaceNow;
+
+            if (enterTrig || spaceTrig) {
+                if (pauseSel_ == PauseSel::Close) {
+                    isPaused_ = false;
+                } else {
+                    // タイトルへ
+                    RequestChangeScene_("Title");
+                    return;
+                }
+            }
+
+            // ★ここで return するので、プレイヤー/敵/タイマーが進まない
+            return;
+        }
+
+
+        if (player_) {
+            player_->Update(dt, *input_, enemyMgr_);
+        }
 
 
     // enemyMgr_ に渡す playerPos を Player から取る
@@ -321,10 +419,78 @@ void GameScene::Update(GameApp& app, float dt) {
         }
 
         if (enemyMgr_.IsBossDefeated()) {
+
+            // ★ Outro開始
+            phase_ = Phase::OutroVideo;
+            outroTime_ = 0.0f;
+
+            enableVideo_ = true;
+
+            // 動画を outro に差し替え（デコーダ状態をリセット）
+            if (!video_) {
+                video_ = std::make_unique<VideoPlayerMF>();
+            } else {
+                video_->Close();
+            }
+
+            video_->Open("resources/video/outro.mp4", false); // ★ここ
+            video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv());
+            video_->SetVolume(1.0f);
+
+            // ★最初のフレーム準備
+            video_->ReadNextVideoFrame();
+            video_->ReadNextFrame();
+
+            // （任意）UIを消したいならここでバーを隠すなど
+            // 例：bossHpFill_->SetScale({0, bossHpBarH_, 1});
+
+            return;
+        }
+
+
+    } else if (phase_ == Phase::OutroVideo) {
+
+        // 動画進行
+        if (enableVideo_ && video_) {
+            videoPlane_->Update(dt);
+            video_->ReadNextVideoFrame();
+            video_->PumpAudio();
+        }
+
+        // 秒数で終了（まずはこれが最速）
+        outroTime_ += dt;
+        if (outroTime_ >= kOutroSeconds_) {
             RequestChangeScene_("GameClear");
             return;
         }
+
+        // （任意）スペースでスキップ
+         if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+             RequestChangeScene_("GameClear");
+             return;
+         }
     }
+
+
+#ifdef USE_IMGUI
+
+
+    if (phase_ == Phase::IntroVideo && videoPlane_) {
+        videoPlane_->SetTranslate(srtVideo_.pos);
+        videoPlane_->SetRotate(srtVideo_.rot);
+        videoPlane_->SetScale(srtVideo_.scale);
+    }
+
+    ImGui::Begin("VideoPlane SRT");
+    ImGui::DragFloat3("T", &srtVideo_.pos.x, 0.1f);
+    ImGui::DragFloat3("R", &srtVideo_.rot.x, 0.01f);
+    ImGui::DragFloat3("S", &srtVideo_.scale.x, 0.1f);
+    ImGui::End();
+
+
+#endif // USE_IMGUI
+
+
 }
 
 void GameScene::Draw(GameApp& app) {
@@ -343,28 +509,20 @@ void GameScene::Draw(GameApp& app) {
      skyDome_->Draw();
    
     // --- Intro中は動画を最前面に出したいなら、描画順を最後にする ---
-    if (phase_ == Phase::IntroVideo) {
-        if (enableVideo_ && video_ && videoPlane_) {
+     if (phase_ == Phase::IntroVideo || phase_ == Phase::OutroVideo) {
+         if (enableVideo_ && video_ && videoPlane_) {
 
-            // Video SRV を作った heap を、いまの draw で確実にセットする
-            ID3D12DescriptorHeap* heaps[] = { app.Srv()->GetDescriptorHeap() }; // ←あなたのSrvManagerの取得関数名に合わせる
-            cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+             ID3D12DescriptorHeap* heaps[] = { app.Srv()->GetDescriptorHeap() };
+             cmd->SetDescriptorHeaps(_countof(heaps), heaps);
 
+             video_->UploadToGpu(cmd);
 
-            // ここでGPUに転送
-            video_->UploadToGpu(cmd);
-
-            // SRVで描画（あなたのObject3dに override描画がある前提）
-            D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
-
-          
+             D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
              videoPlane_->DrawWithOverrideSrv(vh);
 
              video_->EndFrame(cmd);
-        }
-
-     
-    } else if (phase_ == Phase::Battle) {
+         }
+     } else if (phase_ == Phase::Battle) {
         // 戦闘フェーズ中は普通に描画
 
 
@@ -422,6 +580,20 @@ void GameScene::Draw(GameApp& app) {
             bossHpDigits_[i]->Update(view, proj);
             bossHpDigits_[i]->Draw();
         }
+
+        // ---- Pause UI ----
+        if (isPaused_) {
+            if (pauseClose_) {
+                pauseClose_->Update(view, proj);
+                pauseClose_->Draw();
+            }
+            if (pauseToTitle_) {
+                pauseToTitle_->Update(view, proj);
+                pauseToTitle_->Draw();
+            }
+        }
+
+
     }
    
 }
@@ -528,7 +700,7 @@ void GameScene::UpdateBossHPDigits_(int hp)
         char path[256];
         sprintf_s(path, "resources/ui/num/%d.png", digit);
         bossHpDigits_[idx]->SetTextureFilePath(path);
-        bossHpDigits_[idx]->SetPosition({ x, y });
+        bossHpDigits_[idx]->SetPosition({ x-130, y });
         bossHpDigits_[idx]->SetScale({ 0.5f, 0.5f, 1.0f });
         };
 

@@ -3,6 +3,8 @@
 #include <memory>
 #include "Camera.h"
 
+#include "VideoPlayerMF.h" 
+
 class Object3d;
 
 class Sprite;
@@ -49,5 +51,15 @@ private:
     std::unique_ptr<Sprite> bg_;        // 1280x720
     std::unique_ptr<Sprite> retrySp_;   // 128x128
     std::unique_ptr<Sprite> titleSp_;   // 128x128
+
+    // ===== Video =====
+    std::unique_ptr<Object3d> videoPlane_;
+    std::unique_ptr<VideoPlayerMF> video_;
+    bool enableVideo_ = true;
+
+    // 位置調整用
+    struct SRT { Vector3 pos{ 0,0,0 }; Vector3 rot{ 0,0,0 }; Vector3 scale{ 1,1,1 }; };
+    SRT srtVideo_{};
+    float uiTime_ = 0.0f;
 
 };

@@ -28,7 +28,7 @@ void TestScene::OnEnter(GameApp& app) {
     // Player
     player_ = std::make_unique<Player>();
     player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    player_->SetSpawnPos({ -12.0f, 0.0f, 15.0f }); // 好みで調整
+    player_->SetSpawnPos({ -12.0f, 0.0f, 5.0f }); // 好みで調整
 
     // EnemyManager
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
@@ -50,6 +50,7 @@ void TestScene::OnEnter(GameApp& app) {
     playTxst_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text1.png");
     playTxst_->AdjustTextureSize();
     playTxst_->SetScale({ 1.0f, 1.0f ,1.0f });
+	playTxst_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 
     light_.dirIntensity = 1.6f;
     light_.pointIntensity = 2.5f;
@@ -332,7 +333,14 @@ void TestScene::Draw(GameApp& app) {
     if (drawSpotMarker_ && spotMarker_) spotMarker_->Draw();
 
     if (player_) player_->Draw();
-	player_->DrawDebugHitBoxes(enemyMgr_);
+
+#ifdef _DEBUG
+
+    player_->DrawDebugHitBoxes(enemyMgr_);
+
+#endif // DEBUG
+
+	
     enemyMgr_.Draw();
 
     // ===== 2D (Sprite) =====

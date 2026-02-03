@@ -100,18 +100,16 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 		hp_ = maxHp_;
 		damageTaken_ = 1;
 		bossAI_.Reset(maxHp_);
-	}
-	else if (type_ == EnemyType::Shooter) {
+	} else if (type_ == EnemyType::Shooter) {
+		maxHp_ = 20;
+		hp_ = maxHp_;
+		damageTaken_ = 1;
+	} else {
 		maxHp_ = 20;
 		hp_ = maxHp_;
 		damageTaken_ = 1;
 	}
-	else {
-		maxHp_ = 20;
-		hp_ = maxHp_;
-		damageTaken_ = 1;
-	}
-	
+
 
 
 	model_ = std::make_unique<Object3d>();
@@ -162,8 +160,7 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 		ChangeAnimIfChanged_(shooterAnimIdle_, true);
 
 		prevShooterState_ = shooterState_;
-	}
-	else {
+	} else {
 		// ★Boss
 		model_->SetModel("enemy/boss/boss.gltf");   // ← あなたの resources 構成に合わせて
 		currentAnim_.clear();
@@ -229,7 +226,7 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 
 	if (meleeTimer_ > 0.0f) meleeTimer_ -= dt;
 	//if (shootTimer_ > 0.0f) shootTimer_ -= dt;
-	
+
 // 先に OneShot タイマーだけ進める（重要）
 	if (oneShotPlaying_) {
 		oneShotTimer_ -= dt;
@@ -267,8 +264,7 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 
 		if (st == BossAI::State::Rush_ToRight || st == BossAI::State::Rush_Return) {
 			facing_ = +1;
-		}
-		else if (st == BossAI::State::Rush_ExitLeft) {
+		} else if (st == BossAI::State::Rush_ExitLeft) {
 			facing_ = -1;
 		}
 		// Rush_Charge は向き維持（何もしない）
@@ -287,9 +283,9 @@ void Enemy::Update(float dt, const Vector2& playerXY, float playerZ) {
 		else                      model_->SetMaterialColor(normalColor_);
 	}
 
-	
 
-	
+
+
 
 	// ★物理は常に回す（吹き飛びたいので）
 	ApplyPhysics_(dt);
@@ -314,17 +310,25 @@ void Enemy::Draw() {
 }
 
 
-EnemyHitResult Enemy::ApplyHit2D(float knockVx, float launchVy, bool requestHitstun) {
+EnemyHitResult Enemy::ApplyHit2D(float knockVx, float launchVy, bool requestHitstun, int damage) {
 	EnemyHitResult r{};
 	if (!alive_) return r;
-
 	r.hit = true;
 
+	{
+		char buf[256];
+		sprintf_s(buf, "[ApplyHit2D] type=%d hp_before=%d damage=%d\n",
+			(int)type_, hp_, damage);
+		OutputDebugStringA(buf);
+	}
+
 	// =========================
-	// ★ダメージ（invincible なら減らさない）
-	// =========================
+// ★ダメージ（invincible なら減らさない）
+// =========================
 	if (!invincible_) {
-		hp_ -= damageTaken_;
+		const int d = std::max(0, damage);
+		hp_ -= d;
+
 		if (hp_ <= 0) {
 			hp_ = 0;
 			alive_ = false;
@@ -332,6 +336,7 @@ EnemyHitResult Enemy::ApplyHit2D(float knockVx, float launchVy, bool requestHits
 			return r;
 		}
 	}
+
 
 	hitFlashSec_ = std::max(hitFlashSec_, 0.20f); // 0.2秒赤く
 
@@ -376,18 +381,23 @@ void Enemy::UpdateAI_Melee_(float dt, const Vector2& playerXY, float playerZ) {
 	const float dx = playerXY.x - pos_.x;
 	const float adx = std::abs(dx);
 
-	// 見た目Z追従（今のまま）
 	const float dz = playerZ - pos_.z;
 	const float adz = std::abs(dz);
+
+	// Z追従（今のまま）
 	if (adz > zFollowDeadZone_) vel_.z = (dz > 0) ? depthSpeed_ : -depthSpeed_;
 	else                       vel_.z = 0.0f;
 
+	const bool inX = (adx <= meleeRangeX_);
+	const bool inZ = (adz <= meleeRangeZ_);
+
 	switch (meleeState_) {
 	case MeleeState::Approach:
-		if (adx > meleeRange_) {
+		// ★XかZどっちかでも足りないなら「近づく」
+		if (!inX || !inZ) {
 			vel_.x = (dx > 0) ? moveSpeed_ : -moveSpeed_;
 		} else {
-			// 範囲内に入ったら停止→溜めへ
+			// ★XZ両方OKの時だけ攻撃準備
 			vel_.x = 0.0f;
 			meleeWindup_ = meleeWindupTime_;
 			meleeState_ = MeleeState::Windup;
@@ -396,11 +406,16 @@ void Enemy::UpdateAI_Melee_(float dt, const Vector2& playerXY, float playerZ) {
 
 	case MeleeState::Windup:
 		vel_.x = 0.0f;
+
+		// ★溜め中に距離が崩れたらキャンセルして追い直す（重要）
+		if (!inX || !inZ) {
+			meleeState_ = MeleeState::Approach;
+			break;
+		}
+
 		meleeWindup_ -= dt;
 		if (meleeWindup_ <= 0.0f) {
-			// ★攻撃発生（判定は別で作る：ここでは要求フラグだけ）
 			RequestMelee(MeleeKind::Normal);
-
 			meleeAttack_ = meleeAttackTime_;
 			meleeState_ = MeleeState::Attack;
 		}
@@ -410,15 +425,13 @@ void Enemy::UpdateAI_Melee_(float dt, const Vector2& playerXY, float playerZ) {
 		vel_.x = 0.0f;
 		meleeAttack_ -= dt;
 		if (meleeAttack_ <= 0.0f) {
-			meleeTimer_ = meleeCooldown_;     // 既存 cooldown をここで使う
+			meleeTimer_ = meleeCooldown_;
 			meleeState_ = MeleeState::Cooldown;
 		}
 		break;
 
 	case MeleeState::Cooldown:
 		vel_.x = 0.0f;
-
-		// クールダウンが終わったらまた接近へ
 		if (meleeTimer_ <= 0.0f) {
 			meleeState_ = MeleeState::Approach;
 		}
@@ -467,8 +480,7 @@ void Enemy::UpdateAI_Shooter_(float dt, const Vector2& playerXY, float playerZ)
 
 	if (type_ != EnemyType::Boss) {
 		facing_ = CalcFacingToPlayer();
-	}
-	else {
+	} else {
 		// ★ボスはRush中だけ向きを固定（パカパカ防止）
 		const auto st = bossAI_.GetState();
 
@@ -672,7 +684,7 @@ void Enemy::UpdateModel_(float dt) {
 	if (type_ == EnemyType::Boss) model_->SetScale({ 2.0f * flipX, 2.0f, 2.0f });
 	else                         model_->SetScale({ 1.0f * flipX, 1.0f, 1.0f });
 
-// ===== Melee は「アニメ」で切替（モデル差し替えしない）=====
+	// ===== Melee は「アニメ」で切替（モデル差し替えしない）=====
 	if (type_ == EnemyType::Melee) {
 
 		// 攻撃中判定（あなたの既存ロジック）
@@ -943,7 +955,7 @@ void EnemyManager::Update(float dt, const Vector2& playerXY, float playerZ, Play
 
 			OutputDebugStringA("[Shoot] request OK\n");
 
-			bullets_.Spawn(muzzle, dir,7);
+			bullets_.Spawn(muzzle, dir, 7);
 		}
 
 		// ---- Melee：近接攻撃ヒットボックス生成 ----
@@ -970,7 +982,7 @@ void EnemyManager::Update(float dt, const Vector2& playerXY, float playerZ, Play
 			switch (kind) {
 			case MeleeKind::Normal:
 
-				
+
 
 				break;
 
@@ -1140,7 +1152,7 @@ void EnemyManager::DrawHealDrops_() {
 		// 例：位置だけ置いて描画（色替えできるなら緑っぽく）
 		debugHitboxCube_->SetTranslate(d.pos);
 		debugHitboxCube_->SetScale({ 0.4f, 0.4f, 0.4f });
-		
+
 		debugHitboxCube_->Draw();
 	}
 }

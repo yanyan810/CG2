@@ -96,11 +96,40 @@ private:
 
     // dtベースでやるならこっち（可変fpsでも安定）
     float introTime_ = 0.0f;
-    static constexpr float kIntroSeconds_ = 2.0f; // 120f@60fps
+    static constexpr float kIntroSeconds_ = 6.0f; // 120f@60fps
 
     std::unique_ptr<Object3d> videoPlane_;
     std::unique_ptr<VideoPlayerMF> video_;
     bool enableVideo_ = true;
+
+    struct SRT { Vector3 pos{ 0,0,0 }; Vector3 rot{ 0,0,0 }; Vector3 scale{ 1,1,1 }; };
+    SRT srtVideo_{};
+
+    float outroTime_ = 0.0f;
+    static constexpr float kOutroSeconds_ = 6.0f; // ★outro.mp4 の秒数に合わせて
+
+    bool prevSpace_ = false;
+    bool prevEnter_ = false;
+
+    // ===== Pause UI =====
+    bool isPaused_ = false;
+    bool prevTab_ = false;
+
+    enum class PauseSel { Close, ToTitle };
+    PauseSel pauseSel_ = PauseSel::Close;
+
+    // 画像（128x128）
+    std::unique_ptr<Sprite> pauseClose_;   // "とじる"
+    std::unique_ptr<Sprite> pauseToTitle_; // "タイトルへ"
+
+    // 表示位置
+    Vector2 pausePosClose_{ 520.0f, 360.0f };
+    Vector2 pausePosTitle_{ 680.0f, 360.0f };
+
+    // 選択の見た目（明るさなど）
+    Vector4 pauseNormal_{ 1,1,1,1 };
+    Vector4 pauseDim_{ 0.6f,0.6f,0.6f,1 };
+
 
 
 };

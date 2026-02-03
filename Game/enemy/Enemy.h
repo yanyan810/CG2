@@ -51,7 +51,7 @@ public:
     AABB    GetBodyAABB() const { return body_; }
 
     // プレイヤー攻撃ヒット時
-    EnemyHitResult ApplyHit2D(float knockVx, float launchVy, bool requestHitstun);
+    EnemyHitResult ApplyHit2D(float knockVx, float launchVy, bool requestHitstun, int damage);
 
     // ★Enemy側は「撃ってね」を出すだけ。生成はManager側でやる。
     bool ConsumeShootRequest(Vector3& outPos, int& outDir) {
@@ -213,7 +213,11 @@ private:
     float depthSpeed_ = 8.0f;
     float zFollowDeadZone_ = 0.25f;
 
-    float meleeRange_ = 1.3f;
+    
+    // AIパラメータ
+    float meleeRangeX_ = 1.3f;   
+    float meleeRangeZ_ = 0.8f;   
+
     float meleeCooldown_ = 0.8f;
     float meleeTimer_ = 0.0f;
 

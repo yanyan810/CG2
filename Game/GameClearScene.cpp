@@ -72,6 +72,42 @@ void GameClearScene::OnEnter(GameApp& app) {
     goTitle_->SetPosition({ 1280.0f * 0.5f, 720.0f * 0.82f }); // 下の真ん中
     goTitle_->SetScale({ 1.0f, 1.0f, 1.0f });
 
+    // ===== Video Plane =====
+    videoPlane_ = std::make_unique<Object3d>();
+    videoPlane_->Initialize(app.ObjCom(), app.Dx());
+    videoPlane_->SetModel("video/plane.obj");
+    videoPlane_->SetCamera(camera_.get());
+
+    // 動画はライト無視
+    videoPlane_->SetEnableLighting(0);
+    videoPlane_->SetMaterialColor({ 1,1,1,1 });
+    videoPlane_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    // 位置はあなたのシーンに合わせて調整（ひとまず例）
+    srtVideo_.pos = { 0.0f, 0.0f, 10.0f };
+    srtVideo_.rot = { 0.0f, -3.15f, 0.0f };
+    srtVideo_.scale = { 4.2f, 2.3f, 1.0f };
+
+    videoPlane_->SetTranslate(srtVideo_.pos);
+    videoPlane_->SetRotate(srtVideo_.rot);
+    videoPlane_->SetScale(srtVideo_.scale);
+
+    // ===== Video Player =====
+    video_ = std::make_unique<VideoPlayerMF>();
+    video_->Open("resources/video/GameClear.mp4", false); // ★ループなし
+    video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv());
+    video_->SetVolume(1.0f);
+
+    // 最初のフレームを作る
+    video_->ReadNextVideoFrame();
+    video_->ReadNextFrame();
+
+    enableVideo_ = true;
+
+    // タイマー
+    idleTime_ = 0.0f;
+    uiTime_ = 0.0f; // ★点滅用、今はUpdateで増やしてないのでここもついでに
+
 
 }
 
@@ -81,6 +117,10 @@ void GameClearScene::OnExit(GameApp&) {
     //clearObj_.reset();
     skyDome_.reset();
     camera_.reset();
+    if (video_) { video_->Close(); }
+    video_.reset();
+    videoPlane_.reset();
+
 }
 
 
@@ -96,6 +136,9 @@ void GameClearScene::Update(GameApp& app, float dt) {
 
     skyDome_->Update(dt);
 
+    uiTime_ += dt;
+
+
 	rotateYAngle_ += 0.05f * dt; // ゆっくり回転
 
     skyDome_->SetRotate({ 0.0f ,rotateYAngle_,0.0f });
@@ -104,15 +147,31 @@ void GameClearScene::Update(GameApp& app, float dt) {
     case State::EnterOpen:
         circle_ = Clamp01(circle_ + 1.35f * dt);
         objScaleT_ = Clamp01(objScaleT_ + 2.5f * dt);
-        if (circle_ >= 1.0f) state_ = State::Idle;
+        if (circle_ >= 1.0f) {
+            state_ = State::Idle;
+            idleTime_ = 0.0f; // ★ここでリセット
+        }
         break;
 
+
     case State::Idle:
-        // 決定だけ（Titleへ）
-        if (spaceTrig || enterTrig) {
+
+        // 動画の更新（映像 + 音）
+        if (enableVideo_ && video_) {
+            if (videoPlane_) videoPlane_->Update(dt);
+            video_->ReadNextVideoFrame();
+            video_->PumpAudio();
+        }
+
+        // Idleに入ってからの経過時間
+        idleTime_ += dt;
+
+        // 30秒経過 or 決定で戻る
+        if (idleTime_ >= kAutoReturnSeconds_ || spaceTrig || enterTrig) {
             state_ = State::ExitClose;
         }
         break;
+
 
     case State::ExitClose:
         circle_ = Clamp01(circle_ - 1.8f * dt);
@@ -127,6 +186,20 @@ void GameClearScene::Update(GameApp& app, float dt) {
     ImGui::Begin("Clear");
     ImGui::DragFloat("clearPosZ", &clearPosZ_, 0.1f);
     ImGui::End();
+
+    ImGui::Begin("Clear Video");
+    ImGui::DragFloat3("T", &srtVideo_.pos.x, 0.1f);
+    ImGui::DragFloat3("R", &srtVideo_.rot.x, 0.01f);
+    ImGui::DragFloat3("S", &srtVideo_.scale.x, 0.1f);
+    ImGui::End();
+
+    // 反映
+    if (videoPlane_) {
+        videoPlane_->SetTranslate(srtVideo_.pos);
+        videoPlane_->SetRotate(srtVideo_.rot);
+        videoPlane_->SetScale(srtVideo_.scale);
+    }
+
 
 #endif
 
@@ -149,9 +222,22 @@ void GameClearScene::Draw(GameApp& app) {
 
 	skyDome_->Draw();
 
-    if (damageObj_) {
-        damageObj_->Draw();
+    // ===== Video =====
+    if (enableVideo_ && video_ && videoPlane_) {
+        auto* cmd = app.Dx()->GetCommandList();
+
+        // video SRV が入っている heap をセット
+        ID3D12DescriptorHeap* heaps[] = { app.Srv()->GetDescriptorHeap() };
+        cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
+        video_->UploadToGpu(cmd);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
+        videoPlane_->DrawWithOverrideSrv(vh);
+
+        video_->EndFrame(cmd);
     }
+
 
     // ===== 2D =====
     app.SpriteCom()->SetGraphicsPipelineState();

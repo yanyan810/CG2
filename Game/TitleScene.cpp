@@ -32,6 +32,27 @@ void TitleScene::OnEnter(GameApp& app) {
 
     app.ObjCom()->SetDefaultCamera(camera_.get());
 
+    //player
+    titlePlayer = std::make_unique<Player>();
+    titlePlayer->Initialize(app.ObjCom(), app.Dx(), camera_.get());
+    titlePlayer->SetSpawnPos({ -12.0f, 0.0f, 5.0f }); // 好みで調整
+	titlePlayer->SetLighting(light_); // 操作禁止
+    titlePlayer->ResetTitleAttackDemo();
+
+    //ground
+    ground_ = std::make_unique<Object3d>();
+    ground_->Initialize(app.ObjCom(), app.Dx());
+    ground_->SetCamera(camera_.get());
+    ground_->SetModel("ground/ground.obj");
+
+    // 位置・大きさは好みで調整
+    ground_->SetTranslate({ 0.0f, -5.0f, 0.0f });
+    ground_->SetScale({ 1.0f, 1.0f, 1.0f });
+    ground_->SetRotate({ 0.0f, 0.0f, 0.0f });
+    ground_->SetEnableLighting(0);
+
+
+
 
     // Particle
     particle_ = std::make_unique<Particle>();
@@ -87,13 +108,13 @@ void TitleScene::OnEnter(GameApp& app) {
     // 位置調整（カメラの前に置く）
     videoPlane_->SetTranslate({ 0.0f, 3.0f, 3.1f });  // 例：Zはカメラ向きに合わせて調整
     videoPlane_->SetScale({ 9.5f, 5.3f, 2.0f });
-    videoPlane_->SetRotate({ 0.0f, 0.0f, 0.0f });
+    videoPlane_->SetRotate({ 0.0f, 3.17f, 0.0f });
 
     // ===== Video Player =====
     video_ = std::make_unique<VideoPlayerMF>();
 
     // ※ ここはあなたの実装の関数名に合わせて
-    video_->Open("resources/video/battle.mp4", true); // loop = true
+    video_->Open("resources/video/title.mp4", true); // loop = true
     video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv()); // SRV確保 + texture作成
 	video_->SetVolume(1.5f); // 音量セット（0.0f〜1.0f）
     enableVideo_ = true;
@@ -110,15 +131,31 @@ void TitleScene::OnEnter(GameApp& app) {
     srtSky_.scale = { 1,1,1 };
 
     // VideoPlane（あなたの初期値と合わせる）
-    srtVideo_.pos = { 0.0f, 1.0f, 3.0f };
-    srtVideo_.rot = { 0.0f, 0.0f, 0.0f };
-    srtVideo_.scale = { 2.0f, 2.0f, 2.0f };
+    srtVideo_.pos = { 0.0f, 3.0f, 3.1f };
+    srtVideo_.scale = { 9.5f, 5.3f, 2.0f };
+    srtVideo_.rot = { 0.0f, 3.14f, 0.0f };
 
     // BG / Press（2D）
     srtBG_.pos = { 0,0,0 };
     srtBG_.scale = { 1,1,1 };
     srtPress_.pos = { 0,0,0 };
     srtPress_.scale = { 1,1,1 };
+
+    dt_ = 0.0f;
+
+    // Ground（いま SetTranslate/Scale/Rotate してる値を反映）
+    srtGround_.pos = { 0.0f, -5.0f, 0.0f };
+    srtGround_.rot = { 0.0f,  1.34f, 0.0f };
+    srtGround_.scale = { 1.0f,  1.0f, 1.0f };
+
+    // Player（SetSpawnPos の値を反映。回転/スケールはとりあえず既定）
+    srtPlayer_.pos = { -0.2f, 0.2f, -5.1f };
+    srtPlayer_.rot = { 0.0f, 1.14f, 0.0f };
+    srtPlayer_.scale = { 2.0f, 2.0f, 2.0f };
+
+    // 切替初期化（最初はプレイヤー表示）
+    showVideo_ = false;     // ← 最初は titlePlayer を出す
+    switchT_ = 0.0f;        // ← タイマーリセット
 
 
 }
@@ -135,6 +172,9 @@ void TitleScene::OnExit(GameApp&) {
     texSamplerObj_.reset();
     video_->Close();
     video_.reset();
+    if (titlePlayer) {
+        titlePlayer.reset();
+    }
 
 }
 
@@ -149,6 +189,8 @@ void TitleScene::Update(GameApp& app, float dt) {
     bool spaceNow = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
     bool spaceTrig = spaceNow && !prevSpace_;
     prevSpace_ = spaceNow;
+    
+    dt_ = dt;
 
     switch (state_) {
     case State::Idle:
@@ -167,20 +209,52 @@ void TitleScene::Update(GameApp& app, float dt) {
     }
 
 
+    // 3D更新など…
     skyDome_->Update(dt);
-    if (enableVideo_ && video_) {
+    ground_->Update(dt);
 
-        videoPlane_->Update(dt);
+    // 動画のデコード/音声は「表示中のみ」
+    if (enableVideo_ && video_ && showVideo_) {
 
-        // ★音は足りない時だけ読む（軽い）
-        video_->PumpAudio();
+        if (videoPlane_) {
+            videoPlane_->SetTranslate(srtVideo_.pos);
+            videoPlane_->SetRotate(srtVideo_.rot);
+            videoPlane_->SetScale(srtVideo_.scale);
+            videoPlane_->Update(dt);
+        }
 
-        // ★映像は毎フレーム1回（または2回）読む
         video_->ReadNextVideoFrame();
+        video_->PumpAudio();
+    }
+
+
+    // ---- 表示切替（自前タイマーで安定） ----
+    switchT_ += dt;
+
+    if (showVideo_) {
+        // 動画表示中
+        if (switchT_ >= videoSec_) {
+            switchT_ = 0.0f;
+            showVideo_ = false; // 次はプレイヤー
+        }
+    } else {
+        // プレイヤー表示中
+        if (switchT_ >= playerSec_) {
+            switchT_ = 0.0f;
+            showVideo_ = true; // 次は動画
+        }
     }
 
 
 
+    // タイトル用プレイヤーがいるならデモ再生
+    if (titlePlayer) {
+        titlePlayer->UpdateTitleAttackDemo(dt, 1.0f); // 1秒ごとに I/O 交互
+    }
+
+    if (titlePlayer) {
+        titlePlayer->SetTitleTransform(srtPlayer_.pos, srtPlayer_.rot, srtPlayer_.scale);
+    }
 
 #ifdef USE_IMGUI
 
@@ -222,12 +296,15 @@ void TitleScene::Update(GameApp& app, float dt) {
     ImGui::Begin("Object SRT (Per-Object)");
 
     static const char* targetLabels[] = {
-     "SkyDome",
-     "VideoPlane",
-     "Particle",
-     "BG(Sprite)",
-     "PressStart(Sprite)",
+    "SkyDome",
+    "VideoPlane",
+    "Particle",
+    "Ground",        // 追加
+    "TitlePlayer",   // 追加
+    "BG(Sprite)",
+    "PressStart(Sprite)",
     };
+
     ImGui::Combo("Target", &editTarget_, targetLabels, IM_ARRAYSIZE(targetLabels));
 
 
@@ -237,10 +314,13 @@ void TitleScene::Update(GameApp& app, float dt) {
     case EditTarget::SkyDome:     cur = &srtSky_; break;
     case EditTarget::VideoPlane:  cur = &srtVideo_; break;
     case EditTarget::Particle:    cur = &srtParticle_; break;
+    case EditTarget::Ground:      cur = &srtGround_; break;   
+    case EditTarget::TitlePlayer: cur = &srtPlayer_; break;   
     case EditTarget::BG:          cur = &srtBG_; break;
     case EditTarget::PressStart:  cur = &srtPress_; break;
     default: break;
     }
+
 
 
     if (cur) {
@@ -333,7 +413,6 @@ void TitleScene::Update(GameApp& app, float dt) {
 
     ImGui::End();
 
-
 #endif
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
 
@@ -408,6 +487,7 @@ void TitleScene::Update(GameApp& app, float dt) {
     // 2D
     ApplySpriteSRT(bg_.get(), srtBG_);
     ApplySpriteSRT(pressStart_.get(), srtPress_);
+    ApplyObject3dSRT(ground_.get(), srtGround_);
 
 
 }
@@ -417,25 +497,24 @@ void TitleScene::Draw(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
 	skyDome_->Draw();
+    if (!showVideo_) {
+        ground_->Draw();
+        titlePlayer->Draw();
+    }
 
-    // ===== Video Plane =====
-    if (enableVideo_ && videoPlane_ && video_) {
+    // ---- Video ----
+    if (enableVideo_ && videoPlane_ && video_ && showVideo_) {
         auto* cmd = app.Dx()->GetCommandList();
-        char msg[256]{};
-        sprintf_s(msg, "[TitleScene] video srv gpu ptr=0x%llX\n", (unsigned long long)video_->SrvGpu().ptr);
-        OutputDebugStringA(msg);
 
-
-        // GPUへ転送（Copy + PSR）
         video_->UploadToGpu(cmd);
 
-        // SRV を取得して override 描画
         D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
         videoPlane_->DrawWithOverrideSrv(vh);
 
-        // 次のCopyに備える運用なら
         video_->EndFrame(cmd);
     }
+
+
 
     // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
     app.ParticleCom()->SetGraphicsPipelineState();
@@ -450,14 +529,15 @@ void TitleScene::Draw(GameApp& app) {
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
-   if (bg_) {
-        bg_->Update(view, proj);
-        bg_->Draw();
-    }
-
-    if (pressStart_) {
-        pressStart_->Update(view, proj);
-        pressStart_->Draw();
+    if (!showVideo_) {
+        if (bg_) {
+            bg_->Update(view, proj);
+            bg_->Draw();
+        }
+        if (pressStart_) {
+            pressStart_->Update(view, proj);
+            pressStart_->Draw();
+        }
     }
 
     // ===== マスクは必ず最後 =====

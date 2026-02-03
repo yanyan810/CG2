@@ -163,61 +163,55 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
         pos_.y = p.y;
     }
 
-    // ===== アニメ切り替え（モデル切り替えはしない） =====
-    if (model_) {
+    // combo_->Update の後に取り直す
+    isAttacking = combo_ && combo_->IsAttacking();
 
-        // 攻撃開始トリガ（必要なら combo_ 側の入力と同じに合わせる）
+    if (model_) {
         const bool atkITrig = input.IsKeyTrigger(DIK_I);
         const bool atkOTrig = input.IsKeyTrigger(DIK_O);
 
-        // まず攻撃開始（単発）
-        if (atkITrig) {
-            model_->PlayAnimation("Attak_I", false); // ★非ループ
-            curAnim_ = "Attak_I";
-        }
-        else if (atkOTrig) {
-            model_->PlayAnimation("Attak_O", false); // ★非ループ
-            curAnim_ = "Attak_O";
-        }
-        else {
+        const bool inAttackAnim = (curAnim_ == "Attak_I" || curAnim_ == "Attak_O");
 
-            // 攻撃中か？（comboが攻撃中扱いならそれを優先してOK）
-            const bool inAttackAnim = (curAnim_ == "Attak_I" || curAnim_ == "Attak_O");
-            const bool inAttack = isAttacking || inAttackAnim;
-
-            if (inAttack) {
-                // 攻撃中は、終わるまで待つ
-                // ※ Object3d::IsAnimationFinished() を用意してある前提（前の提案）
-                if (model_->IsAnimationFinished()) {
-
-                    // 攻撃が終わった → 移動状態に応じて戻す
-                    if (isMoving) {
-                        if (curAnim_ != "Walk") {
-                            model_->PlayAnimation("Walk", true);
-                            curAnim_ = "Walk";
-                        }
-                    }
-                    else {
-                        if (curAnim_ != "Idle") {
-                            model_->PlayAnimation("Idle", true);
-                            curAnim_ = "Idle";
-                        }
-                    }
-                }
+        // ★1) まず「攻撃開始トリガー」を最優先（このフレームで必ず再生開始）
+        if (!inAttackAnim) {
+            if (atkITrig) {
+                model_->PlayAnimation("Attak_I", false);
+                curAnim_ = "Attak_I";
+            } else if (atkOTrig) {
+                model_->PlayAnimation("Attak_O", false);
+                curAnim_ = "Attak_O";
             }
-            else {
-                // 通常（Idle / Walk ループ）
+        }
+
+        // ★2) 攻撃中か判定（コンボ or アニメどちらか）
+        const bool inAttack = isAttacking || inAttackAnim;
+
+        if (inAttack) {
+            // 攻撃中：終わったら戻す（入力では上書きしない）
+            if (model_->IsAnimationFinished()) {
                 if (isMoving) {
                     if (curAnim_ != "Walk") {
                         model_->PlayAnimation("Walk", true);
                         curAnim_ = "Walk";
                     }
-                }
-                else {
+                } else {
                     if (curAnim_ != "Idle") {
                         model_->PlayAnimation("Idle", true);
                         curAnim_ = "Idle";
                     }
+                }
+            }
+        } else {
+            // ★3) 通常（Idle/Walk）
+            if (isMoving) {
+                if (curAnim_ != "Walk") {
+                    model_->PlayAnimation("Walk", true);
+                    curAnim_ = "Walk";
+                }
+            } else {
+                if (curAnim_ != "Idle") {
+                    model_->PlayAnimation("Idle", true);
+                    curAnim_ = "Idle";
                 }
             }
         }
@@ -312,6 +306,12 @@ void Player::Update(float dt, const Input& input, EnemyManager& enemyMgr) {
     SetLighting(light_);
 
     OutputDebugStringA(("[PlayerAnim] " + curAnim_ + "\n").c_str());
+
+#ifdef USE_IMGUI
+    if (combo_) {
+        combo_->DebugImGui();
+    }
+#endif
 
 
 }
@@ -504,4 +504,59 @@ void Player::SetLighting(const LightingParam& p)
     swordObj_->SetSpotLightCosFalloffStart(cosInner);
     swordObj_->SetSpotLightColor({ light_.spotColor.x, light_.spotColor.y, light_.spotColor.z, 1.0f });
 
+}
+
+
+void Player::ResetTitleAttackDemo()
+{
+    titleDemoTimer_ = 0.0f;
+    titleDemoNextIsI_ = true;
+
+    // 見た目もリセットしたければ
+    if (model_) {
+        model_->PlayAnimation("Idle", true);
+        curAnim_ = "Idle";
+    }
+}
+
+void Player::UpdateTitleAttackDemo(float dt, float intervalSec)
+{
+    if (!model_) return;
+
+    // interval の安全策
+    if (intervalSec < 0.05f) intervalSec = 0.05f;
+
+    // まずアニメ時間を進める（←これ超重要）
+    model_->Update(dt);
+
+    // 攻撃アニメ中なら「終わるまで待つ」
+    const bool inAttackAnim = (curAnim_ == "Attak_I" || curAnim_ == "Attak_O");
+    if (inAttackAnim) {
+        if (model_->IsAnimationFinished()) {
+            model_->PlayAnimation("Idle", true);
+            curAnim_ = "Idle";
+        }
+        return;
+    }
+
+    // 次の攻撃タイミング
+    titleDemoTimer_ += dt;
+    if (titleDemoTimer_ >= intervalSec) {
+        titleDemoTimer_ = 0.0f;
+
+        if (titleDemoNextIsI_) {
+            model_->PlayAnimation("Attak_I", false);
+            curAnim_ = "Attak_I";
+        } else {
+            model_->PlayAnimation("Attak_O", false);
+            curAnim_ = "Attak_O";
+        }
+        titleDemoNextIsI_ = !titleDemoNextIsI_;
+    }
+}
+void Player::SetTitleTransform(const Vector3& t, const Vector3& r, const Vector3& s)
+{
+    model_->SetTranslate(t);
+    model_->SetRotate(r);
+    model_->SetScale(s);
 }

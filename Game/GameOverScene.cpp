@@ -8,7 +8,7 @@
 #include "DirectXCommon.h"
 
 #include "Object3d.h"
-#include "ModelManager.h"   // LoadModel がある想定
+#include "ModelManager.h"   
 
 #include "Sprite.h"
 #include "TextureManager.h"
@@ -17,6 +17,10 @@
 static float Clamp01(float x) { return std::clamp(x, 0.0f, 1.0f); }
 
 void GameOverScene::OnEnter(GameApp& app) {
+
+    camera_ = std::make_unique<Camera>();
+    camera_->SetRotate({ 0.35f, 0.0f, 0.0f });
+    camera_->SetTranslate({ 0.0f, -10.0f, -0.0f });
 
    app.ObjCom()->SetDefaultCamera(camera_.get());
 
@@ -79,33 +83,83 @@ void GameOverScene::OnEnter(GameApp& app) {
     titleSp_->SetScale({ 2,2,1 });
     titleSp_->SetColor({ 0,0,0,1 });
 
+    // ===== Video Plane
+    videoPlane_ = std::make_unique<Object3d>();
+    videoPlane_->Initialize(app.ObjCom(), app.Dx());
+    videoPlane_->SetModel("video/plane.obj");
+    videoPlane_->SetCamera(camera_.get());
+
+    videoPlane_->SetEnableLighting(0);
+    videoPlane_->SetMaterialColor({ 1,1,1,1 });
+    videoPlane_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    // ★位置はひとまず例（GameClear の値をベースに調整）
+    srtVideo_.pos = { 0.0f, 0.0f, 10.0f };
+    srtVideo_.rot = { 0.0f, -3.15f, 0.0f };
+    srtVideo_.scale = { 4.2f, 2.3f, 1.0f };
+
+    videoPlane_->SetTranslate(srtVideo_.pos);
+    videoPlane_->SetRotate(srtVideo_.rot);
+    videoPlane_->SetScale(srtVideo_.scale);
+
+    // ===== Video Player（★GameOver.mp4 を開く）=====
+    video_ = std::make_unique<VideoPlayerMF>();
+    video_->Open("resources/video/GameOver.mp4", false);  // ★ループ無し（必要なら true）
+    video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv());
+    video_->SetVolume(1.0f);
+
+    // 最初のフレーム
+    video_->ReadNextVideoFrame();
+    video_->ReadNextFrame();
+
+    enableVideo_ = true;
+    uiTime_ = 0.0f;
+
+    damageObj_->SetCamera(camera_.get());
+    skyDome_->SetCamera(camera_.get());
+    videoPlane_->SetCamera(camera_.get());
+
+
 }
 
 void GameOverScene::OnExit(GameApp& app) {
     damageObj_.reset();
     skyDome_.reset();
+    camera_.reset();
+
+    if (video_) { video_->Close(); }
+    video_.reset();
+    videoPlane_.reset();
+
+    bg_.reset();
+    retrySp_.reset();
+    titleSp_.reset();
 }
 
+
 void GameOverScene::Update(GameApp& app, float dt) {
-    // ここも TitleScene と同じく GetAsyncKeyState でOK（Inputを使ってもOK）
     bool spaceNow = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
     bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
 
     bool spaceTrigger = spaceNow && !prevSpace_;
-    
-    skyDome_->Update(dt);
     bool enterTrigger = enterNow && !prevEnter_;
 
     prevSpace_ = spaceNow;
     prevEnter_ = enterNow;
 
+    if (skyDome_) skyDome_->Update(dt);
+    uiTime_ += dt;
+
+    if (videoPlane_) {
+        // 位置固定なら dt いらないが、Updateで行列更新してるなら毎フレーム呼ぶ
+        videoPlane_->Update(dt);
+    }
+
     switch (state_) {
     case State::EnterOpen:
     {
-        // 円を開く：0→1
         circle_ = Clamp01(circle_ + 1.35f * dt);
 
-        // damageの出現（0→1へ近づける）
         damageAlpha_ = Clamp01(damageAlpha_ + 2.5f * dt);
         damageScale_ = Clamp01(damageScale_ + 1.0f * dt);
 
@@ -116,6 +170,13 @@ void GameOverScene::Update(GameApp& app, float dt) {
 
     case State::Idle:
     {
+        // ★動画更新（映像 + 音）
+        if (enableVideo_ && video_) {
+            if (videoPlane_) videoPlane_->Update(dt);
+            video_->ReadNextVideoFrame();
+            video_->PumpAudio();
+        }
+
         const Input* input = app.GetInput();
 
         if (input->IsKeyPressed(DIK_LEFT) || input->IsKeyPressed(DIK_A)) {
@@ -125,7 +186,6 @@ void GameOverScene::Update(GameApp& app, float dt) {
             select_ = Select::Title;
         }
 
-        // 決定（SPACE or ENTER）
         if (spaceTrigger || enterTrigger) {
             decided_ = select_;
             state_ = State::ExitClose;
@@ -134,11 +194,9 @@ void GameOverScene::Update(GameApp& app, float dt) {
 
     case State::ExitClose:
     {
-        // 円を閉じる：1→0
         circle_ = Clamp01(circle_ - 1.8f * dt);
 
         if (circle_ <= 0.0f) {
-            // 真っ黒になった瞬間にシーン遷移
             if (decided_ == Select::Retry) {
                 RequestChangeScene_(kNextRetry_);
             } else {
@@ -148,37 +206,55 @@ void GameOverScene::Update(GameApp& app, float dt) {
     } break;
     }
 
-    // damage.obj（3D）を描く
-    if (damageObj_) {
-        // ★ 顔を大きく見せたいので倍率を強める
-        const float base = 0.005f;                // ← 基本サイズ（ここが超重要）
-        const float punch = damageScale_ * 1.5f; // ← ドン！と来る分
-        const float s = base + punch;
+    //// damage.obj（3D）
+    //if (damageObj_) {
+    //    const float base = 0.005f;
+    //    const float punch = damageScale_ * 1.5f;
+    //    const float s = base + punch;
+    //    damageObj_->SetScale({ s, s, s });
+    //    damageObj_->Update(dt);
+    //}
 
-        damageObj_->SetScale({ s, s, s });
+#ifdef USE_IMGUI
+    ImGui::Begin("GameOver Video");
+    ImGui::Checkbox("enableVideo", &enableVideo_);
+    ImGui::DragFloat3("T", &srtVideo_.pos.x, 0.1f);
+    ImGui::DragFloat3("R", &srtVideo_.rot.x, 0.01f);
+    ImGui::DragFloat3("S", &srtVideo_.scale.x, 0.1f);
+    ImGui::End();
 
-        // ※ Object3d に色を渡せるなら alpha を使う（無ければ無視でOK）
-        // damageObj_->SetColor({1,1,1,damageAlpha_});
-
-        damageObj_->Update(dt);
-
-       
+    if (videoPlane_) {
+        videoPlane_->SetTranslate(srtVideo_.pos);
+        videoPlane_->SetRotate(srtVideo_.rot);
+        videoPlane_->SetScale(srtVideo_.scale);
     }
-
+#endif
 }
 
 void GameOverScene::Draw(GameApp& app) {
 
     app.ObjCom()->SetGraphicsPipelineState();
 
-    skyDome_->Draw();
+    if (skyDome_) skyDome_->Draw();
 
-    // damage.obj（3D）を描く
+    // ===== Video（★GameClear と同じ）=====
+    if (enableVideo_ && video_ && videoPlane_) {
+        auto* cmd = app.Dx()->GetCommandList();
+
+        ID3D12DescriptorHeap* heaps[] = { app.Srv()->GetDescriptorHeap() };
+        cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
+        video_->UploadToGpu(cmd);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
+        videoPlane_->DrawWithOverrideSrv(vh);
+
+        video_->EndFrame(cmd);
+    }
+
+    // damage.obj
     if (damageObj_) {
-     
-        // ★Object3dCommon の PSO/RS セットが必要ならここで呼ぶ
-        // 例：app.ObjCom()->SetGraphicsPipelineState();
-        damageObj_->Draw();
+    //    damageObj_->Draw();
     }
 
     // 2D
@@ -190,13 +266,12 @@ void GameOverScene::Draw(GameApp& app) {
 
     if (bg_) { bg_->Update(view, proj); bg_->Draw(); }
 
-    // 選択中の強調（例：選択中だけ少し大きく）
     if (retrySp_) retrySp_->SetScale(select_ == Select::Retry ? Vector3{ 1.8f,1.8f,1 } : Vector3{ 1,1,1 });
     if (titleSp_) titleSp_->SetScale(select_ == Select::Title ? Vector3{ 1.8f,1.8f,1 } : Vector3{ 1,1,1 });
 
     if (retrySp_) { retrySp_->Update(view, proj); retrySp_->Draw(); }
     if (titleSp_) { titleSp_->Update(view, proj); titleSp_->Draw(); }
 
-    // 最後に円マスク（必ず最後）
+    // マスク（最後）
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
 }
