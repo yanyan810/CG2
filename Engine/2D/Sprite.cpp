@@ -3,14 +3,6 @@
 #include "DirectXCommon.h"
 #include <cassert>
 
-
-// シェーダの入力と合わせた簡易頂点
-struct SpriteVertex {
-    float px, py, pz, pw; // POSITION
-    float u, v;           // TEXCOORD
-    float nx, ny, nz;     // NORMAL（使わないが入力合わせで保持）
-};
-
 void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::string textureFilePath) {
     spriteCommon_ = spriteCommon;
     dx_ = dx;
@@ -21,19 +13,18 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
 
 
     // === 頂点/インデックス ===
-    vertexResource_ = dx->CreateBufferResource(sizeof(SpriteVertex) * 4);
+    vertexResource_ = dx->CreateBufferResource(sizeof(VertexData) * 4);
     indexResource_ = dx->CreateBufferResource(sizeof(uint32_t) * 6);
 
     size_ = { 128.0f, 128.0f };// デフォルトサイズ
 
     // 頂点データ（画面ピクセル座標のまま。WVPは main 側で正射影にする想定）
-    SpriteVertex* v = nullptr;
+    VertexData* v = nullptr;
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&v));
-    // 0: 左下 / 1: 左上 / 2: 右下 / 3: 右上
-    v[0] = { 0.0f, 300.0f, 0.0f, 1.0f,  0.0f,1.0f,  0,0,-1 };
-    v[1] = { 0.0f,   0.0f, 0.0f, 1.0f,  0.0f,0.0f,  0,0,-1 };
-    v[2] = { 640.f, 300.0f,0.0f, 1.0f,  1.0f,1.0f,  0,0,-1 };
-    v[3] = { 640.f,   0.0f,0.0f, 1.0f,  1.0f,0.0f,  0,0,-1 };
+    v[0] = { {0.0f, 300.0f, 0.0f, 1.0f}, {0.0f,1.0f}, {0,0,-1} };
+    v[1] = { {0.0f,   0.0f, 0.0f, 1.0f}, {0.0f,0.0f}, {0,0,-1} };
+    v[2] = { {640.f, 300.0f,0.0f, 1.0f}, {1.0f,1.0f}, {0,0,-1} };
+    v[3] = { {640.f,   0.0f,0.0f, 1.0f}, {1.0f,0.0f}, {0,0,-1} };
     // UnmapしなくてOK（永続Mapでも可）
 
     uint32_t* idx = nullptr;
@@ -43,8 +34,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
 
     // ビュー
     vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
-    vertexBufferView_.SizeInBytes = sizeof(SpriteVertex) * 4;
-    vertexBufferView_.StrideInBytes = sizeof(SpriteVertex);
+    vertexBufferView_.SizeInBytes = sizeof(VertexData) * 4;
+    vertexBufferView_.StrideInBytes = sizeof(VertexData);
 
     indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
     indexBufferView_.SizeInBytes = sizeof(uint32_t) * 6;
@@ -70,7 +61,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
 // 座標-反映処理：position_ → transform.translate
 void Sprite::Update(const Matrix4x4& view, const Matrix4x4& proj) {
     // --- 1) アンカー反映で頂点を書き換え ---
-    SpriteVertex* v = nullptr;
+    VertexData* v = nullptr;
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&v));
 
     const DirectX::TexMetadata& metadata =
@@ -102,10 +93,10 @@ void Sprite::Update(const Matrix4x4& view, const Matrix4x4& proj) {
 	}
 
     // 0: 左下 / 1: 左上 / 2: 右下 / 3: 右上（UVはそのまま）
-    v[0] = { left,  bottom, 0, 1,  texL, texB, 0,0,-1 };
-    v[1] = { left,  top,    0, 1,  texL, texT, 0,0,-1 };
-    v[2] = { right, bottom, 0, 1,  texR, texB, 0,0,-1 };
-    v[3] = { right, top,    0, 1,  texR, texT, 0,0,-1 };
+    v[0] = { {left,  bottom, 0, 1}, {texL, texB}, {0,0,-1} };
+    v[1] = { {left,  top,    0, 1}, {texL, texT}, {0,0,-1} };
+    v[2] = { {right, bottom, 0, 1}, {texR, texB}, {0,0,-1} };
+    v[3] = { {right, top,    0, 1}, {texR, texT}, {0,0,-1} };
 
     // --- 2) 変換：サイズ→ユーザースケール→回転→配置 ---
     // 頂点は単位矩形なので、サイズは行列のスケールで与える
@@ -132,23 +123,7 @@ void Sprite::Draw() {
     ID3D12DescriptorHeap* heaps[] = { TextureManager::GetInstance()->GetSrvDescriptorHeap() };
     dx_->GetCommandList()->SetDescriptorHeaps(1, heaps);
 
-
-  /*  assert(srv_.ptr != 0 && "Call SetTexture() before Draw()");
-
-    if (srv_.ptr == 0 && srvSlot_ != UINT32_MAX) {
-        srv_ = dx_->GetSRVGPUDescriptorHandle(static_cast<int>(srvSlot_));
-    }
-    assert(srv_.ptr != 0 && "SetTexture() か SetTextureSlot() でテクスチャを設定して下さい");*/
-
     D3D12_GPU_DESCRIPTOR_HANDLE texSrv{};
-
-    //if (srvSlot_ != UINT32_MAX) {
-    //    // slot 指定があるならそっち（※これは DirectXCommon 側のSRVヒープ運用のときだけ有効）
-    //    texSrv = dx_->GetSRVGPUDescriptorHandle(static_cast<int>(srvSlot_));
-    //} else {
-    //    // 通常は TextureManager（filePath）から取る
-    //    texSrv = TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_);
-    //}
 
     // slot は一旦使わない（混在防止）
     texSrv = TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_);
