@@ -49,12 +49,6 @@ public:
 	// === 既存：UV, 行列など ===
 	void SetUVTransform(const Matrix4x4& m) { if (materialData_) materialData_->uvTransform = m; }
 
-	// 今まで通りのハンドル直指定も残す
-	void SetTexture(D3D12_GPU_DESCRIPTOR_HANDLE srv) { srv_ = srv; srvSlot_ = UINT32_MAX; }
-
-	// 新規：スロット番号だけ指定（例：1, 2, ...）
-	void SetTextureSlot(uint32_t slot) { srvSlot_ = slot; }
-
 	// === Updateは position_ を反映（座標-反映処理） ===
 	void Update(const Matrix4x4& view, const Matrix4x4& proj);
 
@@ -124,8 +118,6 @@ private:
 	Vector4 color_{ 1,1,1,1 };
 
 	DirectXCommon* dx_ = nullptr;
-	D3D12_GPU_DESCRIPTOR_HANDLE srv_{}; // Drawで使用
-	uint32_t srvSlot_ = UINT32_MAX; // UINT32_MAXなら未指定扱い
 
 	std::string textureFilePath_;
 
