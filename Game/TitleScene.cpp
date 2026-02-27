@@ -92,7 +92,7 @@ void TitleScene::OnEnter(GameApp& app) {
     pressStart_ = std::make_unique<Sprite>();
     pressStart_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/pressSpace.png"); // 例
     pressStart_->SetAnchorPoint({ 0, 0 });
- //   pressStart_->SetPosition({ WinApp::kClientWidth * 0.5f, WinApp::kClientHeight * 0.80f });
+    pressStart_->SetPosition({ 100,100});
     pressStart_->SetScale({ 1,1,1 }); // 128x128なら等倍でOK
 
     // ===== Video Plane =====
@@ -409,6 +409,38 @@ void TitleScene::Update(GameApp& app, float dt) {
     ImGui::End();
 
 #endif
+
+#ifdef USE_IMGUI
+
+    // ===== 課題用ウィンドウ =====
+    ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_Once);
+
+    if (ImGui::Begin("Sprite Position Control"))
+    {
+        // 現在のpressStartの座標を取得
+        Vector2 pos = pressStart_->GetPosition();
+
+        // スライダーで操作（小数1桁表示）
+        ImGui::SliderFloat2(
+            "PressStart Pos",
+            &pos.x,
+            0.0f,
+            1280.0f,
+            "%04.1f"
+        );
+
+        // 変更を反映
+        pressStart_->SetPosition(pos);
+
+        // 数値表示（整数4桁、小数1桁）
+        ImGui::Text("X: %04.1f  Y: %04.1f", pos.x, pos.y);
+    }
+
+    ImGui::End();
+
+#endif
+
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
 
     // ---- Spot angle deg -> cos ----
@@ -481,7 +513,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 
     // 2D
     ApplySpriteSRT(bg_.get(), srtBG_);
-    ApplySpriteSRT(pressStart_.get(), srtPress_);
+    //ApplySpriteSRT(pressStart_.get(), srtPress_);
     ApplyObject3dSRT(ground_.get(), srtGround_);
 
 
