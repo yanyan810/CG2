@@ -193,13 +193,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\ParticleCommon.cpp" />
     <ClCompile Include="Engine\SkinnedModel.cpp" />
     <ClCompile Include="Engine\SrvManager.cpp" />
-    <ClCompile Include="externals\imgui\imgui.cpp" />
-    <ClCompile Include="externals\imgui\imgui_demo.cpp" />
-    <ClCompile Include="externals\imgui\imgui_draw.cpp" />
-    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp" />
-    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp" />
-    <ClCompile Include="externals\imgui\imgui_tables.cpp" />
-    <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
     <ClCompile Include="Engine\Input\Input.cpp" />
     <ClCompile Include="Engine\Logger.cpp" />
     <ClCompile Include="Engine\ImGuiManagaer.cpp" />
@@ -318,14 +311,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\ParticleCommon.h" />
     <ClInclude Include="Engine\SkinnedModel.h" />
     <ClInclude Include="Engine\SrvManager.h" />
-    <ClInclude Include="externals\imgui\imconfig.h" />
-    <ClInclude Include="externals\imgui\imgui.h" />
-    <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
-    <ClInclude Include="externals\imgui\imgui_impl_win32.h" />
-    <ClInclude Include="externals\imgui\imgui_internal.h" />
-    <ClInclude Include="externals\imgui\imstb_rectpack.h" />
-    <ClInclude Include="externals\imgui\imstb_textedit.h" />
-    <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="Engine\Input\Input.h" />
     <ClInclude Include="Engine\Logger.h" />
     <ClInclude Include="Engine\math\Matrix4x4.h" />
@@ -342,9 +327,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\player\PlayerCombo.h" />
     <ClInclude Include="Game\player\Player.h" />
     <ClInclude Include="Game\TestScene.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="externals\imgui\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
