@@ -158,11 +158,7 @@ void TitleScene::OnEnter(GameApp& app) {
     switchT_ = 0.0f;        // ← タイマーリセット
 
 
-    db_.BuildSample();
-    hand_ = { 1,2,1,2,1 };
-    energy_ = energyMax_;
-    handView_.Initialize(app.ObjCom(), app.Dx(), camera_.get(), &db_);
-    handView_.Rebuild(hand_);
+    battle_.Initialize(app, camera_.get());
 
 }
 
@@ -361,39 +357,6 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 #endif
 
-#ifdef USE_IMGUI
-    ImGui::Begin("Card Debug");
-
-    ImGui::Text("Energy: %d / %d", energy_, energyMax_);
-    ImGui::Separator();
-
-    ImGui::Text("Hand: %d cards", (int)hand_.size());
-    ImGui::Text("Discard: %d cards", (int)discard_.size());
-
-    ImGui::End();
-#endif
-
-#ifdef USE_IMGUI
-    ImGui::Begin("Card Debug");
-
-    ImGui::Text("Energy: %d / %d", energy_, energyMax_);
-    ImGui::Separator();
-
-    ImGui::Text("Hand: %d cards", (int)hand_.size());
-    for (int i = 0; i < (int)hand_.size(); ++i) {
-        ImGui::BulletText("[%d] id=%d", i, hand_[i]);
-    }
-
-    ImGui::Separator();
-
-    ImGui::Text("Discard: %d cards", (int)discard_.size());
-    for (int i = 0; i < (int)discard_.size(); ++i) {
-        ImGui::BulletText("[%d] id=%d", i, discard_[i]);
-    }
-
-    ImGui::End();
-#endif
-
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
 
     // ---- Spot angle deg -> cos ----
@@ -469,53 +432,7 @@ void TitleScene::Update(GameApp& app, float dt) {
     //ApplySpriteSRT(pressStart_.get(), srtPress_);
     ApplyObject3dSRT(ground_.get(), srtGround_);
 
-
-    // 毎フレーム：マウス位置取得
-    POINT mouse;
-    GetCursorPos(&mouse);
-    ScreenToClient(app.Win()->GetHwnd(), &mouse);
-
-    // 毎フレーム：hover 判定
-    int hover = handView_.PickIndexByMouse(
-        mouse.x, mouse.y,
-        camera_->GetViewProjectionMatrix(),
-        (float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-    );
-    handView_.SetHoverIndex(hover);
-
-    static bool prevL = false;
-    bool nowL = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-    bool trigL = nowL && !prevL;
-    prevL = nowL;
-
-    if (trigL) {
-        POINT p;
-        GetCursorPos(&p);
-        ScreenToClient(app.Win()->GetHwnd(), &p); // ここはあなたのWinAppに合わせる
-
-        int idx = handView_.PickIndexByMouse(
-            p.x, p.y,
-            camera_->GetViewProjectionMatrix(),
-            (float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-        );
-        if (idx >= 0) {
-            if (idx >= (int)hand_.size()) {
-                OutputDebugStringA("[CardPick] idx out of range for hand_\n");
-                return;
-            }
-
-            int defId = hand_[idx];
-            const CardDef* def = db_.Find(defId);
-            if (def && def->cost <= energy_) {
-                energy_ -= def->cost;
-                discard_.push_back(defId);
-                hand_.erase(hand_.begin() + idx);
-                handView_.Rebuild(hand_);
-            }
-        }
-    }
-
-    handView_.Update(dt);
+    battle_.Update(app, dt);
 
 }
 
@@ -529,7 +446,7 @@ void TitleScene::Draw(GameApp& app) {
     //    titlePlayer->Draw();
     //}
 
-    handView_.Draw();
+    battle_.Draw(app);
 
     // ---- Video ----
     //if (enableVideo_ && videoPlane_ && video_ && showVideo_) {
@@ -558,7 +475,7 @@ void TitleScene::Draw(GameApp& app) {
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
-    if (!showVideo_) {
+  /*  if (!showVideo_) {
         if (bg_) {
             bg_->Update(view, proj);
             bg_->Draw();
@@ -567,7 +484,7 @@ void TitleScene::Draw(GameApp& app) {
             pressStart_->Update(view, proj);
             pressStart_->Draw();
         }
-    }
+    }*/
 
     // ===== マスクは必ず最後 =====
     app.SpriteCom()->DrawCircleMask(circle_, softness_);

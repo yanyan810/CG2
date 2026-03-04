@@ -14,8 +14,7 @@
 #include "Player.h"
 #include "PlayerCombo.h"
 
-#include "CardDatabase.h"
-#include "HandView3D.h"
+#include "BattleController.h"
 
 class Particle;
 class Camera;
@@ -30,12 +29,7 @@ public:
 
 private:
 
-	CardDatabase db_;
-	HandView3D handView_;
-	std::vector<int> hand_;
-	std::vector<int> discard_;
-	int energyMax_ = 3;
-	int energy_ = 3;
+	BattleController battle_;
 
 private:
 	void DrawImGui_ModelSwitchersOneWindow();

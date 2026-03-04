@@ -71,21 +71,49 @@ void HandView3D::LayoutFan_()
 
 void HandView3D::Update(float dt)
 {
-    // 好みで調整
-    const float hoverLift = 0.6f;     // どれだけ上げるか（ワールド単位）
-    const float follow = 18.0f;       // 追従速度（大きいほどキビキビ）
-    const float k = 1.0f - std::exp(-follow * dt); // dt依存で安定する補間係数
+    const float hoverLift = 0.6f;
+    const float follow = 18.0f;
+    const float k = 1.0f - std::exp(-follow * dt);
+
+    // px -> world のざっくり換算（好みで調整）
+    const float pxToWorldX = 0.01f;
+    const float pxToWorldY = -0.01f; // 画面Y下向きなので符号逆が自然なことが多い
 
     int n = (int)cards_.size();
     for (int i = 0; i < n; ++i) {
 
-        float target = (i == hoverIndex_) ? hoverLift : 0.0f;
-        liftY_[i] += (target - liftY_[i]) * k; // ふわっと
+        // --- 基本のhover持ち上げ ---
+        float targetLift = (i == hoverIndex_) ? hoverLift : 0.0f;
+        liftY_[i] += (targetLift - liftY_[i]) * k;
 
         Vector3 pos = basePos_[i];
+        Vector3 rot = baseRot_[i];
+        Vector3 scl = baseScl_[i];
+
         pos.y += liftY_[i];
 
-        cards_[i]->SetTransform(pos, baseRot_[i], baseScl_[i]);
+        // --- ドラッグ中：カードをスライド ---
+        if (dragActive_ && i == dragIndex_) {
+            pos.x += dragDxPx_ * pxToWorldX;
+            pos.y += dragDyPx_ * pxToWorldY;
+            // ちょい持ち上げ強めでも良い
+            pos.y += 0.3f;
+        }
+
+        // --- プレビュー中：目の前に出す ---
+        if (previewIndex_ >= 0 && i == previewIndex_) {
+            // 目の前（数値は好みで）
+            Vector3 frontPos{ 0.0f, 0.0f, 3.0f };
+            Vector3 frontRot{ 0.0f, 0.0f, 0.0f };
+            Vector3 frontScl{ 2.0f, 2.0f, 2.0f };
+
+            // ふわっと遷移したいなら補間してもOK（いまは即反映）
+            pos = frontPos;
+            rot = frontRot;
+            scl = frontScl;
+        }
+
+        cards_[i]->SetTransform(pos, rot, scl);
         cards_[i]->Update(dt);
     }
 }
@@ -116,4 +144,12 @@ int HandView3D::PickIndexByMouse(int mouseX, int mouseY,
         }
     }
     return best;
+}
+
+void HandView3D::SetDrag(int idx, float dxPx, float dyPx, bool active)
+{
+    dragIndex_ = idx;
+    dragDxPx_ = dxPx;
+    dragDyPx_ = dyPx;
+    dragActive_ = active;
 }
