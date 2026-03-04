@@ -169,6 +169,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\BattleController.cpp" />
     <ClCompile Include="Game\Card\CardDatabase.cpp" />
     <ClCompile Include="Engine\2D\Sprite.cpp" />
     <ClCompile Include="Engine\2D\SpriteCommon.cpp" />
@@ -288,6 +289,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\BattleController.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />
     <ClInclude Include="Game\Card\CardDef.h" />
     <ClInclude Include="Engine\2D\Sprite.h" />

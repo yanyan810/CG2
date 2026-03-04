@@ -20,8 +20,15 @@ public:
 
     int PickIndexByMouse(int mouseX, int mouseY, const Matrix4x4& viewProj, float screenW, float screenH) const;
 
-    // ★追加：外から hover をセット
+    // 外から hover をセット
     void SetHoverIndex(int idx) { hoverIndex_ = idx; }
+
+    // ドラッグ中の情報
+    void SetDrag(int idx, float dxPx, float dyPx, bool active);
+
+    // プレビュー（目の前に出すカード）
+    void SetPreviewIndex(int idx) { previewIndex_ = idx; }
+
 
 private:
     void LayoutFan_(); // 扇状に並べる
@@ -43,4 +50,12 @@ private:
     std::vector<float> liftY_;
 
     int hoverIndex_ = -1;
+
+    int dragIndex_ = -1;
+    bool dragActive_ = false;
+    float dragDxPx_ = 0.0f;
+    float dragDyPx_ = 0.0f;
+
+    int previewIndex_ = -1;
+
 };
