@@ -158,6 +158,12 @@ void TitleScene::OnEnter(GameApp& app) {
     switchT_ = 0.0f;        // ← タイマーリセット
 
 
+    db_.BuildSample();
+    hand_ = { 1,2,1,2,1 };
+    energy_ = energyMax_;
+    handView_.Initialize(app.ObjCom(), app.Dx(), camera_.get(), &db_);
+    handView_.Rebuild(hand_);
+
 }
 
 void TitleScene::OnExit(GameApp&) {
@@ -253,41 +259,12 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 #ifdef USE_IMGUI
 
-    // ===== ImGui =====
     ImGui::Begin("Camera Debug");
-
     ImGui::DragFloat3("Position", &imguiCamPos_.x, 0.1f);
     ImGui::DragFloat3("Rotation", &imguiCamRot_.x, 0.01f);
-
     ImGui::End();
-    
-#endif // DEBUG
-
-#ifdef USE_IMGUI
-    ImGui::Begin("Phong Check");
-
-    ImGui::Checkbox("Orbit Camera", &orbitCam_);
-    ImGui::DragFloat("Orbit Speed", &orbitSpeed_, 0.01f, 0.0f, 5.0f);
-    ImGui::DragFloat("Orbit Radius", &orbitRadius_, 0.1f, 1.0f, 50.0f);
-
-    ImGui::SliderFloat("Shininess", &shininess_, 1.0f, 256.0f);
-
-    // 1:Lambert 2:Half 3:SpecOnly
-    ImGui::RadioButton("Lambert", &lightingMode_, 1); ImGui::SameLine();
-    ImGui::RadioButton("HalfLambert", &lightingMode_, 2); ImGui::SameLine();
-    ImGui::RadioButton("SpecOnly(Phong)", &lightingMode_, 3); ImGui::SameLine();
-    ImGui::RadioButton("SpecOnly(Blinn)", &lightingMode_, 4);
-
-    ImGui::Separator();
-    ImGui::Text("Light");
-
-    ImGui::DragFloat3("Dir", &lightDir_.x, 0.01f, -1.0f, 1.0f);
-    ImGui::SliderFloat("Intensity", &lightIntensity_, 0.0f, 5.0f);
-    ImGui::ColorEdit3("Color", &lightColor_.x); // RGBだけ
-
-
-    ImGui::End();
-
+   
+ 
     ImGui::Begin("Object SRT (Per-Object)");
 
     static const char* targetLabels[] = {
@@ -302,7 +279,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 
     ImGui::Combo("Target", &editTarget_, targetLabels, IM_ARRAYSIZE(targetLabels));
 
-
+    ImGui::End();
     // ターゲットに応じて参照先を切り替え
     SRT* cur = nullptr;
     switch ((EditTarget)editTarget_) {
@@ -323,63 +300,6 @@ void TitleScene::Update(GameApp& app, float dt) {
         ImGui::DragFloat3("R", &cur->rot.x, 0.01f);
         ImGui::DragFloat3("S", &cur->scale.x, 0.1f, 0.001f, 100.0f);
     }
-
-    ImGui::Separator();
-    ImGui::Text("PointLight");
-
-    ImGui::DragFloat3("Point Pos", &pointPos_.x, 0.1f);
-    ImGui::SliderFloat("Point Intensity", &pointIntensity_, 0.0f, 10.0f);
-    ImGui::DragFloat(
-        "Point Radius",
-        &pointRadius_,
-        0.1f,        // 1ドラッグの変化量
-        0,        // 最小
-        100.0f,      // 最大（まずは100で十分）
-        "%.2f"
-    );
-    ImGui::DragFloat(
-        "Point Decay",
-        &pointDecay_,
-        0.05f,
-        0.0f,
-        8.0f,
-        "%.2f"
-    );
-
-    ImGui::ColorEdit3("Point Color", &pointColor_.x);
-
-    ImGui::Separator();
-    ImGui::RadioButton("View: All", &lightViewMode_, 0); ImGui::SameLine();
-    ImGui::RadioButton("View: DirOnly", &lightViewMode_, 1); ImGui::SameLine();
-    ImGui::RadioButton("View: PointOnly", &lightViewMode_, 2);
-
-    ImGui::Separator();
-    ImGui::Text("SpotLight");
-
-    ImGui::DragFloat3("Spot Pos", &spotPos_.x, 0.1f);
-    ImGui::DragFloat3("Spot Dir", &spotDir_.x, 0.01f, -1.0f, 1.0f);
-
-    ImGui::SliderFloat("Spot Intensity", &spotIntensity_, 0.0f, 20.0f);
-    ImGui::DragFloat("Spot Distance", &spotDistance_, 0.1f, 0.0f, 200.0f, "%.2f");
-    ImGui::DragFloat("Spot Decay", &spotDecay_, 0.05f, 0.0f, 8.0f, "%.2f");
-
-    ImGui::ColorEdit3("Spot Color", &spotColor_.x);
-
-    ImGui::SliderFloat("Spot Angle (deg)", &spotAngleDeg_, 1.0f, 89.0f);
-    ImGui::SliderFloat("Falloff Start (deg)", &spotFalloffStartDeg_, 0.5f, 89.0f);
-
-    ImGui::End();
-
-    if (particle_) {
-        particle_->DebugImGui(); // ★Particle側のウィンドウを出す
-    }
-
-
-    DrawImGui_ModelSwitchersOneWindow();
-
-    ImGui::Begin("Video");
-    ImGui::Checkbox("Enable Video", &enableVideo_);
-    ImGui::End();
 
     ImGui::Begin("Video");
 
@@ -439,6 +359,39 @@ void TitleScene::Update(GameApp& app, float dt) {
 
     ImGui::End();
 
+#endif
+
+#ifdef USE_IMGUI
+    ImGui::Begin("Card Debug");
+
+    ImGui::Text("Energy: %d / %d", energy_, energyMax_);
+    ImGui::Separator();
+
+    ImGui::Text("Hand: %d cards", (int)hand_.size());
+    ImGui::Text("Discard: %d cards", (int)discard_.size());
+
+    ImGui::End();
+#endif
+
+#ifdef USE_IMGUI
+    ImGui::Begin("Card Debug");
+
+    ImGui::Text("Energy: %d / %d", energy_, energyMax_);
+    ImGui::Separator();
+
+    ImGui::Text("Hand: %d cards", (int)hand_.size());
+    for (int i = 0; i < (int)hand_.size(); ++i) {
+        ImGui::BulletText("[%d] id=%d", i, hand_[i]);
+    }
+
+    ImGui::Separator();
+
+    ImGui::Text("Discard: %d cards", (int)discard_.size());
+    for (int i = 0; i < (int)discard_.size(); ++i) {
+        ImGui::BulletText("[%d] id=%d", i, discard_[i]);
+    }
+
+    ImGui::End();
 #endif
 
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
@@ -517,6 +470,53 @@ void TitleScene::Update(GameApp& app, float dt) {
     ApplyObject3dSRT(ground_.get(), srtGround_);
 
 
+    // 毎フレーム：マウス位置取得
+    POINT mouse;
+    GetCursorPos(&mouse);
+    ScreenToClient(app.Win()->GetHwnd(), &mouse);
+
+    // 毎フレーム：hover 判定
+    int hover = handView_.PickIndexByMouse(
+        mouse.x, mouse.y,
+        camera_->GetViewProjectionMatrix(),
+        (float)WinApp::kClientWidth, (float)WinApp::kClientHeight
+    );
+    handView_.SetHoverIndex(hover);
+
+    static bool prevL = false;
+    bool nowL = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+    bool trigL = nowL && !prevL;
+    prevL = nowL;
+
+    if (trigL) {
+        POINT p;
+        GetCursorPos(&p);
+        ScreenToClient(app.Win()->GetHwnd(), &p); // ここはあなたのWinAppに合わせる
+
+        int idx = handView_.PickIndexByMouse(
+            p.x, p.y,
+            camera_->GetViewProjectionMatrix(),
+            (float)WinApp::kClientWidth, (float)WinApp::kClientHeight
+        );
+        if (idx >= 0) {
+            if (idx >= (int)hand_.size()) {
+                OutputDebugStringA("[CardPick] idx out of range for hand_\n");
+                return;
+            }
+
+            int defId = hand_[idx];
+            const CardDef* def = db_.Find(defId);
+            if (def && def->cost <= energy_) {
+                energy_ -= def->cost;
+                discard_.push_back(defId);
+                hand_.erase(hand_.begin() + idx);
+                handView_.Rebuild(hand_);
+            }
+        }
+    }
+
+    handView_.Update(dt);
+
 }
 
 void TitleScene::Draw(GameApp& app) {
@@ -524,24 +524,26 @@ void TitleScene::Draw(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
 	skyDome_->Draw();
-    if (!showVideo_) {
-        ground_->Draw();
-        titlePlayer->Draw();
-    }
+    //if (!showVideo_) {
+    //    ground_->Draw();
+    //    titlePlayer->Draw();
+    //}
+
+    handView_.Draw();
 
     // ---- Video ----
-    if (enableVideo_ && videoPlane_ && video_ && showVideo_) {
-        auto* cmd = app.Dx()->GetCommandList();
+    //if (enableVideo_ && videoPlane_ && video_ && showVideo_) {
+    //    auto* cmd = app.Dx()->GetCommandList();
 
-        video_->UploadToGpu(cmd);
+    //    video_->UploadToGpu(cmd);
 
-        D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
-        videoPlane_->DrawWithOverrideSrv(vh);
+    //    D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
+    //    videoPlane_->DrawWithOverrideSrv(vh);
 
-        video_->EndFrame(cmd);
-    }
+    //    video_->EndFrame(cmd);
+    //}
 
-
+  
 
     // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
     app.ParticleCom()->SetGraphicsPipelineState();
