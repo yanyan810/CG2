@@ -83,7 +83,7 @@
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\Input;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\3D;$(ProjectDir)Game\player;$(ProjectDir)Game\enemy;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Game\Card;$(ProjectDir)Game\UI;$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\Input;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\3D;$(ProjectDir)Game\player;$(ProjectDir)Game\enemy;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -116,7 +116,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\Input;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\3D;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)externals\assimp\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Game\Card;$(ProjectDir)Game\UI;$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\Input;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\3D;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)Game\Card;$(ProjectDir)Game\UI</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -149,7 +149,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\Input;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\3D;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)externals\assimp;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\Input</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Game\Card;$(ProjectDir)Game\UI;$(ProjectDir)math\Vector3;$(ProjectDir)math\Matrix4x4;$(ProjectDir)Engine;$(ProjectDir)externals;$(ProjectDir)externals/imgui;$(ProjectDir)externals/DirectXTex/;$(ProjectDir)Engine/math;$(ProjectDir)Engine/2d;$(ProjectDir)Engine/3d;$(ProjectDir)Engine/Audio;$(SolutionDir)..\generated\obj\$(ProjectName)\&amp;(Configuration)\;%(AdditionalIncludeDirectories);$(ProjectDir)Game;$(ProjectDir)externals\assimp\include;$(ProjectDir)Engine\2D;$(ProjectDir)Engine\Input;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\3D;$(ProjectDir)Game\enemy;$(ProjectDir)Game\player;$(ProjectDir)externals\assimp;$(ProjectDir)Engine\Camera;$(ProjectDir)Engine\Input</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -169,6 +169,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\Card\CardDatabase.cpp" />
     <ClCompile Include="Engine\2D\Sprite.cpp" />
     <ClCompile Include="Engine\2D\SpriteCommon.cpp" />
     <ClCompile Include="Engine\2D\TextureManager.cpp" />
@@ -205,6 +206,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\ImGuiManagaer.cpp" />
     <ClCompile Include="Engine\GameApp.cpp" />
     <ClCompile Include="Game\GameScene.cpp" />
+    <ClCompile Include="Game\UI\Card3D.cpp" />
+    <ClCompile Include="Game\UI\HandView3D.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</WholeProgramOptimization>
@@ -285,6 +288,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\Card\CardDatabase.h" />
+    <ClInclude Include="Game\Card\CardDef.h" />
     <ClInclude Include="Engine\2D\Sprite.h" />
     <ClInclude Include="Engine\2D\SpriteCommon.h" />
     <ClInclude Include="Engine\2D\TextureManager.h" />
@@ -342,6 +347,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\player\PlayerCombo.h" />
     <ClInclude Include="Game\player\Player.h" />
     <ClInclude Include="Game\TestScene.h" />
+    <ClInclude Include="Game\UI\Card3D.h" />
+    <ClInclude Include="Game\UI\HandView3D.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

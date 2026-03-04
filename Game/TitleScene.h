@@ -14,6 +14,9 @@
 #include "Player.h"
 #include "PlayerCombo.h"
 
+#include "CardDatabase.h"
+#include "HandView3D.h"
+
 class Particle;
 class Camera;
 
@@ -26,6 +29,13 @@ public:
 	void Draw(GameApp& app) override;
 
 private:
+
+	CardDatabase db_;
+	HandView3D handView_;
+	std::vector<int> hand_;
+	std::vector<int> discard_;
+	int energyMax_ = 3;
+	int energy_ = 3;
 
 private:
 	void DrawImGui_ModelSwitchersOneWindow();
