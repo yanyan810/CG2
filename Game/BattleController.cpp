@@ -4,6 +4,205 @@
 #include <Windows.h>
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
+#include <array>
+#include <algorithm>
+
+#include <random>
+
+//===============================
+//役
+//===============================
+
+const char* BattleController::GetPokerHandName_(PokerHandRank rank) const
+{
+    switch (rank) {
+    case PokerHandRank::None:                 return "None";
+    case PokerHandRank::OnePair:              return "One Pair";
+    case PokerHandRank::TwoPair:              return "Two Pair";
+    case PokerHandRank::ThreeOfAKind:         return "Three of a Kind";
+    case PokerHandRank::Straight:             return "Straight";
+    case PokerHandRank::Flush:                return "Flush";
+    case PokerHandRank::FullHouse:            return "Full House";
+    case PokerHandRank::FourOfAKind:          return "Four of a Kind";
+    case PokerHandRank::StraightFlush:        return "Straight Flush";
+    case PokerHandRank::RoyalStraightFlush:   return "Royal Straight Flush";
+    default:                                  return "?";
+    }
+}
+
+BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
+{
+    PokerHandResult result{};
+
+    if (field_.size() != 5) {
+        result.rank = PokerHandRank::None;
+        result.power = 0;
+        return result;
+    }
+
+    std::array<int, 14> countNumber{}; // 1~13 を使う
+    std::array<int, 4> countSuit{};    // Spade/Heart/Diamond/Club
+
+    std::vector<int> numbers;
+    numbers.reserve(5);
+
+    for (const auto& c : field_) {
+        if (c.number >= 1 && c.number <= 13) {
+            countNumber[c.number]++;
+            numbers.push_back(c.number);
+        }
+
+        int suitIndex = static_cast<int>(c.suit);
+        if (suitIndex >= 0 && suitIndex < 4) {
+            countSuit[suitIndex]++;
+        }
+    }
+
+    std::sort(numbers.begin(), numbers.end());
+
+    // ---- Flush 判定 ----
+    bool isFlush = false;
+    for (int s : countSuit) {
+        if (s == 5) {
+            isFlush = true;
+            break;
+        }
+    }
+
+    // ---- Straight 判定 ----
+    bool isStraight = false;
+
+    // 通常の連番
+    {
+        bool straight = true;
+        for (int i = 0; i < 4; ++i) {
+            if (numbers[i] + 1 != numbers[i + 1]) {
+                straight = false;
+                break;
+            }
+        }
+        if (straight) {
+            isStraight = true;
+        }
+    }
+
+    // A,10,J,Q,K を認める
+    if (!isStraight) {
+        std::vector<int> royal = numbers;
+        std::sort(royal.begin(), royal.end());
+        if (royal.size() == 5 &&
+            royal[0] == 1 &&
+            royal[1] == 10 &&
+            royal[2] == 11 &&
+            royal[3] == 12 &&
+            royal[4] == 13) {
+            isStraight = true;
+        }
+    }
+
+    // A,2,3,4,5 を認める
+    if (!isStraight) {
+        std::vector<int> lowA = numbers;
+        std::sort(lowA.begin(), lowA.end());
+        if (lowA.size() == 5 &&
+            lowA[0] == 1 &&
+            lowA[1] == 2 &&
+            lowA[2] == 3 &&
+            lowA[3] == 4 &&
+            lowA[4] == 5) {
+            isStraight = true;
+        }
+    }
+
+    // ---- 同数枚数を数える ----
+    int pairCount = 0;
+    bool hasThree = false;
+    bool hasFour = false;
+
+    for (int n = 1; n <= 13; ++n) {
+        if (countNumber[n] == 2) pairCount++;
+        if (countNumber[n] == 3) hasThree = true;
+        if (countNumber[n] == 4) hasFour = true;
+    }
+
+    // ---- 役判定（強い順）----
+    bool isRoyal = (numbers[0] == 1 &&
+        numbers[1] == 10 &&
+        numbers[2] == 11 &&
+        numbers[3] == 12 &&
+        numbers[4] == 13);
+
+    if (isStraight && isFlush && isRoyal) {
+        result.rank = PokerHandRank::RoyalStraightFlush;
+        result.power = 100;
+    } else if (isStraight && isFlush) {
+        result.rank = PokerHandRank::StraightFlush;
+        result.power = 80;
+    } else if (hasFour) {
+        result.rank = PokerHandRank::FourOfAKind;
+        result.power = 70;
+    } else if (hasThree && pairCount == 1) {
+        result.rank = PokerHandRank::FullHouse;
+        result.power = 60;
+    } else if (isFlush) {
+        result.rank = PokerHandRank::Flush;
+        result.power = 50;
+    } else if (isStraight) {
+        result.rank = PokerHandRank::Straight;
+        result.power = 40;
+    } else if (hasThree) {
+        result.rank = PokerHandRank::ThreeOfAKind;
+        result.power = 30;
+    } else if (pairCount == 2) {
+        result.rank = PokerHandRank::TwoPair;
+        result.power = 20;
+    } else if (pairCount == 1) {
+        result.rank = PokerHandRank::OnePair;
+        result.power = 10;
+    } else {
+        result.rank = PokerHandRank::None;
+        result.power = 0;
+    }
+
+    return result;
+}
+
+
+namespace {
+    int RandomRangeInt(int minValue, int maxValue)
+    {
+        static std::random_device rd;
+        static std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> dist(minValue, maxValue);
+        return dist(mt);
+    }
+
+    CardSuit RandomSuit()
+    {
+        int v = RandomRangeInt(0, 3);
+        return static_cast<CardSuit>(v);
+    }
+
+    CardInstance MakeCardInstance(int defId)
+    {
+        CardInstance c{};
+        c.defId = defId;
+        c.number = RandomRangeInt(1, 13);
+        c.suit = RandomSuit();
+        return c;
+    }
+
+    const char* SuitToString(CardSuit suit)
+    {
+        switch (suit) {
+        case CardSuit::Spade:   return "Spade";
+        case CardSuit::Heart:   return "Heart";
+        case CardSuit::Diamond: return "Diamond";
+        case CardSuit::Club:    return "Club";
+        default:                return "?";
+        }
+    }
+}
 
 void BattleController::Initialize(GameApp& app, Camera* camera)
 {
@@ -15,12 +214,18 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
         db_.BuildSample();
     }
 
-    deck_ = { 1,2,3,1,2,3,1,2,3,1 };
+    deck_.clear();
+    for (int id : { 1, 2, 3, 1, 2, 3, 1, 2, 3, 1 }) {
+        deck_.push_back(MakeCardInstance(id));
+    }
 
     hand_.clear();
     discard_.clear();
     field_.clear();
     fieldViews_.clear();
+
+    hasPendingCard_ = false;
+    pendingCard_ = {};
 
     energy_ = energyMax_;
 
@@ -39,9 +244,9 @@ bool BattleController::DrawOne_()
     }
     if (deck_.empty()) return false;
 
-    int id = deck_.back();
+    CardInstance card = deck_.back();
     deck_.pop_back();
-    hand_.push_back(id);
+    hand_.push_back(card);
     return true;
 }
 
@@ -69,9 +274,9 @@ void BattleController::ApplyCardEffects_(const CardDef& def)
         if (effect.type == "Draw") {
             DrawCards_(effect.value);
         } else if (effect.type == "Damage") {
-            // まだ敵処理がないので後で実装
+            // 後で実装
         } else if (effect.type == "Block") {
-            // まだブロック処理がないので後で実装
+            // 後で実装
         }
     }
 }
@@ -98,7 +303,7 @@ void BattleController::RebuildFieldView_()
     const float startX = -gap * 0.5f * (n - 1);
 
     for (int i = 0; i < n; ++i) {
-        const CardDef* def = db_.Find(field_[i]);
+        const CardDef* def = db_.Find(field_[i].defId);
         if (!def) {
             continue;
         }
@@ -122,7 +327,7 @@ int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
     const float sh = (float)WinApp::kClientHeight;
 
     int best = -1;
-    float bestD2 = 80.0f * 80.0f; // 判定半径
+    float bestD2 = 80.0f * 80.0f;
 
     for (int i = 0; i < (int)fieldViews_.size(); ++i) {
         Vector3 w = fieldViews_[i]->GetWorldPos();
@@ -158,17 +363,14 @@ int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
 
 void BattleController::Update(GameApp& app, float dt)
 {
-    // Enterトリガー（ターン終了）
     bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
     bool enterTrig = enterNow && !prevEnter_;
     prevEnter_ = enterNow;
 
-    // マウス座標（毎フレーム）
     POINT mouse{};
     GetCursorPos(&mouse);
     ScreenToClient(app.Win()->GetHwnd(), &mouse);
 
-    // hover（自分ターンのみ）
     if (turn_ == TurnState::Player) {
         int hover = handView_.PickIndexByMouse(
             mouse.x, mouse.y,
@@ -180,7 +382,6 @@ void BattleController::Update(GameApp& app, float dt)
         handView_.SetHoverIndex(-1);
     }
 
-    // クリック（自分ターンのみ）
     bool lNow = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
     bool lTrig = lNow && !prevL_;
     bool lRel = !lNow && prevL_;
@@ -190,22 +391,19 @@ void BattleController::Update(GameApp& app, float dt)
     bool rTrig = rNow && !prevR_;
     prevR_ = rNow;
 
-
-    // ターン遷移：Enterで自分ターン終了→敵ターン(待つだけ)→自分ターン開始（5枚補充）
     if (turn_ == TurnState::Player) {
 
-        // Enterでターン終了
         if (enterTrig && cardState_ == CardInputState::Idle) {
             turn_ = TurnState::Enemy;
-            pendingCardId_ = -1;
-            enemyWait_ = 1.0f; // 1秒待つ
+            hasPendingCard_ = false;
+            pendingCard_ = {};
+            enemyWait_ = 1.0f;
             handView_.SetHoverIndex(-1);
             handView_.SetDrag(-1, 0, 0, false);
             handView_.SetPreviewIndex(-1);
             selectedIndex_ = -1;
             cardState_ = CardInputState::Idle;
         } else {
-            // hover更新（Preview中はhover無しでもOK）
             if (cardState_ != CardInputState::Preview) {
                 int hover = handView_.PickIndexByMouse(
                     mouse.x, mouse.y,
@@ -267,27 +465,27 @@ void BattleController::Update(GameApp& app, float dt)
                 if (rTrig) {
                     int idx = selectedIndex_;
                     if (idx >= 0 && idx < (int)hand_.size()) {
-                        int defId = hand_[idx];
-                        const CardDef* def = db_.Find(defId);
+                        CardInstance inst = hand_[idx];
+                        const CardDef* def = db_.Find(inst.defId);
 
                         if (def && def->cost <= energy_) {
                             energy_ -= def->cost;
 
-                            int cardId = hand_[idx];
                             hand_.erase(hand_.begin() + idx);
                             handView_.Rebuild(hand_);
 
                             ApplyCardEffects_(*def);
 
                             if ((int)field_.size() < 5) {
-                                field_.push_back(cardId);
+                                field_.push_back(inst);
                                 RebuildFieldView_();
 
                                 cardState_ = CardInputState::Idle;
-                                pendingCardId_ = -1;
+                                hasPendingCard_ = false;
+                                pendingCard_ = {};
                             } else {
-                                // 場が満杯なら入れ替え待ちへ
-                                pendingCardId_ = cardId;
+                                pendingCard_ = inst;
+                                hasPendingCard_ = true;
                                 cardState_ = CardInputState::ChoosingFieldReplace;
                             }
                         } else {
@@ -310,28 +508,25 @@ void BattleController::Update(GameApp& app, float dt)
 
             case CardInputState::ChoosingFieldReplace:
             {
-                // 左クリックで入れ替え先を選ぶ
                 if (lTrig) {
                     int replaceIndex = PickFieldIndexByMouse_(mouse.x, mouse.y);
-                    if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && pendingCardId_ >= 0) {
-                        // 置き換えられる場カードは墓地へ
+                    if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
                         discard_.push_back(field_[replaceIndex]);
-
-                        // 新しいカードをその位置へ
-                        field_[replaceIndex] = pendingCardId_;
+                        field_[replaceIndex] = pendingCard_;
                         RebuildFieldView_();
 
-                        pendingCardId_ = -1;
+                        hasPendingCard_ = false;
+                        pendingCard_ = {};
                         cardState_ = CardInputState::Idle;
                     }
                 }
 
-                // 右クリックでキャンセル → 使用カードは墓地へ
                 if (rTrig) {
-                    if (pendingCardId_ >= 0) {
-                        discard_.push_back(pendingCardId_);
+                    if (hasPendingCard_) {
+                        discard_.push_back(pendingCard_);
                     }
-                    pendingCardId_ = -1;
+                    hasPendingCard_ = false;
+                    pendingCard_ = {};
                     cardState_ = CardInputState::Idle;
                 }
 
@@ -340,20 +535,18 @@ void BattleController::Update(GameApp& app, float dt)
                 handView_.SetPreviewIndex(-1);
             }
             break;
-
-
             }
         }
 
     } else {
-        // Enemyターン：少し待ってからプレイヤーターンへ戻す
         handView_.SetHoverIndex(-1);
         handView_.SetDrag(-1, 0, 0, false);
         handView_.SetPreviewIndex(-1);
         cardState_ = CardInputState::Idle;
         selectedIndex_ = -1;
 
-        pendingCardId_ = -1;
+        hasPendingCard_ = false;
+        pendingCard_ = {};
 
         enemyWait_ -= dt;
         if (enemyWait_ <= 0.0f) {
@@ -367,20 +560,15 @@ void BattleController::Update(GameApp& app, float dt)
     for (auto& c : fieldViews_) {
         c->Update(dt);
     }
-
 }
 
 void BattleController::Draw(GameApp& app)
 {
-
     for (auto& c : fieldViews_) {
         c->Draw();
     }
 
-    // ここは「3D PSO」側で描きたいので、Scene側でObjCom()->SetGraphicsPipelineState()後に呼ぶのが安全
     handView_.Draw();
-
-
 }
 
 #ifdef USE_IMGUI
@@ -391,24 +579,51 @@ void BattleController::DrawImGui()
     ImGui::Text("energy: %d / %d", energy_, energyMax_);
     ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
     ImGui::Text("field: %d", (int)field_.size());
-   handView_.DrawImGui();
 
-   const char* stateName = "";
-   switch (cardState_) {
-   case CardInputState::Idle: stateName = "Idle"; break;
-   case CardInputState::Dragging: stateName = "Dragging"; break;
-   case CardInputState::Preview: stateName = "Preview"; break;
-   case CardInputState::ChoosingFieldReplace: stateName = "ChoosingFieldReplace"; break;
-   }
-   ImGui::Text("cardState: %s", stateName);
-   ImGui::Text("pendingCardId: %d", pendingCardId_);
+    handView_.DrawImGui();
 
-   ImGui::Text("field: %d", (int)field_.size());
-   for (int i = 0; i < (int)field_.size(); ++i) {
-       ImGui::Text("field[%d] = %d", i, field_[i]);
-   }
+    const char* stateName = "";
+    switch (cardState_) {
+    case CardInputState::Idle: stateName = "Idle"; break;
+    case CardInputState::Dragging: stateName = "Dragging"; break;
+    case CardInputState::Preview: stateName = "Preview"; break;
+    case CardInputState::ChoosingFieldReplace: stateName = "ChoosingFieldReplace"; break;
+    }
+    ImGui::Text("cardState: %s", stateName);
 
+    if (hasPendingCard_) {
+        ImGui::Text("pending: defId=%d number=%d suit=%s",
+            pendingCard_.defId,
+            pendingCard_.number,
+            SuitToString(pendingCard_.suit));
+    } else {
+        ImGui::Text("pending: none");
+    }
 
+    ImGui::Separator();
+    ImGui::Text("Hand Cards");
+    for (int i = 0; i < (int)hand_.size(); ++i) {
+        ImGui::Text("hand[%d] defId=%d number=%d suit=%s",
+            i,
+            hand_[i].defId,
+            hand_[i].number,
+            SuitToString(hand_[i].suit));
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Field Cards");
+    for (int i = 0; i < (int)field_.size(); ++i) {
+        ImGui::Text("field[%d] defId=%d number=%d suit=%s",
+            i,
+            field_[i].defId,
+            field_[i].number,
+            SuitToString(field_[i].suit));
+    }
+
+    ImGui::Separator();
+    PokerHandResult poker = EvaluatePokerHand_();
+    ImGui::Text("Poker Hand: %s", GetPokerHandName_(poker.rank));
+    ImGui::Text("Poker Power: %d", poker.power);
 
 }
 #endif
