@@ -167,6 +167,14 @@ BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
     return result;
 }
 
+void BattleController::ConsumeFieldCards_()
+{
+    for (auto& c : field_) {
+        discard_.push_back(c);
+    }
+    field_.clear();
+    fieldViews_.clear();
+}
 
 namespace {
     int RandomRangeInt(int minValue, int maxValue)
@@ -214,9 +222,29 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
         db_.BuildSample();
     }
 
-    deck_.clear();
-    for (int id : { 1, 2, 3, 1, 2, 3, 1, 2, 3, 1 }) {
-        deck_.push_back(MakeCardInstance(id));
+    DeckDef deckDef{};
+    std::string err;
+
+    if (DeckLoader::LoadFromJson("resources/cards/deck/deck.json", deckDef) &&
+        DeckLoader::ValidateDeck(deckDef, db_, err)) {
+
+        deck_.clear();
+        for (const auto& e : deckDef.cards) {
+            for (int i = 0; i < e.count; ++i) {
+                deck_.push_back(MakeCardInstance(e.id));
+            }
+        }
+    } else {
+        // 仮の保険デッキ
+        deck_.clear();
+        for (int i = 0; i < 4; ++i) {
+            deck_.push_back(MakeCardInstance(1));
+            deck_.push_back(MakeCardInstance(2));
+            deck_.push_back(MakeCardInstance(3));
+            deck_.push_back(MakeCardInstance(10));
+            deck_.push_back(MakeCardInstance(11));
+            deck_.push_back(MakeCardInstance(12));
+        }
     }
 
     hand_.clear();
@@ -268,16 +296,91 @@ void BattleController::DrawCards_(int count)
     handView_.Rebuild(hand_);
 }
 
-void BattleController::ApplyCardEffects_(const CardDef& def)
+void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects)
 {
-    for (const auto& effect : def.effects) {
+    for (const auto& effect : effects) {
         if (effect.type == "Draw") {
             DrawCards_(effect.value);
         } else if (effect.type == "Damage") {
-            // 後で実装
+            enemyHp_ -= effect.value;
+            if (enemyHp_ < 0) enemyHp_ = 0;
         } else if (effect.type == "Block") {
-            // 後で実装
+            // 例: playerBlock_ += effect.value;
+        } else if (effect.type == "NextTurnAtkUp") {
+            nextTurnAtkUp_ += effect.value;
+        } else if (effect.type == "Heal") {
+            // 例: playerHp_ += effect.value;
+        } else if (effect.type == "ChangeNumber") {
+            // 後で対象指定が必要
+        } else if (effect.type == "ChangeSuit") {
+            // 後で対象指定が必要
         }
+    }
+}
+
+void BattleController::ApplyCardEffects_(const CardDef& def)
+{
+    ApplyEffectsList_(def.effects);
+}
+
+BattleController::PokerHandRank BattleController::ParsePokerRankString_(const std::string& s) const
+{
+    if (s == "OnePair") return PokerHandRank::OnePair;
+    if (s == "TwoPair") return PokerHandRank::TwoPair;
+    if (s == "ThreeOfAKind") return PokerHandRank::ThreeOfAKind;
+    if (s == "Straight") return PokerHandRank::Straight;
+    if (s == "Flush") return PokerHandRank::Flush;
+    if (s == "FullHouse") return PokerHandRank::FullHouse;
+    if (s == "FourOfAKind") return PokerHandRank::FourOfAKind;
+    if (s == "StraightFlush") return PokerHandRank::StraightFlush;
+    if (s == "RoyalStraightFlush") return PokerHandRank::RoyalStraightFlush;
+    return PokerHandRank::None;
+}
+
+bool BattleController::IsRankAtLeast_(PokerHandRank a, PokerHandRank b) const
+{
+    return static_cast<int>(a) >= static_cast<int>(b);
+}
+
+bool BattleController::IsRankInFamily_(PokerHandRank rank, const std::string& family) const
+{
+    if (family == "StraightFamily") {
+        return rank == PokerHandRank::Straight ||
+            rank == PokerHandRank::StraightFlush ||
+            rank == PokerHandRank::RoyalStraightFlush;
+    }
+
+    if (family == "FlushFamily") {
+        return rank == PokerHandRank::Flush ||
+            rank == PokerHandRank::StraightFlush ||
+            rank == PokerHandRank::RoyalStraightFlush;
+    }
+
+    if (family == "PairFamily") {
+        return rank == PokerHandRank::OnePair ||
+            rank == PokerHandRank::TwoPair ||
+            rank == PokerHandRank::ThreeOfAKind ||
+            rank == PokerHandRank::FullHouse ||
+            rank == PokerHandRank::FourOfAKind;
+    }
+
+    return false;
+}
+
+bool BattleController::DoesSubEffectConditionMatch_(const CardSubEffectDef& sub, PokerHandRank rank) const
+{
+    switch (sub.condition.type) {
+    case SubEffectConditionType::ExactRank:
+        return rank == ParsePokerRankString_(sub.condition.rank);
+
+    case SubEffectConditionType::AtLeastRank:
+        return IsRankAtLeast_(rank, ParsePokerRankString_(sub.condition.rank));
+
+    case SubEffectConditionType::RankFamily:
+        return IsRankInFamily_(rank, sub.condition.family);
+
+    default:
+        return false;
     }
 }
 
@@ -285,6 +388,120 @@ void BattleController::StartPlayerTurn_()
 {
     energy_ = energyMax_;
     DrawUntilFive_();
+
+    if (field_.size() == 5) {
+        currentPoker_ = EvaluatePokerHand_();
+
+        if (currentPoker_.rank != PokerHandRank::None) {
+            TriggerSubEffectsForField_(
+                SubEffectTrigger::OnTurnStartWithPoker,
+                currentPoker_.rank
+            );
+
+            pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
+        }
+    }
+}
+
+BattleController::PokerBonus BattleController::GetPokerBonus_(PokerHandRank rank) const
+{
+    PokerBonus b{};
+
+    switch (rank) {
+    case PokerHandRank::OnePair:
+        b.atkUp = 10;
+        b.drawCount = 2;
+        b.damage = 15;
+        break;
+
+    case PokerHandRank::TwoPair:
+        b.atkUp = 15;
+        b.drawCount = 3;
+        b.damage = 25;
+        break;
+
+    case PokerHandRank::ThreeOfAKind:
+        b.atkUp = 20;
+        b.drawCount = 3;
+        b.damage = 35;
+        break;
+
+    case PokerHandRank::Straight:
+        b.atkUp = 25;
+        b.drawCount = 4;
+        b.damage = 45;
+        break;
+
+    case PokerHandRank::Flush:
+        b.atkUp = 30;
+        b.drawCount = 4;
+        b.damage = 55;
+        break;
+
+    case PokerHandRank::FullHouse:
+        b.atkUp = 35;
+        b.drawCount = 5;
+        b.damage = 70;
+        break;
+
+    case PokerHandRank::FourOfAKind:
+        b.atkUp = 40;
+        b.drawCount = 5;
+        b.damage = 85;
+        break;
+
+    case PokerHandRank::StraightFlush:
+        b.atkUp = 50;
+        b.drawCount = 6;
+        b.damage = 110;
+        break;
+
+    case PokerHandRank::RoyalStraightFlush:
+        b.atkUp = 70;
+        b.drawCount = 7;
+        b.damage = 150;
+        break;
+
+    default:
+        break;
+    }
+
+    return b;
+}
+
+void BattleController::TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank)
+{
+    if (field_.size() != 5) return;
+    if (rank == PokerHandRank::None) return;
+
+    for (const auto& card : field_) {
+        const CardDef* def = db_.Find(card.defId);
+        if (!def) continue;
+
+        for (const auto& sub : def->subEffects) {
+            if (sub.trigger != trigger) continue;
+            if (!DoesSubEffectConditionMatch_(sub, rank)) continue;
+
+            ApplyEffectsList_(sub.effects);
+        }
+    }
+}
+
+void BattleController::TriggerSubEffectsForCard_(
+    const CardInstance& card,
+    SubEffectTrigger trigger,
+    PokerHandRank rank)
+{
+    const CardDef* def = db_.Find(card.defId);
+    if (!def) return;
+    if (rank == PokerHandRank::None) return;
+
+    for (const auto& sub : def->subEffects) {
+        if (sub.trigger != trigger) continue;
+        if (!DoesSubEffectConditionMatch_(sub, rank)) continue;
+
+        ApplyEffectsList_(sub.effects);
+    }
 }
 
 void BattleController::RebuildFieldView_()
@@ -363,6 +580,85 @@ int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
 
 void BattleController::Update(GameApp& app, float dt)
 {
+
+    bool yNow = (GetAsyncKeyState('Y') & 0x8000) != 0;
+    bool nNow = (GetAsyncKeyState('N') & 0x8000) != 0;
+    bool key1Now = (GetAsyncKeyState('1') & 0x8000) != 0;
+    bool key2Now = (GetAsyncKeyState('2') & 0x8000) != 0;
+    bool key3Now = (GetAsyncKeyState('3') & 0x8000) != 0;
+
+    bool yTrig = yNow && !prevY_;
+    bool nTrig = nNow && !prevN_;
+    bool key1Trig = key1Now && !prev1_;
+    bool key2Trig = key2Now && !prev2_;
+    bool key3Trig = key3Now && !prev3_;
+
+    prevY_ = yNow;
+    prevN_ = nNow;
+    prev1_ = key1Now;
+    prev2_ = key2Now;
+    prev3_ = key3Now;
+
+    if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice)
+    {
+        if (yTrig) {
+            TriggerSubEffectsForField_(
+                SubEffectTrigger::OnPokerSkillActivated,
+                currentPoker_.rank
+            );
+            pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice;
+        }
+
+        if (nTrig) {
+            pokerChoiceState_ = PokerChoiceState::None;
+        }
+
+        return;
+    }
+
+    if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice)
+    {
+        PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
+
+        if (key1Trig) {
+            nextTurnAtkUp_ += bonus.atkUp;
+            ConsumeFieldCards_();
+            pokerChoiceState_ = PokerChoiceState::None;
+            turn_ = TurnState::Enemy;
+            enemyWait_ = 1.0f;
+            return;
+        }
+
+        if (key2Trig) {
+            DrawCards_(bonus.drawCount);
+            ConsumeFieldCards_();
+            pokerChoiceState_ = PokerChoiceState::None;
+            turn_ = TurnState::Enemy;
+            enemyWait_ = 1.0f;
+            return;
+        }
+
+        if (key3Trig) {
+            enemyHp_ -= bonus.damage;
+            if (enemyHp_ < 0) {
+                enemyHp_ = 0;
+            }
+
+            ConsumeFieldCards_();
+            pokerChoiceState_ = PokerChoiceState::None;
+            turn_ = TurnState::Enemy;
+            enemyWait_ = 1.0f;
+            return;
+        }
+
+        if (nTrig) {
+            pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
+            return;
+        }
+
+        return;
+    }
+
     bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
     bool enterTrig = enterNow && !prevEnter_;
     prevEnter_ = enterNow;
@@ -480,6 +776,15 @@ void BattleController::Update(GameApp& app, float dt)
                                 field_.push_back(inst);
                                 RebuildFieldView_();
 
+                                if ((int)field_.size() == 5) {
+                                    PokerHandResult poker = EvaluatePokerHand_();
+                                    TriggerSubEffectsForCard_(
+                                        inst,
+                                        SubEffectTrigger::OnPlayToField,
+                                        poker.rank
+                                    );
+                                }
+
                                 cardState_ = CardInputState::Idle;
                                 hasPendingCard_ = false;
                                 pendingCard_ = {};
@@ -514,6 +819,13 @@ void BattleController::Update(GameApp& app, float dt)
                         discard_.push_back(field_[replaceIndex]);
                         field_[replaceIndex] = pendingCard_;
                         RebuildFieldView_();
+
+                        PokerHandResult poker = EvaluatePokerHand_();
+                        TriggerSubEffectsForCard_(
+                            pendingCard_,
+                            SubEffectTrigger::OnPlayToField,
+                            poker.rank
+                        );
 
                         hasPendingCard_ = false;
                         pendingCard_ = {};
@@ -625,5 +937,26 @@ void BattleController::DrawImGui()
     ImGui::Text("Poker Hand: %s", GetPokerHandName_(poker.rank));
     ImGui::Text("Poker Power: %d", poker.power);
 
+    if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice)
+    {
+        ImGui::Separator();
+        ImGui::Text("Poker Skill Available!");
+        ImGui::Text("Hand : %s", GetPokerHandName_(currentPoker_.rank));
+        ImGui::Text("Press Y = Activate");
+        ImGui::Text("Press N = Skip");
+    }
+
+    if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice)
+    {
+        PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
+
+        ImGui::Separator();
+        ImGui::Text("Choose Poker Effect");
+        ImGui::Text("Hand : %s", GetPokerHandName_(currentPoker_.rank));
+        ImGui::Text("1 : Next Turn ATK UP (+%d)", bonus.atkUp);
+        ImGui::Text("2 : Draw %d", bonus.drawCount);
+        ImGui::Text("3 : Damage %d", bonus.damage);
+        ImGui::Text("N : Back");
+    }
 }
 #endif
