@@ -33,16 +33,16 @@ void TestScene::OnEnter(GameApp& app) {
     // EnemyManager
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
 
-    // ★真ん中に「動かない敵」を1体
-    const Vector3 enemyPos{ 0.0f, 0.0f, 5.0f };
-    enemyMgr_.Spawn(EnemyType::Melee, enemyPos);
-    
+    //// ★真ん中に「動かない敵」を1体
+    //const Vector3 enemyPos{ 0.0f, 0.0f, 5.0f };
+    //enemyMgr_.Spawn(EnemyType::Melee, enemyPos);
+    //
     // ★凍結（GetEnemies() は PlayerCombo でも使ってるので存在してる前提）
-    auto& enemies = enemyMgr_.GetEnemies();
-    if (!enemies.empty()) {
-        enemies.back().SetInvincible(true); // 死なない
-        enemies.back().SetAIDisabled(true); // AI止める（でも吹き飛ぶ）
-    }
+    //auto& enemies = enemyMgr_.GetEnemies();
+    //if (!enemies.empty()) {
+    //    enemies.back().SetInvincible(true); // 死なない
+    //    enemies.back().SetAIDisabled(true); // AI止める（でも吹き飛ぶ）
+    //}
 
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text1.png");
 
@@ -56,7 +56,7 @@ void TestScene::OnEnter(GameApp& app) {
     light_.pointIntensity = 2.5f;
     light_.spotIntensity = 0.0f;
 
-    player_->SetLighting(light_);
+    //player_->SetLighting(light_);
     enemyMgr_.SetLighting(light_);
 
 
@@ -149,7 +149,7 @@ void TestScene::OnEnter(GameApp& app) {
 void TestScene::OnExit(GameApp& /*app*/) {
     player_.reset();
     camera_.reset();
-    enemyMgr_.Clear();
+    //enemyMgr_.Clear();
 }
 
 void TestScene::Update(GameApp& app, float dt) {
@@ -162,13 +162,13 @@ void TestScene::Update(GameApp& app, float dt) {
     skyDome_->Update(dt);
 
     if (player_) {
-        player_->Update(dt, *input_, enemyMgr_);
+        //player_->Update(dt, *input_, enemyMgr_);
     }
 
-    Vector2 playerPos2D = player_->GetPos2D();
-    float playerZ = player_->GetZ();
+   /* Vector2 playerPos2D = player_->GetPos2D();
+    float playerZ = player_->GetZ();*/
 
-    enemyMgr_.Update(dt, playerPos2D, playerZ, *player_);
+    //enemyMgr_.Update(dt, playerPos2D, playerZ, *player_);
 
     // ===============================
     // ★ クランプ到達チェック
@@ -178,19 +178,19 @@ void TestScene::Update(GameApp& app, float dt) {
     const float xMaxNear = 15.0f;
     const float xMaxFar = 20.0f;
 
-    float z = player_->GetZ();
-    float t = (z - zNear) / (zFar - zNear);
-    t = std::clamp(t, 0.0f, 1.0f);
-    float xMax = xMaxNear + (xMaxFar - xMaxNear) * t;
+    //float z = player_->GetZ();
+    //float t = (z - zNear) / (zFar - zNear);
+   /* t = std::clamp(t, 0.0f, 1.0f);
+    float xMax = xMaxNear + (xMaxFar - xMaxNear) * t;*/
 
-    float x = player_->GetX();
+    //float x = player_->GetX();
 
     // ★ 右端に到達したら GameScene へ
 
-    if (!reachedEdge_ && x >= xMax - 0.01f) {
+   /* if (!reachedEdge_ && x >= xMax - 0.01f) {
         reachedEdge_ = true;
         RequestChangeScene_("Game");
-    }
+    }*/
 
 #ifdef USE_IMGUI
 
@@ -201,7 +201,7 @@ void TestScene::Update(GameApp& app, float dt) {
 
 #endif // DEBUG
 
-    player_->SetLighting(light_);
+    //player_->SetLighting(light_);
     enemyMgr_.SetLighting(light_);
     //// ground は SpotLightのみ反映
     //if (ground_) {
@@ -336,7 +336,7 @@ void TestScene::Draw(GameApp& app) {
 
 #ifdef _DEBUG
 
-    player_->DrawDebugHitBoxes(enemyMgr_);
+    ////player_->DrawDebugHitBoxes(enemyMgr_);
 
 #endif // DEBUG
 
