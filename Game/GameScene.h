@@ -5,6 +5,7 @@
 #include "Object3d.h"
 #include "Enemy.h"
 #include "Player.h"
+#include "BattleController.h"
 
 class GameApp;
 
@@ -27,6 +28,8 @@ private:
 
     // ライトの設定
     LightingParam light_;
+
+    BattleController battle_;
 
     // ESCキーの入力状態を保持（タイトルに戻るなどの処理用）
     bool prevEsc_ = false;

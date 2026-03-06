@@ -9,7 +9,7 @@ void GameScene::OnEnter(GameApp& app) {
     camera_ = std::make_unique<Camera>();
 
     // ★カメラを原点(0, 0, 0)に配置し、少しだけ見下ろす角度に
-    camera_->SetTranslate({ 0.0f, 4.0f, 0.0f }); // 高さを4.0fにして見下ろす
+    camera_->SetTranslate({ 0.0f, 4.0f, -50.0f }); // 高さを4.0fにして見下ろす
     camera_->SetRotate({ 0.15f, 0.0f, 0.0f });     // 軽く見下ろす角度
     app.ObjCom()->SetDefaultCamera(camera_.get());
 
@@ -48,6 +48,11 @@ void GameScene::OnEnter(GameApp& app) {
     light_.dir = { 0.3f, -1.0f, 0.2f };
     light_.dirIntensity = 1.5f;
     light_.dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    // --------------------------------------------------
+   //  5. バトルコントローラー
+   // --------------------------------------------------
+    battle_.Initialize(app, camera_.get());
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -56,6 +61,8 @@ void GameScene::OnExit(GameApp& app) {
 void GameScene::Update(GameApp& app, float dt) {
     Input* input = app.GetInput();
     if (!input) return;
+
+    camera_->Update();
 
     // ESCキーでタイトルへ戻る
     bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
@@ -74,6 +81,15 @@ void GameScene::Update(GameApp& app, float dt) {
 
     enemyMgr_.Update(dt);
     enemyMgr_.SetLighting(light_);
+
+#ifdef USE_IMGUI
+
+    ImGui::Begin("Battle Debug");
+    battle_.DrawImGui();     // ★これ
+    ImGui::End();
+#endif
+
+    battle_.Update(app, dt);
 }
 
 void GameScene::Draw(GameApp& app) {
@@ -82,4 +98,6 @@ void GameScene::Draw(GameApp& app) {
     if (skyDome_) skyDome_->Draw();
     if (player_) player_->Draw();
     enemyMgr_.Draw();
+
+    battle_.Draw(app);
 }
