@@ -36,6 +36,31 @@
     { "type": "Damage", "value": 8 },
     { "type": "Draw", "value": 1 }
   ]
+    },
+    {
+  "id": 4,
+  "name": "Tear",
+  "cost": 1,
+  "frameModel": "cards/models/frame.obj",
+  "artModel": "cards/models/art_plane.obj",
+  "artTex": "resources/cards/art/DamageSelfDamage.png",
+  "desc": "2ダメージして1ダメージ食らう",
+  "effects": [
+    { "type": "Damage", "value": 2 },
+    { "type": "SelfDamage", "value": 1 }
+  ]
+    },
+    {
+  "id": 5,
+  "name": "Heal",
+  "cost": 1,
+  "frameModel": "cards/models/frame.obj",
+  "artModel": "cards/models/art_plane.obj",
+  "artTex": "resources/cards/art/Heal.png",
+  "desc": "3回復する",
+  "effects": [
+    { "type": "Heal", "value": 3 }
+  ]
 }
 
 

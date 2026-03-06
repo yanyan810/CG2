@@ -12,6 +12,9 @@ class Camera;
 class Object3dCommon;
 class DirectXCommon;
 
+class Player;
+class Enemy;
+
 class BattleController {
 public:
 
@@ -49,6 +52,9 @@ public:
         int power = 0;
     };
 
+    void SetPlayer(Player* player);
+    void SetEnemy(Enemy* enemy);
+
 private:
     enum class TurnState { Player, Enemy };
     TurnState turn_ = TurnState::Player;
@@ -84,6 +90,9 @@ private:
     POINT dragStartMouse_{};
     float dragDx_ = 0.0f;
     float dragDy_ = 0.0f;
+
+    Player* player_;
+    Enemy* enemy_;
 
 private:
     void StartPlayerTurn_();
