@@ -43,6 +43,8 @@ private:
     Vector3 rot_{};
     Vector3 scale_{ 1,1,1 };
 
-    Vector3 modelFixRot_{ 1.7f, 0.0f, 1.6f }; // ★ここがImGuiで動かす値
+  //  Vector3 modelFixRot_{ 1.7f, 0.0f, 1.6f }; // ★ここがImGuiで動かす値
+
+    Vector3 modelFixRot_{ 0.0f, 0.0f, 0.0f };
 
 };

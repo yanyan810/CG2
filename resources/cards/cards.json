@@ -1,0 +1,44 @@
+{
+  "cards": [
+    {
+      "id": 1,
+      "name": "Fireball",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/fireball.png",
+      "desc": "敵単体に10ダメージ",
+      "effects": [
+        { "type": "Damage", "value": 10 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Quick Draw",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/draw.png",
+      "desc": "2枚引く",
+      "effects": [
+        { "type": "Draw", "value": 2 }
+      ]
+    },
+    {
+  "id": 3,
+  "name": "Power Shot",
+  "cost": 2,
+  "frameModel": "cards/models/frame.obj",
+  "artModel": "cards/models/art_plane.obj",
+  "artTex": "resources/cards/art/power.png",
+  "desc": "8ダメージして1枚引く",
+  "effects": [
+    { "type": "Damage", "value": 8 },
+    { "type": "Draw", "value": 1 }
+  ]
+}
+
+
+    
+  ]
+}
