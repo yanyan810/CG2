@@ -35,9 +35,10 @@ void Card3D::Update(float dt)
 {
     if (!frame_ || !art_) return;
 
-    // ★モデル補正（例：Yに180度）
     Vector3 fixRot = rot_;
-    fixRot.y += 1.6f; // 正面が逆なら
+    fixRot.x += modelFixRot_.x;
+    fixRot.y += modelFixRot_.y;
+    fixRot.z += modelFixRot_.z;
 
     frame_->SetTranslate(pos_);
     frame_->SetRotate(fixRot);
@@ -58,3 +59,14 @@ void Card3D::Draw()
     frame_->Draw();
     art_->DrawWithOverrideSrv(artSrv_);
 }
+
+#ifdef USE_IMGUI
+#include <imgui.h>
+void Card3D::DrawImGui(const char* label)
+{
+    if (ImGui::TreeNode(label)) {
+        ImGui::SliderFloat3("Model Fix Rot", &modelFixRot_.x, -3.14159f, 3.14159f);
+        ImGui::TreePop();
+    }
+}
+#endif

@@ -357,6 +357,12 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 #endif
 
+#ifdef USE_IMGUI
+    ImGui::Begin("Battle Debug");
+    battle_.DrawImGui();     // ★これ
+    ImGui::End();
+#endif
+
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
 
     // ---- Spot angle deg -> cos ----

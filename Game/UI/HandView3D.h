@@ -29,6 +29,9 @@ public:
     // プレビュー（目の前に出すカード）
     void SetPreviewIndex(int idx) { previewIndex_ = idx; }
 
+#ifdef USE_IMGUI
+    void DrawImGui();
+#endif
 
 private:
     void LayoutFan_(); // 扇状に並べる

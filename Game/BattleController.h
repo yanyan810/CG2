@@ -19,6 +19,10 @@ public:
     void Update(GameApp& app, float dt);
     void Draw(GameApp& app);
 
+#ifdef USE_IMGUI
+    void DrawImGui();
+#endif
+
 private:
     enum class TurnState { Player, Enemy };
     TurnState turn_ = TurnState::Player;
