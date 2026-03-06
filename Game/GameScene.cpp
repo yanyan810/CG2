@@ -9,7 +9,7 @@ void GameScene::OnEnter(GameApp& app) {
     camera_ = std::make_unique<Camera>();
 
     // ★カメラを原点(0, 0, 0)に配置し、少しだけ見下ろす角度に
-    camera_->SetTranslate({ 0.0f, 4.0f, -50.0f }); // 高さを4.0fにして見下ろす
+    camera_->SetTranslate({ 0.0f, 4.0f, -40.0f }); // 高さを4.0fにして見下ろす
     camera_->SetRotate({ 0.15f, 0.0f, 0.0f });     // 軽く見下ろす角度
     app.ObjCom()->SetDefaultCamera(camera_.get());
 
@@ -53,6 +53,8 @@ void GameScene::OnEnter(GameApp& app) {
    //  5. バトルコントローラー
    // --------------------------------------------------
     battle_.Initialize(app, camera_.get());
+    battle_.SetPlayer(player_.get());
+    battle_.SetEnemy(enemyMgr_.GetBoss());
 }
 
 void GameScene::OnExit(GameApp& app) {

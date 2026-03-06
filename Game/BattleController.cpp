@@ -9,6 +9,9 @@
 
 #include <random>
 
+#include"Player.h"
+#include"Enemy.h"
+
 //===============================
 //役
 //===============================
@@ -215,7 +218,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
     }
 
     deck_.clear();
-    for (int id : { 1, 2, 3, 1, 2, 3, 1, 2, 3, 1 }) {
+    for (int id : { 1, 2, 3, 4, 5, 1, 2, 3, 4, 5 }) {
         deck_.push_back(MakeCardInstance(id));
     }
 
@@ -274,9 +277,14 @@ void BattleController::ApplyCardEffects_(const CardDef& def)
         if (effect.type == "Draw") {
             DrawCards_(effect.value);
         } else if (effect.type == "Damage") {
-            // 後で実装
+            enemy_->Damage(effect.value);
         } else if (effect.type == "Block") {
             // 後で実装
+        } else if (effect.type == "Heal") {
+            player_->Heal(effect.value);
+        }
+        else if (effect.type == "SelfDamage") {
+            player_->Damage(effect.value);
         }
     }
 }
@@ -297,7 +305,7 @@ void BattleController::RebuildFieldView_()
         return;
     }
 
-    const float y = 0.8f;
+    const float y = -5.0f;
     const float z = 5.0f;
     const float gap = 5.0f;
     const float startX = -gap * 0.5f * (n - 1);
@@ -625,5 +633,18 @@ void BattleController::DrawImGui()
     ImGui::Text("Poker Hand: %s", GetPokerHandName_(poker.rank));
     ImGui::Text("Poker Power: %d", poker.power);
 
+    ImGui::Separator();
+
+    ImGui::Text("Player Hp: %d", player_->GetHP());
+    ImGui::Text("Enemy  Hp: %d", enemy_->GetHP());
+
 }
 #endif
+
+void BattleController::SetPlayer(Player* player) {
+    player_ = player;
+}
+
+void BattleController::SetEnemy(Enemy* enemy) {
+    enemy_ = enemy;
+}

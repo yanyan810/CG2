@@ -61,7 +61,7 @@ void HandView3D::LayoutFan_()
     for (int i = 0; i < n; ++i) {
         float t = start + step * i; // -0.6..0.6
 
-        basePos_[i] = { t * 8.0f, -3.0f, 6.0f + std::abs(t) * 1.0f };
+        basePos_[i] = { t * 8.0f, -13.0f, 6.0f + std::abs(t) * 1.0f };
         baseRot_[i] = { 0.0f, t * 0.35f, 0.0f };
         baseScl_[i] = { 1.2f, 1.2f, 1.2f };
 
