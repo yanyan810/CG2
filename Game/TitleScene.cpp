@@ -36,8 +36,8 @@ void TitleScene::OnEnter(GameApp& app) {
     titlePlayer = std::make_unique<Player>();
     titlePlayer->Initialize(app.ObjCom(), app.Dx(), camera_.get());
     titlePlayer->SetSpawnPos({ -12.0f, 0.0f, 5.0f }); // 好みで調整
-	titlePlayer->SetLighting(light_); // 操作禁止
-    titlePlayer->ResetTitleAttackDemo();
+	//titlePlayer->SetLighting(light_); // 操作禁止
+ //   titlePlayer->ResetTitleAttackDemo();
 
     //ground
     ground_ = std::make_unique<Object3d>();
@@ -244,14 +244,14 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 
 
-    // タイトル用プレイヤーがいるならデモ再生
-    if (titlePlayer) {
-        titlePlayer->UpdateTitleAttackDemo(dt, 1.0f); // 1秒ごとに I/O 交互
-    }
+    //// タイトル用プレイヤーがいるならデモ再生
+    //if (titlePlayer) {
+    //    titlePlayer->UpdateTitleAttackDemo(dt, 1.0f); // 1秒ごとに I/O 交互
+    //}
 
-    if (titlePlayer) {
-        titlePlayer->SetTitleTransform(srtPlayer_.pos, srtPlayer_.rot, srtPlayer_.scale);
-    }
+    //if (titlePlayer) {
+    //    titlePlayer->SetTitleTransform(srtPlayer_.pos, srtPlayer_.rot, srtPlayer_.scale);
+    //}
 
 #ifdef USE_IMGUI
 

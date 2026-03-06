@@ -242,56 +242,56 @@ void PlayerCombo::Update(float dt,
 	bool hittingNow = false;
 
 	// ★敵配列を EnemyManager から取る
-	auto& enemies = enemyMgr.GetEnemies();
+	//auto& enemies = enemyMgr.GetEnemies();
 
-	if (hitActive) {
-		AABB2 hb = MakeHitBox_(playerPos, facing, a);
+	//if (hitActive) {
+	//	AABB2 hb = MakeHitBox_(playerPos, facing, a);
 
-		// ★デバッグ可視化用に保存
-		debugHb_ = hb;
-		debugHbValid_ = true;
+	//	// ★デバッグ可視化用に保存
+	//	debugHb_ = hb;
+	//	debugHbValid_ = true;
 
-		// ★3D可視化用（Zも含めたヒットボックス）
-		debugHb3_ = { hb.x, hb.y, playerZ, hb.hx, hb.hy, a.hitZ };
-		debugHb3Valid_ = true;
+	//	// ★3D可視化用（Zも含めたヒットボックス）
+	//	debugHb3_ = { hb.x, hb.y, playerZ, hb.hx, hb.hy, a.hitZ };
+	//	debugHb3Valid_ = true;
 
-		for (auto& e : enemies) {
-			if (!e.IsAlive()) continue;
+	//	for (auto& e : enemies) {
+	//		if (!e.IsAlive()) continue;
 
-			if (hitSet_.contains(&e)) continue;
+	//		if (hitSet_.contains(&e)) continue;
 
-			AABB2 body2 = MakeEnemyBody2D_(e);
-			if (!Intersect(hb, body2)) continue;
-
-
-			// ★Z判定（奥行き）
-			AABB a3 = e.GetBodyAABB();
-			float ezC = (a3.min.z + a3.max.z) * 0.5f;
-			float ehz = (a3.max.z - a3.min.z) * 0.5f;
-			if (std::abs(ezC - playerZ) > (a.hitZ + ehz)) continue;
-
-			hittingNow = true;
-
-			hitSet_.insert(&e);
+	//		AABB2 body2 = MakeEnemyBody2D_(e);
+	//		if (!Intersect(hb, body2)) continue;
 
 
-			// ★ 吹き飛ばしは「↑キー時の上方向のみ」
-			float knockX = 0.0f;   // 横吹き飛ばし完全に無し
-			float launchY = 0.0f;
+	//		// ★Z判定（奥行き）
+	//		AABB a3 = e.GetBodyAABB();
+	//		float ezC = (a3.min.z + a3.max.z) * 0.5f;
+	//		float ehz = (a3.max.z - a3.min.z) * 0.5f;
+	//		if (std::abs(ezC - playerZ) > (a.hitZ + ehz)) continue;
 
-			if (startDirY_ > 0) {
-				launchY = a.launchY;   // ↑押し時だけ上に飛ばす
-			}
+	//		hittingNow = true;
 
-			// ボス：ひるませない＆浮かせない（仕様）
-			if (e.IsBoss()) {
-				e.ApplyHit2D(0.0f, 0.0f, false, a.damage);   // ★damage渡す
-			} else {
-				e.ApplyHit2D(knockX, launchY, true, a.damage); // ★damage渡す
-			}
+	//		hitSet_.insert(&e);
 
-		}
-	}
+
+	//		// ★ 吹き飛ばしは「↑キー時の上方向のみ」
+	//		float knockX = 0.0f;   // 横吹き飛ばし完全に無し
+	//		float launchY = 0.0f;
+
+	//		if (startDirY_ > 0) {
+	//			launchY = a.launchY;   // ↑押し時だけ上に飛ばす
+	//		}
+
+	//		// ボス：ひるませない＆浮かせない（仕様）
+	//		if (e.IsBoss()) {
+	//			e.ApplyHit2D(0.0f, 0.0f, false, a.damage);   // ★damage渡す
+	//		} else {
+	//			e.ApplyHit2D(knockX, launchY, true, a.damage); // ★damage渡す
+	//		}
+
+	//	}
+	//}
 
 	// 空中ヒット中だけ浮遊（プレイヤーだけ止める）
 	if (!onGround && a.airFloatOnHit) {

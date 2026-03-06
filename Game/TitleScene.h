@@ -67,7 +67,7 @@ private:
 	float circle_ = 1.0f;   // ★Titleは最初から開いている
 	float softness_ = 0.6f;
 
-	const char* kNextScene_ = "Test"; // SPACE後に行く先
+	const char* kNextScene_ = "Game"; // SPACE後に行く先
 
 	//確認
 	std::unique_ptr<Object3d> testObj_;
@@ -159,7 +159,7 @@ private:
 	bool enableVideo_ = true;              // ImGuiでON/OFFできるように
 
 	// ===== Lighting params =====
-	LightingParam light_;
+	//LightingParam light_;
 
 	std::unique_ptr<Object3d> ground_;
 
