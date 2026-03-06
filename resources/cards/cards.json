@@ -25,45 +25,108 @@
       ]
     },
     {
-  "id": 3,
-  "name": "Power Shot",
-  "cost": 2,
-  "frameModel": "cards/models/frame.obj",
-  "artModel": "cards/models/art_plane.obj",
-  "artTex": "resources/cards/art/power.png",
-  "desc": "8ダメージして1枚引く",
-  "effects": [
-    { "type": "Damage", "value": 8 },
-    { "type": "Draw", "value": 1 }
-  ]
+      "id": 3,
+      "name": "Power Shot",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/power.png",
+      "desc": "8ダメージして1枚引く",
+      "effects": [
+        { "type": "Damage", "value": 8 },
+        { "type": "Draw", "value": 1 }
+      ]
     },
     {
-  "id": 4,
-  "name": "Tear",
-  "cost": 1,
-  "frameModel": "cards/models/frame.obj",
-  "artModel": "cards/models/art_plane.obj",
-  "artTex": "resources/cards/art/DamageSelfDamage.png",
-  "desc": "2ダメージして1ダメージ食らう",
-  "effects": [
-    { "type": "Damage", "value": 2 },
-    { "type": "SelfDamage", "value": 1 }
-  ]
+      "id": 4,
+      "name": "Tear",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/DamageSelfDamage.png",
+      "desc": "2ダメージして1ダメージ食らう",
+      "effects": [
+        { "type": "Damage", "value": 2 },
+        { "type": "SelfDamage", "value": 1 }
+      ]
     },
     {
-  "id": 5,
-  "name": "Heal",
-  "cost": 1,
-  "frameModel": "cards/models/frame.obj",
-  "artModel": "cards/models/art_plane.obj",
-  "artTex": "resources/cards/art/Heal.png",
-  "desc": "3回復する",
-  "effects": [
-    { "type": "Heal", "value": 3 }
-  ]
-}
-
-
-    
+      "id": 5,
+      "name": "Heal",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Heal.png",
+      "desc": "3回復する",
+      "effects": [
+        { "type": "Heal", "value": 3 }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Pair Booster",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/pair_booster.png",
+      "desc": "ワンペア以上ならターン開始時に1枚引く",
+      "effects": [],
+      "subEffects": [
+        {
+          "trigger": "OnTurnStartWithPoker",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "OnePair"
+          },
+          "effects": [
+            { "type": "Draw", "value": 1 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Flush Guard",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/flush_guard.png",
+      "desc": "フラッシュなら役発動時にBlock+8",
+      "effects": [],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "ExactRank",
+            "rank": "Flush"
+          },
+          "effects": [
+            { "type": "Block", "value": 8 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Straight Rune",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/straight_rune.png",
+      "desc": "ストレート系なら場に置いた瞬間に回復3",
+      "effects": [],
+      "subEffects": [
+        {
+          "trigger": "OnPlayToField",
+          "condition": {
+            "type": "RankFamily",
+            "family": "StraightFamily"
+          },
+          "effects": [
+            { "type": "Heal", "value": 3 }
+          ]
+        }
+      ]
+    }
   ]
 }

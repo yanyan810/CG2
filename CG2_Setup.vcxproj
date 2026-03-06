@@ -188,6 +188,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="externals\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="externals\imgui\imgui_tables.cpp" />
     <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="Game\Card\DeckLoader.cpp" />
     <ClCompile Include="Game\GameClearScene.cpp" />
     <ClCompile Include="Game\GameOverScene.cpp" />
     <ClCompile Include="Game\enemy\BossAI.cpp" />
@@ -317,6 +318,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="Game\Card\CardInstance.h" />
+    <ClInclude Include="Game\Card\DeckDef.h" />
+    <ClInclude Include="Game\Card\DeckLoader.h" />
     <ClInclude Include="Game\GameClearScene.h" />
     <ClInclude Include="Game\GameOverScene.h" />
     <ClInclude Include="Game\enemy\BossAI.h" />
