@@ -25,18 +25,19 @@ void HandView3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* c
     db_ = db;
 }
 
-void HandView3D::Rebuild(const std::vector<int>& handDefIds)
+void HandView3D::Rebuild(const std::vector<CardInstance>& hand)
 {
-    handDefIds_ = handDefIds;
+    handCards_ = hand;
     cards_.clear();
-    cards_.reserve(handDefIds.size());
+    cards_.reserve(hand.size());
 
-    for (int id : handDefIds) {
-        const CardDef* def = db_->Find(id);
+    for (const auto& inst : hand) {
+        const CardDef* def = db_->Find(inst.defId);
         if (!def) continue;
 
         auto c = std::make_unique<Card3D>();
         c->Initialize(objCom_, dx_, cam_, *def);
+        // あとで inst.number / inst.suit を見た目に反映できる
         cards_.push_back(std::move(c));
     }
 

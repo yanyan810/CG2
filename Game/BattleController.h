@@ -2,6 +2,7 @@
 #include <vector>
 #include "CardDatabase.h"
 #include "HandView3D.h"
+#include "CardInstance.h"
 
 #include "Card3D.h"
 #include <memory>
@@ -29,6 +30,25 @@ public:
     void DrawImGui();
 #endif
 
+    //役
+    enum class PokerHandRank {
+        None = 0,
+        OnePair,
+        TwoPair,
+        ThreeOfAKind,
+        Straight,
+        Flush,
+        FullHouse,
+        FourOfAKind,
+        StraightFlush,
+        RoyalStraightFlush,
+    };
+
+    struct PokerHandResult {
+        PokerHandRank rank = PokerHandRank::None;
+        int power = 0;
+    };
+
 private:
     enum class TurnState { Player, Enemy };
     TurnState turn_ = TurnState::Player;
@@ -41,10 +61,10 @@ private:
     Object3dCommon* objCom_ = nullptr;
     DirectXCommon* dx_ = nullptr;
 
-	std::vector<int> deck_; //デッキ（カードIDのリスト）
-    std::vector<int> hand_; //手札
-	std::vector<int> discard_; //捨て札
-    std::vector<int> field_;   // 場のカード（最大5）
+    std::vector<CardInstance> deck_;
+    std::vector<CardInstance> hand_;
+    std::vector<CardInstance> discard_;
+    std::vector<CardInstance> field_;
     std::vector<std::unique_ptr<Card3D>> fieldViews_;
 
     int energyMax_ = 50;
@@ -57,8 +77,10 @@ private:
 
     CardInputState cardState_ = CardInputState::Idle;
 
-    int selectedIndex_ = -1;      // 掴んでるカード
-    int pendingCardId_ = -1;   // 入れ替え待ちの使用カード
+    int selectedIndex_ = -1;
+    CardInstance pendingCard_;
+    bool hasPendingCard_ = false;
+
     POINT dragStartMouse_{};
     float dragDx_ = 0.0f;
     float dragDy_ = 0.0f;
@@ -71,5 +93,7 @@ private:
     int PickFieldIndexByMouse_(int mouseX, int mouseY) const;
     void DrawCards_(int count);
     void ApplyCardEffects_(const CardDef& def);
+    PokerHandResult EvaluatePokerHand_() const;
+    const char* GetPokerHandName_(PokerHandRank rank) const;
 
 };
