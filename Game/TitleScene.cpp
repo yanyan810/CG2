@@ -158,7 +158,7 @@ void TitleScene::OnEnter(GameApp& app) {
     switchT_ = 0.0f;        // ← タイマーリセット
 
 
-    battle_.Initialize(app, camera_.get());
+   
 
 }
 
@@ -357,11 +357,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 #endif
 
-#ifdef USE_IMGUI
-    ImGui::Begin("Battle Debug");
-    battle_.DrawImGui();     // ★これ
-    ImGui::End();
-#endif
+
 
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
 
@@ -438,7 +434,7 @@ void TitleScene::Update(GameApp& app, float dt) {
     //ApplySpriteSRT(pressStart_.get(), srtPress_);
     ApplyObject3dSRT(ground_.get(), srtGround_);
 
-    battle_.Update(app, dt);
+   
 
 }
 
@@ -452,7 +448,7 @@ void TitleScene::Draw(GameApp& app) {
     //    titlePlayer->Draw();
     //}
 
-    battle_.Draw(app);
+    
 
     // ---- Video ----
     //if (enableVideo_ && videoPlane_ && video_ && showVideo_) {

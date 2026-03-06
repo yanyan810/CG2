@@ -14,7 +14,7 @@
 #include "Player.h"
 #include "PlayerCombo.h"
 
-#include "BattleController.h"
+
 
 class Particle;
 class Camera;
@@ -29,7 +29,7 @@ public:
 
 private:
 
-	BattleController battle_;
+	
 
 private:
 	void DrawImGui_ModelSwitchersOneWindow();
