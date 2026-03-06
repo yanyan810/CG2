@@ -25,6 +25,13 @@ public:
 
     Vector3 GetWorldPos() const { return pos_; }
 
+#ifdef USE_IMGUI
+    void DrawImGui(const char* label = "Card3D");
+#endif
+
+    void SetModelFixRot(const Vector3& r) { modelFixRot_ = r; }
+    Vector3 GetModelFixRot() const { return modelFixRot_; }
+
 private:
 
     std::unique_ptr<Object3d> frame_;
@@ -35,4 +42,7 @@ private:
     Vector3 pos_{};
     Vector3 rot_{};
     Vector3 scale_{ 1,1,1 };
+
+    Vector3 modelFixRot_{ 1.7f, 0.0f, 1.6f }; // ★ここがImGuiで動かす値
+
 };

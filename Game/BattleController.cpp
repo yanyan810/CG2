@@ -86,6 +86,7 @@ void BattleController::Update(GameApp& app, float dt)
     bool rTrig = rNow && !prevR_;
     prevR_ = rNow;
 
+
     // ターン遷移：Enterで自分ターン終了→敵ターン(待つだけ)→自分ターン開始（5枚補充）
     if (turn_ == TurnState::Player) {
 
@@ -189,4 +190,16 @@ void BattleController::Draw(GameApp& app)
 {
     // ここは「3D PSO」側で描きたいので、Scene側でObjCom()->SetGraphicsPipelineState()後に呼ぶのが安全
     handView_.Draw();
+
+
 }
+
+#ifdef USE_IMGUI
+#include <imgui.h>
+void BattleController::DrawImGui()
+{
+    ImGui::Text("energy: %d / %d", energy_, energyMax_);
+    ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
+    handView_.DrawImGui();
+}
+#endif

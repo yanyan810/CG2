@@ -153,3 +153,16 @@ void HandView3D::SetDrag(int idx, float dxPx, float dyPx, bool active)
     dragDyPx_ = dyPx;
     dragActive_ = active;
 }
+
+#ifdef USE_IMGUI
+#include <imgui.h>
+void HandView3D::DrawImGui()
+{
+    ImGui::Text("hoverIndex: %d", hoverIndex_);
+    if (hoverIndex_ >= 0 && hoverIndex_ < (int)cards_.size()) {
+        cards_[hoverIndex_]->DrawImGui("Hovered Card");
+    } else {
+        ImGui::Text("Hover a card to edit fix rot");
+    }
+}
+#endif
