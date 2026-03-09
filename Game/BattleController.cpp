@@ -185,7 +185,7 @@ void BattleController::RebuildDiscardView_()
 	}
 
 	discardView_ = std::make_unique<Card3D>();
-	discardView_->Initialize(objCom_, dx_, cam_, *def);
+	discardView_->Initialize(objCom_, dx_, cam_, *def, top);
 
 	// 位置は右下寄りのイメージ。あとで調整
 	Vector3 pos{ 14.0f, -9.0f, 6.0f };
