@@ -6,6 +6,7 @@
 #include "DeckDef.h"
 #include "DeckLoader.h"
 #include "Card3D.h"
+#include "CardInstance.h"
 #include <memory>
 
 class GameApp;

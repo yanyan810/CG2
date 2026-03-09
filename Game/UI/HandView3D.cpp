@@ -36,7 +36,8 @@ void HandView3D::Rebuild(const std::vector<CardInstance>& hand)
         if (!def) continue;
 
         auto c = std::make_unique<Card3D>();
-        c->Initialize(objCom_, dx_, cam_, *def);
+        c->Initialize(objCom_, dx_, cam_, *def, inst);
+        c->SetIsHand(true);
         // あとで inst.number / inst.suit を見た目に反映できる
         cards_.push_back(std::move(c));
     }
