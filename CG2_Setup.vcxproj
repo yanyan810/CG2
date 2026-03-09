@@ -210,7 +210,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\GameApp.cpp" />
     <ClCompile Include="Game\GameScene.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
-    <ClCompile Include="Game\UI\CardDescUI.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
@@ -357,7 +356,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\player\Player.h" />
     <ClInclude Include="Game\TestScene.h" />
     <ClInclude Include="Game\UI\Card3D.h" />
-    <ClInclude Include="Game\UI\CardDescUI.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
   </ItemGroup>
   <ItemGroup>
