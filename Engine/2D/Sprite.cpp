@@ -6,34 +6,34 @@
 void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::string textureFilePath) {
     spriteCommon_ = spriteCommon;
     dx_ = dx;
-
-    //単位行列を書き込んでおく
     textureFilePath_ = textureFilePath;
+
+    // ファイル自動ロードは「実ファイルのときだけ」にする
+    // 今は登録済みでなければ無理に LoadTexture しない
     if (!TextureManager::GetInstance()->HasTexture(textureFilePath_)) {
-        TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+        OutputDebugStringA(("[Sprite] texture is not registered: " + textureFilePath_ + "\n").c_str());
+        // ここで return してもいい
+        // 今回は落ちないように白テクスチャへ逃がす
+        textureFilePath_.clear();
     }
 
-    // === 頂点/インデックス ===
     vertexResource_ = dx->CreateBufferResource(sizeof(VertexData) * 4);
     indexResource_ = dx->CreateBufferResource(sizeof(uint32_t) * 6);
 
-    size_ = { 128.0f, 128.0f };// デフォルトサイズ
+    size_ = { 128.0f, 128.0f };
 
-    // 頂点データ（画面ピクセル座標のまま。WVPは main 側で正射影にする想定）
     VertexData* v = nullptr;
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&v));
     v[0] = { {0.0f, 300.0f, 0.0f, 1.0f}, {0.0f,1.0f}, {0,0,-1} };
     v[1] = { {0.0f,   0.0f, 0.0f, 1.0f}, {0.0f,0.0f}, {0,0,-1} };
     v[2] = { {640.f, 300.0f,0.0f, 1.0f}, {1.0f,1.0f}, {0,0,-1} };
     v[3] = { {640.f,   0.0f,0.0f, 1.0f}, {1.0f,0.0f}, {0,0,-1} };
-    // UnmapしなくてOK（永続Mapでも可）
 
     uint32_t* idx = nullptr;
     indexResource_->Map(0, nullptr, reinterpret_cast<void**>(&idx));
     idx[0] = 0; idx[1] = 1; idx[2] = 2;
     idx[3] = 1; idx[4] = 3; idx[5] = 2;
 
-    // ビュー
     vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
     vertexBufferView_.SizeInBytes = sizeof(VertexData) * 4;
     vertexBufferView_.StrideInBytes = sizeof(VertexData);
@@ -42,21 +42,18 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
     indexBufferView_.SizeInBytes = sizeof(uint32_t) * 6;
     indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
 
-    // === マテリアル（※重複を削除して1回だけ作る）
     materialResource_ = dx->CreateBufferResource(sizeof(Material));
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
     materialData_->color = color_;
     materialData_->enableLighting = false;
     materialData_->uvTransform = Matrix4x4::MakeIdentity4x4();
 
-    // === 変換（※重複を削除して1回だけ作る）
     transformResource_ = dx->CreateBufferResource(sizeof(TransformationMatrix));
     transformResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformData_));
     transformData_->WVP = Matrix4x4::MakeIdentity4x4();
     transformData_->World = Matrix4x4::MakeIdentity4x4();
 
     AdjustTextureSize();
-
 }
 
 // 座標-反映処理：position_ → transform.translate
@@ -160,13 +157,11 @@ void Sprite::AdjustTextureSize() {
 }
 
 void Sprite::SetTextureFilePath(const std::string& filePath) {
-    textureFilePath_ = filePath;
-
-    // 念のためロード（ロード済みなら内部で無視される想定）
-    if (!TextureManager::GetInstance()->HasTexture(textureFilePath_)) {
-        TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+    if (!TextureManager::GetInstance()->HasTexture(filePath)) {
+        OutputDebugStringA(("[Sprite] texture is not registered: " + filePath + "\n").c_str());
+        return;
     }
 
-    // 画像サイズに合わせたいならこれ（数字は小さいのでON推奨）
+    textureFilePath_ = filePath;
     AdjustTextureSize();
 }
