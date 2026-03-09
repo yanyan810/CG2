@@ -28,7 +28,7 @@ void TitleScene::OnEnter(GameApp& app) {
     // カメラ（Particle は内部カメラでも動くけど、外部カメラを渡すと安定）
     camera_ = std::make_unique<Camera>();
     camera_->SetRotate({ 0, 0, 0 });
-    camera_->SetTranslate({ 0, 3, -20 });
+    camera_->SetTranslate({ 0, 0, -0 });
 
     app.ObjCom()->SetDefaultCamera(camera_.get());
 
