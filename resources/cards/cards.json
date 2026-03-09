@@ -6,7 +6,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/fireball.png",
+      "artTex": "resources/cards/art/Fire.png",
       "desc": "敵単体に10ダメージ",
       "effects": [
         { "type": "Damage", "value": 10 }
@@ -18,7 +18,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/draw.png",
+      "artTex": "resources/cards/art/QuickDraw.png",
       "desc": "2枚引く",
       "effects": [
         { "type": "Draw", "value": 2 }
@@ -60,6 +60,18 @@
       "desc": "3回復する",
       "effects": [
         { "type": "Heal", "value": 3 }
+      ]
+     },
+     {
+      "id": 6,
+      "name": "Attack!",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Attack!.png",
+      "desc": "敵単体に1ダメージ",
+      "effects": [
+        { "type": "Damage", "value": 1 }
       ]
     },
     {
