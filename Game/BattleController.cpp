@@ -270,11 +270,11 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 			deck_.push_back(MakeCardInstance(1));
 			deck_.push_back(MakeCardInstance(2));
 			deck_.push_back(MakeCardInstance(3));
+			deck_.push_back(MakeCardInstance(6));
 			deck_.push_back(MakeCardInstance(4));
-			deck_.push_back(MakeCardInstance(5));
-			deck_.push_back(MakeCardInstance(10));
-			deck_.push_back(MakeCardInstance(11));
-			deck_.push_back(MakeCardInstance(12));
+			deck_.push_back(MakeCardInstance(3));
+			deck_.push_back(MakeCardInstance(2));
+			deck_.push_back(MakeCardInstance(1));
 		}
 	}
 

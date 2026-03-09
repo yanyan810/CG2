@@ -30,7 +30,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/power.png",
+      "artTex": "resources/cards/art/PowerShot.png",
       "desc": "8ダメージして1枚引く",
       "effects": [
         { "type": "Damage", "value": 8 },
