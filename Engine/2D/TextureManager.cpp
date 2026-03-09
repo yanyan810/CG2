@@ -137,7 +137,11 @@ bool TextureManager::HasTexture(const std::string& key) const {
 void TextureManager::LoadTextureFromMemory(const std::string& key, const uint8_t* data, size_t sizeBytes)
 {
     if (key.empty()) return;
-    if (textureDatas_.contains(key)) return;
+
+    // 同じキーの再生成を許可
+    if (textureDatas_.contains(key)) {
+        textureDatas_.erase(key);
+    }
 
     DirectX::ScratchImage image{};
     HRESULT hr = DirectX::LoadFromWICMemory(
