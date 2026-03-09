@@ -77,8 +77,8 @@ void HandView3D::Update(float dt)
     const float k = 1.0f - std::exp(-follow * dt);
 
     // px -> world のざっくり換算（好みで調整）
-    const float pxToWorldX = 0.01f;
-    const float pxToWorldY = -0.01f; // 画面Y下向きなので符号逆が自然なことが多い
+    const float pxToWorldX = 0.03f;
+    const float pxToWorldY = -0.03f; // 画面Y下向きなので符号逆が自然なことが多い
 
     int n = (int)cards_.size();
     for (int i = 0; i < n; ++i) {
