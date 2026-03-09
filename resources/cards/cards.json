@@ -39,11 +39,11 @@
     },
     {
       "id": 4,
-      "name": "Tear",
+      "name": "BloodyVengeance",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/DamageSelfDamage.png",
+      "artTex": "resources/cards/art/BloodyVengeance.png",
       "desc": "2ダメージして1ダメージ食らう",
       "effects": [
         { "type": "Damage", "value": 2 },
