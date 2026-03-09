@@ -141,10 +141,10 @@ void GameScene::Draw2D(GameApp& app) {
         0, 100
     );
 
-   /* if (cardDescText_) {
+    if (cardDescText_) {
         cardDescText_->Update(view, proj);
         cardDescText_->Draw();
-    }*/
+    }
 }
 
 void GameScene::DrawImGui(GameApp& app) {

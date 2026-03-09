@@ -32,13 +32,12 @@ void TextSprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx)
     spriteCommon_ = spriteCommon;
     dx_ = dx;
 
-    // 先にテクスチャを作る
     RebuildTexture_();
 
     sprite_ = std::make_unique<Sprite>();
     sprite_->Initialize(spriteCommon_, dx_, textureKey_);
     sprite_->SetPosition(position_);
-    sprite_->SetScale(size_);
+    sprite_->SetScale({ 1.0f, 1.0f, 1.0f });
 }
 
 void TextSprite::SetText(const std::wstring& text)
@@ -52,20 +51,22 @@ void TextSprite::SetText(const std::wstring& text)
 
 void TextSprite::Update(const Matrix4x4& view, const Matrix4x4& proj)
 {
-    if (!sprite_) {
+    if (!sprite_ || text_.empty()) {
         return;
     }
 
     sprite_->SetPosition(position_);
-    sprite_->SetScale(size_);
+    sprite_->SetScale({ 1.0f, 1.0f, 1.0f });
     sprite_->Update(view, proj);
 }
 
 void TextSprite::Draw()
 {
-    if (sprite_) {
-        sprite_->Draw();
+    if (!sprite_ || text_.empty()) {
+        return;
     }
+
+    sprite_->Draw();
 }
 
 void TextSprite::RebuildTexture_()
@@ -74,8 +75,12 @@ void TextSprite::RebuildTexture_()
         return;
     }
 
-    // 空文字のときは見えないように最小サイズ
-    const std::wstring drawText = text_.empty() ? L" " : text_;
+    // 空文字なら再生成しない
+    if (text_.empty()) {
+        return;
+    }
+
+    const std::wstring& drawText = text_;
 
     // --- GDI で文字を描画 ---
     const int texW = 1024;
@@ -94,10 +99,9 @@ void TextSprite::RebuildTexture_()
     HBITMAP hBmp = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &pixels, nullptr, 0);
     HGDIOBJ oldBmp = SelectObject(hdc, hBmp);
 
-    HBRUSH bgBrush = CreateSolidBrush(RGB(0, 0, 0));
-    RECT rc{ 0, 0, texW, texH };
-    FillRect(hdc, &rc, bgBrush);
-    DeleteObject(bgBrush);
+    // 背景を透明相当にするため、まず全部0クリア
+    // BGRA = 0,0,0,0
+    std::memset(pixels, 0, texW * texH * 4);
 
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, RGB(255, 255, 255));
@@ -116,10 +120,9 @@ void TextSprite::RebuildTexture_()
     HGDIOBJ oldFont = SelectObject(hdc, hFont);
 
     RECT textRc{ 16, 16, texW - 16, texH - 16 };
-    DrawTextW(hdc, drawText.c_str(), -1, &textRc, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    DrawTextW(hdc, drawText.c_str(), -1, &textRc,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
-    // GDIのBGRAをそのままWIC用メモリにせず、
-    // 一旦BMPファイル形式のメモリを作る
     BITMAPFILEHEADER bfh{};
     bfh.bfType = 0x4D42; // 'BM'
     bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
@@ -143,8 +146,14 @@ void TextSprite::RebuildTexture_()
         bmpBytes.size()
     );
 
+    if (TextureManager::GetInstance()->HasTexture(textureKey_)) {
+        OutputDebugStringA(("[TextSprite] register success: " + textureKey_ + "\n").c_str());
+    } else {
+        OutputDebugStringA(("[TextSprite] register failed: " + textureKey_ + "\n").c_str());
+    }
+
     if (sprite_) {
         sprite_->SetTextureFilePath(textureKey_);
-        sprite_->SetScale({ static_cast<float>(texW), static_cast<float>(texH),0.0f });
+        sprite_->SetScale(size_);
     }
 }
