@@ -438,62 +438,45 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 }
 
-void TitleScene::Draw(GameApp& app) {
-
+void TitleScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
-	skyDome_->Draw();
-    //if (!showVideo_) {
-    //    ground_->Draw();
-    //    titlePlayer->Draw();
-    //}
+    if (skyDome_) skyDome_->Draw();
 
-    
+    // 必要なら
+    // if (!showVideo_) {
+    //     ground_->Draw();
+    //     titlePlayer->Draw();
+    // }
 
-    // ---- Video ----
-    //if (enableVideo_ && videoPlane_ && video_ && showVideo_) {
-    //    auto* cmd = app.Dx()->GetCommandList();
-
-    //    video_->UploadToGpu(cmd);
-
-    //    D3D12_GPU_DESCRIPTOR_HANDLE vh = video_->SrvGpu();
-    //    videoPlane_->DrawWithOverrideSrv(vh);
-
-    //    video_->EndFrame(cmd);
-    //}
-
-  
-
-    // ★PSO/RS をここでセット（Particle::Draw は rootにSRV/CBV積むだけ）
     app.ParticleCom()->SetGraphicsPipelineState();
+    // if (particle_) particle_->Draw();
+}
 
-    // ★PreDraw/SrvPreDraw/PostDraw は GameApp がやるのでここでは絶対呼ばない
-  //  particle_->Draw();
-
-    // ---- 2D ----
+void TitleScene::Draw2D(GameApp& app) {
     app.SpriteCom()->SetGraphicsPipelineState();
 
     Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
-  /*  if (!showVideo_) {
-        if (bg_) {
-            bg_->Update(view, proj);
-            bg_->Draw();
-        }
-        if (pressStart_) {
-            pressStart_->Update(view, proj);
-            pressStart_->Draw();
-        }
-    }*/
+    // if (bg_) { bg_->Update(view, proj); bg_->Draw(); }
+    // if (pressStart_) { pressStart_->Update(view, proj); pressStart_->Draw(); }
 
-    // ===== マスクは必ず最後 =====
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
+}
 
-    if (!particle_) return;
+void TitleScene::DrawImGui(GameApp& app) {
+#ifdef USE_IMGUI
+    DrawImGui_ModelSwitchersOneWindow();
 
+    ImGui::Begin("Camera Debug");
+    ImGui::DragFloat3("Position", &imguiCamPos_.x, 0.1f);
+    ImGui::DragFloat3("Rotation", &imguiCamRot_.x, 0.01f);
+    ImGui::End();
 
+    // 他の ImGui もここにまとめる
+#endif
 }
 
 void TitleScene::DrawImGui_ModelSwitchBlock(const char* header,

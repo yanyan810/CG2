@@ -26,7 +26,9 @@ public:
     void OnEnter(GameApp& app) override;
     void OnExit(GameApp& app) override;
     void Update(GameApp& app, float dt) override;
-    void Draw(GameApp& app) override;
+    void Draw3D(GameApp& app) override;
+    void Draw2D(GameApp& app) override;
+    void DrawImGui(GameApp& app) override;
 
 private:
     Input* input_ = nullptr;

@@ -6,7 +6,8 @@
 #include "Enemy.h"
 #include "Player.h"
 #include "BattleController.h"
-
+#include "TextSprite.h"
+#include "StringUtility.h"
 class GameApp;
 
 class GameScene : public IScene {
@@ -17,7 +18,9 @@ public:
     void OnEnter(GameApp& app) override;
     void OnExit(GameApp& app) override;
     void Update(GameApp& app, float dt) override;
-    void Draw(GameApp& app) override;
+    void Draw3D(GameApp& app) override;
+    void Draw2D(GameApp& app) override;
+    void DrawImGui(GameApp& app) override;
 
 private:
     std::unique_ptr<Camera> camera_;
@@ -30,6 +33,7 @@ private:
     LightingParam light_;
 
     BattleController battle_;
+    std::unique_ptr<TextSprite> cardDescText_; //文字描画
 
     // ESCキーの入力状態を保持（タイトルに戻るなどの処理用）
     bool prevEsc_ = false;

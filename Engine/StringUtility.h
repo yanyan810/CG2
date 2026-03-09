@@ -12,5 +12,4 @@ namespace StringUtility {
 	std::string ConvertString(const std::wstring& str);
 	
 
-
 }

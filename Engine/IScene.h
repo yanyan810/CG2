@@ -1,5 +1,4 @@
 #pragma once
-#include <string>
 
 class GameApp;
 
@@ -9,23 +8,19 @@ public:
 
     virtual void OnEnter(GameApp& app) {}
     virtual void OnExit(GameApp& app) {}
+    virtual void Update(GameApp& app, float dt) {}
 
-    virtual void Update(GameApp& app, float dt) = 0;
-    virtual void Draw(GameApp& app) = 0;
+    virtual void Draw3D(GameApp& app) {}
+    virtual void Draw2D(GameApp& app) {}
+    virtual void DrawImGui(GameApp& app) {}
 
-    // ===== シーン遷移用 =====
-    void RequestChangeScene_(const std::string& next) {
-        nextScene_ = next;
-    }
+    const char* GetRequestedScene_() const { return nextScene_; }
+    void ClearRequestedScene_() { nextScene_ = nullptr; }
 
-    const std::string& NextScene() const {
-        return nextScene_;
-    }
-
-    void ClearNextScene_() {
-        nextScene_.clear();
-    }
+protected:
+    void RequestChangeScene_(const char* name) { nextScene_ = name; }
+  
 
 private:
-    std::string nextScene_;
+    const char* nextScene_ = nullptr;
 };

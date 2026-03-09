@@ -318,32 +318,22 @@ void TestScene::Update(GameApp& app, float dt) {
 }
 
 
-void TestScene::Draw(GameApp& app) {
+void TestScene::Draw3D(GameApp& app) {
     auto* cmd = app.Dx()->GetCommandList();
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // ===== 3D =====
     app.ObjCom()->SetGraphicsPipelineState();
 
     if (ground_) ground_->Draw();
-
-    skyDome_->Draw();
-
+    if (skyDome_) skyDome_->Draw();
     if (drawPointMarker_ && pointMarker_) pointMarker_->Draw();
     if (drawSpotMarker_ && spotMarker_) spotMarker_->Draw();
-
     if (player_) player_->Draw();
 
-#ifdef _DEBUG
-
-    ////player_->DrawDebugHitBoxes(enemyMgr_);
-
-#endif // DEBUG
-
-	
     enemyMgr_.Draw();
+}
 
-    // ===== 2D (Sprite) =====
+void TestScene::Draw2D(GameApp& app) {
     app.SpriteCom()->SetGraphicsPipelineState();
 
     Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
@@ -358,4 +348,10 @@ void TestScene::Draw(GameApp& app) {
         playTxst_->Update(view, proj);
         playTxst_->Draw();
     }
+}
+
+void TestScene::DrawImGui(GameApp& app) {
+#ifdef USE_IMGUI
+ 
+#endif
 }

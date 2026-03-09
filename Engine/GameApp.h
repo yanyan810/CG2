@@ -2,11 +2,11 @@
 #include <memory>
 #include "SceneManager.h"
 #include "Input.h"
+#include "SpriteCommon.h"
 
 class WinApp;
 class DirectXCommon;
 class SrvManager;
-class SpriteCommon;
 class Object3dCommon;
 class ParticleCommon;
 class ImGuiManagaer;
@@ -37,6 +37,9 @@ public:
 
     void Update(float dt);
 
+    void Draw3D();
+    void Draw2D();
+    void DrawImGui();
     void Draw();
 
     Input* GetInput() { return input_.get(); }

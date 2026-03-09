@@ -170,6 +170,31 @@ BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
 	return result;
 }
 
+void BattleController::RebuildDiscardView_()
+{
+	discardView_.reset();
+
+	if (discard_.empty()) {
+		return;
+	}
+
+	const CardInstance& top = discard_.back();
+	const CardDef* def = db_.Find(top.defId);
+	if (!def) {
+		return;
+	}
+
+	discardView_ = std::make_unique<Card3D>();
+	discardView_->Initialize(objCom_, dx_, cam_, *def, top);
+
+	// 位置は右下寄りのイメージ。あとで調整
+	Vector3 pos{ 14.0f, -9.0f, 6.0f };
+	Vector3 rot{ 0.0f, 0.0f, 0.0f };
+	Vector3 scl{ 1.0f, 1.0f, 1.0f };
+
+	discardView_->SetTransform(pos, rot, scl);
+}
+
 void BattleController::ConsumeFieldCards_()
 {
 	for (auto& c : field_) {
@@ -177,6 +202,7 @@ void BattleController::ConsumeFieldCards_()
 	}
 	field_.clear();
 	fieldViews_.clear();
+	RebuildDiscardView_();
 }
 
 namespace {
@@ -266,6 +292,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	handView_.Rebuild(hand_);
 
 	StartPlayerTurn_();
+	RebuildDiscardView_();
 }
 
 bool BattleController::DrawOne_()
@@ -274,7 +301,9 @@ bool BattleController::DrawOne_()
 		if (discard_.empty()) return false;
 		deck_ = discard_;
 		discard_.clear();
+		RebuildDiscardView_();
 	}
+
 	if (deck_.empty()) return false;
 
 	CardInstance card = deck_.back();
@@ -551,7 +580,7 @@ void BattleController::RebuildFieldView_()
 		}
 
 		auto card = std::make_unique<Card3D>();
-		card->Initialize(objCom_, dx_, cam_, *def);
+		card->Initialize(objCom_, dx_, cam_, *def, field_[i]);
 
 		Vector3 pos{ startX + gap * i, y, z };
 		Vector3 rot{ 0.0f, 0.0f, 0.0f };
@@ -844,6 +873,7 @@ void BattleController::Update(GameApp& app, float dt)
 						discard_.push_back(field_[replaceIndex]);
 						field_[replaceIndex] = pendingCard_;
 						RebuildFieldView_();
+						RebuildDiscardView_();
 
 						PokerHandResult poker = EvaluatePokerHand_();
 						TriggerSubEffectsForCard_(
@@ -865,6 +895,7 @@ void BattleController::Update(GameApp& app, float dt)
 					hasPendingCard_ = false;
 					pendingCard_ = {};
 					cardState_ = CardInputState::Idle;
+					RebuildDiscardView_();
 				}
 
 				handView_.SetHoverIndex(-1);
@@ -897,21 +928,32 @@ void BattleController::Update(GameApp& app, float dt)
 	for (auto& c : fieldViews_) {
 		c->Update(dt);
 	}
+
+	if (discardView_) {
+		discardView_->Update(dt);
+	}
+
 }
 
 void BattleController::Draw(GameApp& app)
 {
-	for (auto& c : fieldViews_) {
-		c->Draw();
-	}
+    for (auto& c : fieldViews_) {
+        c->Draw();
+    }
 
-	handView_.Draw();
+    if (discardView_) {
+        discardView_->Draw();
+    }
+
+    handView_.Draw();
 }
 
 #ifdef USE_IMGUI
 #include <imgui.h>
 void BattleController::DrawImGui()
 {
+	Card3D::DrawAdjustImGui();
+
 	ImGui::Text("turn: %s", turn_ == TurnState::Player ? "Player" : "Enemy");
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
 	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
@@ -997,4 +1039,21 @@ void BattleController::SetPlayer(Player* player) {
 
 void BattleController::SetEnemy(Enemy* enemy) {
 	enemy_ = enemy;
+}
+
+const CardDef* BattleController::GetPreviewCardDef() const
+{
+	// 右クリック前のプレビュー中の手札カード
+	if (cardState_ == CardInputState::Preview) {
+		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(hand_.size())) {
+			return db_.Find(hand_[selectedIndex_].defId);
+		}
+	}
+
+	// 場の入れ替え待ち中のカード
+	if (cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_) {
+		return db_.Find(pendingCard_.defId);
+	}
+
+	return nullptr;
 }

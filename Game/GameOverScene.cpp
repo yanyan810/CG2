@@ -231,13 +231,11 @@ void GameOverScene::Update(GameApp& app, float dt) {
 #endif
 }
 
-void GameOverScene::Draw(GameApp& app) {
-
+void GameOverScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
     if (skyDome_) skyDome_->Draw();
 
-    // ===== Video（★GameClear と同じ）=====
     if (enableVideo_ && video_ && videoPlane_) {
         auto* cmd = app.Dx()->GetCommandList();
 
@@ -251,13 +249,9 @@ void GameOverScene::Draw(GameApp& app) {
 
         video_->EndFrame(cmd);
     }
+}
 
-    // damage.obj
-    if (damageObj_) {
-    //    damageObj_->Draw();
-    }
-
-    // 2D
+void GameOverScene::Draw2D(GameApp& app) {
     app.SpriteCom()->SetGraphicsPipelineState();
 
     Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
@@ -272,6 +266,16 @@ void GameOverScene::Draw(GameApp& app) {
     if (retrySp_) { retrySp_->Update(view, proj); retrySp_->Draw(); }
     if (titleSp_) { titleSp_->Update(view, proj); titleSp_->Draw(); }
 
-    // マスク（最後）
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
+}
+
+void GameOverScene::DrawImGui(GameApp& app) {
+#ifdef USE_IMGUI
+    ImGui::Begin("GameOver Video");
+    ImGui::Checkbox("enableVideo", &enableVideo_);
+    ImGui::DragFloat3("T", &srtVideo_.pos.x, 0.1f);
+    ImGui::DragFloat3("R", &srtVideo_.rot.x, 0.01f);
+    ImGui::DragFloat3("S", &srtVideo_.scale.x, 0.1f);
+    ImGui::End();
+#endif
 }

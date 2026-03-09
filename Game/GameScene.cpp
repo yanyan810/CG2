@@ -2,6 +2,15 @@
 #include "GameApp.h"
 #include "Input.h"
 
+static std::wstring Utf8ToWString(const std::string& s)
+{
+    if (s.empty()) return L"";
+    int size = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+    std::wstring out(size - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, out.data(), size);
+    return out;
+}
+
 void GameScene::OnEnter(GameApp& app) {
     // --------------------------------------------------
     // 1. カメラの初期化と設定
@@ -55,6 +64,15 @@ void GameScene::OnEnter(GameApp& app) {
     battle_.Initialize(app, camera_.get());
     battle_.SetPlayer(player_.get());
     battle_.SetEnemy(enemyMgr_.GetBoss());
+
+	// --------------------------------------------------
+	// 6. 文字描画の初期化
+	// --------------------------------------------------
+
+    cardDescText_ = std::make_unique<TextSprite>();
+    cardDescText_->Initialize(app.SpriteCom(), app.Dx());
+    cardDescText_->SetPosition({ 40.0f, 620.0f });
+
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -92,9 +110,17 @@ void GameScene::Update(GameApp& app, float dt) {
 #endif
 
     battle_.Update(app, dt);
+
+    const CardDef* def = battle_.GetPreviewCardDef();
+    if (def) {
+        cardDescText_->SetText(Utf8ToWString(def->desc));
+    } else {
+        cardDescText_->SetText(L"");
+    }
+
 }
 
-void GameScene::Draw(GameApp& app) {
+void GameScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
     if (skyDome_) skyDome_->Draw();
@@ -102,4 +128,29 @@ void GameScene::Draw(GameApp& app) {
     enemyMgr_.Draw();
 
     battle_.Draw(app);
+}
+
+void GameScene::Draw2D(GameApp& app) {
+    app.SpriteCom()->SetGraphicsPipelineState();
+
+    Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+    Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
+        0, 0,
+        float(WinApp::kClientWidth),
+        float(WinApp::kClientHeight),
+        0, 100
+    );
+
+    if (cardDescText_) {
+        cardDescText_->Update(view, proj);
+        cardDescText_->Draw();
+    }
+}
+
+void GameScene::DrawImGui(GameApp& app) {
+#ifdef USE_IMGUI
+    ImGui::Begin("Battle Debug");
+    battle_.DrawImGui();
+    ImGui::End();
+#endif
 }
