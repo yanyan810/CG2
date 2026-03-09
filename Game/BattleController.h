@@ -43,6 +43,8 @@ public:
     void Update(GameApp& app, float dt);
     void Draw(GameApp& app);
 
+    const CardDef* GetPreviewCardDef() const;
+
 #ifdef USE_IMGUI
     void DrawImGui();
 #endif
@@ -86,6 +88,7 @@ private:
     std::vector<CardInstance> discard_;
     std::vector<CardInstance> field_;
     std::vector<std::unique_ptr<Card3D>> fieldViews_;
+    std::unique_ptr<Card3D> discardView_;
 
     int energyMax_ = 50;
     int energy_ = 50;
@@ -122,6 +125,8 @@ private:
     Player* player_ = nullptr;
     Enemy* enemy_ = nullptr;
 
+
+
 private:
     void StartPlayerTurn_();
     void DrawUntilFive_();
@@ -144,5 +149,10 @@ private:
     void ApplyEffectsList_(const std::vector<CardEffectDef>& effects);
     void TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank);
     void TriggerSubEffectsForCard_(const CardInstance& card, SubEffectTrigger trigger, PokerHandRank rank);
+
+    //墓地用
+    void RebuildDiscardView_();
+
+ 
 
 };
