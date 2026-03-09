@@ -812,7 +812,7 @@ void BattleController::Update(GameApp& app, float dt)
 			case CardInputState::Preview:
 				handView_.SetPreviewIndex(selectedIndex_);
 
-				if (rTrig) {
+				if (lTrig) {
 					int idx = selectedIndex_;
 					if (idx >= 0 && idx < (int)hand_.size()) {
 						CardInstance inst = hand_[idx];
@@ -858,7 +858,7 @@ void BattleController::Update(GameApp& app, float dt)
 					handView_.SetPreviewIndex(-1);
 				}
 
-				if (lTrig) {
+				if (rTrig) {
 					cardState_ = CardInputState::Idle;
 					selectedIndex_ = -1;
 					handView_.SetPreviewIndex(-1);

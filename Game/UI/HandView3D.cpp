@@ -74,17 +74,16 @@ void HandView3D::LayoutFan_()
 void HandView3D::Update(float dt)
 {
     const float hoverLift = 0.6f;
+    const float hoverFrontZ = 0.8f;   // hover時にどれだけ手前へ出すか
     const float follow = 18.0f;
     const float k = 1.0f - std::exp(-follow * dt);
 
-    // px -> world のざっくり換算（好みで調整）
     const float pxToWorldX = 0.03f;
-    const float pxToWorldY = -0.03f; // 画面Y下向きなので符号逆が自然なことが多い
+    const float pxToWorldY = -0.03f;
 
     int n = (int)cards_.size();
     for (int i = 0; i < n; ++i) {
 
-        // --- 基本のhover持ち上げ ---
         float targetLift = (i == hoverIndex_) ? hoverLift : 0.0f;
         liftY_[i] += (targetLift - liftY_[i]) * k;
 
@@ -94,22 +93,34 @@ void HandView3D::Update(float dt)
 
         pos.y += liftY_[i];
 
-        // --- ドラッグ中：カードをスライド ---
-        if (dragActive_ && i == dragIndex_) {
-            pos.x += dragDxPx_ * pxToWorldX;
-            pos.y += dragDyPx_ * pxToWorldY;
-            // ちょい持ち上げ強めでも良い
-            pos.y += 0.3f;
+        // --- hover中：少し手前へ ---
+        if (i == hoverIndex_ && !dragActive_ && previewIndex_ < 0) {
+            pos.z -= hoverFrontZ;   // あなたの座標系では小さいほど手前
+            rot = { 0.0f, 0.0f, 0.0f };
+
+            scl = {
+    baseScl_[i].x * 1.05f,
+    baseScl_[i].y * 1.05f,
+    baseScl_[i].z * 1.05f
+            };
+
         }
 
-        // --- プレビュー中：目の前に出す ---
+        // --- ドラッグ中 ---
+        if (dragActive_ && i == dragIndex_) {
+            rot = { 0.0f, 0.0f, 0.0f };
+            pos.x += dragDxPx_ * pxToWorldX;
+            pos.y += dragDyPx_ * pxToWorldY;
+            pos.y += 0.3f;
+            pos.z = 4.0f;           // 最前面寄り
+        }
+
+        // --- プレビュー中 ---
         if (previewIndex_ >= 0 && i == previewIndex_) {
-            // 目の前（数値は好みで）
             Vector3 frontPos{ 0.0f, 0.0f, 3.0f };
             Vector3 frontRot{ 0.0f, 0.0f, 0.0f };
             Vector3 frontScl{ 2.0f, 2.0f, 2.0f };
 
-            // ふわっと遷移したいなら補間してもOK（いまは即反映）
             pos = frontPos;
             rot = frontRot;
             scl = frontScl;
@@ -119,7 +130,6 @@ void HandView3D::Update(float dt)
         cards_[i]->Update(dt);
     }
 }
-
 void HandView3D::Draw()
 {
     for (auto& c : cards_) c->Draw();
