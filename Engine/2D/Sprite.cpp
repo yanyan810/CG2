@@ -9,8 +9,9 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
 
     //単位行列を書き込んでおく
     textureFilePath_ = textureFilePath;
-    TextureManager::GetInstance()->LoadTexture(textureFilePath_);
-
+    if (!TextureManager::GetInstance()->HasTexture(textureFilePath_)) {
+        TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+    }
 
     // === 頂点/インデックス ===
     vertexResource_ = dx->CreateBufferResource(sizeof(VertexData) * 4);
@@ -162,7 +163,9 @@ void Sprite::SetTextureFilePath(const std::string& filePath) {
     textureFilePath_ = filePath;
 
     // 念のためロード（ロード済みなら内部で無視される想定）
-    TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+    if (!TextureManager::GetInstance()->HasTexture(textureFilePath_)) {
+        TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+    }
 
     // 画像サイズに合わせたいならこれ（数字は小さいのでON推奨）
     AdjustTextureSize();

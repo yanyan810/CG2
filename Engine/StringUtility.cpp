@@ -26,4 +26,6 @@ namespace StringUtility {
 		return result;
 	}
 
+
+
 }

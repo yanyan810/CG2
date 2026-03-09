@@ -221,16 +221,14 @@ void GameClearScene::Update(GameApp& app, float dt) {
 
 }
 
-void GameClearScene::Draw(GameApp& app) {
+void GameClearScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
-	skyDome_->Draw();
+    if (skyDome_) skyDome_->Draw();
 
-    // ===== Video =====
     if (enableVideo_ && video_ && videoPlane_) {
         auto* cmd = app.Dx()->GetCommandList();
 
-        // video SRV が入っている heap をセット
         ID3D12DescriptorHeap* heaps[] = { app.Srv()->GetDescriptorHeap() };
         cmd->SetDescriptorHeaps(_countof(heaps), heaps);
 
@@ -241,30 +239,27 @@ void GameClearScene::Draw(GameApp& app) {
 
         video_->EndFrame(cmd);
     }
+}
 
-
-    // ===== 2D =====
+void GameClearScene::Draw2D(GameApp& app) {
     app.SpriteCom()->SetGraphicsPipelineState();
 
     Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
-    if (bg_) {
-        bg_->Update(view, proj);
-        bg_->Draw();
-    }
+    if (bg_) { bg_->Update(view, proj); bg_->Draw(); }
 
-    // 点滅（alphaをSpriteが持ってる前提。無いなら消してOK）
-    if (goTitle_) {
-        const float a = 0.35f + 0.65f * (0.5f + 0.5f * std::sin(uiTime_ * 4.0f));
-        goTitle_->SetColor({ 1,1,1,a });
-
-        goTitle_->Update(view, proj);
-        goTitle_->Draw();
-    }
-
-
-    // 円マスク（最後）
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
+}
+
+void GameClearScene::DrawImGui(GameApp& app) {
+#ifdef USE_IMGUI
+    ImGui::Begin("GameOver Video");
+    ImGui::Checkbox("enableVideo", &enableVideo_);
+    ImGui::DragFloat3("T", &srtVideo_.pos.x, 0.1f);
+    ImGui::DragFloat3("R", &srtVideo_.rot.x, 0.01f);
+    ImGui::DragFloat3("S", &srtVideo_.scale.x, 0.1f);
+    ImGui::End();
+#endif
 }

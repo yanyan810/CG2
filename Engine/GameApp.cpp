@@ -27,33 +27,29 @@ int GameApp::Run() {
         return -1;
     }
 
-    // ループ
     while (!quit_) {
         if (win_->ProcessMessage()) break;
 
         const float dt = 1.0f / 60.0f;
 
 #ifdef USE_IMGUI
-        // ★ ImGui フレーム開始（ここで1回だけ）
         imgui_->Begin();
-#endif // DEBUG
+#endif
 
         if (input_) input_->Update();
 
-        // Update
         sceneMgr_->Update(*this, dt);
 
-        // Draw（★PreDraw/SrvPreDraw/PostDraw はここで1回だけ）
         dx_->PreDraw();
         srv_->PreDraw();
 
-      
-        sceneMgr_->Draw(*this);
+        Draw3D();
+        Draw2D();
 
 #ifdef USE_IMGUI
+        DrawImGui();
         imgui_->End(dx_->GetCommandList());
-
-#endif // DEBUG
+#endif
 
         dx_->PostDraw();
     }
@@ -61,7 +57,6 @@ int GameApp::Run() {
     Finalize_();
     return 0;
 }
-
 
 bool GameApp::Initialize_() {
     OutputDebugStringA("[GameApp] Initialize START\n");
@@ -155,16 +150,36 @@ void GameApp::Update(float dt) {
     sceneMgr_->Update(*this, dt); // ここがあるかが重要
 }
 
+//void GameApp::Draw() {
+//    OutputDebugStringA("[GameApp] Draw\n");
+//
+//    dx_->PreDraw();
+//    srv_->PreDraw();
+//
+//    sceneMgr_->Draw(*this); // ここがあるかが重要
+//
+//    dx_->PostDraw();
+//
+//}
+
+void GameApp::Draw3D() {
+    sceneMgr_->Draw3D(*this);
+}
+
+void GameApp::Draw2D() {
+    sceneMgr_->Draw2D(*this);
+}
+
+void GameApp::DrawImGui() {
+    sceneMgr_->DrawImGui(*this);
+}
+
 void GameApp::Draw() {
-    OutputDebugStringA("[GameApp] Draw\n");
-
-    dx_->PreDraw();
-    srv_->PreDraw();
-
-    sceneMgr_->Draw(*this); // ここがあるかが重要
-
-    dx_->PostDraw();
-
+    Draw3D();
+    Draw2D();
+#ifdef USE_IMGUI
+    DrawImGui();
+#endif
 }
 
 void GameApp::WarmupAssets_() {
