@@ -551,7 +551,7 @@ void BattleController::RebuildFieldView_()
 		}
 
 		auto card = std::make_unique<Card3D>();
-		card->Initialize(objCom_, dx_, cam_, *def);
+		card->Initialize(objCom_, dx_, cam_, *def, field_[i]);
 
 		Vector3 pos{ startX + gap * i, y, z };
 		Vector3 rot{ 0.0f, 0.0f, 0.0f };
@@ -912,6 +912,8 @@ void BattleController::Draw(GameApp& app)
 #include <imgui.h>
 void BattleController::DrawImGui()
 {
+	Card3D::DrawAdjustImGui();
+
 	ImGui::Text("turn: %s", turn_ == TurnState::Player ? "Player" : "Enemy");
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
 	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());

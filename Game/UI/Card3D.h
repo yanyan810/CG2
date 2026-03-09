@@ -6,6 +6,7 @@
 #include "Object3dCommon.h"
 #include "TextureManager.h"
 #include "CardDef.h"
+#include "CardInstance.h"
 
 class Camera;
 class DirectXCommon;
@@ -17,13 +18,15 @@ public:
         Object3dCommon* objCom,
         DirectXCommon* dx,
         Camera* cam,
-        const CardDef& def);
+        const CardDef& def,
+        const CardInstance& inst);
 
     void SetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale);
     void Update(float dt);
     void Draw();
 
     Vector3 GetWorldPos() const { return pos_; }
+    void SetIsHand(bool isHand) { isHand_ = isHand; }
 
 #ifdef USE_IMGUI
     void DrawImGui(const char* label = "Card3D");
@@ -31,13 +34,18 @@ public:
 
     void SetModelFixRot(const Vector3& r) { modelFixRot_ = r; }
     Vector3 GetModelFixRot() const { return modelFixRot_; }
-
+    static void DrawAdjustImGui();
 private:
 
     std::unique_ptr<Object3d> frame_;
     std::unique_ptr<Object3d> art_;
 
+    std::unique_ptr<Object3d> costObj_;
+    std::unique_ptr<Object3d> suitObj_;
+
     D3D12_GPU_DESCRIPTOR_HANDLE artSrv_{};
+
+    bool isHand_ = false;
 
     Vector3 pos_{};
     Vector3 rot_{};
