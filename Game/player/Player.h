@@ -41,6 +41,7 @@ public:
 			hp_ = maxHp_;
 		}
 	}
+	int GetMaxHP() const { return maxHp_; }
 
 private:
 	std::unique_ptr<Object3d> model_;

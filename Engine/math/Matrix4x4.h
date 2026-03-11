@@ -62,6 +62,9 @@ public:
 	Matrix4x4 operator*(const Matrix4x4& rhs) const;
 	Matrix4x4& operator*=(const Matrix4x4& rhs);
 
+	// 2D UI用の正射影行列を作る関数
+	static Matrix4x4 MakeOrthographicMatrix(float width, float height);
+
 	// クォータニオンの構造体がない場合、簡易版
 	struct Quat { float x, y, z, w; };
 

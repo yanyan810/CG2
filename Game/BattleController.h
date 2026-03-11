@@ -7,12 +7,14 @@
 #include "DeckLoader.h"
 #include "Card3D.h"
 #include "CardInstance.h"
+#include "Sprite.h"
 #include <memory>
 
 class GameApp;
 class Camera;
 class Object3dCommon;
 class DirectXCommon;
+class SpriteCommon;
 
 class Player;
 class Enemy;
@@ -129,6 +131,15 @@ private:
 
 
 private:
+
+    SpriteCommon* spriteCom_ = nullptr;
+
+    std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
+    std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
+
+    std::unique_ptr<Sprite> enemyHpBg_;  // ボスHP背景
+    std::unique_ptr<Sprite> enemyHpFg_;  // ボスHP中身(赤)
+
     void StartPlayerTurn_();
     void DrawUntilFive_();
     bool DrawOne_();
