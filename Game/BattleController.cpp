@@ -950,6 +950,9 @@ void BattleController::Update(GameApp& app, float dt)
 		}
 
 	} else {
+		// --------------------------------------------------
+		// エネミーターンの処理
+		// --------------------------------------------------
 		handView_.SetHoverIndex(-1);
 		handView_.SetDrag(-1, 0, 0, false);
 		handView_.SetPreviewIndex(-1);
@@ -960,7 +963,32 @@ void BattleController::Update(GameApp& app, float dt)
 		pendingCard_ = {};
 
 		enemyWait_ -= dt;
+
+		// ★変更：待機時間が0になったら、敵が行動を実行してからプレイヤーのターンへ！
 		if (enemyWait_ <= 0.0f) {
+
+			// AIからランダムな行動を取得して実行
+			if (enemy_ && player_) {
+				EnemyAction action = enemy_->GetBossAI().GetRandomAction();
+
+				if (action.type == "Attack") {
+					// ボスが突進してプレイヤーを攻撃！
+					enemy_->PlayAttackAnim(player_->GetPos());
+					player_->TriggerHitFlash(0.2f);
+					player_->PlayDamageAnim();
+
+					player_->Damage(action.value);
+
+				} else if (action.type == "Heal") {
+					// ボスの回復！
+					enemy_->Heal(action.value);
+
+				} else if (action.type == "Block") {
+					// ボスの防御（必要に応じて処理を追加）
+				}
+			}
+
+			// プレイヤーターンへ移行
 			turn_ = TurnState::Player;
 			StartPlayerTurn_();
 		}
