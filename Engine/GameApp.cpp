@@ -194,6 +194,14 @@ void GameApp::WarmupAssets_() {
     //ModelManager::GetInstance()->LoadModel("gltf/walk.glb");
     ModelManager::GetInstance()->LoadModel("Player/player.gltf");
     ModelManager::GetInstance()->LoadModel("Player/sword.obj");
+    ModelManager::GetInstance()->LoadModel("enemy/boss/boss.gltf");
+    ModelManager::GetInstance()->LoadModel("cards/models/1.obj");
+    ModelManager::GetInstance()->LoadModel("cards/models/2.obj");
+    ModelManager::GetInstance()->LoadModel("cards/models/3.obj");
+    ModelManager::GetInstance()->LoadModel("cards/models/4.obj");
+    ModelManager::GetInstance()->LoadModel("cards/models/5.obj");
+    ModelManager::GetInstance()->LoadModel("cards/models/art_plane.obj");
+    ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
     
     OutputDebugStringA("[Warmup] END\n");
 }
