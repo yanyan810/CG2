@@ -32,7 +32,11 @@ public:
 	Vector3 GetWorldPos() const { return pos_; }
 	AABB GetBodyAABB() const { return body_; }
 	void Damage(int damage) { hp_ -= damage; if (hp_ < 0) hp_ = 0; }
-	void TriggerHitFlash(float sec) { /* カードバトルなので一旦無視 */ }
+	void TriggerHitFlash(float sec) { flashTimer_ = sec; }
+
+	// 動きのトリガー関数
+	void PlayAttackAnim(const Vector3& targetPos);
+	void PlayDamageAnim();
 	int GetHP() const { return hp_; }
 
 	void Heal(int value) {
@@ -52,4 +56,14 @@ private:
 	int hp_ = 100;
 	int maxHp_ = 100;
 	AABB body_{};
+	enum class AnimState { Idle, AttackForward, AttackReturn, Damage };
+	AnimState animState_ = AnimState::Idle;
+
+	float animTimer_ = 0.0f;
+	float animDuration_ = 0.0f;
+	Vector3 basePos_{};   // 本来の立ち位置
+	Vector3 startPos_{};  // アニメーション開始位置
+	Vector3 targetPos_{}; // アニメーション目標位置
+
+	float flashTimer_ = 0.0f;
 };

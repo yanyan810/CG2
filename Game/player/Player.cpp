@@ -10,17 +10,68 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
 
     // 複雑なコンボモデルは捨てて、基本となるモデルを1つだけ読み込む
     model_->SetModel("human/walk.gltf");
-
+    model_->SetScale({ 3.0f, 3.0f, 3.0f });
     // 待機アニメーションをループ再生
     if (model_->HasAnimation()) {
         model_->PlayAnimation("Idle", true);
     }
+
+    basePos_ = pos_;
+}
+
+void Player::PlayAttackAnim(const Vector3& targetPos) {
+    animState_ = AnimState::AttackForward;
+    animTimer_ = 0.0f;
+    animDuration_ = 0.2f; // 0.2秒で突進
+    startPos_ = basePos_;
+    // 相手の位置の少し手前まで移動
+    targetPos_ = Lerp(basePos_, targetPos, 0.8f);
+}
+
+void Player::PlayDamageAnim() {
+    animState_ = AnimState::Damage;
+    animTimer_ = 0.0f;
+    animDuration_ = 0.15f; // 0.15秒でのけぞる
+    startPos_ = basePos_;
+    // プレイヤーは左側にいる想定なので、左(Xのマイナス方向)に下がる
+    targetPos_ = { basePos_.x - 2.0f, basePos_.y, basePos_.z };
 }
 
 void Player::Update(float dt) {
+    // 動き（アニメーション）の計算
+    if (animState_ != AnimState::Idle) {
+        animTimer_ += dt;
+        float t = animTimer_ / animDuration_;
+        if (t > 1.0f) t = 1.0f;
+
+        // イージング（後半ゆっくりになる計算）
+        float easeT = t * (2.0f - t);
+        pos_ = Lerp(startPos_, targetPos_, easeT);
+
+        if (animTimer_ >= animDuration_) {
+            if (animState_ == AnimState::AttackForward) {
+                // 突進が終わったら戻る
+                animState_ = AnimState::AttackReturn;
+                animTimer_ = 0.0f;
+                animDuration_ = 0.3f; // 戻る時は少しゆっくり
+                startPos_ = pos_;
+                targetPos_ = basePos_;
+            } else if (animState_ == AnimState::AttackReturn || animState_ == AnimState::Damage) {
+                // 戻り・ダメージ終了で待機状態へ
+                animState_ = AnimState::Idle;
+                pos_ = basePos_;
+            }
+        }
+    }
+
+    // 赤点滅（フラッシュ）の計算
+    if (flashTimer_ > 0.0f) {
+        flashTimer_ -= dt;
+        model_->SetMaterialColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+    } else {
+        model_->SetMaterialColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+    }
     if (model_) {
-        // ★ ここで毎フレーム「指定した座標」と「回転」を確実に適用する
-        // これで謎の力によって座標がズレることを完全に防ぎます
         model_->SetTranslate(pos_);
         model_->SetRotate(rot_);
 
@@ -41,6 +92,7 @@ void Player::Draw() {
 
 void Player::SetSpawnPos(const Vector3& p) {
     pos_ = p;
+    basePos_ = p;
 }
 
 void Player::SetRotation(const Vector3& r) {
