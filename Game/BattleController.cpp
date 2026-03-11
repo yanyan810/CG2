@@ -366,6 +366,14 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			DrawCards_(effect.value);
 
 		} else if (effect.type == "Damage") {
+			if (player_ && enemy_) {
+				// プレイヤーが敵の位置に向かって突進！
+				player_->PlayAttackAnim(enemy_->GetPos());
+
+				// 敵が赤く光ってのけぞる！
+				enemy_->TriggerHitFlash(0.2f);
+				enemy_->PlayDamageAnim();
+			}
 			if (enemy_) {
 				enemy_->Damage(effect.value);
 			} else {
@@ -388,6 +396,8 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "SelfDamage") {
 			if (player_) {
+				player_->TriggerHitFlash(0.2f);
+				player_->PlayDamageAnim();
 				player_->Damage(effect.value);
 			}
 
@@ -722,6 +732,11 @@ void BattleController::Update(GameApp& app, float dt)
 		}
 
 		if (key3Trig) {
+			if (player_ && enemy_) {
+				player_->PlayAttackAnim(enemy_->GetPos());
+				enemy_->TriggerHitFlash(0.2f);
+				enemy_->PlayDamageAnim();
+			}
 			enemyHp_ -= bonus.damage;
 			if (enemyHp_ < 0) {
 				enemyHp_ = 0;

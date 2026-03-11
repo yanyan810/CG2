@@ -35,6 +35,10 @@ public:
 
     void SetLighting(const LightingParam& p);
 
+    void TriggerHitFlash(float sec) { flashTimer_ = sec; }
+    void PlayAttackAnim(const Vector3& targetPos);
+    void PlayDamageAnim();
+
 private:
     Object3dCommon* objCommon_ = nullptr;
     DirectXCommon* dx_ = nullptr;
@@ -52,6 +56,17 @@ private:
     LightingParam light_;
 
     BossAI ai_; // シンプルになったAI
+
+    enum class AnimState { Idle, AttackForward, AttackReturn, Damage };
+    AnimState animState_ = AnimState::Idle;
+
+    float animTimer_ = 0.0f;
+    float animDuration_ = 0.0f;
+    Vector3 basePos_{};
+    Vector3 startPos_{};
+    Vector3 targetPos_{};
+
+    float flashTimer_ = 0.0f;
 };
 
 // ==========================================

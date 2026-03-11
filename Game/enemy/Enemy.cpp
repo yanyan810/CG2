@@ -25,7 +25,7 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 
     // 今回はボスのモデルのみ読み込む
     model_->SetModel("enemy/boss/boss.gltf");
-
+    model_->SetScale({ 3.0f, 3.0f, 3.0f });
     // エネミーを左側（プレイヤー側）に向かせる
     rot_ = { 0.0f, -1.5708f, 0.0f };
 
@@ -36,11 +36,61 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 
     // AIの初期化（もうHP管理など簡単なものだけ）
     ai_.Reset(hp_);
+
+    basePos_ = pos_;
+}
+
+void Enemy::PlayAttackAnim(const Vector3& targetPos) {
+    animState_ = AnimState::AttackForward;
+    animTimer_ = 0.0f;
+    animDuration_ = 0.2f;
+    startPos_ = basePos_;
+    targetPos_ = Lerp(basePos_, targetPos, 0.8f);
+}
+
+void Enemy::PlayDamageAnim() {
+    animState_ = AnimState::Damage;
+    animTimer_ = 0.0f;
+    animDuration_ = 0.15f;
+    startPos_ = basePos_;
+    // ボスは右側にいる想定なので、右(Xのプラス方向)に下がる
+    targetPos_ = { basePos_.x + 2.0f, basePos_.y, basePos_.z };
 }
 
 void Enemy::Update(float dt)
 {
     if (!alive_) return;
+
+    // 動き（アニメーション）の計算
+    if (animState_ != AnimState::Idle) {
+        animTimer_ += dt;
+        float t = animTimer_ / animDuration_;
+        if (t > 1.0f) t = 1.0f;
+
+        float easeT = t * (2.0f - t);
+        pos_ = Lerp(startPos_, targetPos_, easeT);
+
+        if (animTimer_ >= animDuration_) {
+            if (animState_ == AnimState::AttackForward) {
+                animState_ = AnimState::AttackReturn;
+                animTimer_ = 0.0f;
+                animDuration_ = 0.3f;
+                startPos_ = pos_;
+                targetPos_ = basePos_;
+            } else if (animState_ == AnimState::AttackReturn || animState_ == AnimState::Damage) {
+                animState_ = AnimState::Idle;
+                pos_ = basePos_;
+            }
+        }
+    }
+
+    // 赤点滅（フラッシュ）の計算
+    if (flashTimer_ > 0.0f) {
+        flashTimer_ -= dt;
+        model_->SetMaterialColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+    } else {
+        model_->SetMaterialColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+    }
 
     // AIの更新（やられ判定など最低限の処理）
     ai_.Update(*this, dt);

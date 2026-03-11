@@ -43,12 +43,12 @@ void GameScene::OnEnter(GameApp& app) {
     // プレイヤーの配置（左側・右向き）
     player_ = std::make_unique<Player>();
     player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    player_->SetSpawnPos({ -4.0f, 0.0f, charZ });
+    player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
     player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
 
     // エネミーの配置（右側・左向き）
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    enemyMgr_.Spawn(EnemyType::Boss, Vector3{ 4.0f, 0.0f, charZ });
+    enemyMgr_.Spawn(EnemyType::Boss, Vector3{ 7.0f, 0.0f, charZ });
 
     // --------------------------------------------------
     // 4. ライトの初期設定
