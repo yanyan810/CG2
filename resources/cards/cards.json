@@ -56,7 +56,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Heal.png",
+      "artTex": "resources/cards/art/TakeABreak.png",
       "desc": "3回復する",
       "effects": [
         { "type": "Heal", "value": 3 }
@@ -72,6 +72,30 @@
       "desc": "敵単体に1ダメージ",
       "effects": [
         { "type": "Damage", "value": 1 }
+      ]
+    },
+      {
+      "id": 7,
+      "name": "Crush",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Crush.png",
+      "desc": "敵全体に２ダメージ",
+      "effects": [
+        { "type": "Damage", "value": 2 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "ExactRank",
+            "rank": "Flush"
+          },
+          "effects": [
+            { "type": "Damage", "value": 1 }
+          ]
+        }
       ]
     },
     {
