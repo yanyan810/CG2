@@ -50,6 +50,19 @@ Matrix4x4 Matrix4x4::RotateX(float angleRad) {
 	return mat;
 }
 
+// 2D UI用の正射影行列（左上が0,0で、右下がwidth,heightになる行列）
+Matrix4x4 Matrix4x4::MakeOrthographicMatrix(float width, float height) {
+    Matrix4x4 m = MakeIdentity4x4();
+    m.m[0][0] = 2.0f / width;
+    m.m[1][1] = -2.0f / height;
+    m.m[2][2] = 1.0f;
+    m.m[3][0] = -1.0f;
+    m.m[3][1] = 1.0f;
+    m.m[3][2] = 0.0f;
+    m.m[3][3] = 1.0f;
+    return m;
+}
+
 Matrix4x4 Matrix4x4::RotateZ(float radian) {
     Matrix4x4 result = MakeIdentity4x4();
     result.m[0][0] = std::cos(radian);

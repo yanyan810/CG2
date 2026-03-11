@@ -29,6 +29,7 @@ public:
     bool IsAlive() const { return alive_; }
     void Damage(int damage) { hp_ -= damage; if (hp_ < 0) hp_ = 0; }
     int GetHP() const { return hp_; }
+    int GetMaxHP() const { return ai_.GetMaxHP(); }
     Vector3 GetPos() const { return pos_; }
     AABB GetBodyAABB() const { return body_; }
 

@@ -247,6 +247,35 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	objCom_ = app.ObjCom();
 	dx_ = app.Dx();
 
+	spriteCom_ = app.SpriteCom();
+
+	// プレイヤーのHPゲージ作成
+	playerHpBg_ = std::make_unique<Sprite>();
+	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png"); 
+	playerHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
+	playerHpBg_->SetScale({ 250.0f, 18.0f, 1.0f }); 
+	playerHpBg_->SetPosition({ 80.0f, 40.0f });     
+
+	playerHpFg_ = std::make_unique<Sprite>();
+	playerHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
+	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f }); // 緑色
+	playerHpFg_->SetScale({ 300.0f, 20.0f, 1.0f });
+	playerHpFg_->SetPosition({ 200.0f, 600.0f });
+
+	// ボスのHPゲージ作成
+	enemyHpBg_ = std::make_unique<Sprite>();
+	enemyHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
+	enemyHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
+	enemyHpBg_->SetScale({ 250.0f, 18.0f, 1.0f });
+	enemyHpBg_->SetPosition({ 950.0f, 40.0f });
+
+	enemyHpFg_ = std::make_unique<Sprite>();
+	enemyHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
+	enemyHpFg_->SetColor({ 0.8f, 0.2f, 0.2f, 1.0f });  // 赤色
+	enemyHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
+	enemyHpFg_->SetPosition({ 950.0f, 40.0f });
+
+
 	if (!db_.LoadFromJson("resources/cards/cards.json")) {
 		db_.BuildSample();
 	}
@@ -932,7 +961,40 @@ void BattleController::Update(GameApp& app, float dt)
 	if (discardView_) {
 		discardView_->Update(dt);
 	}
+	// HPゲージの長さと位置を毎フレーム更新する
+	// プレイヤーのHPゲージ計算
+	if (player_ && playerHpFg_) {
+		float hpRatio = (float)player_->GetHP() / (float)player_->GetMaxHP();
+		if (hpRatio < 0.0f) hpRatio = 0.0f;
 
+		playerHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
+		playerHpFg_->SetPosition({ 80.0f, 40.0f });
+	}
+
+	// ボスのHPゲージ計算
+	if (enemy_ && enemyHpFg_) {
+		float hpRatio = (float)enemy_->GetHP() / (float)enemy_->GetMaxHP();
+		if (hpRatio < 0.0f) hpRatio = 0.0f;
+
+		enemyHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
+		enemyHpFg_->SetPosition({ 950.0f, 40.0f });
+	}
+	// 2D UI用の行列を作成する（Mathクラスを使用）
+	// View行列（カメラは原点でまっすぐ前を向く = 単位行列）
+	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+
+	// Projection行列（画面サイズに合わせた正射影行列）
+	float width = (float)WinApp::kClientWidth;
+	float height = (float)WinApp::kClientHeight;
+	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
+
+	// --------------------------------------------------
+	// スプライトの更新
+	// --------------------------------------------------
+	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
+	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (enemyHpBg_) enemyHpBg_->Update(viewMat, projMat);
+	if (enemyHpFg_) enemyHpFg_->Update(viewMat, projMat);
 }
 
 void BattleController::Draw(GameApp& app)
@@ -946,6 +1008,12 @@ void BattleController::Draw(GameApp& app)
     }
 
     handView_.Draw();
+
+	if (playerHpBg_) playerHpBg_->Draw();
+	if (playerHpFg_) playerHpFg_->Draw();
+
+	if (enemyHpBg_) enemyHpBg_->Draw();
+	if (enemyHpFg_) enemyHpFg_->Draw();
 }
 
 #ifdef USE_IMGUI
