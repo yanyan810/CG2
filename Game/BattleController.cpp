@@ -308,6 +308,9 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	} else {
 		deck_.clear();
 		for (int i = 0; i < 4; ++i) {
+			
+			deck_.push_back(MakeCardInstance(9));
+			deck_.push_back(MakeCardInstance(8));
 			deck_.push_back(MakeCardInstance(7));
 			deck_.push_back(MakeCardInstance(6));
 			deck_.push_back(MakeCardInstance(5));
@@ -315,6 +318,17 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 			deck_.push_back(MakeCardInstance(3));
 			deck_.push_back(MakeCardInstance(2));
 			deck_.push_back(MakeCardInstance(1));
+			deck_.push_back(MakeCardInstance(20));
+			deck_.push_back(MakeCardInstance(19));
+			deck_.push_back(MakeCardInstance(18));
+			deck_.push_back(MakeCardInstance(17));
+			deck_.push_back(MakeCardInstance(16));
+			deck_.push_back(MakeCardInstance(15));
+			deck_.push_back(MakeCardInstance(14));
+			deck_.push_back(MakeCardInstance(13));
+			deck_.push_back(MakeCardInstance(12));
+			deck_.push_back(MakeCardInstance(11));
+			deck_.push_back(MakeCardInstance(10));
 		}
 	}
 
