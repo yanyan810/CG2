@@ -4,6 +4,7 @@
 #include <fstream>
 #include <random>
 #include <nlohmann/json.hpp> 
+#include <Windows.h>
 using json = nlohmann::json;
 
 
@@ -14,8 +15,11 @@ void BossAI::Reset(int maxHP) {
 // JSONからの読み込み
 void BossAI::LoadPattern(const std::string& filePath) {
     std::ifstream file(filePath);
-    if (!file.is_open()) return;
-
+    if (!file.is_open()) {
+        std::string errorMsg = "[BossAI] ERROR: JSONファイルが見つかりません！探した場所: " + filePath + "\n";
+        OutputDebugStringA(errorMsg.c_str());
+        return;
+    }
     json j;
     file >> j;
 
@@ -35,6 +39,8 @@ void BossAI::LoadPattern(const std::string& filePath) {
             actionList_.push_back(action);
         }
     }
+    std::string successMsg = "[BossAI] SUCCESS: JSONを読み込みました！技の数: " + std::to_string(actionList_.size()) + "\n";
+    OutputDebugStringA(successMsg.c_str());
 }
 
 // ランダムに行動を選択する

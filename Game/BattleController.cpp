@@ -275,7 +275,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	enemyHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
 	enemyHpFg_->SetPosition({ 950.0f, 40.0f });
 
-
+	
 	if (!db_.LoadFromJson("resources/cards/cards.json")) {
 		db_.BuildSample();
 	}
@@ -315,7 +315,9 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	pendingCard_ = {};
 
 	energy_ = energyMax_;
-
+	if (enemy_) {
+		enemy_->GetBossAI().LoadPattern("resources/cards/Boos.json");
+	}
 	handView_.Initialize(objCom_, dx_, cam_, &db_);
 	handView_.Rebuild(hand_);
 
