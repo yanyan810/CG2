@@ -249,20 +249,21 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	spriteCom_ = app.SpriteCom();
 
-	// プレイヤーのHPゲージ作成
+	// -----------------------------
+	// HPゲージ作成
+	// -----------------------------
 	playerHpBg_ = std::make_unique<Sprite>();
-	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png"); 
+	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-	playerHpBg_->SetScale({ 250.0f, 18.0f, 1.0f }); 
-	playerHpBg_->SetPosition({ 80.0f, 40.0f });     
+	playerHpBg_->SetScale({ 250.0f, 18.0f, 1.0f });
+	playerHpBg_->SetPosition({ 80.0f, 40.0f });
 
 	playerHpFg_ = std::make_unique<Sprite>();
 	playerHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f }); // 緑色
-	playerHpFg_->SetScale({ 300.0f, 20.0f, 1.0f });
-	playerHpFg_->SetPosition({ 200.0f, 600.0f });
+	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f });
+	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });   // ← 最初から正しい値
+	playerHpFg_->SetPosition({ 80.0f, 40.0f });       // ← 最初から正しい値
 
-	// ボスのHPゲージ作成
 	enemyHpBg_ = std::make_unique<Sprite>();
 	enemyHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	enemyHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
@@ -271,10 +272,22 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	enemyHpFg_ = std::make_unique<Sprite>();
 	enemyHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	enemyHpFg_->SetColor({ 0.8f, 0.2f, 0.2f, 1.0f });  // 赤色
+	enemyHpFg_->SetColor({ 0.8f, 0.2f, 0.2f, 1.0f });
 	enemyHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
 	enemyHpFg_->SetPosition({ 950.0f, 40.0f });
 
+	// -----------------------------
+	// ここで一度だけ即時反映
+	// -----------------------------
+	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+	float width = (float)WinApp::kClientWidth;
+	float height = (float)WinApp::kClientHeight;
+	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
+
+	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
+	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (enemyHpBg_) enemyHpBg_->Update(viewMat, projMat);
+	if (enemyHpFg_) enemyHpFg_->Update(viewMat, projMat);
 
 	if (!db_.LoadFromJson("resources/cards/cards.json")) {
 		db_.BuildSample();
@@ -293,7 +306,6 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 			}
 		}
 	} else {
-		// 仮の保険デッキ
 		deck_.clear();
 		for (int i = 0; i < 4; ++i) {
 			deck_.push_back(MakeCardInstance(7));
@@ -322,7 +334,6 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	StartPlayerTurn_();
 	RebuildDiscardView_();
 }
-
 bool BattleController::DrawOne_()
 {
 	if (deck_.empty()) {
@@ -1200,4 +1211,46 @@ std::wstring BattleController::GetPokerChoiceUiText() const
 	}
 
 	return L"";
+}
+
+bool BattleController::ShouldShowOperationUi() const
+{
+	// ポーカー選択中はそっちを優先
+	if (HasPokerChoiceUi()) {
+		return false;
+	}
+
+	// カード説明を出しているときもそっちを優先
+	if (GetPreviewCardDef() != nullptr) {
+		return false;
+	}
+
+	return true;
+}
+
+std::wstring BattleController::GetOperationUiText() const
+{
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		std::wstring text;
+		text += L"場のカードを選んで入れ替えます\n";
+		text += L"左クリック : 選んだ場カードと入れ替え\n";
+		text += L"右クリック : 入れ替えず墓地へ送る\n";
+		return text;
+	}
+
+	if (cardState_ == CardInputState::Preview) {
+		std::wstring text;
+		text += L"カード選択中\n";
+		text += L"左クリック : 使用する\n";
+		text += L"右クリック : キャンセル\n";
+		return text;
+	}
+
+	std::wstring text;
+	text += L"基本操作\n";
+	text += L"左クリック＋上ドラッグ : カードをプレビュー\n";
+	text += L"プレビュー中に左クリック : カードを使用\n";
+	text += L"プレビュー中に右クリック : キャンセル\n";
+	text += L"Enter : ターン終了\n";
+	return text;
 }

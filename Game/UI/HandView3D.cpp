@@ -1,6 +1,7 @@
 #include "HandView3D.h"
 #include "CardDatabase.h"
 #include "WinApp.h"
+#include <cmath>
 
 // ここはあなたの WorldToScreen 実装に置き換えてOK
 static bool WorldToScreen_RowVector(const Vector3& w, const Matrix4x4& viewProj,
@@ -38,17 +39,21 @@ void HandView3D::Rebuild(const std::vector<CardInstance>& hand)
         auto c = std::make_unique<Card3D>();
         c->Initialize(objCom_, dx_, cam_, *def, inst);
         c->SetIsHand(true);
-        // あとで inst.number / inst.suit を見た目に反映できる
         cards_.push_back(std::move(c));
     }
 
-    // ★基準Transform/持ち上げ配列をカード数に合わせる
     basePos_.assign(cards_.size(), {});
     baseRot_.assign(cards_.size(), {});
     baseScl_.assign(cards_.size(), { 1,1,1 });
     liftY_.assign(cards_.size(), 0.0f);
 
     LayoutFan_();
+
+    // 初回描画前に Object3d 側へ transform を反映しておく
+    for (auto& c : cards_) {
+        c->Update(0.0f);
+    }
+
 }
 
 void HandView3D::LayoutFan_()
@@ -56,25 +61,47 @@ void HandView3D::LayoutFan_()
     int n = (int)cards_.size();
     if (n <= 0) return;
 
-    float start = -0.6f;
-    float step = (n <= 1) ? 0.0f : (1.2f / (n - 1));
+    // 横方向の間隔
+    const float xStep = 2.2f;
+
+    // 奥へ重なる量
+    const float zStep = 0.22f;
+
+    // 少しだけ右肩上がりにしたいなら使う
+    const float yStep = 0.02f;
+
+    // 枚数が多いときは少し縮小
+    float handScale = 1.0f;
+    if (n >= 7) handScale = 0.95f;
+    if (n >= 9) handScale = 0.90f;
+    if (n >= 11) handScale = 0.85f;
+
+    // 中央寄せ
+    float startX = -((n - 1) * xStep) * 0.5f;
+
+    // 手札全体の基準位置
+    const float baseY = -13.0f;
+    const float baseZ = 6.8f;
 
     for (int i = 0; i < n; ++i) {
-        float t = start + step * i; // -0.6..0.6
+        basePos_[i] = {
+            startX + i * xStep,
+            baseY + i * yStep,
+            baseZ + i * zStep   // indexが後ろほど奥へ
+        };
 
-        basePos_[i] = { t * 8.0f, -13.0f, 6.0f + std::abs(t) * 1.0f };
-        baseRot_[i] = { 0.0f, t * 0.35f, 0.0f };
-        baseScl_[i] = { 1.2f, 1.2f, 1.2f };
+        // 傾けない
+        baseRot_[i] = { 0.0f, 0.0f, 0.0f };
 
-        // ここでは基準だけ適用
+        baseScl_[i] = { handScale, handScale, handScale };
+
         cards_[i]->SetTransform(basePos_[i], baseRot_[i], baseScl_[i]);
     }
 }
-
 void HandView3D::Update(float dt)
 {
     const float hoverLift = 0.6f;
-    const float hoverFrontZ = 0.8f;   // hover時にどれだけ手前へ出すか
+    const float hoverFrontZ = 0.35f;   // 0.8 -> 0.35 に弱める
     const float follow = 18.0f;
     const float k = 1.0f - std::exp(-follow * dt);
 
@@ -93,17 +120,17 @@ void HandView3D::Update(float dt)
 
         pos.y += liftY_[i];
 
-        // --- hover中：少し手前へ ---
+        // --- hover中：少しだけ手前へ ---
         if (i == hoverIndex_ && !dragActive_ && previewIndex_ < 0) {
-            pos.z -= hoverFrontZ;   // あなたの座標系では小さいほど手前
+            pos.z -= hoverFrontZ;   // 小さいほど手前
             rot = { 0.0f, 0.0f, 0.0f };
 
+            // 拡大も弱める
             scl = {
-    baseScl_[i].x * 1.05f,
-    baseScl_[i].y * 1.05f,
-    baseScl_[i].z * 1.05f
+                baseScl_[i].x * 1.02f,
+                baseScl_[i].y * 1.02f,
+                baseScl_[i].z * 1.02f
             };
-
         }
 
         // --- ドラッグ中 ---
@@ -130,6 +157,7 @@ void HandView3D::Update(float dt)
         cards_[i]->Update(dt);
     }
 }
+
 void HandView3D::Draw()
 {
     for (auto& c : cards_) c->Draw();
