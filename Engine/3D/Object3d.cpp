@@ -74,7 +74,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, Srv
 	directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // ライトの色
 	//directionalLightData->direction = Matrix4x4::Normalize(Vector3({ 0.0f, -1.0f, 0.0f }));//ライトの向き
 	directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
-	directionalLightData->intensity = 0.0f; // ライトの強度
+	directionalLightData->intensity = 1.0f; // ライトの強度
 
 
 	//Transform変数
