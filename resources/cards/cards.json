@@ -1,7 +1,19 @@
 {
   "cards": [
-    {
+     {
       "id": 1,
+      "name": "Attack!",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Attack!.png",
+      "desc": "敵単体に1ダメージ",
+      "effects": [
+        { "type": "Damage", "value": 1 }
+      ]
+    },
+    {
+      "id": 2,
       "name": "Fireball",
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
@@ -13,71 +25,35 @@
       ]
     },
     {
-      "id": 2,
-      "name": "Quick Draw",
-      "cost": 1,
-      "frameModel": "cards/models/frame.obj",
-      "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/QuickDraw.png",
-      "desc": "2枚引く",
-      "effects": [
-        { "type": "Draw", "value": 2 }
-      ]
-    },
-    {
       "id": 3,
-      "name": "Power Shot",
-      "cost": 2,
-      "frameModel": "cards/models/frame.obj",
-      "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/PowerShot.png",
-      "desc": "8ダメージして1枚引く",
-      "effects": [
-        { "type": "Damage", "value": 8 },
-        { "type": "Draw", "value": 1 }
-      ]
-    },
-    {
-      "id": 4,
       "name": "BloodyVengeance",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/BloodyVengeance.png",
-      "desc": "2ダメージして1ダメージ食らう",
+      "desc": "敵単体に2ダメージ与えて、自身は1ダメージ食らう",
       "effects": [
         { "type": "Damage", "value": 2 },
         { "type": "SelfDamage", "value": 1 }
       ]
     },
     {
-      "id": 5,
-      "name": "Heal",
-      "cost": 1,
+      "id": 4,
+      "name": "Power Shot",
+      "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/TakeABreak.png",
-      "desc": "3回復する",
+      "artTex": "resources/cards/art/PowerShot.png",
+      "desc": "敵単体に8ダメージ与えてカードを1枚引く",
       "effects": [
-        { "type": "Heal", "value": 3 }
+        { "type": "Damage", "value": 8 },
+        { "type": "Draw", "value": 1 }
       ]
      },
      {
-      "id": 6,
-      "name": "Attack!",
-      "cost": 1,
-      "frameModel": "cards/models/frame.obj",
-      "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Attack!.png",
-      "desc": "敵単体に1ダメージ",
-      "effects": [
-        { "type": "Damage", "value": 1 }
-      ]
-    },
-      {
-      "id": 7,
+      "id": 5,
       "name": "Crush",
-      "cost": 1,
+      "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Crush.png",
@@ -90,7 +66,7 @@
           "trigger": "OnPokerSkillActivated",
           "condition": {
             "type": "ExactRank",
-            "rank": "Flush"
+            "rank": "OnePair"
           },
           "effects": [
             { "type": "Damage", "value": 1 }
@@ -99,7 +75,225 @@
       ]
     },
     {
+      "id": 6,
+      "name": "CrescentMoon",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/CrescentMoon.png",
+      "desc": "敵単体に3ダメージ与える。現在のターン数が奇数ならさらに3ダメージ与える",
+      "effects": [
+        { "type": "Damage", "value": 3 }
+      ]
+     },
+      {
+      "id": 7,
+      "name": "OverClock",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/OverClock.png",
+      "desc": "敵単体に2ダメージを与える。これを二回行う",
+      "effects": [
+        { "type": "Damage", "value": 2 },
+        { "type": "Damage", "value": 2 }
+      ]
+     },
+      {
+      "id": 8,
+      "name": "ShieldBash",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/ShieldBash.png",
+      "desc": "敵単体にブロック数x1ダメージ与える",
+      "effects": [
+        { "type": "Damage", "value": 1 }
+      ]
+     },
+      {
+      "id": 9,
+      "name": "GaeBolg",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/GaeBolg.png",
+      "desc": "敵単体に1ダメージ与える。特殊効果発動時、スリーカードなら敵単体に100ダメージ与える",
+      "effects": [
+        { "type": "Damage", "value": 1 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnTurnStartWithPoker",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "ThreeCard"
+          },
+          "effects": [
+            { "type": "Draw", "value": 100 }
+          ]
+        }
+      ]
+     },
+       {
       "id": 10,
+      "name": "Durandal",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Durandal.png",
+      "desc": "敵単体に5ダメージを与える。5のブロックを獲得する",
+      "effects": [
+        { "type": "Damage", "value": 5 },
+        { "type": "Damage", "value": 5 }
+      ]
+     },
+    {
+      "id": 11,
+      "name": "Quick Draw",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/QuickDraw.png",
+      "desc": "2枚引く",
+      "effects": [
+        { "type": "Draw", "value": 2 }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Take a break",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/TakeABreak.png",
+      "desc": "体力を3回復する",
+      "effects": [
+        { "type": "Heal", "value": 3 }
+      ]
+      },
+      {
+      "id": 13,
+      "name": "Blocking",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Blocking.png",
+      "desc": "ブロックを5獲得する",
+      "effects": [
+        { "type": "Heal", "value": 5 }
+      ]
+     },
+     {
+      "id": 14,
+      "name": "Doping",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Doping.png",
+      "desc": "パワーを2獲得する",
+      "effects": [
+        { "type": "Heal", "value": 2 }
+      ]
+     },
+       {
+      "id": 15,
+      "name": "FlashBang",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/FlashBang.png",
+      "desc": "パワーを1獲得する。コストを1回復する",
+      "effects": [
+        { "type": "Heal", "value": 3 }
+      ]
+     },
+       {
+      "id": 16,
+      "name": "RuneStone",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/RuneStone.png",
+      "desc": "ブロックを2獲得する",
+      "effects": [
+        { "type": "Heal", "value": 2 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "StraightFamily"
+          },
+          "effects": [
+            { "type": "Heal", "value": 5 }
+          ]
+        }
+      ]
+     },
+      {
+      "id": 17,
+      "name": "Convert",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Convert.png",
+      "desc": "シールドの値分体力を回復",
+      "effects": [
+        { "type": "Heal", "value": 3 }
+      ]
+     },
+      {
+      "id": 18,
+      "name": "LowCostRecovery",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/LowCostRecovery.png",
+      "desc": "手札にある1コストのカードx1体力を回復",
+      "effects": [
+        { "type": "Heal", "value": 3 }
+      ]
+     },
+      {
+      "id": 19,
+      "name": "Vampire",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Vampire.png",
+      "desc": "手札にある1コストのカードx1体力を回復",
+      "effects": [
+        { "type": "Heal", "value": 3 }
+      ]
+     },
+       {
+      "id": 20,
+      "name": "ChainHeal",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/ChainHeal.png",
+      "desc": "体力を１回復する",
+      "effects": [
+        { "type": "Heal", "value": 1 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnTurnStartWithPoker",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "StraightFamily"
+          },
+          "effects": [
+            { "type": "Heal", "value": 1 }
+          ]
+        }
+      ]
+     },
+    {
+      "id": 21,
       "name": "Pair Booster",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
@@ -121,7 +315,7 @@
       ]
     },
     {
-      "id": 11,
+      "id": 22,
       "name": "Flush Guard",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
@@ -143,7 +337,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 23,
       "name": "Straight Rune",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
