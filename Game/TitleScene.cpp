@@ -157,8 +157,35 @@ void TitleScene::OnEnter(GameApp& app) {
     showVideo_ = false;     // ← 最初は titlePlayer を出す
     switchT_ = 0.0f;        // ← タイマーリセット
 
+    // ===== 同じモデルを2個使い回して色が分かれるか確認 =====
+    obj1_ = std::make_unique<Object3d>();
+    obj1_->Initialize(app.ObjCom(), app.Dx());
+    obj1_->SetCamera(camera_.get());
+    obj1_->SetModel("plane.obj");
+    obj1_->SetEnableLighting(0);
+    obj1_->SetTranslate({ -1.2f, 0.0f, 8.0f });
+    obj1_->SetRotate({ 0.0f, 0.3f, 0.0f });
+    obj1_->SetScale({ 0.5f, 0.5f, 0.5f });
+    obj1_->SetMaterialColor({ 1.0f, 0.0f, 0.0f, 1.0f }); // 赤
 
-   
+    obj2_ = std::make_unique<Object3d>();
+    obj2_->Initialize(app.ObjCom(), app.Dx());
+    obj2_->SetCamera(camera_.get());
+    obj2_->SetModel("plane.obj"); // ★同じモデルを使い回す
+    obj2_->SetEnableLighting(0);
+    obj2_->SetTranslate({ 1.2f, 0.0f, 8.0f });
+    obj2_->SetRotate({ 0.0f, -0.3f, 0.0f });
+    obj2_->SetScale({ 0.5f, 0.5f, 0.5f });
+    obj2_->SetMaterialColor({ 0.0f, 0.0f, 1.0f, 1.0f }); // 青
+
+    srtObj1_.pos = { -1.2f, 0.0f, 8.0f };
+    srtObj1_.rot = { 0.0f, 0.3f, 0.0f };
+    srtObj1_.scale = { 1.2f, 1.2f, 1.2f };
+
+    srtObj2_.pos = { 1.2f, 0.0f, 8.0f };
+    srtObj2_.rot = { 0.0f, -0.3f, 0.0f };
+    srtObj2_.scale = { 1.2f, 1.2f, 1.2f };
+ 
 
 }
 
@@ -209,6 +236,10 @@ void TitleScene::Update(GameApp& app, float dt) {
     // 3D更新など…
     skyDome_->Update(dt);
     ground_->Update(dt);
+
+    obj1_->Update(dt);
+	obj2_->Update(dt);
+
 
     // 動画のデコード/音声は「表示中のみ」
     if (enableVideo_ && video_ && showVideo_) {
@@ -405,6 +436,8 @@ void TitleScene::Update(GameApp& app, float dt) {
         camera_->Update();
     }
 
+
+
     auto ApplyObject3dSRT = [](Object3d* o, const SRT& s) {
         if (!o) return;
         o->SetTranslate(s.pos);
@@ -429,6 +462,12 @@ void TitleScene::Update(GameApp& app, float dt) {
         particle_->SetScale(srtParticle_.scale); // Particleに無ければ外す
     }
 
+    // ===== testObj の SRT反映 =====
+    ApplyObject3dSRT(obj1_.get(), srtObj1_);
+    ApplyObject3dSRT(obj2_.get(), srtObj2_);
+
+    // ===== 色変化テスト =====
+   
     // 2D
     ApplySpriteSRT(bg_.get(), srtBG_);
     //ApplySpriteSRT(pressStart_.get(), srtPress_);
@@ -448,6 +487,9 @@ void TitleScene::Draw3D(GameApp& app) {
     //     ground_->Draw();
     //     titlePlayer->Draw();
     // }
+
+    if (obj1_) obj1_->Draw();
+    if (obj2_) obj2_->Draw();
 
     app.ParticleCom()->SetGraphicsPipelineState();
     // if (particle_) particle_->Draw();

@@ -178,4 +178,13 @@ private:
 	SRT srtGround_{};
 	SRT srtPlayer_{};
 
+	//テスト用
+	float colorTestTime_ = 0.0f;
+
+	std::unique_ptr<Object3d> obj1_;
+	std::unique_ptr<Object3d> obj2_;
+
+	SRT srtObj1_{};
+	SRT srtObj2_{};
+
 };
