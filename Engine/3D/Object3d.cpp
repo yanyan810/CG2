@@ -59,7 +59,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, Srv
 
 	skinningCommon_ = skinCom;
 
-	transformationMatrixResourceModel= dx->CreateBufferResource(sizeof(TransformationMatrix));
+	transformationMatrixResourceModel = dx->CreateBufferResource(sizeof(TransformationMatrix));
 	//書き込むためのアドレスを取得
 	transformationMatrixResourceModel->Map(0, nullptr,
 		reinterpret_cast<void**>(&transformationMatrixDataModel));
@@ -92,6 +92,18 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, Srv
 
 	pointLightResource_ = dx_->CreateBufferResource(sizeof(PointLight));
 	pointLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData_));
+
+	// ======================
+// 個体ごとの Material CB
+// ======================
+	materialResource_ = dx_->CreateBufferResource(sizeof(Model::Material));
+	materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
+
+	*materialData_ = {};
+	materialData_->color = { 1,1,1,1 };
+	materialData_->enableLighting = 1;
+	materialData_->uvTransform = Matrix4x4::MakeIdentity4x4();
+	materialData_->shininess = 64.0f;
 
 	// 初期値（とりあえず）
 	pointLightData_->color = { 1,1,1,1 };
@@ -155,8 +167,7 @@ void Object3d::Update(float dt)
 				// time更新
 				animationTime_ += dt;
 				const float duration = std::max(anim->duration, 0.0001f);
-				if (loop_) { animationTime_ = std::fmod(animationTime_, duration); }
-				else { animationTime_ = std::min(animationTime_, duration); }
+				if (loop_) { animationTime_ = std::fmod(animationTime_, duration); } else { animationTime_ = std::min(animationTime_, duration); }
 
 				// Skeletonへ適用 → skeletonSpace更新
 				ApplyAnimation(poseSkeleton_, *anim, animationTime_);
@@ -166,8 +177,7 @@ void Object3d::Update(float dt)
 
 		// (C) ★最重要：palette へ反映（毎フレ）
 		UpdateSkinCluster_();
-	}
-	else
+	} else
 	{
 		// =========================================================
 		// Rigid：ノードアニメ用に animationTime_ を進める
@@ -186,8 +196,7 @@ void Object3d::Update(float dt)
 			// time更新（Skinnedと同じ）
 			animationTime_ += dt;
 			const float duration = std::max(anim->duration, 0.0001f);
-			if (loop_) { animationTime_ = std::fmod(animationTime_, duration); }
-			else { animationTime_ = std::min(animationTime_, duration); }
+			if (loop_) { animationTime_ = std::fmod(animationTime_, duration); } else { animationTime_ = std::min(animationTime_, duration); }
 		}
 	}
 
@@ -279,6 +288,8 @@ void Object3d::Draw()
 		// Palette SRV (Root 2, VS t0)
 		cmd->SetGraphicsRootDescriptorTable(2, skinCluster_.paletteSrvHandle.second);
 
+		cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+
 		// Draw skinned (textureは Root 3 に入れる)
 		model_->DrawSkinned(cmd, skinCluster_);
 		// =====================================================
@@ -296,7 +307,7 @@ void Object3d::Draw()
 			cmd->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
 
 			// Material / VB / IB
-			cmd->SetGraphicsRootConstantBufferView(0, model_->GetMaterialCBV());
+			cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 			cmd->IASetVertexBuffers(0, 1, &model_->GetVBV());
 			cmd->IASetIndexBuffer(&model_->GetIBV());
 
@@ -418,8 +429,7 @@ void Object3d::Draw()
 
 			if (swordMeshIndex < 0) {
 				OutputDebugStringA("[SwordDBG] sword node NOT FOUND in nodeInstances\n");
-			}
-			else {
+			} else {
 				char b[128];
 				std::snprintf(b, sizeof(b), "[SwordDBG] sword found: meshIndex=%d nodeIndex=%d\n",
 					swordMeshIndex, swordNodeIndex);
@@ -430,8 +440,7 @@ void Object3d::Draw()
 		}
 
 
-	}
-	else {
+	} else {
 		object3dCommon->SetGraphicsPipelineState();
 
 		// light/camera CBV は今まで通り
@@ -443,7 +452,7 @@ void Object3d::Draw()
 		// VB/IB/Material はここで一回だけセット（Model::DrawOneMesh は触らない）
 		cmd->IASetVertexBuffers(0, 1, &model_->GetVBV());  // ※ getter作るか、Modelに関数用意
 		cmd->IASetIndexBuffer(&model_->GetIBV());
-		cmd->SetGraphicsRootConstantBufferView(0, model_->GetMaterialCBV());
+		cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
 		// ---- ノードアニメがあるなら node毎に描く ----
 		if (isPlayAnimation_ && HasAnimation()) {
@@ -486,8 +495,7 @@ void Object3d::Draw()
 				model_->DrawOneMesh(cmd, inst.meshIndex, 2);
 			}
 
-		}
-		else {
+		} else {
 			cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
 
 			if (video_ && video_->IsReady()) { // ←あなたの実装に合わせて
@@ -531,7 +539,7 @@ void Object3d::DrawWithOverrideSrv(const D3D12_GPU_DESCRIPTOR_HANDLE& srv)
 
 	cmd->IASetVertexBuffers(0, 1, &model_->GetVBV());
 	cmd->IASetIndexBuffer(&model_->GetIBV());
-	cmd->SetGraphicsRootConstantBufferView(0, model_->GetMaterialCBV());
+	cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 	cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
 
 	model_->Draw(cmd, 1, &srv);
@@ -539,7 +547,7 @@ void Object3d::DrawWithOverrideSrv(const D3D12_GPU_DESCRIPTOR_HANDLE& srv)
 
 void Object3d::SetModel(const std::string& filePath) {
 	auto* mgr = ModelManager::GetInstance();
-	
+
 	Model* m = mgr->FindModel(filePath);
 	if (!m) {
 		mgr->LoadModel(filePath);
@@ -597,7 +605,7 @@ void Object3d::SetModel(const std::string& filePath) {
 
 		for (size_t i = 0; i < skel.joints.size(); ++i) {
 			auto marker = std::make_unique<Object3d>();
-			marker->Initialize(object3dCommon, dx_, srvManager_,skinningCommon_);
+			marker->Initialize(object3dCommon, dx_, srvManager_, skinningCommon_);
 			marker->SetModel(boneMarkerModel_);
 			marker->SetScale({ 0.03f, 0.03f, 0.03f });
 			marker->SetRotate({ 0,0,0 });

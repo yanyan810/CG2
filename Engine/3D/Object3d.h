@@ -129,34 +129,35 @@ public:
 	float          GetIntensity() const { return directionalLightData->intensity; }
 
 	void SetEnableLighting(int enable) {
-		if (model_ && model_->GetMaterial()) {
-			model_->GetMaterial()->enableLighting = enable;
+		if (materialData_) {
+			materialData_->enableLighting = enable;
 		}
 	}
 	void SetShininess(float s) {
-		if (model_ && model_->GetMaterial()) {
-			model_->GetMaterial()->shininess = s;
+		if (materialData_) {
+			materialData_->shininess = s;
 		}
 	}
 	int GetEnableLighting() const {
-		return (model_ && model_->GetMaterial()) ? model_->GetMaterial()->enableLighting : 0;
+		return materialData_ ? materialData_->enableLighting : 0;
 	}
 	float GetShininess() const {
-		return (model_ && model_->GetMaterial()) ? model_->GetMaterial()->shininess : 0.0f;
+		return materialData_ ? materialData_->shininess : 0.0f;
+	}
+
+	// 色関係
+	void SetMaterialColor(const Vector4& c) {
+		if (materialData_) {
+			materialData_->color = c;
+		}
+	}
+
+	Vector4 GetMaterialColor() const {
+		return materialData_ ? materialData_->color : Vector4{ 1,1,1,1 };
 	}
 
 	//ブレンド設定
 	void SetBlendMode(Object3dCommon::BlendMode m) { object3dCommon->SetBlendMode(m); }
-
-	//色関係
-	void SetMaterialColor(const Vector4& c) {
-		if (model_) {
-			model_->SetMaterialColor(c);
-		}
-	}
-	Vector4 GetMaterialColor() const {
-		return model_ ? model_->GetMaterialColor() : Vector4{ 1,1,1,1 };
-	}
 
 	//カメラセッター
 	void SetCamera(Camera* camera) { camera_ = camera; }
@@ -207,6 +208,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModel;/* = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));*/
 	//データを書き込む
 	TransformationMatrix* transformationMatrixDataModel = nullptr;
+
+	// 個体ごとの Material CB
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
+	Model::Material* materialData_ = nullptr;
 
 	//ライトのリソース作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
