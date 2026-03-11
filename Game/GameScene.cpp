@@ -126,9 +126,7 @@ void GameScene::Update(GameApp& app, float dt) {
         cardDescBg_->SetPosition({ 20.0f, 52.0f });
         cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
     } else {
-
         cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
-
         cardDescText_->SetPosition({ 40.0f, 620.0f });
 
         const CardDef* def = battle_.GetPreviewCardDef();
@@ -137,6 +135,12 @@ void GameScene::Update(GameApp& app, float dt) {
 
             cardDescBg_->SetPosition({ 20.0f, 600.0f });
             cardDescBg_->SetScale({ 900.0f, 120.0f, 1.0f });
+        } else if (battle_.ShouldShowOperationUi()) {
+            cardDescText_->SetPosition({ 40.0f, 520.0f });
+            cardDescText_->SetText(battle_.GetOperationUiText());
+
+            cardDescBg_->SetPosition({ 20.0f, 500.0f });
+            cardDescBg_->SetScale({ 900.0f, 280.0f, 1.0f });
         } else {
             cardDescText_->SetText(L"");
         }
@@ -171,7 +175,7 @@ void GameScene::Draw2D(GameApp& app) {
         showDescBg = true;
     } else {
         const CardDef* def = battle_.GetPreviewCardDef();
-        showDescBg = (def != nullptr);
+        showDescBg = (def != nullptr) || battle_.ShouldShowOperationUi();
     }
 
     if (showDescBg && cardDescBg_) {

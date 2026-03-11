@@ -56,17 +56,24 @@ void HandView3D::LayoutFan_()
     int n = (int)cards_.size();
     if (n <= 0) return;
 
-    float start = -0.6f;
-    float step = (n <= 1) ? 0.0f : (1.2f / (n - 1));
+    float spread = 1.2f;
+    if (n >= 7) spread = 1.5f;
+    if (n >= 9) spread = 1.8f;
+
+    float start = -spread * 0.5f;
+    float step = (n <= 1) ? 0.0f : (spread / (n - 1));
+
+    float handScale = 1.2f;
+    if (n >= 7) handScale = 1.05f;
+    if (n >= 9) handScale = 0.95f;
 
     for (int i = 0; i < n; ++i) {
-        float t = start + step * i; // -0.6..0.6
+        float t = start + step * i;
 
-        basePos_[i] = { t * 8.0f, -13.0f, 6.0f + std::abs(t) * 1.0f };
+        basePos_[i] = { t * 8.0f, -13.0f, 6.0f + std::abs(t) * 1.0f - i * 0.02f };
         baseRot_[i] = { 0.0f, t * 0.35f, 0.0f };
-        baseScl_[i] = { 1.2f, 1.2f, 1.2f };
+        baseScl_[i] = { handScale, handScale, handScale };
 
-        // ここでは基準だけ適用
         cards_[i]->SetTransform(basePos_[i], baseRot_[i], baseScl_[i]);
     }
 }

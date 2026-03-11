@@ -1159,3 +1159,45 @@ std::wstring BattleController::GetPokerChoiceUiText() const
 
 	return L"";
 }
+
+bool BattleController::ShouldShowOperationUi() const
+{
+	// ポーカー選択中はそっちを優先
+	if (HasPokerChoiceUi()) {
+		return false;
+	}
+
+	// カード説明を出しているときもそっちを優先
+	if (GetPreviewCardDef() != nullptr) {
+		return false;
+	}
+
+	return true;
+}
+
+std::wstring BattleController::GetOperationUiText() const
+{
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		std::wstring text;
+		text += L"場のカードを選んで入れ替えます\n";
+		text += L"左クリック : 選んだ場カードと入れ替え\n";
+		text += L"右クリック : 入れ替えず墓地へ送る\n";
+		return text;
+	}
+
+	if (cardState_ == CardInputState::Preview) {
+		std::wstring text;
+		text += L"カード選択中\n";
+		text += L"左クリック : 使用する\n";
+		text += L"右クリック : キャンセル\n";
+		return text;
+	}
+
+	std::wstring text;
+	text += L"基本操作\n";
+	text += L"左クリック＋上ドラッグ : カードをプレビュー\n";
+	text += L"プレビュー中に左クリック : カードを使用\n";
+	text += L"プレビュー中に右クリック : キャンセル\n";
+	text += L"Enter : ターン終了\n";
+	return text;
+}

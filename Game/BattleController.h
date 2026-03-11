@@ -52,6 +52,9 @@ public:
     bool HasPokerChoiceUi() const;
     std::wstring GetPokerChoiceUiText() const;
 
+    std::wstring GetOperationUiText() const;
+    bool ShouldShowOperationUi() const;
+
 #ifdef USE_IMGUI
     void DrawImGui();
 #endif
