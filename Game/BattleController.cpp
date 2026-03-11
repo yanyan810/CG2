@@ -327,7 +327,9 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	pendingCard_ = {};
 
 	energy_ = energyMax_;
-
+	if (enemy_) {
+		enemy_->GetBossAI().LoadPattern("resources/cards/Boos.json");
+	}
 	handView_.Initialize(objCom_, dx_, cam_, &db_);
 	handView_.Rebuild(hand_);
 
