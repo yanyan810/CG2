@@ -135,6 +135,11 @@ private:
     Player* player_ = nullptr;
     Enemy* enemy_ = nullptr;
 
+    //タブを押しているとき様
+    bool operationUiVisible_ = false;
+
+	//場のカード入れ替え用
+    int fieldReplaceHoverIndex_ = -1;
 
 
 private:

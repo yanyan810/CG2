@@ -769,6 +769,10 @@ void BattleController::Update(GameApp& app, float dt)
 
 	bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
 	bool enterTrig = enterNow && !prevEnter_;
+
+	bool tabNow = (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
+	operationUiVisible_ = tabNow;
+
 	prevEnter_ = enterNow;
 
 	POINT mouse{};
@@ -776,6 +780,11 @@ void BattleController::Update(GameApp& app, float dt)
 	ScreenToClient(app.Win()->GetHwnd(), &mouse);
 
 	if (turn_ == TurnState::Player) {
+
+		if (cardState_ != CardInputState::ChoosingFieldReplace) {
+			fieldReplaceHoverIndex_ = -1;
+		}
+
 		int hover = handView_.PickIndexByMouse(
 			mouse.x, mouse.y,
 			cam_->GetViewProjectionMatrix(),
@@ -796,6 +805,10 @@ void BattleController::Update(GameApp& app, float dt)
 	prevR_ = rNow;
 
 	if (turn_ == TurnState::Player) {
+
+		if (cardState_ != CardInputState::ChoosingFieldReplace) {
+			fieldReplaceHoverIndex_ = -1;
+		}
 
 		if (enterTrig && cardState_ == CardInputState::Idle) {
 			turn_ = TurnState::Enemy;
@@ -921,8 +934,10 @@ void BattleController::Update(GameApp& app, float dt)
 
 			case CardInputState::ChoosingFieldReplace:
 			{
+				fieldReplaceHoverIndex_ = PickFieldIndexByMouse_(mouse.x, mouse.y);
+
 				if (lTrig) {
-					int replaceIndex = PickFieldIndexByMouse_(mouse.x, mouse.y);
+					int replaceIndex = fieldReplaceHoverIndex_;
 					if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
 						discard_.push_back(field_[replaceIndex]);
 						field_[replaceIndex] = pendingCard_;
@@ -938,6 +953,7 @@ void BattleController::Update(GameApp& app, float dt)
 
 						hasPendingCard_ = false;
 						pendingCard_ = {};
+						fieldReplaceHoverIndex_ = -1;
 						cardState_ = CardInputState::Idle;
 					}
 				}
@@ -948,6 +964,7 @@ void BattleController::Update(GameApp& app, float dt)
 					}
 					hasPendingCard_ = false;
 					pendingCard_ = {};
+					fieldReplaceHoverIndex_ = -1;
 					cardState_ = CardInputState::Idle;
 					RebuildDiscardView_();
 				}
@@ -1007,8 +1024,32 @@ void BattleController::Update(GameApp& app, float dt)
 
 	handView_.Update(dt);
 
-	for (auto& c : fieldViews_) {
-		c->Update(dt);
+	//for (auto& c : fieldViews_) {
+	//	c->Update(dt);
+	//}
+
+	const int fieldCount = (int)fieldViews_.size();
+	if (fieldCount > 0) {
+		const float y = -5.0f;
+		const float z = 5.0f;
+		const float gap = 5.0f;
+		const float startX = -gap * 0.5f * (fieldCount - 1);
+
+		for (int i = 0; i < fieldCount; ++i) {
+			Vector3 pos{ startX + gap * i, y, z };
+			Vector3 rot{ 0.0f, 0.0f, 0.0f };
+			Vector3 scl{ 1.15f, 1.15f, 1.15f };
+
+			if (cardState_ == CardInputState::ChoosingFieldReplace &&
+				i == fieldReplaceHoverIndex_) {
+				pos.y += 0.35f;
+				pos.z -= 0.25f;
+				scl = { 1.28f, 1.28f, 1.28f };
+			}
+
+			fieldViews_[i]->SetTransform(pos, rot, scl);
+			fieldViews_[i]->Update(dt);
+		}
 	}
 
 	if (discardView_) {
@@ -1164,16 +1205,17 @@ void BattleController::SetEnemy(Enemy* enemy) {
 
 const CardDef* BattleController::GetPreviewCardDef() const
 {
-	// 右クリック前のプレビュー中の手札カード
 	if (cardState_ == CardInputState::Preview) {
 		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(hand_.size())) {
 			return db_.Find(hand_[selectedIndex_].defId);
 		}
 	}
 
-	// 場の入れ替え待ち中のカード
-	if (cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_) {
-		return db_.Find(pendingCard_.defId);
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		if (fieldReplaceHoverIndex_ >= 0 &&
+			fieldReplaceHoverIndex_ < static_cast<int>(field_.size())) {
+			return db_.Find(field_[fieldReplaceHoverIndex_].defId);
+		}
 	}
 
 	return nullptr;
@@ -1215,12 +1257,18 @@ std::wstring BattleController::GetPokerChoiceUiText() const
 
 bool BattleController::ShouldShowOperationUi() const
 {
-	// ポーカー選択中はそっちを優先
 	if (HasPokerChoiceUi()) {
 		return false;
 	}
 
-	// カード説明を出しているときもそっちを優先
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		return true;
+	}
+
+	if (!operationUiVisible_) {
+		return false;
+	}
+
 	if (GetPreviewCardDef() != nullptr) {
 		return false;
 	}
@@ -1232,8 +1280,8 @@ std::wstring BattleController::GetOperationUiText() const
 {
 	if (cardState_ == CardInputState::ChoosingFieldReplace) {
 		std::wstring text;
-		text += L"場のカードを選んで入れ替えます\n";
-		text += L"左クリック : 選んだ場カードと入れ替え\n";
+		text += L"カード交換\n";
+		text += L"左クリック : 選択中の場カードと入れ替える\n";
 		text += L"右クリック : 入れ替えず墓地へ送る\n";
 		return text;
 	}
@@ -1243,6 +1291,7 @@ std::wstring BattleController::GetOperationUiText() const
 		text += L"カード選択中\n";
 		text += L"左クリック : 使用する\n";
 		text += L"右クリック : キャンセル\n";
+		text += L"Tab : 操作説明を表示\n";
 		return text;
 	}
 
@@ -1252,5 +1301,6 @@ std::wstring BattleController::GetOperationUiText() const
 	text += L"プレビュー中に左クリック : カードを使用\n";
 	text += L"プレビュー中に右クリック : キャンセル\n";
 	text += L"Enter : ターン終了\n";
+	text += L"Tab : 操作説明を表示\n";
 	return text;
 }
