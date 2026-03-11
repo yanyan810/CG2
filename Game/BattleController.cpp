@@ -296,10 +296,9 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 		// 仮の保険デッキ
 		deck_.clear();
 		for (int i = 0; i < 4; ++i) {
-			deck_.push_back(MakeCardInstance(1));
-			deck_.push_back(MakeCardInstance(2));
-			deck_.push_back(MakeCardInstance(3));
+			deck_.push_back(MakeCardInstance(7));
 			deck_.push_back(MakeCardInstance(6));
+			deck_.push_back(MakeCardInstance(5));
 			deck_.push_back(MakeCardInstance(4));
 			deck_.push_back(MakeCardInstance(3));
 			deck_.push_back(MakeCardInstance(2));
