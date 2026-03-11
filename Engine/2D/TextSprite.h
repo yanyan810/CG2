@@ -36,5 +36,5 @@ private:
     std::string textureKey_ = "__ui_text_card_desc__";
 
     Vector2 position_{ 40.0f, 620.0f };
-    Vector3 size_{ 700.0f, 64.0f, 0.0f };
+    Vector3 size_{ 350.0f, 120.0f, 1.0f };
 };

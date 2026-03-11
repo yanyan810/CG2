@@ -29,6 +29,8 @@ private:
     std::unique_ptr<Player> player_;
     EnemyManager enemyMgr_;
 
+    std::unique_ptr<Sprite> cardDescBg_;
+
     // ライトの設定
     LightingParam light_;
 

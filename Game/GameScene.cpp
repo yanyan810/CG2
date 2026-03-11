@@ -73,6 +73,13 @@ void GameScene::OnEnter(GameApp& app) {
     cardDescText_->Initialize(app.SpriteCom(), app.Dx());
     cardDescText_->SetPosition({ 40.0f, 620.0f });
 
+    //白テクスチャ
+    cardDescBg_ = std::make_unique<Sprite>();
+    cardDescBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    cardDescBg_->SetPosition({ 20.0f, 60.0f });
+    cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
+    cardDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -111,11 +118,28 @@ void GameScene::Update(GameApp& app, float dt) {
 
     battle_.Update(app, dt);
 
-    const CardDef* def = battle_.GetPreviewCardDef();
-    if (def) {
-        cardDescText_->SetText(Utf8ToWString(def->desc));
+    if (battle_.HasPokerChoiceUi()) {
+        cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
+        cardDescText_->SetPosition({ 40.0f, 80.0f });
+        cardDescText_->SetText(battle_.GetPokerChoiceUiText());
+
+        cardDescBg_->SetPosition({ 20.0f, 52.0f });
+        cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
     } else {
-        cardDescText_->SetText(L"");
+
+        cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
+
+        cardDescText_->SetPosition({ 40.0f, 620.0f });
+
+        const CardDef* def = battle_.GetPreviewCardDef();
+        if (def) {
+            cardDescText_->SetText(Utf8ToWString(def->desc));
+
+            cardDescBg_->SetPosition({ 20.0f, 600.0f });
+            cardDescBg_->SetScale({ 900.0f, 120.0f, 1.0f });
+        } else {
+            cardDescText_->SetText(L"");
+        }
     }
 
 }
@@ -127,7 +151,7 @@ void GameScene::Draw3D(GameApp& app) {
     if (player_) player_->Draw();
     enemyMgr_.Draw();
 
-    battle_.Draw(app);
+    battle_.Draw3D(app);
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -140,6 +164,20 @@ void GameScene::Draw2D(GameApp& app) {
         float(WinApp::kClientHeight),
         0, 100
     );
+
+    bool showDescBg = false;
+
+    if (battle_.HasPokerChoiceUi()) {
+        showDescBg = true;
+    } else {
+        const CardDef* def = battle_.GetPreviewCardDef();
+        showDescBg = (def != nullptr);
+    }
+
+    if (showDescBg && cardDescBg_) {
+        cardDescBg_->Update(view, proj);
+        cardDescBg_->Draw();
+    }
 
     if (cardDescText_) {
         cardDescText_->Update(view, proj);

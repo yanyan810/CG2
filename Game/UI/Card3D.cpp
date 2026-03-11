@@ -34,36 +34,24 @@ static float g_suitRotY_deg[2] = { 0.0f, 0.0f };
 static float g_suitRotZ_deg[2] = { 270.0f, 270.0f };
 
 // カードの向きと大きさに合わせて、マークのズレ（オフセット）を計算する関数
-static Vector3 CalcLocalOffset(const Vector3& offset, const Vector3& cardScale, const Vector3& cardRot) {
-    // 1. スケールを反映（カードが大きくなったら、マークとの距離も離す）
+static Vector3 CalcLocalOffset(const Vector3& offset, const Vector3& cardScale, const Vector3& cardRot)
+{
     Vector3 scaledOffset = {
         offset.x * cardScale.x,
         offset.y * cardScale.y,
         offset.z * cardScale.z
     };
 
-    // 2. 回転を反映（Z -> X -> Y の順序で計算）
-    float cx = std::cos(cardRot.x), sx = std::sin(cardRot.x);
-    float cy = std::cos(cardRot.y), sy = std::sin(cardRot.y);
-    float cz = std::cos(cardRot.z), sz = std::sin(cardRot.z);
+    Matrix4x4 rotM = Matrix4x4::RotateXYZ(cardRot.x, cardRot.y, cardRot.z);
 
-    // Z回転
-    float x1 = scaledOffset.x * cz - scaledOffset.y * sz;
-    float y1 = scaledOffset.x * sz + scaledOffset.y * cz;
-    float z1 = scaledOffset.z;
+    Vector4 v = MulRowVec4Mat4(
+        { scaledOffset.x, scaledOffset.y, scaledOffset.z, 0.0f },
+        rotM
+    );
 
-    // X回転
-    float x2 = x1;
-    float y2 = y1 * cx - z1 * sx;
-    float z2 = y1 * sx + z1 * cx;
-
-    // Y回転
-    float x3 = x2 * cy + z2 * sy;
-    float y3 = y2;
-    float z3 = -x2 * sy + z2 * cy;
-
-    return { x3, y3, z3 };
+    return { v.x, v.y, v.z };
 }
+
 void Card3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* cam, const CardDef& def, const CardInstance& inst)
 {
     // 枠
@@ -146,36 +134,46 @@ void Card3D::Update(float dt)
     // コストの配置
     if (costObj_) {
         Vector3 costRot = fixRot;
-        costRot.x += g_costRotX_deg[mode] * 3.14159265f / 180.0f;
-        costRot.y += g_costRotY_deg[mode] * 3.14159265f / 180.0f;
-        costRot.z += g_costRotZ_deg[mode] * 3.14159265f / 180.0f;
 
         Vector3 localOffset = { g_costX[mode], g_costY[mode], g_costZ[mode] };
         Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
-        Vector3 costPos = { pos_.x + rotatedOffset.x, pos_.y + rotatedOffset.y, pos_.z + rotatedOffset.z };
+        Vector3 costPos = {
+            pos_.x + rotatedOffset.x,
+            pos_.y + rotatedOffset.y,
+            pos_.z + rotatedOffset.z
+        };
 
         costObj_->SetTranslate(costPos);
         costObj_->SetRotate(costRot);
-        costObj_->SetScale({ scale_.x * g_costScaleX[mode], scale_.y * g_costScaleY[mode], scale_.z * g_costScaleZ[mode] });
+        costObj_->SetScale({
+            scale_.x * g_costScaleX[mode],
+            scale_.y * g_costScaleY[mode],
+            scale_.z * g_costScaleZ[mode]
+            });
         costObj_->Update(dt);
     }
 
     // マークの配置
     if (suitObj_) {
         Vector3 suitRot = fixRot;
-        suitRot.x += g_suitRotX_deg[mode] * 3.14159265f / 180.0f;
-        suitRot.y += g_suitRotY_deg[mode] * 3.14159265f / 180.0f;
-        suitRot.z += g_suitRotZ_deg[mode] * 3.14159265f / 180.0f;
 
         Vector3 localOffset = { g_suitX[mode], g_suitY[mode], g_suitZ[mode] };
         Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
-        Vector3 suitPos = { pos_.x + rotatedOffset.x, pos_.y + rotatedOffset.y, pos_.z + rotatedOffset.z };
+        Vector3 suitPos = {
+            pos_.x + rotatedOffset.x,
+            pos_.y + rotatedOffset.y,
+            pos_.z + rotatedOffset.z
+        };
 
         suitObj_->SetTranslate(suitPos);
         suitObj_->SetRotate(suitRot);
-        suitObj_->SetScale({ scale_.x * g_suitScaleX[mode], scale_.y * g_suitScaleY[mode], scale_.z * g_suitScaleZ[mode] });
+        suitObj_->SetScale({
+            scale_.x * g_suitScaleX[mode],
+            scale_.y * g_suitScaleY[mode],
+            scale_.z * g_suitScaleZ[mode]
+            });
         suitObj_->Update(dt);
     }
 }

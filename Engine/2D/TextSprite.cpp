@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <algorithm>
+#include "DirectXTex.h"
 
 #include "TextureManager.h"
 #include "SpriteCommon.h"
@@ -56,7 +58,7 @@ void TextSprite::Update(const Matrix4x4& view, const Matrix4x4& proj)
     }
 
     sprite_->SetPosition(position_);
-    sprite_->SetScale({ 1.0f, 1.0f, 1.0f });
+    sprite_->SetScale(size_);
     sprite_->Update(view, proj);
 }
 
@@ -75,7 +77,6 @@ void TextSprite::RebuildTexture_()
         return;
     }
 
-    // 空文字なら再生成しない
     if (text_.empty()) {
         return;
     }
@@ -84,7 +85,7 @@ void TextSprite::RebuildTexture_()
 
     // --- GDI で文字を描画 ---
     const int texW = 1024;
-    const int texH = 128;
+    const int texH = 256;
 
     BITMAPINFO bmi{};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -96,11 +97,19 @@ void TextSprite::RebuildTexture_()
 
     void* pixels = nullptr;
     HDC hdc = CreateCompatibleDC(nullptr);
+    if (!hdc) {
+        return;
+    }
+
     HBITMAP hBmp = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &pixels, nullptr, 0);
+    if (!hBmp || !pixels) {
+        DeleteDC(hdc);
+        return;
+    }
+
     HGDIOBJ oldBmp = SelectObject(hdc, hBmp);
 
-    // 背景を透明相当にするため、まず全部0クリア
-    // BGRA = 0,0,0,0
+    // まず完全透明で初期化
     std::memset(pixels, 0, texW * texH * 4);
 
     SetBkMode(hdc, TRANSPARENT);
@@ -113,26 +122,36 @@ void TextSprite::RebuildTexture_()
         DEFAULT_CHARSET,
         OUT_DEFAULT_PRECIS,
         CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY,
+        ANTIALIASED_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE,
         L"Yu Gothic UI"
     );
     HGDIOBJ oldFont = SelectObject(hdc, hFont);
 
     RECT textRc{ 16, 16, texW - 16, texH - 16 };
-    DrawTextW(hdc, drawText.c_str(), -1, &textRc,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    DrawTextW(hdc, drawText.c_str(), -1, &textRc, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
-    BITMAPFILEHEADER bfh{};
-    bfh.bfType = 0x4D42; // 'BM'
-    bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-    bfh.bfSize = bfh.bfOffBits + texW * texH * 4;
+    // --- GDI の描画結果を「白文字 + alpha」に変換 ---
+    // 背景は alpha 0、文字部分だけ alpha を立てる
+    uint8_t* p = reinterpret_cast<uint8_t*>(pixels);
+    for (int i = 0; i < texW * texH; ++i) {
+        uint8_t& b = p[i * 4 + 0];
+        uint8_t& g = p[i * 4 + 1];
+        uint8_t& r = p[i * 4 + 2];
+        uint8_t& a = p[i * 4 + 3];
 
-    std::vector<uint8_t> bmpBytes(bfh.bfSize);
-    std::memcpy(bmpBytes.data(), &bfh, sizeof(bfh));
-    std::memcpy(bmpBytes.data() + sizeof(bfh), &bmi.bmiHeader, sizeof(BITMAPINFOHEADER));
-    std::memcpy(bmpBytes.data() + bfh.bfOffBits, pixels, texW * texH * 4);
+        uint8_t alpha = (std::max)({ r, g, b });
 
+        r = 255;
+        g = 255;
+        b = 255;
+        a = alpha;
+    }
+
+    std::vector<uint8_t> pixelCopy(texW * texH * 4);
+    std::memcpy(pixelCopy.data(), pixels, pixelCopy.size());
+
+    // GDI リソース解放
     SelectObject(hdc, oldFont);
     DeleteObject(hFont);
 
@@ -140,10 +159,38 @@ void TextSprite::RebuildTexture_()
     DeleteObject(hBmp);
     DeleteDC(hdc);
 
+    // --- DirectXTex で PNG メモリ化 ---
+    DirectX::Image image{};
+    image.width = texW;
+    image.height = texH;
+    image.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    image.rowPitch = texW * 4;
+    image.slicePitch = image.rowPitch * texH;
+    image.pixels = pixelCopy.data();
+
+    DirectX::ScratchImage scratch;
+    HRESULT hr = scratch.InitializeFromImage(image);
+    if (FAILED(hr)) {
+        OutputDebugStringA("[TextSprite] ScratchImage initialize failed\n");
+        return;
+    }
+
+    DirectX::Blob pngBlob;
+    hr = DirectX::SaveToWICMemory(
+        *scratch.GetImage(0, 0, 0),
+        DirectX::WIC_FLAGS_NONE,
+        DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG),
+        pngBlob
+    );
+    if (FAILED(hr)) {
+        OutputDebugStringA("[TextSprite] SaveToWICMemory PNG failed\n");
+        return;
+    }
+
     TextureManager::GetInstance()->LoadTextureFromMemory(
         textureKey_,
-        bmpBytes.data(),
-        bmpBytes.size()
+        static_cast<const uint8_t*>(pngBlob.GetBufferPointer()),
+        pngBlob.GetBufferSize()
     );
 
     if (TextureManager::GetInstance()->HasTexture(textureKey_)) {

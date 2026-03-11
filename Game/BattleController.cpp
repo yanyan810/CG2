@@ -935,7 +935,7 @@ void BattleController::Update(GameApp& app, float dt)
 
 }
 
-void BattleController::Draw(GameApp& app)
+void BattleController::Draw3D(GameApp& app)
 {
     for (auto& c : fieldViews_) {
         c->Draw();
@@ -1056,4 +1056,38 @@ const CardDef* BattleController::GetPreviewCardDef() const
 	}
 
 	return nullptr;
+}
+
+bool BattleController::HasPokerChoiceUi() const
+{
+	return pokerChoiceState_ != PokerChoiceState::None;
+}
+
+std::wstring BattleController::GetPokerChoiceUiText() const
+{
+	if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice) {
+		std::wstring text = L"";
+		text += L"ポーカー効果が発動可能です\n";
+		text += L"役: ";
+		text += std::wstring(GetPokerHandName_(currentPoker_.rank),
+			GetPokerHandName_(currentPoker_.rank) + std::strlen(GetPokerHandName_(currentPoker_.rank)));
+		text += L"\n";
+		text += L"Y : 発動する\n";
+		text += L"N : スキップ\n";
+		return text;
+	}
+
+	if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice) {
+		PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
+
+		std::wstring text = L"";
+		text += L"発動する効果を選んでください\n";
+		text += L"1 : 次ターンATK UP (+" + std::to_wstring(bonus.atkUp) + L")\n";
+		text += L"2 : " + std::to_wstring(bonus.drawCount) + L"枚ドロー\n";
+		text += L"3 : " + std::to_wstring(bonus.damage) + L"ダメージ\n";
+		text += L"N : 戻る\n";
+		return text;
+	}
+
+	return L"";
 }
