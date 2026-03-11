@@ -30,9 +30,17 @@ public:
     void Damage(int damage) { hp_ -= damage; if (hp_ < 0) hp_ = 0; }
     int GetHP() const { return hp_; }
     int GetMaxHP() const { return ai_.GetMaxHP(); }
+
+    void Heal(int value) {
+        hp_ += value;
+        if (hp_ > GetMaxHP()) {
+            hp_ = GetMaxHP();
+        }
+    }
+
     Vector3 GetPos() const { return pos_; }
     AABB GetBodyAABB() const { return body_; }
-
+    BossAI& GetBossAI() { return ai_; }
     void SetLighting(const LightingParam& p);
 
     void TriggerHitFlash(float sec) { flashTimer_ = sec; }

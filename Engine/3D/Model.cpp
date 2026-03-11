@@ -157,58 +157,6 @@ static std::string AiStringToStdStringRawDump(const aiString& s)
 	return out;
 }
 
-
-//static Model::Node ReadNodeRecursiveImpl(const aiNode* node, int depth) {
-//    Model::Node out{};
-//    out.name = node->mName.C_Str();
-//
-//    // (1) Assimp行列 -> SRT に分解
-//    aiVector3D s, t;
-//    aiQuaternion r;
-//    node->mTransformation.Decompose(s, r, t);
-//
-//    // (2) RH->LH 変換（あなたのエンジンが LH 前提なら）
-//    out.transform.scale = Vector3{ s.x, s.y, s.z };      // 多くはそのまま
-//    out.transform.rotate = { r.x,-r.y,-r.z,r.w };
-//    out.transform.translate = {-t.x,t.y,t.z};
-//
-//    // (3) transform から localMatrix を再構築
-//    out.localMatrix = MakeAffineMatrix(
-//        out.transform.scale,
-//        out.transform.rotate,
-//        out.transform.translate
-//    );
-//
-//    // mesh index
-//    out.meshIndices.reserve(node->mNumMeshes);
-//    for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
-//        out.meshIndices.push_back((uint32_t)node->mMeshes[i]);
-//    }
-//
-//    // ★階層ログ
-//    {
-//        std::string indent(depth * 2, ' ');
-//        std::string s = indent + "[Node] '" + out.name + "' meshes=" + std::to_string(out.meshIndices.size()) + " [";
-//        for (size_t k = 0; k < out.meshIndices.size(); ++k) {
-//            s += std::to_string(out.meshIndices[k]);
-//            if (k + 1 < out.meshIndices.size()) s += ",";
-//        }
-//        s += "]\n";
-//        OutputDebugStringA(s.c_str());
-//    }
-//
-//    // children
-//    out.children.resize(node->mNumChildren);
-//    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-//        out.children[i] = ReadNodeRecursive(node->mChildren[i]);
-//    }
-//    return out;
-//}
-//
-//static Model::Node ReadNodeRecursive(const aiNode* node) {
-//    return ReadNodeRecursiveImpl(node, 0);
-//}
-
 static Model::Node ReadNodeRecursiveImpl(const aiNode* node, int depth) {
 	Model::Node out{};
 	out.name = node->mName.C_Str();
@@ -493,10 +441,6 @@ void Model::Initialize(ModelCommon* modelCommon,
 		skeleton_ = CreateSkeleton(modelData_.rootNode);
 		UpdateSkeleton(skeleton_); // bind pose の skeletonSpace を初期計算（1回だけ）
 
-		// BuildNodeRuntime_();
-// skeleton_ = CreateSkeleton(...);
-// UpdateSkeleton(...);
-
 // ===== Anim channel name が Skeleton/NodeRuntime に存在するか検査 =====
 		for (const auto& [animName, clip] : modelData_.animations) {
 			for (const auto& [nodeName, na] : clip.nodeAnimations) {
@@ -605,19 +549,6 @@ void Model::Initialize(ModelCommon* modelCommon,
 
 	vertexResource_ = dx->CreateBufferResource(sizeof(VertexData) * totalVtx);
 	vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData_));
-
-	/* uint32_t cursor = 0;
-	 for (auto& mesh : modelData_.meshes) {
-		 mesh.startVertex = cursor;
-		 mesh.vertexCount = static_cast<uint32_t>(mesh.vertices.size());
-
-		 if (!mesh.vertices.empty()) {
-			 std::memcpy(vertexData_ + cursor,
-				 mesh.vertices.data(),
-				 sizeof(VertexData) * mesh.vertices.size());
-		 }
-		 cursor += mesh.vertexCount;
-	 }*/
 
 	uint32_t cursor = 0;
 	for (auto& mesh : modelData_.meshes) {
@@ -743,7 +674,6 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd) {
 	cmd->IASetVertexBuffers(0, 1, &vertexBufferView_);
 	cmd->IASetIndexBuffer(&indexBufferView_);
 
-	cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
 	for (const auto& mesh : modelData_.meshes) {
 
@@ -798,9 +728,6 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount) {
 	if (useIndexed) {
 		cmd->IASetIndexBuffer(&indexBufferView_);
 	}
-
-	cmd->SetGraphicsRootConstantBufferView(
-		0, materialResource_->GetGPUVirtualAddress());
 
 	for (const auto& mesh : modelData_.meshes) {
 
@@ -867,8 +794,7 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd,
 	const bool useIndexed = (indexResource_ != nullptr);
 	if (useIndexed) cmd->IASetIndexBuffer(&indexBufferView_);
 
-	cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
-
+	
 	for (const auto& mesh : modelData_.meshes) {
 
 		D3D12_GPU_DESCRIPTOR_HANDLE handle{};
@@ -924,9 +850,6 @@ void Model::DrawSkinned(ID3D12GraphicsCommandList* cmd, const SkinCluster& sc)
 	};
 	cmd->IASetVertexBuffers(0, 2, vbvs);
 	cmd->IASetIndexBuffer(&indexBufferView_);
-
-	// Material (b0)
-	cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
 	for (const auto& mesh : modelData_.meshes) {
 
@@ -1002,9 +925,7 @@ void Model::DrawSkinnedOneMesh(ID3D12GraphicsCommandList* cmd, const SkinCluster
 	cmd->IASetVertexBuffers(0, 2, vbvs);
 	cmd->IASetIndexBuffer(&indexBufferView_);
 
-	// Material
-	cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
-
+	
 	// texture (Root 3)
 	std::string texPath;
 	if (mesh.materialIndex < modelData_.materials.size()) texPath = modelData_.materials[mesh.materialIndex].textureFilePath;

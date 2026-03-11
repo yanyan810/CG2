@@ -249,20 +249,21 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	spriteCom_ = app.SpriteCom();
 
-	// プレイヤーのHPゲージ作成
+	// -----------------------------
+	// HPゲージ作成
+	// -----------------------------
 	playerHpBg_ = std::make_unique<Sprite>();
-	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png"); 
+	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-	playerHpBg_->SetScale({ 250.0f, 18.0f, 1.0f }); 
-	playerHpBg_->SetPosition({ 80.0f, 40.0f });     
+	playerHpBg_->SetScale({ 250.0f, 18.0f, 1.0f });
+	playerHpBg_->SetPosition({ 80.0f, 40.0f });
 
 	playerHpFg_ = std::make_unique<Sprite>();
 	playerHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f }); // 緑色
-	playerHpFg_->SetScale({ 300.0f, 20.0f, 1.0f });
-	playerHpFg_->SetPosition({ 200.0f, 600.0f });
+	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f });
+	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });   // ← 最初から正しい値
+	playerHpFg_->SetPosition({ 80.0f, 40.0f });       // ← 最初から正しい値
 
-	// ボスのHPゲージ作成
 	enemyHpBg_ = std::make_unique<Sprite>();
 	enemyHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	enemyHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
@@ -271,10 +272,22 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	enemyHpFg_ = std::make_unique<Sprite>();
 	enemyHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	enemyHpFg_->SetColor({ 0.8f, 0.2f, 0.2f, 1.0f });  // 赤色
+	enemyHpFg_->SetColor({ 0.8f, 0.2f, 0.2f, 1.0f });
 	enemyHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
 	enemyHpFg_->SetPosition({ 950.0f, 40.0f });
 
+	// -----------------------------
+	// ここで一度だけ即時反映
+	// -----------------------------
+	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+	float width = (float)WinApp::kClientWidth;
+	float height = (float)WinApp::kClientHeight;
+	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
+
+	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
+	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (enemyHpBg_) enemyHpBg_->Update(viewMat, projMat);
+	if (enemyHpFg_) enemyHpFg_->Update(viewMat, projMat);
 
 	if (!db_.LoadFromJson("resources/cards/cards.json")) {
 		db_.BuildSample();
@@ -293,7 +306,6 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 			}
 		}
 	} else {
-		// 仮の保険デッキ
 		deck_.clear();
 		for (int i = 0; i < 4; ++i) {
 			
@@ -329,14 +341,15 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	pendingCard_ = {};
 
 	energy_ = energyMax_;
-
+	if (enemy_) {
+		enemy_->GetBossAI().LoadPattern("resources/cards/Boos.json");
+	}
 	handView_.Initialize(objCom_, dx_, cam_, &db_);
 	handView_.Rebuild(hand_);
 
 	StartPlayerTurn_();
 	RebuildDiscardView_();
 }
-
 bool BattleController::DrawOne_()
 {
 	if (deck_.empty()) {
@@ -772,6 +785,10 @@ void BattleController::Update(GameApp& app, float dt)
 
 	bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
 	bool enterTrig = enterNow && !prevEnter_;
+
+	bool tabNow = (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
+	operationUiVisible_ = tabNow;
+
 	prevEnter_ = enterNow;
 
 	POINT mouse{};
@@ -779,6 +796,11 @@ void BattleController::Update(GameApp& app, float dt)
 	ScreenToClient(app.Win()->GetHwnd(), &mouse);
 
 	if (turn_ == TurnState::Player) {
+
+		if (cardState_ != CardInputState::ChoosingFieldReplace) {
+			fieldReplaceHoverIndex_ = -1;
+		}
+
 		int hover = handView_.PickIndexByMouse(
 			mouse.x, mouse.y,
 			cam_->GetViewProjectionMatrix(),
@@ -799,6 +821,10 @@ void BattleController::Update(GameApp& app, float dt)
 	prevR_ = rNow;
 
 	if (turn_ == TurnState::Player) {
+
+		if (cardState_ != CardInputState::ChoosingFieldReplace) {
+			fieldReplaceHoverIndex_ = -1;
+		}
 
 		if (enterTrig && cardState_ == CardInputState::Idle) {
 			turn_ = TurnState::Enemy;
@@ -924,8 +950,10 @@ void BattleController::Update(GameApp& app, float dt)
 
 			case CardInputState::ChoosingFieldReplace:
 			{
+				fieldReplaceHoverIndex_ = PickFieldIndexByMouse_(mouse.x, mouse.y);
+
 				if (lTrig) {
-					int replaceIndex = PickFieldIndexByMouse_(mouse.x, mouse.y);
+					int replaceIndex = fieldReplaceHoverIndex_;
 					if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
 						discard_.push_back(field_[replaceIndex]);
 						field_[replaceIndex] = pendingCard_;
@@ -941,6 +969,7 @@ void BattleController::Update(GameApp& app, float dt)
 
 						hasPendingCard_ = false;
 						pendingCard_ = {};
+						fieldReplaceHoverIndex_ = -1;
 						cardState_ = CardInputState::Idle;
 					}
 				}
@@ -951,6 +980,7 @@ void BattleController::Update(GameApp& app, float dt)
 					}
 					hasPendingCard_ = false;
 					pendingCard_ = {};
+					fieldReplaceHoverIndex_ = -1;
 					cardState_ = CardInputState::Idle;
 					RebuildDiscardView_();
 				}
@@ -964,6 +994,9 @@ void BattleController::Update(GameApp& app, float dt)
 		}
 
 	} else {
+		// --------------------------------------------------
+		// エネミーターンの処理
+		// --------------------------------------------------
 		handView_.SetHoverIndex(-1);
 		handView_.SetDrag(-1, 0, 0, false);
 		handView_.SetPreviewIndex(-1);
@@ -974,7 +1007,32 @@ void BattleController::Update(GameApp& app, float dt)
 		pendingCard_ = {};
 
 		enemyWait_ -= dt;
+
+		// ★変更：待機時間が0になったら、敵が行動を実行してからプレイヤーのターンへ！
 		if (enemyWait_ <= 0.0f) {
+
+			// AIからランダムな行動を取得して実行
+			if (enemy_ && player_) {
+				EnemyAction action = enemy_->GetBossAI().GetRandomAction();
+
+				if (action.type == "Attack") {
+					// ボスが突進してプレイヤーを攻撃！
+					enemy_->PlayAttackAnim(player_->GetPos());
+					player_->TriggerHitFlash(0.2f);
+					player_->PlayDamageAnim();
+
+					player_->Damage(action.value);
+
+				} else if (action.type == "Heal") {
+					// ボスの回復！
+					enemy_->Heal(action.value);
+
+				} else if (action.type == "Block") {
+					// ボスの防御（必要に応じて処理を追加）
+				}
+			}
+
+			// プレイヤーターンへ移行
 			turn_ = TurnState::Player;
 			StartPlayerTurn_();
 		}
@@ -982,8 +1040,32 @@ void BattleController::Update(GameApp& app, float dt)
 
 	handView_.Update(dt);
 
-	for (auto& c : fieldViews_) {
-		c->Update(dt);
+	//for (auto& c : fieldViews_) {
+	//	c->Update(dt);
+	//}
+
+	const int fieldCount = (int)fieldViews_.size();
+	if (fieldCount > 0) {
+		const float y = -5.0f;
+		const float z = 5.0f;
+		const float gap = 5.0f;
+		const float startX = -gap * 0.5f * (fieldCount - 1);
+
+		for (int i = 0; i < fieldCount; ++i) {
+			Vector3 pos{ startX + gap * i, y, z };
+			Vector3 rot{ 0.0f, 0.0f, 0.0f };
+			Vector3 scl{ 1.15f, 1.15f, 1.15f };
+
+			if (cardState_ == CardInputState::ChoosingFieldReplace &&
+				i == fieldReplaceHoverIndex_) {
+				pos.y += 0.35f;
+				pos.z -= 0.25f;
+				scl = { 1.28f, 1.28f, 1.28f };
+			}
+
+			fieldViews_[i]->SetTransform(pos, rot, scl);
+			fieldViews_[i]->Update(dt);
+		}
 	}
 
 	if (discardView_) {
@@ -1139,16 +1221,17 @@ void BattleController::SetEnemy(Enemy* enemy) {
 
 const CardDef* BattleController::GetPreviewCardDef() const
 {
-	// 右クリック前のプレビュー中の手札カード
 	if (cardState_ == CardInputState::Preview) {
 		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(hand_.size())) {
 			return db_.Find(hand_[selectedIndex_].defId);
 		}
 	}
 
-	// 場の入れ替え待ち中のカード
-	if (cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_) {
-		return db_.Find(pendingCard_.defId);
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		if (fieldReplaceHoverIndex_ >= 0 &&
+			fieldReplaceHoverIndex_ < static_cast<int>(field_.size())) {
+			return db_.Find(field_[fieldReplaceHoverIndex_].defId);
+		}
 	}
 
 	return nullptr;
@@ -1186,4 +1269,54 @@ std::wstring BattleController::GetPokerChoiceUiText() const
 	}
 
 	return L"";
+}
+
+bool BattleController::ShouldShowOperationUi() const
+{
+	if (HasPokerChoiceUi()) {
+		return false;
+	}
+
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		return true;
+	}
+
+	if (!operationUiVisible_) {
+		return false;
+	}
+
+	if (GetPreviewCardDef() != nullptr) {
+		return false;
+	}
+
+	return true;
+}
+
+std::wstring BattleController::GetOperationUiText() const
+{
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		std::wstring text;
+		text += L"カード交換\n";
+		text += L"左クリック : 選択中の場カードと入れ替える\n";
+		text += L"右クリック : 入れ替えず墓地へ送る\n";
+		return text;
+	}
+
+	if (cardState_ == CardInputState::Preview) {
+		std::wstring text;
+		text += L"カード選択中\n";
+		text += L"左クリック : 使用する\n";
+		text += L"右クリック : キャンセル\n";
+		text += L"Tab : 操作説明を表示\n";
+		return text;
+	}
+
+	std::wstring text;
+	text += L"基本操作\n";
+	text += L"左クリック＋上ドラッグ : カードをプレビュー\n";
+	text += L"プレビュー中に左クリック : カードを使用\n";
+	text += L"プレビュー中に右クリック : キャンセル\n";
+	text += L"Enter : ターン終了\n";
+	text += L"Tab : 操作説明を表示\n";
+	return text;
 }

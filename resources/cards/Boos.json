@@ -1,0 +1,11 @@
+{
+  "name": "Boss",
+  "maxHp": 300,
+  "actions": [
+    { "type": "Attack", "value": 10, "name": "通常攻撃" },
+    { "type": "Attack", "value": 10, "name": "通常攻撃" },
+    { "type": "Attack", "value": 25, "name": "強攻撃！" },
+    { "type": "Block",  "value": 15, "name": "防御姿勢" },
+    { "type": "Heal",   "value": 20, "name": "自己再生" }
+  ]
+}

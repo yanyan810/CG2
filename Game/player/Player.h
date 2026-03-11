@@ -46,7 +46,7 @@ public:
 		}
 	}
 	int GetMaxHP() const { return maxHp_; }
-
+	const Vector3& GetPos() const { return pos_; }
 private:
 	std::unique_ptr<Object3d> model_;
 
