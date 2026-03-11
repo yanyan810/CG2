@@ -44,9 +44,13 @@ public:
 
     void Initialize(GameApp& app, Camera* camera);
     void Update(GameApp& app, float dt);
-    void Draw(GameApp& app);
+    void Draw3D(GameApp& app);
+    void Draw2D(GameApp& app);
 
     const CardDef* GetPreviewCardDef() const;
+
+    bool HasPokerChoiceUi() const;
+    std::wstring GetPokerChoiceUiText() const;
 
 #ifdef USE_IMGUI
     void DrawImGui();
