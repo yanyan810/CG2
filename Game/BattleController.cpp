@@ -241,6 +241,71 @@ namespace {
 	}
 }
 
+void BattleController::UpdateCostViewTransform_(float dt)
+{
+	const int count = (int)costDigitModels_.size();
+	if (count <= 0) return;
+
+	const float gap = 1.2f;
+	const float startX = -gap * 0.5f * (count - 1);
+
+	const float baseX = -14.5f;  // 左へ
+	const float baseY = -6.8f;   // 少し上
+	const float baseZ = 6.0f;    // まずはそのまま
+
+	for (int i = 0; i < count; ++i) {
+		Vector3 pos{ baseX + startX + gap * i, baseY, baseZ };
+		Vector3 rot{ 0.0f, 0.0f, 0.0f };
+		Vector3 scl{ 0.8f, 0.8f, 0.8f };
+
+		costDigitModels_[i]->SetRotate(rot);
+		costDigitModels_[i]->SetTranslate(pos);
+		costDigitModels_[i]->SetScale(scl);
+
+		costDigitModels_[i]->Update(dt);
+	}
+}
+
+void BattleController::ShuffleDeck_()
+{
+	static std::random_device rd;
+	static std::mt19937 mt(rd());
+	std::shuffle(deck_.begin(), deck_.end(), mt);
+}
+
+void BattleController::RebuildCostView_(float dt)
+{
+	costDigitModels_.clear();
+
+	std::string text = std::to_string(energy_) + "/" + std::to_string(energyMax_);
+
+	for (char ch : text) {
+		std::string path;
+
+		if (ch >= '0' && ch <= '9') {
+			path = "cards/models/";
+			path += ch;
+			path += ".obj";
+		} else if (ch == '/') {
+			path = "cards/models/slash.obj";
+		} else {
+			continue;
+		}
+
+		auto obj = std::make_unique<Object3d>();
+		obj->Initialize(objCom_, dx_);
+
+		obj->SetModel(path);
+
+		costDigitModels_.push_back(std::move(obj));
+	}
+
+	prevEnergy_ = energy_;
+	prevEnergyMax_ = energyMax_;
+
+	UpdateCostViewTransform_(dt);
+}
+
 void BattleController::Initialize(GameApp& app, Camera* camera)
 {
 	cam_ = camera;
@@ -332,6 +397,8 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 		}
 	}
 
+	ShuffleDeck_();
+
 	hand_.clear();
 	discard_.clear();
 	field_.clear();
@@ -348,7 +415,14 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	handView_.Rebuild(hand_);
 
 	StartPlayerTurn_();
+	OutputDebugStringA(("After StartPlayerTurn hand=" + std::to_string(hand_.size()) +
+		" deck=" + std::to_string(deck_.size()) +
+		" discard=" + std::to_string(discard_.size()) + "\n").c_str());
+
 	RebuildDiscardView_();
+
+	RebuildCostView_(deltaTime_);
+
 }
 bool BattleController::DrawOne_()
 {
@@ -356,6 +430,7 @@ bool BattleController::DrawOne_()
 		if (discard_.empty()) return false;
 		deck_ = discard_;
 		discard_.clear();
+		ShuffleDeck_();
 		RebuildDiscardView_();
 	}
 
@@ -827,6 +902,12 @@ void BattleController::Update(GameApp& app, float dt)
 		}
 
 		if (enterTrig && cardState_ == CardInputState::Idle) {
+
+			OutputDebugStringA(("Before EndTurn hand=" + std::to_string(hand_.size()) +
+				" deck=" + std::to_string(deck_.size()) +
+				" discard=" + std::to_string(discard_.size()) +
+				" field=" + std::to_string(field_.size()) + "\n").c_str());
+
 			turn_ = TurnState::Enemy;
 			hasPendingCard_ = false;
 			pendingCard_ = {};
@@ -1035,6 +1116,11 @@ void BattleController::Update(GameApp& app, float dt)
 			// プレイヤーターンへ移行
 			turn_ = TurnState::Player;
 			StartPlayerTurn_();
+
+			OutputDebugStringA(("After StartPlayerTurn hand=" + std::to_string(hand_.size()) +
+				" deck=" + std::to_string(deck_.size()) +
+				" discard=" + std::to_string(discard_.size()) + "\n").c_str());
+
 		}
 	}
 
@@ -1098,6 +1184,12 @@ void BattleController::Update(GameApp& app, float dt)
 	float height = (float)WinApp::kClientHeight;
 	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
 
+	if (energy_ != prevEnergy_ || energyMax_ != prevEnergyMax_) {
+		RebuildCostView_(dt);
+	} else {
+		UpdateCostViewTransform_(dt);
+	}
+
 	// --------------------------------------------------
 	// スプライトの更新
 	// --------------------------------------------------
@@ -1118,6 +1210,10 @@ void BattleController::Draw3D(GameApp& app)
     }
 
     handView_.Draw();
+
+	for (auto& obj : costDigitModels_) {
+		obj->Draw();
+	}
 
 	if (playerHpBg_) playerHpBg_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
@@ -1319,4 +1415,40 @@ std::wstring BattleController::GetOperationUiText() const
 	text += L"Enter : ターン終了\n";
 	text += L"Tab : 操作説明を表示\n";
 	return text;
+}
+
+std::wstring BattleController::GetZoneCountUiText() const
+{
+	std::wstring text;
+	text += L"山札 : " + std::to_wstring(deck_.size()) + L"\n";
+	text += L"手札 : " + std::to_wstring(hand_.size()) + L"\n";
+	text += L"墓地 : " + std::to_wstring(discard_.size()) + L"\n";
+	text += L"場   : " + std::to_wstring(field_.size()) + L"\n";
+	return text;
+}
+
+std::wstring BattleController::GetCurrentPokerHandUiText() const
+{
+	PokerHandResult poker = EvaluatePokerHand_();
+
+	if (field_.size() < 5) {
+		return L"役: 判定中";
+	}
+
+	if (poker.rank == PokerHandRank::None) {
+		return L"役: なし";
+	}
+
+	switch (poker.rank) {
+	case PokerHandRank::OnePair: return L"役: ワンペア";
+	case PokerHandRank::TwoPair: return L"役: ツーペア";
+	case PokerHandRank::ThreeOfAKind: return L"役: スリーカード";
+	case PokerHandRank::Straight: return L"役: ストレート";
+	case PokerHandRank::Flush: return L"役: フラッシュ";
+	case PokerHandRank::FullHouse: return L"役: フルハウス";
+	case PokerHandRank::FourOfAKind: return L"役: フォーカード";
+	case PokerHandRank::StraightFlush: return L"役: ストレートフラッシュ";
+	case PokerHandRank::RoyalStraightFlush: return L"役: ロイヤルストレートフラッシュ";
+	default: return L"役: ?";
+	}
 }

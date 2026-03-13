@@ -147,11 +147,18 @@ void TestScene::OnEnter(GameApp& app) {
 }
 
 void TestScene::OnExit(GameApp& /*app*/) {
+    spotMarker_.reset();
+    pointMarker_.reset();
+    skyDome_.reset();
+    ground_.reset();
+    playTxst_.reset();
+
     player_.reset();
     camera_.reset();
-    //enemyMgr_.Clear();
-}
 
+    // EnemyManager に Clear() があるなら呼ぶ
+    // enemyMgr_.Clear();
+}
 void TestScene::Update(GameApp& app, float dt) {
     if (!input_) return;
 

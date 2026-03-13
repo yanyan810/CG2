@@ -8,6 +8,9 @@
 #include "BattleController.h"
 #include "TextSprite.h"
 #include "StringUtility.h"
+#include "FieldUi.h"
+
+
 class GameApp;
 
 class GameScene : public IScene {
@@ -39,4 +42,7 @@ private:
 
     // ESCキーの入力状態を保持（タイトルに戻るなどの処理用）
     bool prevEsc_ = false;
+
+    std::unique_ptr<FieldUi> fieldUi_;
+
 };
