@@ -329,12 +329,8 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 			deck_.push_back(MakeCardInstance(11));
 			deck_.push_back(MakeCardInstance(10));
 
-			// doping確認用
-			deck_.push_back(MakeCardInstance(14));
-			deck_.push_back(MakeCardInstance(1));
-			deck_.push_back(MakeCardInstance(1));
-			deck_.push_back(MakeCardInstance(1));
-			deck_.push_back(MakeCardInstance(1));
+			// flashbang確認用
+			deck_.push_back(MakeCardInstance(15));
 		}
 	}
 
@@ -422,6 +418,11 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 		} else if (effect.type == "PowerBoost") {
 
 			player_->PowerBoost(effect.value);
+
+		}
+		else if (effect.type == "EnergyCharge") {
+
+			energy_ += effect.value;
 
 		} else if (effect.type == "NextTurnAtkUp") {
 			nextTurnAtkUp_ += effect.value;

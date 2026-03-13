@@ -205,7 +205,8 @@
       "artTex": "resources/cards/art/FlashBang.png",
       "desc": "パワーを1獲得する。コストを1回復する",
       "effects": [
-        { "type": "Heal", "value": 3 }
+        { "type": "PowerBoost", "value": 1 },
+        { "type": "EnergyCharge", "value": 1 }
       ]
      },
        {
