@@ -324,11 +324,17 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 			deck_.push_back(MakeCardInstance(17));
 			deck_.push_back(MakeCardInstance(16));
 			deck_.push_back(MakeCardInstance(15));
-			deck_.push_back(MakeCardInstance(14));
 			deck_.push_back(MakeCardInstance(13));
 			deck_.push_back(MakeCardInstance(12));
 			deck_.push_back(MakeCardInstance(11));
 			deck_.push_back(MakeCardInstance(10));
+
+			// doping確認用
+			deck_.push_back(MakeCardInstance(14));
+			deck_.push_back(MakeCardInstance(1));
+			deck_.push_back(MakeCardInstance(1));
+			deck_.push_back(MakeCardInstance(1));
+			deck_.push_back(MakeCardInstance(1));
 		}
 	}
 
@@ -401,7 +407,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				enemy_->PlayDamageAnim();
 			}
 			if (enemy_) {
-				enemy_->Damage(effect.value);
+				enemy_->Damage(effect.value + player_->GetBoostedPower());
 			} else {
 				enemyHp_ -= effect.value;
 				if (enemyHp_ < 0) {
@@ -412,6 +418,10 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 		} else if (effect.type == "Block") {
 			
 			player_->AddBlock(effect.value);
+
+		} else if (effect.type == "PowerBoost") {
+
+			player_->PowerBoost(effect.value);
 
 		} else if (effect.type == "NextTurnAtkUp") {
 			nextTurnAtkUp_ += effect.value;
@@ -1035,6 +1045,8 @@ void BattleController::Update(GameApp& app, float dt)
 
 			// プレイヤーターンへ移行
 			turn_ = TurnState::Player;
+
+			player_->ResetPowerBoost();
 			StartPlayerTurn_();
 		}
 	}
@@ -1208,6 +1220,7 @@ void BattleController::DrawImGui()
 
 	ImGui::Text("Player Hp: %d", player_->GetHP());
 	ImGui::Text("Player Block: %d", player_->GetBlock());
+	ImGui::Text("Player BoostedPower: %d", player_->GetBoostedPower());
 	ImGui::Text("Enemy  Hp: %d", enemy_->GetHP());
 
 }

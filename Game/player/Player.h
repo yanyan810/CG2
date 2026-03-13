@@ -42,6 +42,10 @@ public:
 	int GetBlock() { return block_; }
 	void AddBlock(int value) { block_ += value; }
 
+	int GetBoostedPower() { return boostedPower_; }
+	void PowerBoost(int value) { boostedPower_ += value; }
+	void ResetPowerBoost() { boostedPower_ = 0; }
+
 	void Heal(int value) {
 		hp_ += value;
 		if (hp_ > maxHp_) {
@@ -61,6 +65,8 @@ private:
 	int maxHp_ = 100;
 
 	int block_ = 0;
+
+	int boostedPower_ = 0;
 
 
 	AABB body_{};

@@ -17,6 +17,9 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
     }
 
     basePos_ = pos_;
+
+    block_ = 0;
+    boostedPower_ = 0;
 }
 
 void Player::PlayAttackAnim(const Vector3& targetPos) {
