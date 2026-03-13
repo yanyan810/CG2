@@ -28,6 +28,13 @@ public:
     Vector3 GetWorldPos() const { return pos_; }
     void SetIsHand(bool isHand) { isHand_ = isHand; }
 
+    void Setup(
+        Object3dCommon* objCom,
+        DirectXCommon* dx,
+        Camera* cam);
+
+    void SetCardData(const CardDef& def, const CardInstance& inst);
+
 #ifdef USE_IMGUI
     void DrawImGui(const char* label = "Card3D");
 #endif

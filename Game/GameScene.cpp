@@ -80,11 +80,26 @@ void GameScene::OnEnter(GameApp& app) {
     cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
     cardDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
+    fieldUi_ = std::make_unique<FieldUi>();
+    fieldUi_->Initialize(app);
+
 }
 
 void GameScene::OnExit(GameApp& app) {
-}
+    fieldUi_.reset();
+    cardDescBg_.reset();
+    cardDescText_.reset();
 
+    player_.reset();
+    skyDome_.reset();
+    camera_.reset();
+    battle_.Finalize();
+    // EnemyManager に Clear() があるなら呼ぶ
+    // enemyMgr_.Clear();
+
+    // battle_ に明示的な解放関数を作るのが理想
+    // battle_.Finalize();
+}
 void GameScene::Update(GameApp& app, float dt) {
     Input* input = app.GetInput();
     if (!input) return;
@@ -146,6 +161,9 @@ void GameScene::Update(GameApp& app, float dt) {
         }
     }
 
+    if (fieldUi_) {
+        fieldUi_->Update(app, battle_);
+    }
 }
 
 void GameScene::Draw3D(GameApp& app) {
@@ -183,9 +201,8 @@ void GameScene::Draw2D(GameApp& app) {
         cardDescBg_->Draw();
     }
 
-    if (cardDescText_) {
-        cardDescText_->Update(view, proj);
-        cardDescText_->Draw();
+    if (fieldUi_) {
+        fieldUi_->Draw(app);
     }
 }
 
