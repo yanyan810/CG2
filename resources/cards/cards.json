@@ -181,7 +181,7 @@
       "artTex": "resources/cards/art/Blocking.png",
       "desc": "ブロックを5獲得する",
       "effects": [
-        { "type": "Heal", "value": 5 }
+        { "type": "Block", "value": 5 }
       ]
      },
      {

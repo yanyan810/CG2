@@ -410,7 +410,8 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}
 
 		} else if (effect.type == "Block") {
-			// 例: playerBlock_ += effect.value;
+			
+			player_->AddBlock(effect.value);
 
 		} else if (effect.type == "NextTurnAtkUp") {
 			nextTurnAtkUp_ += effect.value;
@@ -1206,6 +1207,7 @@ void BattleController::DrawImGui()
 	ImGui::Separator();
 
 	ImGui::Text("Player Hp: %d", player_->GetHP());
+	ImGui::Text("Player Block: %d", player_->GetBlock());
 	ImGui::Text("Enemy  Hp: %d", enemy_->GetHP());
 
 }
