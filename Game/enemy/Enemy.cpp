@@ -42,6 +42,9 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	if (type == EnemyType::Boss) {
 		ai_.LoadPattern("resources/cards/Boos.json");
 	}
+	else if (type == EnemyType::Slime) {
+		ai_.LoadPattern("resources/cards/Slime.json");
+	}
 }
 
 void Enemy::PlayAttackAnim(const Vector3& targetPos) {
