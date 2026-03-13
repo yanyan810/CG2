@@ -15,7 +15,8 @@ class Camera;
 class Player;
 
 enum class EnemyType : uint8_t {
-    Boss
+    Boss,
+    Slime
 };
 
 class Enemy {
