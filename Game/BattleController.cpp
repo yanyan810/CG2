@@ -550,6 +550,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	}
 
 
+
 	ShuffleDeck_();
 
 	hand_.clear();
