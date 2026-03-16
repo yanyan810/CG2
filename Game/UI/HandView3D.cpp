@@ -24,6 +24,14 @@ void HandView3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* c
     dx_ = dx;
     cam_ = cam;
     db_ = db;
+
+    const int kPoolSize = 12;
+    for (int i = 0; i < kPoolSize; ++i) {
+        auto c = std::make_unique<Card3D>();
+        c->Setup(objCom_, dx_, cam_);
+        c->SetIsHand(true);
+        cardPool_.push_back(std::move(c));
+    }
 }
 
 void HandView3D::Rebuild(const std::vector<CardInstance>& hand)
@@ -192,6 +200,116 @@ void HandView3D::SetDrag(int idx, float dxPx, float dyPx, bool active)
     dragDxPx_ = dxPx;
     dragDyPx_ = dyPx;
     dragActive_ = active;
+}
+
+void HandView3D::Clear()
+{
+    handCards_.clear();
+    cards_.clear();
+    basePos_.clear();
+    baseRot_.clear();
+    baseScl_.clear();
+    liftY_.clear();
+
+    hoverIndex_ = -1;
+    previewIndex_ = -1;
+    dragIndex_ = -1;
+    dragDxPx_ = 0.0f;
+    dragDyPx_ = 0.0f;
+    dragActive_ = false;
+}
+
+#include "ScopedTimer.h"
+
+void HandView3D::AddCard(const CardInstance& inst)
+{
+    ScopedTimer timer("HandView3D::AddCard");
+
+    const CardDef* def = db_->Find(inst.defId);
+    if (!def) {
+        return;
+    }
+
+    handCards_.push_back(inst);
+
+    std::unique_ptr<Card3D> c;
+    if (!cardPool_.empty()) {
+        {
+            ScopedTimer t("  reuse card from pool");
+            c = std::move(cardPool_.back());
+            cardPool_.pop_back();
+        }
+        {
+            ScopedTimer t("  Card3D::SetCardData");
+            c->SetCardData(*def, inst);
+        }
+    } else {
+        {
+            ScopedTimer t("  create new Card3D");
+            c = std::make_unique<Card3D>();
+            c->Setup(objCom_, dx_, cam_);
+            c->SetCardData(*def, inst);
+            c->SetIsHand(true);
+        }
+    }
+
+    c->SetIsHand(true);
+    cards_.push_back(std::move(c));
+
+    basePos_.push_back({});
+    baseRot_.push_back({});
+    baseScl_.push_back({ 1.0f, 1.0f, 1.0f });
+    liftY_.push_back(0.0f);
+
+    {
+        ScopedTimer t("  LayoutFan_");
+        LayoutFan_();
+    }
+
+    {
+        ScopedTimer t("  all cards Update(0.0f)");
+        for (auto& card : cards_) {
+            card->Update(0.0f);
+        }
+    }
+}
+
+void HandView3D::RemoveCardAt(int index)
+{
+    if (index < 0 || index >= static_cast<int>(cards_.size())) {
+        return;
+    }
+
+    cardPool_.push_back(std::move(cards_[index]));
+
+    handCards_.erase(handCards_.begin() + index);
+    cards_.erase(cards_.begin() + index);
+    basePos_.erase(basePos_.begin() + index);
+    baseRot_.erase(baseRot_.begin() + index);
+    baseScl_.erase(baseScl_.begin() + index);
+    liftY_.erase(liftY_.begin() + index);
+
+    if (hoverIndex_ == index) hoverIndex_ = -1;
+    else if (hoverIndex_ > index) --hoverIndex_;
+
+    if (previewIndex_ == index) previewIndex_ = -1;
+    else if (previewIndex_ > index) --previewIndex_;
+
+    if (dragIndex_ == index) {
+        dragIndex_ = -1;
+        dragActive_ = false;
+        dragDxPx_ = 0.0f;
+        dragDyPx_ = 0.0f;
+    } else if (dragIndex_ > index) {
+        --dragIndex_;
+    }
+
+    LayoutFan_();
+}
+
+void HandView3D::RefreshLayout()
+{
+    LayoutFan_();
 }
 
 #ifdef USE_IMGUI

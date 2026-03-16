@@ -4,6 +4,7 @@
 #include "Card3D.h"
 #include "MathStruct.h"
 #include "CardInstance.h"
+#include "ScopedTimer.h"
 
 class Camera;
 class Object3dCommon;
@@ -18,6 +19,11 @@ public:
 
     void Update(float dt);
     void Draw();
+
+    void Clear();
+    void AddCard(const CardInstance& inst);
+    void RemoveCardAt(int index);
+    void RefreshLayout();
 
     int PickIndexByMouse(int mouseX, int mouseY, const Matrix4x4& viewProj, float screenW, float screenH) const;
 
@@ -38,6 +44,7 @@ private:
     CardDatabase* db_ = nullptr;
 
     std::vector<std::unique_ptr<Card3D>> cards_;
+    std::vector<std::unique_ptr<Card3D>> cardPool_;
     std::vector<CardInstance> handCards_;
 
     std::vector<Vector3> basePos_;

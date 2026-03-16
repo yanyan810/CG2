@@ -418,6 +418,37 @@ std::array<bool, 5> BattleController::GetPokerHighlightMask_() const
 	return mask;
 }
 
+void BattleController::PreloadCardAssets_()
+{
+	// 共通で使うモデルを先読み
+	ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
+	ModelManager::GetInstance()->LoadModel("cards/models/art_plane.obj");
+
+	// スート
+	ModelManager::GetInstance()->LoadModel("cards/models/spade.obj");
+	ModelManager::GetInstance()->LoadModel("cards/models/heart.obj");
+	ModelManager::GetInstance()->LoadModel("cards/models/daiya.obj");
+	ModelManager::GetInstance()->LoadModel("cards/models/clover.obj");
+
+	// コスト数字
+	for (int i = 0; i <= 9; ++i) {
+		ModelManager::GetInstance()->LoadModel("cards/models/" + std::to_string(i) + ".obj");
+	}
+	ModelManager::GetInstance()->LoadModel("cards/models/slash.obj");
+
+	// cards.json に載っているカードの画像とモデルを全部先読み
+	for (int id = 1; id <= 100; ++id) {
+		const CardDef* def = db_.Find(id);
+		if (!def) {
+			continue;
+		}
+
+		ModelManager::GetInstance()->LoadModel(def->frameModel);
+		ModelManager::GetInstance()->LoadModel(def->artModel);
+		TextureManager::GetInstance()->LoadTexture(def->artTex);
+	}
+}
+
 void BattleController::Initialize(GameApp& app, Camera* camera)
 {
 	cam_ = camera;
@@ -469,6 +500,8 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	if (!db_.LoadFromJson("resources/cards/cards.json")) {
 		db_.BuildSample();
 	}
+
+	PreloadCardAssets_();
 
 	DeckDef deckDef{};
 	std::string err;
@@ -524,7 +557,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 		enemy_->GetBossAI().LoadPattern("resources/cards/Boos.json");
 	}
 	handView_.Initialize(objCom_, dx_, cam_, &db_);
-	handView_.Rebuild(hand_);
+	handView_.Clear();
 
 	StartPlayerTurn_();
 	OutputDebugStringA(("After StartPlayerTurn hand=" + std::to_string(hand_.size()) +
@@ -536,6 +569,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	RebuildCostView_(deltaTime_);
 
 }
+
 bool BattleController::DrawOne_()
 {
 	if (deck_.empty()) {
@@ -551,6 +585,10 @@ bool BattleController::DrawOne_()
 	CardInstance card = deck_.back();
 	deck_.pop_back();
 	hand_.push_back(card);
+
+	// ここを追加
+	handView_.AddCard(card);
+
 	return true;
 }
 
@@ -559,7 +597,7 @@ void BattleController::DrawUntilFive_()
 	while ((int)hand_.size() < 5) {
 		if (!DrawOne_()) break;
 	}
-	handView_.Rebuild(hand_);
+	//handView_.Rebuild(hand_);
 }
 
 void BattleController::DrawCards_(int count)
@@ -569,7 +607,7 @@ void BattleController::DrawCards_(int count)
 			break;
 		}
 	}
-	handView_.Rebuild(hand_);
+//	handView_.Rebuild(hand_);
 }
 
 void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects)
@@ -1108,7 +1146,9 @@ void BattleController::Update(GameApp& app, float dt)
 							energy_ -= def->cost;
 
 							hand_.erase(hand_.begin() + idx);
-							handView_.Rebuild(hand_);
+							//handView_.Rebuild(hand_);
+
+							handView_.RemoveCardAt(idx);
 
 							ApplyCardEffects_(*def);
 

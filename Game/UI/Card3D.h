@@ -7,6 +7,7 @@
 #include "TextureManager.h"
 #include "CardDef.h"
 #include "CardInstance.h"
+#include "ScopedTimer.h"
 
 class Camera;
 class DirectXCommon;

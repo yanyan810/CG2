@@ -293,6 +293,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\2D\TextSprite.h" />
+    <ClInclude Include="Engine\ScopedTimer.h" />
     <ClInclude Include="Game\BattleController.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />
     <ClInclude Include="Game\Card\CardDef.h" />
