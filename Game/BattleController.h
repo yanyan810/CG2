@@ -89,6 +89,8 @@ public:
     void SetPlayer(Player* player);
     void SetEnemy(Enemy* enemy);
 
+    void UpdateFieldCardTransform_(int index, bool hovered, float dt);
+    void RefreshAllFieldCardTransforms_(float dt);
 
     void Finalize() {
         fieldViews_.clear();
@@ -172,6 +174,9 @@ private:
 
 	//場のカード入れ替え用
     int fieldReplaceHoverIndex_ = -1;
+    int prevFieldReplaceHoverIndex_ = -1;
+    bool fieldLayoutDirty_ = true;
+
 
     std::unique_ptr<Object3d> costLabel_;
     std::vector<std::unique_ptr<Object3d>> costDigitModels_;
@@ -229,5 +234,7 @@ private:
     void PreloadCardAssets_();
 
 	float deltaTime_ = 0.0f;
+
+  
 
 };

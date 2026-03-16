@@ -34,6 +34,16 @@ void HandView3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* c
     }
 }
 
+void HandView3D::SetHoverIndex(int idx)
+{
+    if (hoverIndex_ == idx) {
+        return;
+    }
+    prevHoverIndex_ = hoverIndex_;
+    hoverIndex_ = idx;
+    layoutDirty_ = true;
+}
+
 void HandView3D::Rebuild(const std::vector<CardInstance>& hand)
 {
     handCards_ = hand;
@@ -55,15 +65,18 @@ void HandView3D::Rebuild(const std::vector<CardInstance>& hand)
     baseScl_.assign(cards_.size(), { 1,1,1 });
     liftY_.assign(cards_.size(), 0.0f);
 
+    hoverIndex_ = -1;
+    previewIndex_ = -1;
+    dragIndex_ = -1;
+    dragDxPx_ = 0.0f;
+    dragDyPx_ = 0.0f;
+    dragActive_ = false;
+
     LayoutFan_();
 
-    // 初回描画前に Object3d 側へ transform を反映しておく
-    for (auto& c : cards_) {
-        c->Update(0.0f);
-    }
-
+    // 初回描画前に「HandView側の通常更新」を1回通す
+    Update(1.0f / 60.0f);
 }
-
 void HandView3D::LayoutFan_()
 {
     int n = (int)cards_.size();
@@ -105,11 +118,19 @@ void HandView3D::LayoutFan_()
 
         cards_[i]->SetTransform(basePos_[i], baseRot_[i], baseScl_[i]);
     }
+
+    layoutDirty_ = true;
+
 }
+
 void HandView3D::Update(float dt)
 {
+    if (!layoutDirty_) {
+        return;
+    }
+
     const float hoverLift = 0.6f;
-    const float hoverFrontZ = 0.35f;   // 0.8 -> 0.35 に弱める
+    const float hoverFrontZ = 0.35f;
     const float follow = 18.0f;
     const float k = 1.0f - std::exp(-follow * dt);
 
@@ -117,10 +138,17 @@ void HandView3D::Update(float dt)
     const float pxToWorldY = -0.03f;
 
     int n = (int)cards_.size();
-    for (int i = 0; i < n; ++i) {
+    bool stillAnimating = false;
 
+    for (int i = 0; i < n; ++i) {
         float targetLift = (i == hoverIndex_) ? hoverLift : 0.0f;
         liftY_[i] += (targetLift - liftY_[i]) * k;
+
+        if (std::fabs(liftY_[i] - targetLift) < 0.001f) {
+            liftY_[i] = targetLift;
+        } else {
+            stillAnimating = true;
+        }
 
         Vector3 pos = basePos_[i];
         Vector3 rot = baseRot_[i];
@@ -128,12 +156,9 @@ void HandView3D::Update(float dt)
 
         pos.y += liftY_[i];
 
-        // --- hover中：少しだけ手前へ ---
         if (i == hoverIndex_ && !dragActive_ && previewIndex_ < 0) {
-            pos.z -= hoverFrontZ;   // 小さいほど手前
+            pos.z -= hoverFrontZ;
             rot = { 0.0f, 0.0f, 0.0f };
-
-            // 拡大も弱める
             scl = {
                 baseScl_[i].x * 1.02f,
                 baseScl_[i].y * 1.02f,
@@ -141,29 +166,26 @@ void HandView3D::Update(float dt)
             };
         }
 
-        // --- ドラッグ中 ---
         if (dragActive_ && i == dragIndex_) {
             rot = { 0.0f, 0.0f, 0.0f };
             pos.x += dragDxPx_ * pxToWorldX;
             pos.y += dragDyPx_ * pxToWorldY;
             pos.y += 0.3f;
-            pos.z = 4.0f;           // 最前面寄り
+            pos.z = 4.0f;
+            stillAnimating = true;
         }
 
-        // --- プレビュー中 ---
         if (previewIndex_ >= 0 && i == previewIndex_) {
-            Vector3 frontPos{ 0.0f, 0.0f, 3.0f };
-            Vector3 frontRot{ 0.0f, 0.0f, 0.0f };
-            Vector3 frontScl{ 2.0f, 2.0f, 2.0f };
-
-            pos = frontPos;
-            rot = frontRot;
-            scl = frontScl;
+            pos = { 0.0f, 0.0f, 3.0f };
+            rot = { 0.0f, 0.0f, 0.0f };
+            scl = { 2.0f, 2.0f, 2.0f };
         }
 
         cards_[i]->SetTransform(pos, rot, scl);
         cards_[i]->Update(dt);
     }
+
+    layoutDirty_ = stillAnimating;
 }
 
 void HandView3D::Draw()
@@ -196,6 +218,11 @@ int HandView3D::PickIndexByMouse(int mouseX, int mouseY,
 
 void HandView3D::SetDrag(int idx, float dxPx, float dyPx, bool active)
 {
+    if (dragIndex_ != idx || dragActive_ != active ||
+        dragDxPx_ != dxPx || dragDyPx_ != dyPx) {
+        layoutDirty_ = true;
+    }
+
     dragIndex_ = idx;
     dragDxPx_ = dxPx;
     dragDyPx_ = dyPx;
@@ -217,6 +244,9 @@ void HandView3D::Clear()
     dragDxPx_ = 0.0f;
     dragDyPx_ = 0.0f;
     dragActive_ = false;
+    prevHoverIndex_ = -1;
+    layoutDirty_ = true;
+
 }
 
 #include "ScopedTimer.h"
@@ -267,10 +297,8 @@ void HandView3D::AddCard(const CardInstance& inst)
     }
 
     {
-        ScopedTimer t("  all cards Update(0.0f)");
-        for (auto& card : cards_) {
-            card->Update(0.0f);
-        }
+        ScopedTimer t("  Refresh all hand cards");
+        Update(1.0f / 60.0f);
     }
 }
 
@@ -305,11 +333,13 @@ void HandView3D::RemoveCardAt(int index)
     }
 
     LayoutFan_();
+    Update(1.0f / 60.0f);
 }
 
 void HandView3D::RefreshLayout()
 {
     LayoutFan_();
+    Update(1.0f / 60.0f);
 }
 
 #ifdef USE_IMGUI

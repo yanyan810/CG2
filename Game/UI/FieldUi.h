@@ -9,6 +9,14 @@ class Sprite;
 
 class FieldUi {
 public:
+
+    enum class DescMode {
+        None,
+        PokerChoice,
+        CardDesc,
+        Operation
+    };
+
     void Initialize(GameApp& app);
     void Update(GameApp& app, const BattleController& battle);
     void Draw(GameApp& app);
@@ -28,6 +36,10 @@ private:
     std::unique_ptr<Sprite> fieldCountBg_;
 
     bool showDescBg_ = false;
+
+    DescMode lastDescMode_ = DescMode::None;
+    int lastPreviewDefId_ = -1;
+    std::wstring lastDescText_;
 
 private:
     static std::wstring Utf8ToWString_(const std::string& s);

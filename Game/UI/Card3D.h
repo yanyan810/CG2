@@ -48,24 +48,26 @@ public:
     void SetModelFixRot(const Vector3& r) { modelFixRot_ = r; }
     Vector3 GetModelFixRot() const { return modelFixRot_; }
     static void DrawAdjustImGui();
+
 private:
 
     std::unique_ptr<Object3d> frame_;
     std::unique_ptr<Object3d> art_;
-
     std::unique_ptr<Object3d> costObj_;
     std::unique_ptr<Object3d> suitObj_;
 
     D3D12_GPU_DESCRIPTOR_HANDLE artSrv_{};
 
-    bool isHand_ = false;
-
-    Vector3 pos_{};
-    Vector3 rot_{};
-    Vector3 scale_{ 1,1,1 };
+    Vector3 pos_{ 0.0f, 0.0f, 0.0f };
+    Vector3 rot_{ 0.0f, 0.0f, 0.0f };
+    Vector3 scale_{ 1.0f, 1.0f, 1.0f };
 
     Vector3 modelFixRot_{ 0.0f, 0.0f, 0.0f };
-
     Vector4 frameColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+    bool isHand_ = false;
+    bool transformDirty_ = true;
+    bool frameColorDirty_ = true;
+    bool hasSubmittedOnce_ = false;
 
 };

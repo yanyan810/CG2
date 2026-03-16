@@ -69,17 +69,6 @@ void GameScene::OnEnter(GameApp& app) {
 	// 6. 文字描画の初期化
 	// --------------------------------------------------
 
-    cardDescText_ = std::make_unique<TextSprite>();
-    cardDescText_->Initialize(app.SpriteCom(), app.Dx());
-    cardDescText_->SetPosition({ 40.0f, 620.0f });
-
-    //白テクスチャ
-    cardDescBg_ = std::make_unique<Sprite>();
-    cardDescBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    cardDescBg_->SetPosition({ 20.0f, 60.0f });
-    cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
-    cardDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
-
     fieldUi_ = std::make_unique<FieldUi>();
     fieldUi_->Initialize(app);
 
@@ -87,8 +76,6 @@ void GameScene::OnEnter(GameApp& app) {
 
 void GameScene::OnExit(GameApp& app) {
     fieldUi_.reset();
-    cardDescBg_.reset();
-    cardDescText_.reset();
 
     player_.reset();
     skyDome_.reset();
@@ -132,34 +119,6 @@ void GameScene::Update(GameApp& app, float dt) {
 #endif
 
     battle_.Update(app, dt);
-
-    if (battle_.HasPokerChoiceUi()) {
-        cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
-        cardDescText_->SetPosition({ 40.0f, 80.0f });
-        cardDescText_->SetText(battle_.GetPokerChoiceUiText());
-
-        cardDescBg_->SetPosition({ 20.0f, 52.0f });
-        cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
-    } else {
-        cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
-        cardDescText_->SetPosition({ 40.0f, 620.0f });
-
-        const CardDef* def = battle_.GetPreviewCardDef();
-        if (def) {
-            cardDescText_->SetText(Utf8ToWString(def->desc));
-
-            cardDescBg_->SetPosition({ 20.0f, 600.0f });
-            cardDescBg_->SetScale({ 900.0f, 120.0f, 1.0f });
-        } else if (battle_.ShouldShowOperationUi()) {
-            cardDescText_->SetPosition({ 40.0f, 520.0f });
-            cardDescText_->SetText(battle_.GetOperationUiText());
-
-            cardDescBg_->SetPosition({ 20.0f, 500.0f });
-            cardDescBg_->SetScale({ 900.0f, 280.0f, 1.0f });
-        } else {
-            cardDescText_->SetText(L"");
-        }
-    }
 
     if (fieldUi_) {
         fieldUi_->Update(app, battle_);
