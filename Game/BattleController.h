@@ -18,6 +18,7 @@ class SpriteCommon;
 
 class Player;
 class Enemy;
+class EnemyManager;
 
 class BattleController {
 public:
@@ -27,6 +28,7 @@ public:
         Dragging,
         Preview,
         ChoosingFieldReplace,
+        ChoosingEnemyTarget
     };
 
     enum class PokerChoiceState
@@ -87,7 +89,7 @@ public:
     };
 
     void SetPlayer(Player* player);
-    void SetEnemy(Enemy* enemy);
+    void SetEnemyManager(EnemyManager* enemyMgr);
 
 
     void Finalize() {
@@ -97,8 +99,8 @@ public:
 
         playerHpBg_.reset();
         playerHpFg_.reset();
-        enemyHpBg_.reset();
-        enemyHpFg_.reset();
+        enemyHpBgs_.clear();
+        enemyHpFgs_.clear();
 
         deck_.clear();
         hand_.clear();
@@ -106,7 +108,7 @@ public:
         field_.clear();
 
         player_ = nullptr;
-        enemy_ = nullptr;
+        enemyMgr_ = nullptr;
         cam_ = nullptr;
         objCom_ = nullptr;
         dx_ = nullptr;
@@ -162,10 +164,12 @@ private:
     bool prevR_ = false;
 
     int nextTurnAtkUp_ = 0;
-    int enemyHp_ = 300;
-
+    int currentEnemyIndex_ = 0;
+    int pendingDamage_ = 0;
+    bool isPokerDamageTargeting_ = false;
+    int pendingCardHandIndex_ = -1;
     Player* player_ = nullptr;
-    Enemy* enemy_ = nullptr;
+    EnemyManager* enemyMgr_ = nullptr;
 
     //タブを押しているとき様
     bool operationUiVisible_ = false;
@@ -188,8 +192,8 @@ private:
     std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
     std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
 
-    std::unique_ptr<Sprite> enemyHpBg_;  // ボスHP背景
-    std::unique_ptr<Sprite> enemyHpFg_;  // ボスHP中身(赤)
+    std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
+    std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
 
     void StartPlayerTurn_();
     void DrawUntilFive_();
