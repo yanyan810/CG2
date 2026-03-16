@@ -195,6 +195,8 @@ private:
     std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
     std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
 
+    std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
+
     void StartPlayerTurn_();
     void DrawUntilFive_();
     bool DrawOne_();

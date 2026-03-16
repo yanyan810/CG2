@@ -485,6 +485,11 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 		fg->Initialize(spriteCom_, dx_,"resources/ui/white.png");
 		fg->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });           // 赤色
 		enemyHpFgs_.push_back(std::move(fg));
+
+		// 予告アイコンの生成
+		auto icon = std::make_unique<Sprite>();
+		icon->Initialize(spriteCom_, dx_,"resources/ui/white.png");
+		enemyIntentIcons_.push_back(std::move(icon));
 	}
 
 	
@@ -736,6 +741,13 @@ void BattleController::StartPlayerTurn_()
 			);
 
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
+		}
+	}
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive()) {
+				e.GetBossAI().DecideNextAction();
+			}
 		}
 	}
 }
@@ -1343,7 +1355,7 @@ void BattleController::Update(GameApp& app, float dt)
 
 					// 今回行動する敵を1体だけ取得
 					Enemy& e = enemies[currentEnemyIndex_];
-					EnemyAction action = e.GetBossAI().GetRandomAction();
+					EnemyAction action = e.GetBossAI().GetNextAction();
 
 					if (action.type == "Attack") {
 						e.PlayAttackAnim(player_->GetPos());
@@ -1424,7 +1436,6 @@ void BattleController::Update(GameApp& app, float dt)
 				float hpRatio = (float)enemies[i].GetHP() / (float)enemies[i].GetMaxHP();
 				if (hpRatio < 0.0f) hpRatio = 0.0f;
 
-				// ★少し小さく（幅200）して、Y座標を 40, 70, 100... と下にずらして配置
 				float gaugeWidth = 200.0f;
 				float posX = 1000.0f; // 右上に配置
 				float posY = 40.0f + (i * 30.0f); // 30pxずつ下にずらす
@@ -1434,10 +1445,26 @@ void BattleController::Update(GameApp& app, float dt)
 
 				enemyHpFgs_[i]->SetScale({ gaugeWidth * hpRatio, 15.0f, 1.0f });
 				enemyHpFgs_[i]->SetPosition({ posX, posY });
+				EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
+
+				// 行動タイプによって色を変える！
+				if (nextAct.type == "Attack") {
+					enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f }); // 赤（攻撃）
+				} else if (nextAct.type == "Heal") {
+					enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f }); // 緑（回復）
+				} else {
+					enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f }); // 白・グレー（その他）
+				}
+
+				// HPゲージの少し左に配置する
+				enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
+				// HPゲージの原点にもよりますが、左に30pxほどずらします
+				enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
 			} else {
 				// 敵がいない、または死んでいる場合はゲージを見えなくする
 				enemyHpBgs_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
 				enemyHpFgs_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
+				enemyIntentIcons_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
 			}
 		}
 	}
@@ -1463,6 +1490,8 @@ void BattleController::Update(GameApp& app, float dt)
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
+	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
+
 }
 
 void BattleController::Draw3D(GameApp& app)
@@ -1486,6 +1515,7 @@ void BattleController::Draw3D(GameApp& app)
 
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Draw(); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Draw(); }
+	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Draw(); }
 }
 
 #ifdef USE_IMGUI

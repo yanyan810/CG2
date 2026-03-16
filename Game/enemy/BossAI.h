@@ -21,8 +21,13 @@ public:
     void LoadPattern(const std::string& filePath);
     EnemyAction GetRandomAction();
 
+    void DecideNextAction();
+    EnemyAction GetNextAction() const { return nextAction_; }
+
     int GetMaxHP() const { return maxHP_; }
 private:
     int maxHP_ = 300;
     std::vector<EnemyAction> actionList_;
+
+    EnemyAction nextAction_{};
 };
