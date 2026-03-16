@@ -635,7 +635,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}*/
 
 		} else if (effect.type == "Block") {
-			// 例: playerBlock_ += effect.value;
+			if (player_) {
+				player_->AddBlock(effect.value);
+			}
 
 		} else if (effect.type == "NextTurnAtkUp") {
 			nextTurnAtkUp_ += effect.value;
@@ -730,6 +732,9 @@ bool BattleController::DoesSubEffectConditionMatch_(const CardSubEffectDef& sub,
 
 void BattleController::StartPlayerTurn_()
 {
+	if (player_) {
+		player_->ResetBlock();
+	}
 	energy_ = energyMax_;
 	DrawUntilFive_();
 
@@ -1601,6 +1606,7 @@ void BattleController::DrawImGui()
 
 	ImGui::Text("Player Hp: %d", player_->GetHP());
 	ImGui::Text("Enemy  Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
+	ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
 
 }
 #endif

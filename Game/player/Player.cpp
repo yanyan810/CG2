@@ -106,9 +106,13 @@ void Player::Damage(int damage)
 {
     // ブロックの値が０じゃないならブロックの値分ダメージを減らす
     if (block_ > 0) {
-        damage -= block_;
-        block_ -= damage;
-        if (block_ <= 0) {
+        if (block_ >= damage) {
+            // ブロックの方が大きい（全ダメージ防げる）場合
+            block_ -= damage;
+            damage = 0;
+        } else {
+            // ダメージの方が大きい（ブロックが壊れる）場合
+            damage -= block_;
             block_ = 0;
         }
     }
@@ -118,7 +122,7 @@ void Player::Damage(int damage)
         return;
     }
 
-    hp_ -= damage; 
-    
-    if (hp_ < 0) hp_ = 0; 
+    hp_ -= damage;
+
+    if (hp_ < 0) hp_ = 0;
 }
