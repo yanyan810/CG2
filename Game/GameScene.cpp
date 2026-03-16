@@ -37,7 +37,7 @@ void GameScene::OnEnter(GameApp& app) {
     // --------------------------------------------------
     // 3. プレイヤーとエネミーの初期化・配置
     // --------------------------------------------------
-    // ★カメラが原点なので、キャラクターは Z 方向に押し出してカメラの前に置く
+    // カメラが原点なので、キャラクターは Z 方向に押し出してカメラの前に置く
     const float charZ = 15.0f; // カメラから15.0f 奥
 
     // プレイヤーの配置（左側・右向き）
@@ -48,9 +48,9 @@ void GameScene::OnEnter(GameApp& app) {
 
     // エネミーの配置（右側・左向き）
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 5.0f }); // 奥に配置
-    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 15.0f }); // 真ん中に配置
-    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 25.0f }); // 手前に配置
+    enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 5.0f }); // 奥にスライム
+    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f,  15.0f }); // 真ん中にボス
+    enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f,  25.0f }); // 手前にスライム
     // --------------------------------------------------
     // 4. ライトの初期設定
     // --------------------------------------------------
