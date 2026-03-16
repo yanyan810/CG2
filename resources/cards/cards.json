@@ -145,7 +145,7 @@
       "desc": "敵単体に5ダメージを与える。5のブロックを獲得する",
       "effects": [
         { "type": "Damage", "value": 5 },
-        { "type": "Damage", "value": 5 }
+        { "type": "Block", "value": 5 }
       ]
      },
     {
@@ -181,7 +181,7 @@
       "artTex": "resources/cards/art/Blocking.png",
       "desc": "ブロックを5獲得する",
       "effects": [
-        { "type": "Heal", "value": 5 }
+        { "type": "Block", "value": 5 }
       ]
      },
      {
@@ -193,7 +193,7 @@
       "artTex": "resources/cards/art/Doping.png",
       "desc": "パワーを2獲得する",
       "effects": [
-        { "type": "Heal", "value": 2 }
+        { "type": "PowerBoost", "value": 2 }
       ]
      },
        {
@@ -205,7 +205,8 @@
       "artTex": "resources/cards/art/FlashBang.png",
       "desc": "パワーを1獲得する。コストを1回復する",
       "effects": [
-        { "type": "Heal", "value": 3 }
+        { "type": "PowerBoost", "value": 1 },
+        { "type": "EnergyCharge", "value": 1 }
       ]
      },
        {

@@ -17,6 +17,9 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
     }
 
     basePos_ = pos_;
+
+    block_ = 0;
+    boostedPower_ = 0;
 }
 
 void Player::PlayAttackAnim(const Vector3& targetPos) {
@@ -97,4 +100,25 @@ void Player::SetSpawnPos(const Vector3& p) {
 
 void Player::SetRotation(const Vector3& r) {
     rot_ = r;
+}
+
+void Player::Damage(int damage) 
+{
+    // ブロックの値が０じゃないならブロックの値分ダメージを減らす
+    if (block_ > 0) {
+        damage -= block_;
+        block_ -= damage;
+        if (block_ <= 0) {
+            block_ = 0;
+        }
+    }
+
+    // ダメージが0以下ならダメージ処理なし
+    if (damage <= 0) {
+        return;
+    }
+
+    hp_ -= damage; 
+    
+    if (hp_ < 0) hp_ = 0; 
 }
