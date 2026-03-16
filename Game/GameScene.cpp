@@ -48,8 +48,9 @@ void GameScene::OnEnter(GameApp& app) {
 
     // エネミーの配置（右側・左向き）
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    enemyMgr_.Spawn(EnemyType::Boss, Vector3{ 7.0f, 0.0f, charZ });
-
+    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 5.0f }); // 奥に配置
+    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 15.0f }); // 真ん中に配置
+    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 25.0f }); // 手前に配置
     // --------------------------------------------------
     // 4. ライトの初期設定
     // --------------------------------------------------
@@ -63,7 +64,7 @@ void GameScene::OnEnter(GameApp& app) {
    // --------------------------------------------------
     battle_.Initialize(app, camera_.get());
     battle_.SetPlayer(player_.get());
-    battle_.SetEnemy(enemyMgr_.GetBoss());
+    battle_.SetEnemyManager(&enemyMgr_);
 
 	// --------------------------------------------------
 	// 6. 文字描画の初期化

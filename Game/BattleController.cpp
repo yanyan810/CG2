@@ -329,18 +329,22 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });   // ← 最初から正しい値
 	playerHpFg_->SetPosition({ 80.0f, 40.0f });       // ← 最初から正しい値
 
-	enemyHpBg_ = std::make_unique<Sprite>();
-	enemyHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	enemyHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-	enemyHpBg_->SetScale({ 250.0f, 18.0f, 1.0f });
-	enemyHpBg_->SetPosition({ 950.0f, 40.0f });
+	// 敵の最大数（3体）分のゲージを生成する
+	enemyHpBgs_.clear();
+	enemyHpFgs_.clear();
+	for (int i = 0; i < 3; ++i) {
+		auto bg = std::make_unique<Sprite>();
+		bg->Initialize(spriteCom_, dx_,"resources/ui/white.png");
+		bg->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });           // 暗いグレー
+		enemyHpBgs_.push_back(std::move(bg));
 
-	enemyHpFg_ = std::make_unique<Sprite>();
-	enemyHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	enemyHpFg_->SetColor({ 0.8f, 0.2f, 0.2f, 1.0f });
-	enemyHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
-	enemyHpFg_->SetPosition({ 950.0f, 40.0f });
+		auto fg = std::make_unique<Sprite>();
+		fg->Initialize(spriteCom_, dx_,"resources/ui/white.png");
+		fg->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });           // 赤色
+		enemyHpFgs_.push_back(std::move(fg));
+	}
 
+	
 	// -----------------------------
 	// ここで一度だけ即時反映
 	// -----------------------------
@@ -351,9 +355,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
-	if (enemyHpBg_) enemyHpBg_->Update(viewMat, projMat);
-	if (enemyHpFg_) enemyHpFg_->Update(viewMat, projMat);
-
+	
 	if (!db_.LoadFromJson("resources/cards/cards.json")) {
 		db_.BuildSample();
 	}
@@ -408,9 +410,6 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	pendingCard_ = {};
 
 	energy_ = energyMax_;
-	if (enemy_) {
-		enemy_->GetBossAI().LoadPattern("resources/cards/Boos.json");
-	}
 	handView_.Initialize(objCom_, dx_, cam_, &db_);
 	handView_.Rebuild(hand_);
 
@@ -467,22 +466,16 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			DrawCards_(effect.value);
 
 		} else if (effect.type == "Damage") {
-			if (player_ && enemy_) {
-				// プレイヤーが敵の位置に向かって突進！
-				player_->PlayAttackAnim(enemy_->GetPos());
-
-				// 敵が赤く光ってのけぞる！
-				enemy_->TriggerHitFlash(0.2f);
-				enemy_->PlayDamageAnim();
+			/*Enemy* targetEnemy = nullptr;
+			if (enemyMgr_ && !enemyMgr_->GetEnemies().empty()) {
+				targetEnemy = &enemyMgr_->GetEnemies()[0];
 			}
-			if (enemy_) {
-				enemy_->Damage(effect.value);
-			} else {
-				enemyHp_ -= effect.value;
-				if (enemyHp_ < 0) {
-					enemyHp_ = 0;
-				}
-			}
+			if (player_ && targetEnemy) {
+				player_->PlayAttackAnim(targetEnemy->GetPos());
+				targetEnemy->TriggerHitFlash(0.2f);
+				targetEnemy->PlayDamageAnim();
+				targetEnemy->Damage(effect.value);
+			}*/
 
 		} else if (effect.type == "Block") {
 			// 例: playerBlock_ += effect.value;
@@ -833,20 +826,10 @@ void BattleController::Update(GameApp& app, float dt)
 		}
 
 		if (key3Trig) {
-			if (player_ && enemy_) {
-				player_->PlayAttackAnim(enemy_->GetPos());
-				enemy_->TriggerHitFlash(0.2f);
-				enemy_->PlayDamageAnim();
-			}
-			enemyHp_ -= bonus.damage;
-			if (enemyHp_ < 0) {
-				enemyHp_ = 0;
-			}
-
-			ConsumeFieldCards_();
-			pokerChoiceState_ = PokerChoiceState::None;
-			turn_ = TurnState::Enemy;
-			enemyWait_ = 1.0f;
+			pendingDamage_ = bonus.damage;
+			isPokerDamageTargeting_ = true; // ポーカーからの攻撃であることを記憶
+			cardState_ = CardInputState::ChoosingEnemyTarget; // 状態を切り替え
+			pokerChoiceState_ = PokerChoiceState::None;       // ポーカーのUIを消す
 			return;
 		}
 
@@ -983,6 +966,28 @@ void BattleController::Update(GameApp& app, float dt)
 						const CardDef* def = db_.Find(inst.defId);
 
 						if (def && def->cost <= energy_) {
+							// このカードが「Damage（攻撃）」を持っているか調べる
+							bool needsTarget = false;
+							int dmgVal = 0;
+							for (const auto& effect : def->effects) {
+								if (effect.type == "Damage") {
+									needsTarget = true;
+									dmgVal = effect.value;
+									break;
+								}
+							}
+
+							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
+							if (needsTarget) {
+								pendingDamage_ = dmgVal + nextTurnAtkUp_; // ダメージを計算して覚える
+								isPokerDamageTargeting_ = false;          // 手札からの使用であることを記憶
+								pendingCardHandIndex_ = idx;              // 使ったカードの場所を記憶
+								cardState_ = CardInputState::ChoosingEnemyTarget; // ターゲット選択へ
+
+								selectedIndex_ = -1;
+								handView_.SetPreviewIndex(-1);
+								return;
+							}
 							energy_ -= def->cost;
 
 							hand_.erase(hand_.begin() + idx);
@@ -1071,6 +1076,80 @@ void BattleController::Update(GameApp& app, float dt)
 				handView_.SetPreviewIndex(-1);
 			}
 			break;
+			case CardInputState::ChoosingEnemyTarget:
+			{
+				// マウスの位置にいる敵を探す
+				int hoverIndex = enemyMgr_->PickEnemyByMouse(
+					mouse.x, mouse.y,
+					cam_->GetViewProjectionMatrix(),
+					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
+				);
+
+				// マウスが重なっている敵を黄色く光らせる
+				if (hoverIndex >= 0) {
+					enemyMgr_->GetEnemies()[hoverIndex].SetHighlight(true);
+				}
+
+				// 左クリック：決定して攻撃！
+				if (lTrig) {
+					if (hoverIndex >= 0) {
+						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
+
+						// 選んだ敵に向かって突進＆ダメージ！
+						player_->PlayAttackAnim(targetEnemy.GetPos());
+						targetEnemy.TriggerHitFlash(0.2f);
+						targetEnemy.PlayDamageAnim();
+						targetEnemy.Damage(pendingDamage_);
+
+						if (isPokerDamageTargeting_) {
+							// ポーカー役での攻撃だった場合
+							ConsumeFieldCards_();
+							cardState_ = CardInputState::Idle;
+							turn_ = TurnState::Enemy;
+							enemyWait_ = 1.0f;
+						} else {
+							// 手札のカードでの攻撃だった場合
+							int idx = pendingCardHandIndex_;
+							CardInstance inst = hand_[idx];
+							const CardDef* def = db_.Find(inst.defId);
+
+							// コストを消費して手札から消す
+							energy_ -= def->cost;
+							hand_.erase(hand_.begin() + idx);
+							handView_.Rebuild(hand_);
+
+							// ダメージ以外の効果（ドローなど）を発動
+							ApplyCardEffects_(*def);
+
+							// 場に出す処理
+							if ((int)field_.size() < 5) {
+								field_.push_back(inst);
+								RebuildFieldView_();
+								if ((int)field_.size() == 5) {
+									PokerHandResult poker = EvaluatePokerHand_();
+									TriggerSubEffectsForCard_(inst, SubEffectTrigger::OnPlayToField, poker.rank);
+								}
+								cardState_ = CardInputState::Idle;
+								hasPendingCard_ = false;
+								pendingCard_ = {};
+							} else {
+								pendingCard_ = inst;
+								hasPendingCard_ = true;
+								cardState_ = CardInputState::ChoosingFieldReplace;
+							}
+						}
+					}
+				}
+
+				// 右クリック：キャンセルして元に戻る
+				if (rTrig) {
+					cardState_ = CardInputState::Idle;
+					if (isPokerDamageTargeting_) {
+						pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice; // ポーカー選択へ戻る
+					}
+				}
+			}
+			break;
 			}
 		}
 
@@ -1083,44 +1162,52 @@ void BattleController::Update(GameApp& app, float dt)
 		handView_.SetPreviewIndex(-1);
 		cardState_ = CardInputState::Idle;
 		selectedIndex_ = -1;
-
+		enemyMgr_&& player_;
 		hasPendingCard_ = false;
 		pendingCard_ = {};
 
 		enemyWait_ -= dt;
 
-		// ★変更：待機時間が0になったら、敵が行動を実行してからプレイヤーのターンへ！
 		if (enemyWait_ <= 0.0f) {
 
-			// AIからランダムな行動を取得して実行
-			if (enemy_ && player_) {
-				EnemyAction action = enemy_->GetBossAI().GetRandomAction();
+			if (enemyMgr_ && player_) {
+				auto& enemies = enemyMgr_->GetEnemies();
+				while (currentEnemyIndex_ < enemies.size() && !enemies[currentEnemyIndex_].IsAlive()) {
+					currentEnemyIndex_++;
+				}
 
-				if (action.type == "Attack") {
-					// ボスが突進してプレイヤーを攻撃！
-					enemy_->PlayAttackAnim(player_->GetPos());
-					player_->TriggerHitFlash(0.2f);
-					player_->PlayDamageAnim();
+				// まだ行動していない敵がいる場合
+				if (currentEnemyIndex_ < enemies.size()) {
 
-					player_->Damage(action.value);
+					// 今回行動する敵を1体だけ取得
+					Enemy& e = enemies[currentEnemyIndex_];
+					EnemyAction action = e.GetBossAI().GetRandomAction();
 
-				} else if (action.type == "Heal") {
-					// ボスの回復！
-					enemy_->Heal(action.value);
+					if (action.type == "Attack") {
+						e.PlayAttackAnim(player_->GetPos());
+						player_->TriggerHitFlash(0.2f);
+						player_->PlayDamageAnim();
+						player_->Damage(action.value);
+					} else if (action.type == "Heal") {
+						e.Heal(action.value);
+					} else if (action.type == "Block") {
+						// 防御処理
+					}
 
-				} else if (action.type == "Block") {
-					// ボスの防御（必要に応じて処理を追加）
+					enemyWait_ = 1.0f;
+
+					// 次の敵の番へ進めておく
+					currentEnemyIndex_++;
+
+				} else {
+					// 全ての敵の行動が終わった場合
+					currentEnemyIndex_ = 0; // 次のターンに向けてリセットしておく
+
+					// プレイヤーターンへ移行
+					turn_ = TurnState::Player;
+					StartPlayerTurn_();
 				}
 			}
-
-			// プレイヤーターンへ移行
-			turn_ = TurnState::Player;
-			StartPlayerTurn_();
-
-			OutputDebugStringA(("After StartPlayerTurn hand=" + std::to_string(hand_.size()) +
-				" deck=" + std::to_string(deck_.size()) +
-				" discard=" + std::to_string(discard_.size()) + "\n").c_str());
-
 		}
 	}
 
@@ -1168,12 +1255,29 @@ void BattleController::Update(GameApp& app, float dt)
 	}
 
 	// ボスのHPゲージ計算
-	if (enemy_ && enemyHpFg_) {
-		float hpRatio = (float)enemy_->GetHP() / (float)enemy_->GetMaxHP();
-		if (hpRatio < 0.0f) hpRatio = 0.0f;
+	if (enemyMgr_) {
+		auto& enemies = enemyMgr_->GetEnemies();
+		for (size_t i = 0; i < enemyHpFgs_.size(); ++i) {
+			if (i < enemies.size() && enemies[i].IsAlive()) {
+				float hpRatio = (float)enemies[i].GetHP() / (float)enemies[i].GetMaxHP();
+				if (hpRatio < 0.0f) hpRatio = 0.0f;
 
-		enemyHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
-		enemyHpFg_->SetPosition({ 950.0f, 40.0f });
+				// ★少し小さく（幅200）して、Y座標を 40, 70, 100... と下にずらして配置
+				float gaugeWidth = 200.0f;
+				float posX = 1000.0f; // 右上に配置
+				float posY = 40.0f + (i * 30.0f); // 30pxずつ下にずらす
+
+				enemyHpBgs_[i]->SetScale({ gaugeWidth, 15.0f, 1.0f });
+				enemyHpBgs_[i]->SetPosition({ posX, posY });
+
+				enemyHpFgs_[i]->SetScale({ gaugeWidth * hpRatio, 15.0f, 1.0f });
+				enemyHpFgs_[i]->SetPosition({ posX, posY });
+			} else {
+				// 敵がいない、または死んでいる場合はゲージを見えなくする
+				enemyHpBgs_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
+				enemyHpFgs_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
+			}
+		}
 	}
 	// 2D UI用の行列を作成する（Mathクラスを使用）
 	// View行列（カメラは原点でまっすぐ前を向く = 単位行列）
@@ -1195,8 +1299,8 @@ void BattleController::Update(GameApp& app, float dt)
 	// --------------------------------------------------
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
-	if (enemyHpBg_) enemyHpBg_->Update(viewMat, projMat);
-	if (enemyHpFg_) enemyHpFg_->Update(viewMat, projMat);
+	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
+	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
 }
 
 void BattleController::Draw3D(GameApp& app)
@@ -1218,8 +1322,8 @@ void BattleController::Draw3D(GameApp& app)
 	if (playerHpBg_) playerHpBg_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
 
-	if (enemyHpBg_) enemyHpBg_->Draw();
-	if (enemyHpFg_) enemyHpFg_->Draw();
+	for (auto& bg : enemyHpBgs_) { if (bg) bg->Draw(); }
+	for (auto& fg : enemyHpFgs_) { if (fg) fg->Draw(); }
 }
 
 #ifdef USE_IMGUI
@@ -1302,7 +1406,7 @@ void BattleController::DrawImGui()
 	ImGui::Separator();
 
 	ImGui::Text("Player Hp: %d", player_->GetHP());
-	ImGui::Text("Enemy  Hp: %d", enemy_->GetHP());
+	ImGui::Text("Enemy  Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
 
 }
 #endif
@@ -1311,8 +1415,8 @@ void BattleController::SetPlayer(Player* player) {
 	player_ = player;
 }
 
-void BattleController::SetEnemy(Enemy* enemy) {
-	enemy_ = enemy;
+void BattleController::SetEnemyManager(EnemyManager* enemyMgr) {
+	enemyMgr_ = enemyMgr;
 }
 
 const CardDef* BattleController::GetPreviewCardDef() const
