@@ -41,6 +41,7 @@ public:
 
 	int GetBlock() { return block_; }
 	void AddBlock(int value) { block_ += value; }
+	void ResetBlock() { block_ = 0; }
 
 	int GetBoostedPower() { return boostedPower_; }
 	void PowerBoost(int value) { boostedPower_ += value; }
