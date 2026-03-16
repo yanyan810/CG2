@@ -44,21 +44,18 @@ void BossAI::LoadPattern(const std::string& filePath) {
 }
 
 // ランダムに行動を選択する
-EnemyAction BossAI::GetRandomAction() {
-    // リストが空なら、安全のためにデフォルトの攻撃を返す
+void BossAI::DecideNextAction() {
     if (actionList_.empty()) {
-        return { "Attack", 10, "通常攻撃" };
+        nextAction_ = { "Attack", 10, "通常攻撃" };
+        return;
     }
 
-    // ランダムなインデックスを生成 (0 〜 リストのサイズ-1)
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> dist(0, static_cast<int>(actionList_.size()) - 1);
 
     int randomIndex = dist(gen);
-
-    // 選ばれた行動を返す
-    return actionList_[randomIndex];
+    nextAction_ = actionList_[randomIndex];
 }
 
 

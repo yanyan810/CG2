@@ -342,6 +342,11 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 		fg->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 		fg->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });           // 赤色
 		enemyHpFgs_.push_back(std::move(fg));
+
+		// 予告アイコンの生成
+		auto icon = std::make_unique<Sprite>();
+		icon->Initialize(spriteCom_, dx_,"resources/ui/white.png");
+		enemyIntentIcons_.push_back(std::move(icon));
 	}
 
 
@@ -597,6 +602,13 @@ void BattleController::StartPlayerTurn_()
 			);
 
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
+		}
+	}
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive()) {
+				e.GetBossAI().DecideNextAction();
+			}
 		}
 	}
 }
@@ -1103,11 +1115,27 @@ void BattleController::Update(GameApp& app, float dt)
 			if (enemy_ && player_) {
 				EnemyAction action = enemy_->GetBossAI().GetRandomAction();
 
-				if (action.type == "Attack") {
-					// ボスが突進してプレイヤーを攻撃！
-					enemy_->PlayAttackAnim(player_->GetPos());
-					player_->TriggerHitFlash(0.2f);
-					player_->PlayDamageAnim();
+
+				// まだ行動していない敵がいる場合
+				if (currentEnemyIndex_ < enemies.size()) {
+
+					// 今回行動する敵を1体だけ取得
+					Enemy& e = enemies[currentEnemyIndex_];
+					EnemyAction action = e.GetBossAI().GetNextAction();
+
+					if (action.type == "Attack") {
+						e.PlayAttackAnim(player_->GetPos());
+						player_->TriggerHitFlash(0.2f);
+						player_->PlayDamageAnim();
+						player_->Damage(action.value);
+					} else if (action.type == "Heal") {
+						e.Heal(action.value);
+					} else if (action.type == "Block") {
+						// 防御処理
+					}
+
+					enemyWait_ = 1.0f;
+
 
 					player_->Damage(action.value);
 
@@ -1175,12 +1203,45 @@ void BattleController::Update(GameApp& app, float dt)
 	}
 
 	// ボスのHPゲージ計算
-	if (enemy_ && enemyHpFg_) {
-		float hpRatio = (float)enemy_->GetHP() / (float)enemy_->GetMaxHP();
-		if (hpRatio < 0.0f) hpRatio = 0.0f;
+	if (enemyMgr_) {
+		auto& enemies = enemyMgr_->GetEnemies();
+		for (size_t i = 0; i < enemyHpFgs_.size(); ++i) {
+			if (i < enemies.size() && enemies[i].IsAlive()) {
+				float hpRatio = (float)enemies[i].GetHP() / (float)enemies[i].GetMaxHP();
+				if (hpRatio < 0.0f) hpRatio = 0.0f;
 
-		enemyHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
-		enemyHpFg_->SetPosition({ 950.0f, 40.0f });
+				float gaugeWidth = 200.0f;
+				float posX = 1000.0f; // 右上に配置
+				float posY = 40.0f + (i * 30.0f); // 30pxずつ下にずらす
+
+				enemyHpBgs_[i]->SetScale({ gaugeWidth, 15.0f, 1.0f });
+				enemyHpBgs_[i]->SetPosition({ posX, posY });
+
+				enemyHpFgs_[i]->SetScale({ gaugeWidth * hpRatio, 15.0f, 1.0f });
+				enemyHpFgs_[i]->SetPosition({ posX, posY });
+				EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
+
+				// 行動タイプによって色を変える！
+				if (nextAct.type == "Attack") {
+					enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f }); // 赤（攻撃）
+				} else if (nextAct.type == "Heal") {
+					enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f }); // 緑（回復）
+				} else {
+					enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f }); // 白・グレー（その他）
+				}
+
+				// HPゲージの少し左に配置する
+				enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
+				// HPゲージの原点にもよりますが、左に30pxほどずらします
+				enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
+			} else {
+				// 敵がいない、または死んでいる場合はゲージを見えなくする
+				enemyHpBgs_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
+				enemyHpFgs_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
+				enemyIntentIcons_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
+			}
+		}
+
 	}
 	// 2D UI用の行列を作成する（Mathクラスを使用）
 	// View行列（カメラは原点でまっすぐ前を向く = 単位行列）
@@ -1202,8 +1263,11 @@ void BattleController::Update(GameApp& app, float dt)
 	// --------------------------------------------------
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
-	if (enemyHpBg_) enemyHpBg_->Update(viewMat, projMat);
-	if (enemyHpFg_) enemyHpFg_->Update(viewMat, projMat);
+	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
+	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
+	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
+
+
 }
 
 void BattleController::Draw3D(GameApp& app)
@@ -1225,8 +1289,11 @@ void BattleController::Draw3D(GameApp& app)
 	if (playerHpBg_) playerHpBg_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
 
-	if (enemyHpBg_) enemyHpBg_->Draw();
-	if (enemyHpFg_) enemyHpFg_->Draw();
+
+	for (auto& bg : enemyHpBgs_) { if (bg) bg->Draw(); }
+	for (auto& fg : enemyHpFgs_) { if (fg) fg->Draw(); }
+	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Draw(); }
+
 }
 
 #ifdef USE_IMGUI
