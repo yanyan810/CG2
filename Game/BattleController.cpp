@@ -188,7 +188,7 @@ void BattleController::RebuildDiscardView_()
 	discardView_->Initialize(objCom_, dx_, cam_, *def, top);
 
 	// 位置は右下寄りのイメージ。あとで調整
-	Vector3 pos{ 14.0f, -9.0f, 6.0f };
+	Vector3 pos{ 16.0f, -8.0f, 6.0f };
 	Vector3 rot{ 0.0f, 0.0f, 0.0f };
 	Vector3 scl{ 1.0f, 1.0f, 1.0f };
 
@@ -304,6 +304,118 @@ void BattleController::RebuildCostView_(float dt)
 	prevEnergyMax_ = energyMax_;
 
 	UpdateCostViewTransform_(dt);
+}
+
+std::array<bool, 5> BattleController::GetPokerHighlightMask_() const
+{
+	std::array<bool, 5> mask{};
+	mask.fill(false);
+
+	if (field_.size() != 5) {
+		return mask;
+	}
+
+	PokerHandResult result = EvaluatePokerHand_();
+	if (result.rank == PokerHandRank::None) {
+		return mask;
+	}
+
+	std::array<int, 14> countNumber{};
+	std::array<int, 4> countSuit{};
+
+	for (const auto& c : field_) {
+		if (c.number >= 1 && c.number <= 13) {
+			countNumber[c.number]++;
+		}
+		int suitIndex = static_cast<int>(c.suit);
+		if (suitIndex >= 0 && suitIndex < 4) {
+			countSuit[suitIndex]++;
+		}
+	}
+
+	auto markNumber = [&](int number) {
+		for (int i = 0; i < 5; ++i) {
+			if (field_[i].number == number) {
+				mask[i] = true;
+			}
+		}
+		};
+
+	auto markSuit = [&](CardSuit suit) {
+		for (int i = 0; i < 5; ++i) {
+			if (field_[i].suit == suit) {
+				mask[i] = true;
+			}
+		}
+		};
+
+	switch (result.rank) {
+	case PokerHandRank::OnePair:
+		for (int n = 1; n <= 13; ++n) {
+			if (countNumber[n] == 2) {
+				markNumber(n);
+				break;
+			}
+		}
+		break;
+
+	case PokerHandRank::TwoPair:
+		for (int n = 1; n <= 13; ++n) {
+			if (countNumber[n] == 2) {
+				markNumber(n);
+			}
+		}
+		break;
+
+	case PokerHandRank::ThreeOfAKind:
+		for (int n = 1; n <= 13; ++n) {
+			if (countNumber[n] == 3) {
+				markNumber(n);
+				break;
+			}
+		}
+		break;
+
+	case PokerHandRank::FourOfAKind:
+		for (int n = 1; n <= 13; ++n) {
+			if (countNumber[n] == 4) {
+				markNumber(n);
+				break;
+			}
+		}
+		break;
+
+	case PokerHandRank::FullHouse:
+		for (int n = 1; n <= 13; ++n) {
+			if (countNumber[n] == 3 || countNumber[n] == 2) {
+				markNumber(n);
+			}
+		}
+		break;
+
+	case PokerHandRank::Flush:
+	case PokerHandRank::StraightFlush:
+	case PokerHandRank::RoyalStraightFlush:
+		for (int s = 0; s < 4; ++s) {
+			if (countSuit[s] == 5) {
+				markSuit(static_cast<CardSuit>(s));
+				break;
+			}
+		}
+		break;
+
+	case PokerHandRank::Straight:
+		// ストレートは5枚全部使う
+		for (int i = 0; i < 5; ++i) {
+			mask[i] = true;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return mask;
 }
 
 void BattleController::Initialize(GameApp& app, Camera* camera)
@@ -708,6 +820,8 @@ void BattleController::RebuildFieldView_()
 		return;
 	}
 
+	std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
+
 	const float y = -5.0f;
 	const float z = 5.0f;
 	const float gap = 5.0f;
@@ -727,6 +841,14 @@ void BattleController::RebuildFieldView_()
 		Vector3 scl{ 1.15f, 1.15f, 1.15f };
 
 		card->SetTransform(pos, rot, scl);
+
+		// 役に含まれるカードの枠色を変更
+		if (i < 5 && highlightMask[i]) {
+			card->SetFrameColor({ 1.0f, 0.85f, 0.2f, 1.0f }); // 金っぽい色
+		} else {
+			card->ResetFrameColor();
+		}
+
 		fieldViews_.push_back(std::move(card));
 	}
 }

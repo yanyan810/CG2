@@ -120,6 +120,9 @@ void Card3D::Update(float dt)
     frame_->SetTranslate(pos_);
     frame_->SetRotate(fixRot);
     frame_->SetScale(scale_);
+
+    frame_->SetMaterialColor(frameColor_);
+
     frame_->Update(dt);
 
     Vector3 artPos = pos_;
@@ -187,6 +190,16 @@ void Card3D::Draw()
     // コストとマークを描画
     if (costObj_) costObj_->Draw();
     if (suitObj_) suitObj_->Draw();
+}
+
+void Card3D::SetFrameColor(const Vector4& color)
+{
+    frameColor_ = color;
+}
+
+void Card3D::ResetFrameColor()
+{
+    frameColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
 }
 
 #ifdef USE_IMGUI

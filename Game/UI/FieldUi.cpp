@@ -34,35 +34,35 @@ void FieldUi::Initialize(GameApp& app)
 
     deckCountText_ = std::make_unique<TextSprite>();
     deckCountText_->Initialize(app.SpriteCom(), app.Dx());
-    deckCountText_->SetPosition({ 36.0f, 310.0f });
+    deckCountText_->SetPosition({ 1120.0f, 640.0f });
     deckCountText_->SetSize({ 0.9f, 0.9f, 1.0f });
 
     deckCountBg_ = std::make_unique<Sprite>();
     deckCountBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
     deckCountBg_->SetPosition({ 20.0f, 310.0f });
-    deckCountBg_->SetScale({ 150.0f, 60.0f, 1.0f });
+    deckCountBg_->SetScale({ 0.0f, 0.0f, 1.0f });
     deckCountBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.45f });
 
     discardCountText_ = std::make_unique<TextSprite>();
     discardCountText_->Initialize(app.SpriteCom(), app.Dx());
-    discardCountText_->SetPosition({ 1120.0f, 400.0f });
+    discardCountText_->SetPosition({ 1120.0f, 350.0f });
     discardCountText_->SetSize({ 0.9f, 0.9f, 1.0f });
 
     discardCountBg_ = std::make_unique<Sprite>();
     discardCountBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    discardCountBg_->SetPosition({ 1100.0f, 400.0f });
+    discardCountBg_->SetPosition({ 1100.0f, 350.0f });
     discardCountBg_->SetScale({ 150.0f, 60.0f, 1.0f });
     discardCountBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.45f });
 
     handCountText_ = std::make_unique<TextSprite>();
     handCountText_->Initialize(app.SpriteCom(), app.Dx());
-    handCountText_->SetPosition({ 100.0f, 640.0f });
+    handCountText_->SetPosition({ 1020.0f, 640.0f });
     handCountText_->SetSize({ 0.9f, 0.9f, 1.0f });
 
     handCountBg_ = std::make_unique<Sprite>();
     handCountBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    handCountBg_->SetPosition({ 080.0f, 640.0f });
-    handCountBg_->SetScale({ 150.0f, 60.0f, 1.0f });
+    handCountBg_->SetPosition({ 1000.0f, 640.0f });
+    handCountBg_->SetScale({ 250.0f, 60.0f, 1.0f });
     handCountBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.45f });
 
     fieldCountText_ = std::make_unique<TextSprite>();

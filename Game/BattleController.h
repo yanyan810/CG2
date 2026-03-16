@@ -6,7 +6,7 @@
 #include "DeckDef.h"
 #include "DeckLoader.h"
 #include "Card3D.h"
-#include "CardInstance.h"
+#include <array>
 #include "Sprite.h"
 #include <memory>
 
@@ -222,6 +222,9 @@ private:
     //コスト描画用
     void RebuildCostView_(float dt);
     void UpdateCostViewTransform_(float dt);
+
+	//役に応じた強調表示マスクを取得
+    std::array<bool, 5> GetPokerHighlightMask_() const;
 
 	float deltaTime_ = 0.0f;
 

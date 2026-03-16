@@ -35,6 +35,11 @@ public:
 
     void SetCardData(const CardDef& def, const CardInstance& inst);
 
+
+    //特定のカードの枠の変更
+    void SetFrameColor(const Vector4& color);
+    void ResetFrameColor();
+
 #ifdef USE_IMGUI
     void DrawImGui(const char* label = "Card3D");
 #endif
@@ -58,8 +63,8 @@ private:
     Vector3 rot_{};
     Vector3 scale_{ 1,1,1 };
 
-  //  Vector3 modelFixRot_{ 1.7f, 0.0f, 1.6f }; // ★ここがImGuiで動かす値
-
     Vector3 modelFixRot_{ 0.0f, 0.0f, 0.0f };
+
+    Vector4 frameColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
 
 };
