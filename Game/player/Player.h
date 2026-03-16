@@ -31,13 +31,20 @@ public:
 	// ===============================================
 	Vector3 GetWorldPos() const { return pos_; }
 	AABB GetBodyAABB() const { return body_; }
-	void Damage(int damage) { hp_ -= damage; if (hp_ < 0) hp_ = 0; }
+	void Damage(int damage); 
 	void TriggerHitFlash(float sec) { flashTimer_ = sec; }
 
 	// 動きのトリガー関数
 	void PlayAttackAnim(const Vector3& targetPos);
 	void PlayDamageAnim();
 	int GetHP() const { return hp_; }
+
+	int GetBlock() { return block_; }
+	void AddBlock(int value) { block_ += value; }
+
+	int GetBoostedPower() { return boostedPower_; }
+	void PowerBoost(int value) { boostedPower_ += value; }
+	void ResetPowerBoost() { boostedPower_ = 0; }
 
 	void Heal(int value) {
 		hp_ += value;
@@ -53,8 +60,15 @@ private:
 	Vector3 pos_{ 0.0f, 0.0f, 0.0f };
 	Vector3 rot_{ 0.0f, 0.0f, 0.0f };
 
+
 	int hp_ = 100;
 	int maxHp_ = 100;
+
+	int block_ = 0;
+
+	int boostedPower_ = 0;
+
+
 	AABB body_{};
 	enum class AnimState { Idle, AttackForward, AttackReturn, Damage };
 	AnimState animState_ = AnimState::Idle;

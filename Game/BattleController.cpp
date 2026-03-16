@@ -477,22 +477,22 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	enemyHpFgs_.clear();
 	for (int i = 0; i < 3; ++i) {
 		auto bg = std::make_unique<Sprite>();
-		bg->Initialize(spriteCom_, dx_,"resources/ui/white.png");
+		bg->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 		bg->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });           // 暗いグレー
 		enemyHpBgs_.push_back(std::move(bg));
 
 		auto fg = std::make_unique<Sprite>();
-		fg->Initialize(spriteCom_, dx_,"resources/ui/white.png");
+		fg->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 		fg->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });           // 赤色
 		enemyHpFgs_.push_back(std::move(fg));
 
 		// 予告アイコンの生成
 		auto icon = std::make_unique<Sprite>();
-		icon->Initialize(spriteCom_, dx_,"resources/ui/white.png");
+		icon->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 		enemyIntentIcons_.push_back(std::move(icon));
 	}
 
-	
+
 	// -----------------------------
 	// ここで一度だけ即時反映
 	// -----------------------------
@@ -503,7 +503,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
-	
+
 	if (!db_.LoadFromJson("resources/cards/cards.json")) {
 		db_.BuildSample();
 	}
@@ -525,7 +525,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	} else {
 		deck_.clear();
 		for (int i = 0; i < 4; ++i) {
-			
+
 			deck_.push_back(MakeCardInstance(9));
 			deck_.push_back(MakeCardInstance(8));
 			deck_.push_back(MakeCardInstance(7));
@@ -613,7 +613,7 @@ void BattleController::DrawCards_(int count)
 			break;
 		}
 	}
-//	handView_.Rebuild(hand_);
+	//	handView_.Rebuild(hand_);
 }
 
 void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects)
@@ -1498,15 +1498,15 @@ void BattleController::Update(GameApp& app, float dt)
 
 void BattleController::Draw3D(GameApp& app)
 {
-    for (auto& c : fieldViews_) {
-        c->Draw();
-    }
+	for (auto& c : fieldViews_) {
+		c->Draw();
+	}
 
-    if (discardView_) {
-        discardView_->Draw();
-    }
+	if (discardView_) {
+		discardView_->Draw();
+	}
 
-    handView_.Draw();
+	handView_.Draw();
 
 	for (auto& obj : costDigitModels_) {
 		obj->Draw();
