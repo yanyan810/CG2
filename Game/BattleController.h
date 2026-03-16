@@ -226,6 +226,8 @@ private:
 	//役に応じた強調表示マスクを取得
     std::array<bool, 5> GetPokerHighlightMask_() const;
 
+    void PreloadCardAssets_();
+
 	float deltaTime_ = 0.0f;
 
 };

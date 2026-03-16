@@ -52,55 +52,99 @@ static Vector3 CalcLocalOffset(const Vector3& offset, const Vector3& cardScale, 
     return { v.x, v.y, v.z };
 }
 
-void Card3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* cam, const CardDef& def, const CardInstance& inst)
+void Card3D::Initialize(
+    Object3dCommon* objCom,
+    DirectXCommon* dx,
+    Camera* cam,
+    const CardDef& def,
+    const CardInstance& inst)
 {
-    // 枠
-    frame_ = std::make_unique<Object3d>();
-    frame_->Initialize(objCom, dx);
-    frame_->SetModel(def.frameModel.c_str());
-    frame_->SetCamera(cam);
-    frame_->SetEnableLighting(1);
+    Setup(objCom, dx, cam);
+    SetCardData(def, inst);
+}
 
-    // 絵板
-    art_ = std::make_unique<Object3d>();
-    art_->Initialize(objCom, dx);
-    art_->SetModel(def.artModel.c_str());
-    art_->SetCamera(cam);
-    art_->SetEnableLighting(0);
+void Card3D::Setup(
+    Object3dCommon* objCom,
+    DirectXCommon* dx,
+    Camera* cam)
+{
+    if (!frame_) {
+        frame_ = std::make_unique<Object3d>();
+        frame_->Initialize(objCom, dx);
+        frame_->SetCamera(cam);
+        frame_->SetEnableLighting(1);
+    }
 
-    // 絵テクスチャ
-    TextureManager::GetInstance()->LoadTexture(def.artTex);
-    artSrv_ = TextureManager::GetInstance()->GetSrvHandleGPU(def.artTex);
+    if (!art_) {
+        art_ = std::make_unique<Object3d>();
+        art_->Initialize(objCom, dx);
+        art_->SetCamera(cam);
+        art_->SetEnableLighting(0);
+    }
 
-    // コストオブジェクト
-    costObj_ = std::make_unique<Object3d>();
-    costObj_->Initialize(objCom, dx);
+    if (!costObj_) {
+        costObj_ = std::make_unique<Object3d>();
+        costObj_->Initialize(objCom, dx);
+        costObj_->SetCamera(cam);
+        costObj_->SetEnableLighting(1);
+    }
 
-    // コスト(1〜5)に応じて .obj ファイルを読み込む
+    if (!suitObj_) {
+        suitObj_ = std::make_unique<Object3d>();
+        suitObj_->Initialize(objCom, dx);
+        suitObj_->SetCamera(cam);
+        suitObj_->SetEnableLighting(1);
+    }
+}
+
+void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
+{
+    ScopedTimer timer("Card3D::SetCardData");
+
+    if (!frame_ || !art_ || !costObj_ || !suitObj_) {
+        return;
+    }
+
+    {
+        ScopedTimer t("  frame SetModel");
+        frame_->SetModel(def.frameModel.c_str());
+    }
+
+    {
+        ScopedTimer t("  art SetModel");
+        art_->SetModel(def.artModel.c_str());
+    }
+
+    // ここは削除 or 初回だけ
+    // TextureManager::GetInstance()->LoadTexture(def.artTex);
+
+    {
+        ScopedTimer t("  GetSrvHandleGPU");
+        artSrv_ = TextureManager::GetInstance()->GetSrvHandleGPU(def.artTex);
+    }
+
     std::string costModelPath = "cards/models/" + std::to_string(def.cost) + ".obj";
-    costObj_->SetModel(costModelPath.c_str());
-    costObj_->SetCamera(cam);
-    costObj_->SetEnableLighting(1);
+    {
+        ScopedTimer t("  cost SetModel");
+        costObj_->SetModel(costModelPath.c_str());
+    }
 
-    // マークオブジェクト
-    suitObj_ = std::make_unique<Object3d>();
-    suitObj_->Initialize(objCom, dx);
-
-    // マークに応じて読み込む .obj ファイルを切り替える
-    std::string suitModelPath = "";
+    std::string suitModelPath;
     switch (inst.suit) {
     case CardSuit::Spade:   suitModelPath = "cards/models/spade.obj"; break;
     case CardSuit::Heart:   suitModelPath = "cards/models/heart.obj"; break;
     case CardSuit::Diamond: suitModelPath = "cards/models/daiya.obj"; break;
     case CardSuit::Club:    suitModelPath = "cards/models/clover.obj"; break;
+    default: break;
     }
-    suitObj_->SetModel(suitModelPath.c_str());
-    suitObj_->SetCamera(cam);
-    suitObj_->SetEnableLighting(1);
 
+    if (!suitModelPath.empty()) {
+        ScopedTimer t("  suit SetModel");
+        suitObj_->SetModel(suitModelPath.c_str());
+    }
 
+    frameColor_ = { 1,1,1,1 };
 }
-
 void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale)
 {
     pos_ = pos;
@@ -110,6 +154,8 @@ void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3&
 
 void Card3D::Update(float dt)
 {
+    ScopedTimer timer("Card3D::Update");
+
     if (!frame_ || !art_) return;
 
     Vector3 fixRot = rot_;
@@ -117,27 +163,30 @@ void Card3D::Update(float dt)
     fixRot.y += modelFixRot_.y;
     fixRot.z += modelFixRot_.z;
 
-    frame_->SetTranslate(pos_);
-    frame_->SetRotate(fixRot);
-    frame_->SetScale(scale_);
+    {
+        ScopedTimer t("  frame update");
+        frame_->SetTranslate(pos_);
+        frame_->SetRotate(fixRot);
+        frame_->SetScale(scale_);
+        frame_->SetMaterialColor(frameColor_);
+        frame_->Update(dt);
+    }
 
-    frame_->SetMaterialColor(frameColor_);
-
-    frame_->Update(dt);
-
-    Vector3 artPos = pos_;
-    artPos.z += 0.01f;
-    art_->SetTranslate(artPos);
-    art_->SetRotate(fixRot);
-    art_->SetScale(scale_);
-    art_->Update(dt);
+    {
+        ScopedTimer t("  art update");
+        Vector3 artPos = pos_;
+        artPos.z += 0.01f;
+        art_->SetTranslate(artPos);
+        art_->SetRotate(fixRot);
+        art_->SetScale(scale_);
+        art_->Update(dt);
+    }
 
     int mode = isHand_ ? 1 : 0;
 
-    // コストの配置
     if (costObj_) {
+        ScopedTimer t("  cost update");
         Vector3 costRot = fixRot;
-
         Vector3 localOffset = { g_costX[mode], g_costY[mode], g_costZ[mode] };
         Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
@@ -157,10 +206,9 @@ void Card3D::Update(float dt)
         costObj_->Update(dt);
     }
 
-    // マークの配置
     if (suitObj_) {
+        ScopedTimer t("  suit update");
         Vector3 suitRot = fixRot;
-
         Vector3 localOffset = { g_suitX[mode], g_suitY[mode], g_suitZ[mode] };
         Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
@@ -180,7 +228,6 @@ void Card3D::Update(float dt)
         suitObj_->Update(dt);
     }
 }
-
 void Card3D::Draw()
 {
     if (!frame_ || !art_) return;
