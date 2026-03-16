@@ -6,7 +6,7 @@
 #include "DeckDef.h"
 #include "DeckLoader.h"
 #include "Card3D.h"
-#include "CardInstance.h"
+#include <array>
 #include "Sprite.h"
 #include <memory>
 
@@ -18,6 +18,7 @@ class SpriteCommon;
 
 class Player;
 class Enemy;
+class EnemyManager;
 
 class BattleController {
 public:
@@ -27,6 +28,7 @@ public:
         Dragging,
         Preview,
         ChoosingFieldReplace,
+        ChoosingEnemyTarget
     };
 
     enum class PokerChoiceState
@@ -55,6 +57,14 @@ public:
     std::wstring GetOperationUiText() const;
     bool ShouldShowOperationUi() const;
 
+	//ゾーンごとのカード枚数表示用
+    std::wstring GetZoneCountUiText() const;
+    int GetDeckCount() const { return static_cast<int>(deck_.size()); }
+    int GetHandCount() const { return static_cast<int>(hand_.size()); }
+    int GetDiscardCount() const { return static_cast<int>(discard_.size()); }
+    int GetFieldCount() const { return static_cast<int>(field_.size()); }
+    std::wstring GetCurrentPokerHandUiText() const;
+
 #ifdef USE_IMGUI
     void DrawImGui();
 #endif
@@ -79,7 +89,31 @@ public:
     };
 
     void SetPlayer(Player* player);
-    void SetEnemy(Enemy* enemy);
+    void SetEnemyManager(EnemyManager* enemyMgr);
+
+
+    void Finalize() {
+        fieldViews_.clear();
+        discardView_.reset();
+        costDigitModels_.clear();
+
+        playerHpBg_.reset();
+        playerHpFg_.reset();
+        enemyHpBgs_.clear();
+        enemyHpFgs_.clear();
+
+        deck_.clear();
+        hand_.clear();
+        discard_.clear();
+        field_.clear();
+
+        player_ = nullptr;
+        enemyMgr_ = nullptr;
+        cam_ = nullptr;
+        objCom_ = nullptr;
+        dx_ = nullptr;
+        spriteCom_ = nullptr;
+    }
 
 private:
     enum class TurnState { Player, Enemy };
@@ -130,10 +164,12 @@ private:
     bool prevR_ = false;
 
     int nextTurnAtkUp_ = 0;
-    int enemyHp_ = 300;
-
+    int currentEnemyIndex_ = 0;
+    int pendingDamage_ = 0;
+    bool isPokerDamageTargeting_ = false;
+    int pendingCardHandIndex_ = -1;
     Player* player_ = nullptr;
-    Enemy* enemy_ = nullptr;
+    EnemyManager* enemyMgr_ = nullptr;
 
     //タブを押しているとき様
     bool operationUiVisible_ = false;
@@ -141,6 +177,13 @@ private:
 	//場のカード入れ替え用
     int fieldReplaceHoverIndex_ = -1;
 
+    std::unique_ptr<Object3d> costLabel_;
+    std::vector<std::unique_ptr<Object3d>> costDigitModels_;
+
+    int prevEnergy_ = -1;
+    int prevEnergyMax_ = -1;
+
+ 
 
 private:
 
@@ -149,8 +192,8 @@ private:
     std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
     std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
 
-    std::unique_ptr<Sprite> enemyHpBg_;  // ボスHP背景
-    std::unique_ptr<Sprite> enemyHpFg_;  // ボスHP中身(赤)
+    std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
+    std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
 
     void StartPlayerTurn_();
     void DrawUntilFive_();
@@ -177,6 +220,18 @@ private:
     //墓地用
     void RebuildDiscardView_();
 
- 
+    //デッキシャッフル用
+    void ShuffleDeck_();
+
+    //コスト描画用
+    void RebuildCostView_(float dt);
+    void UpdateCostViewTransform_(float dt);
+
+	//役に応じた強調表示マスクを取得
+    std::array<bool, 5> GetPokerHighlightMask_() const;
+
+    void PreloadCardAssets_();
+
+	float deltaTime_ = 0.0f;
 
 };

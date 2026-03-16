@@ -25,6 +25,8 @@ private:
     void RebuildTexture_();
 
 private:
+    static int s_nextId_;
+
     SpriteCommon* spriteCommon_ = nullptr;
     DirectXCommon* dx_ = nullptr;
 
@@ -33,7 +35,7 @@ private:
     std::wstring text_;
     std::wstring prevText_;
 
-    std::string textureKey_ = "__ui_text_card_desc__";
+    std::string textureKey_;
 
     Vector2 position_{ 40.0f, 620.0f };
     Vector3 size_{ 350.0f, 120.0f, 1.0f };

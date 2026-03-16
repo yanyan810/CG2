@@ -11,6 +11,9 @@
 #include "SpriteCommon.h"
 #include "DirectXCommon.h"
 
+int TextSprite::s_nextId_ = 0;
+
+
 namespace {
 
     // UTF16LE + BOM の .txt をメモリ上に作る
@@ -34,12 +37,14 @@ void TextSprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx)
     spriteCommon_ = spriteCommon;
     dx_ = dx;
 
-    RebuildTexture_();
+    textureKey_ = "__ui_text_" + std::to_string(s_nextId_++) + "__";
 
     sprite_ = std::make_unique<Sprite>();
     sprite_->Initialize(spriteCommon_, dx_, textureKey_);
     sprite_->SetPosition(position_);
     sprite_->SetScale({ 1.0f, 1.0f, 1.0f });
+
+    RebuildTexture_();
 }
 
 void TextSprite::SetText(const std::wstring& text)

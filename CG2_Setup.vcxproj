@@ -210,6 +210,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\GameApp.cpp" />
     <ClCompile Include="Game\GameScene.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
+    <ClCompile Include="Game\UI\FieldUi.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
@@ -292,6 +293,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\2D\TextSprite.h" />
+    <ClInclude Include="Engine\ScopedTimer.h" />
     <ClInclude Include="Game\BattleController.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />
     <ClInclude Include="Game\Card\CardDef.h" />
@@ -357,6 +359,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\TestScene.h" />
     <ClInclude Include="Game\UI\Card3D.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
+    <ClInclude Include="Game\UI\FieldUi.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

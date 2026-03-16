@@ -116,15 +116,14 @@ void GameClearScene::OnEnter(GameApp& app) {
 }
 
 void GameClearScene::OnExit(GameApp&) {
+    damageObj_.reset();   // ← これを追加
     goTitle_.reset();
     bg_.reset();
-    //clearObj_.reset();
     skyDome_.reset();
     camera_.reset();
     if (video_) { video_->Close(); }
     video_.reset();
     videoPlane_.reset();
-
 }
 
 

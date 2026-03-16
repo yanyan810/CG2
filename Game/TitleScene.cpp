@@ -190,16 +190,24 @@ void TitleScene::OnEnter(GameApp& app) {
 }
 
 void TitleScene::OnExit(GameApp&) {
-    skyDome_.reset();
-    particle_.reset();
-    camera_.reset();
-	nodeObj_.reset();
-    video_->Close();
-    video_.reset();
-    if (titlePlayer) {
-        titlePlayer.reset();
+    if (video_) {
+        video_->Close();
     }
 
+    obj1_.reset();
+    obj2_.reset();
+    videoPlane_.reset();
+    ground_.reset();
+    bg_.reset();
+    pressStart_.reset();
+
+    skyDome_.reset();
+    particle_.reset();
+    nodeObj_.reset();
+
+    titlePlayer.reset();
+    video_.reset();
+    camera_.reset();
 }
 
 void TitleScene::Update(GameApp& app, float dt) {

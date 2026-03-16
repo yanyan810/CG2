@@ -130,7 +130,7 @@
             "rank": "ThreeCard"
           },
           "effects": [
-            { "type": "Draw", "value": 100 }
+            { "type": "Damage", "value": 100 }
           ]
         }
       ]

@@ -15,7 +15,8 @@ class Camera;
 class Player;
 
 enum class EnemyType : uint8_t {
-    Boss
+    Boss,
+    Slime
 };
 
 class Enemy {
@@ -30,7 +31,7 @@ public:
     void Damage(int damage) { hp_ -= damage; if (hp_ < 0) hp_ = 0; }
     int GetHP() const { return hp_; }
     int GetMaxHP() const { return ai_.GetMaxHP(); }
-
+    void SetHighlight(bool enable) { isHighlighted_ = enable; }
     void Heal(int value) {
         hp_ += value;
         if (hp_ > GetMaxHP()) {
@@ -64,7 +65,7 @@ private:
     LightingParam light_;
 
     BossAI ai_; // シンプルになったAI
-
+    bool isHighlighted_ = false;
     enum class AnimState { Idle, AttackForward, AttackReturn, Damage };
     AnimState animState_ = AnimState::Idle;
 
@@ -93,6 +94,9 @@ public:
 
     // ボスの情報を取得（UIやバトルコントローラー用）
     Enemy* GetBoss();
+
+    std::vector<Enemy>& GetEnemies() { return enemies_; }
+    int PickEnemyByMouse(int mouseX, int mouseY, const Matrix4x4& viewProj, float screenWidth, float screenHeight);
 
 private:
     Object3dCommon* objCommon_ = nullptr;

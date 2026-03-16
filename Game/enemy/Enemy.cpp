@@ -42,6 +42,9 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	if (type == EnemyType::Boss) {
 		ai_.LoadPattern("resources/cards/Boos.json");
 	}
+	else if (type == EnemyType::Slime) {
+		ai_.LoadPattern("resources/cards/Slime.json");
+	}
 }
 
 void Enemy::PlayAttackAnim(const Vector3& targetPos) {
@@ -92,10 +95,12 @@ void Enemy::Update(float dt)
 	if (flashTimer_ > 0.0f) {
 		flashTimer_ -= dt;
 		model_->SetMaterialColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+	} else if (isHighlighted_) {
+		model_->SetMaterialColor({ 1.5f, 1.5f, 0.5f, 1.0f });
 	} else {
 		model_->SetMaterialColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 	}
-
+	isHighlighted_ = false;
 	// AIの更新（やられ判定など最低限の処理）
 	ai_.Update(*this, dt);
 
@@ -198,4 +203,40 @@ Enemy* EnemyManager::GetBoss()
 		if (e.IsAlive()) return &e;
 	}
 	return nullptr;
+}
+int EnemyManager::PickEnemyByMouse(int mouseX, int mouseY, const Matrix4x4& viewProj, float screenWidth, float screenHeight)
+{
+	int closestIndex = -1;
+	float minDepth = 1.0f; // 1.0f(一番奥) ～ 0.0f(一番手前)
+
+	for (int i = 0; i < (int)enemies_.size(); ++i) {
+		if (!enemies_[i].IsAlive()) continue;
+
+		// 敵の足元座標を少し上にずらし、体の中央付近をターゲットにする
+		Vector3 pos = enemies_[i].GetPos();
+		pos.y += 4.0f;
+		pos.x += 2.0f;
+		// 3Dのワールド座標を、2Dの画面座標に変換する計算
+		float w = pos.x * viewProj.m[0][3] + pos.y * viewProj.m[1][3] + pos.z * viewProj.m[2][3] + viewProj.m[3][3];
+		if (w <= 0.0f) continue; // カメラより後ろにいる場合は無視
+
+		float cx = (pos.x * viewProj.m[0][0] + pos.y * viewProj.m[1][0] + pos.z * viewProj.m[2][0] + viewProj.m[3][0]) / w;
+		float cy = (pos.x * viewProj.m[0][1] + pos.y * viewProj.m[1][1] + pos.z * viewProj.m[2][1] + viewProj.m[3][1]) / w;
+		float cz = (pos.x * viewProj.m[0][2] + pos.y * viewProj.m[1][2] + pos.z * viewProj.m[2][2] + viewProj.m[3][2]) / w;
+
+		float screenX = (cx + 1.0f) * 0.5f * screenWidth;
+		float screenY = (1.0f - cy) * 0.5f * screenHeight;
+
+		// マウス座標との距離を計算（半径 120 ピクセル以内ならクリック成功とみなす）
+		float dx = screenX - (float)mouseX;
+		float dy = screenY - (float)mouseY;
+		if (dx * dx + dy * dy < 120.0f * 120.0f) {
+			// 重なっている場合は、より手前にいる敵を優先する
+			if (cz < minDepth) {
+				minDepth = cz;
+				closestIndex = i;
+			}
+		}
+	}
+	return closestIndex; // 誰もクリックされていなければ -1 を返す
 }
