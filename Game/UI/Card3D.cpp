@@ -143,50 +143,53 @@ void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
         suitObj_->SetModel(suitModelPath.c_str());
     }
 
-    frameColor_ = { 1,1,1,1 };
+    frameColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
+    transformDirty_ = true;
+    frameColorDirty_ = true;
+    hasSubmittedOnce_ = false;
 }
+
 void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale)
 {
     pos_ = pos;
     rot_ = rot;
     scale_ = scale;
+
+    // まずは必ず更新扱いにする
+    transformDirty_ = true;
 }
 
 void Card3D::Update(float dt)
 {
-    ScopedTimer timer("Card3D::Update");
-
     if (!frame_ || !art_) return;
+
+    if (hasSubmittedOnce_ && !transformDirty_ && !frameColorDirty_) {
+        return;
+    }
 
     Vector3 fixRot = rot_;
     fixRot.x += modelFixRot_.x;
     fixRot.y += modelFixRot_.y;
     fixRot.z += modelFixRot_.z;
 
-    {
-        ScopedTimer t("  frame update");
-        frame_->SetTranslate(pos_);
-        frame_->SetRotate(fixRot);
-        frame_->SetScale(scale_);
+    frame_->SetTranslate(pos_);
+    frame_->SetRotate(fixRot);
+    frame_->SetScale(scale_);
+    if (frameColorDirty_) {
         frame_->SetMaterialColor(frameColor_);
-        frame_->Update(dt);
     }
+    frame_->Update(dt);
 
-    {
-        ScopedTimer t("  art update");
-        Vector3 artPos = pos_;
-        artPos.z += 0.01f;
-        art_->SetTranslate(artPos);
-        art_->SetRotate(fixRot);
-        art_->SetScale(scale_);
-        art_->Update(dt);
-    }
+    Vector3 artPos = pos_;
+    artPos.z += 0.01f;
+    art_->SetTranslate(artPos);
+    art_->SetRotate(fixRot);
+    art_->SetScale(scale_);
+    art_->Update(dt);
 
     int mode = isHand_ ? 1 : 0;
 
     if (costObj_) {
-        ScopedTimer t("  cost update");
-        Vector3 costRot = fixRot;
         Vector3 localOffset = { g_costX[mode], g_costY[mode], g_costZ[mode] };
         Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
@@ -197,7 +200,7 @@ void Card3D::Update(float dt)
         };
 
         costObj_->SetTranslate(costPos);
-        costObj_->SetRotate(costRot);
+        costObj_->SetRotate(fixRot);
         costObj_->SetScale({
             scale_.x * g_costScaleX[mode],
             scale_.y * g_costScaleY[mode],
@@ -207,8 +210,6 @@ void Card3D::Update(float dt)
     }
 
     if (suitObj_) {
-        ScopedTimer t("  suit update");
-        Vector3 suitRot = fixRot;
         Vector3 localOffset = { g_suitX[mode], g_suitY[mode], g_suitZ[mode] };
         Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
@@ -219,7 +220,7 @@ void Card3D::Update(float dt)
         };
 
         suitObj_->SetTranslate(suitPos);
-        suitObj_->SetRotate(suitRot);
+        suitObj_->SetRotate(fixRot);
         suitObj_->SetScale({
             scale_.x * g_suitScaleX[mode],
             scale_.y * g_suitScaleY[mode],
@@ -227,7 +228,13 @@ void Card3D::Update(float dt)
             });
         suitObj_->Update(dt);
     }
+
+    transformDirty_ = false;
+    frameColorDirty_ = false;
+    hasSubmittedOnce_ = true;
+
 }
+
 void Card3D::Draw()
 {
     if (!frame_ || !art_) return;
@@ -238,15 +245,21 @@ void Card3D::Draw()
     if (costObj_) costObj_->Draw();
     if (suitObj_) suitObj_->Draw();
 }
-
 void Card3D::SetFrameColor(const Vector4& color)
 {
+    if (frameColor_.x == color.x && frameColor_.y == color.y &&
+        frameColor_.z == color.z && frameColor_.w == color.w) {
+        return;
+    }
+
     frameColor_ = color;
+    frameColorDirty_ = true;
 }
+
 
 void Card3D::ResetFrameColor()
 {
-    frameColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
+    SetFrameColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 }
 
 #ifdef USE_IMGUI

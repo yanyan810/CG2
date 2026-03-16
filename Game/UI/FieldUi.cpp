@@ -79,37 +79,66 @@ void FieldUi::Initialize(GameApp& app)
 
 void FieldUi::Update(GameApp& app, const BattleController& battle)
 {
-
     showDescBg_ = false;
 
+    DescMode newMode = DescMode::None;
+    int newPreviewDefId = -1;
+    std::wstring newText;
+
+    Vector3 textPos{ 40.0f, 620.0f, 1.0f };
+    Vector3 bgPos{ 20.0f, 600.0f, 1.0f };
+    Vector3 bgScale{ 900.0f, 120.0f, 1.0f };
+
     if (battle.HasPokerChoiceUi()) {
+        newMode = DescMode::PokerChoice;
         showDescBg_ = true;
-        cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
+        newText = battle.GetPokerChoiceUiText();
+        cardDescText_->SetSize({ 1.0f, 1.0f, 1.0f });
         cardDescText_->SetPosition({ 40.0f, 80.0f });
-        cardDescText_->SetText(battle.GetPokerChoiceUiText());
 
         cardDescBg_->SetPosition({ 20.0f, 52.0f });
         cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
     } else {
-        cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
+        cardDescText_->SetSize({ 1.0f, 1.0f, 1.0f });
         cardDescText_->SetPosition({ 40.0f, 620.0f });
 
         const CardDef* def = battle.GetPreviewCardDef();
         if (def) {
+            newMode = DescMode::CardDesc;
+            newPreviewDefId = def->id;
             showDescBg_ = true;
-            cardDescText_->SetText(Utf8ToWString_(def->desc));
+            newText = Utf8ToWString_(def->desc);
 
             cardDescBg_->SetPosition({ 20.0f, 600.0f });
             cardDescBg_->SetScale({ 900.0f, 120.0f, 1.0f });
         } else if (battle.ShouldShowOperationUi()) {
+            newMode = DescMode::Operation;
             showDescBg_ = true;
-            cardDescText_->SetPosition({ 40.0f, 520.0f });
-            cardDescText_->SetText(battle.GetOperationUiText());
+            newText = battle.GetOperationUiText();
 
+            cardDescText_->SetPosition({ 40.0f, 520.0f });
             cardDescBg_->SetPosition({ 20.0f, 500.0f });
             cardDescBg_->SetScale({ 900.0f, 280.0f, 1.0f });
-        } else {
+        }
+    }
+
+    if (newMode == DescMode::None) {
+        if (lastDescMode_ != DescMode::None) {
             cardDescText_->SetText(L"");
+            lastDescMode_ = DescMode::None;
+            lastPreviewDefId_ = -1;
+            lastDescText_.clear();
+        }
+    } else {
+        const bool modeChanged = (newMode != lastDescMode_);
+        const bool defChanged = (newPreviewDefId != lastPreviewDefId_);
+        const bool textChanged = (newText != lastDescText_);
+
+        if (modeChanged || defChanged || textChanged) {
+            cardDescText_->SetText(newText);
+            lastDescMode_ = newMode;
+            lastPreviewDefId_ = newPreviewDefId;
+            lastDescText_ = newText;
         }
     }
 

@@ -27,9 +27,9 @@ public:
 
     int PickIndexByMouse(int mouseX, int mouseY, const Matrix4x4& viewProj, float screenW, float screenH) const;
 
-    void SetHoverIndex(int idx) { hoverIndex_ = idx; }
+    void SetHoverIndex(int idx);
     void SetDrag(int idx, float dxPx, float dyPx, bool active);
-    void SetPreviewIndex(int idx) { previewIndex_ = idx; }
+    void SetPreviewIndex(int idx) { previewIndex_ = idx; layoutDirty_ = true; }
 
 #ifdef USE_IMGUI
     void DrawImGui();
@@ -53,6 +53,7 @@ private:
     std::vector<float> liftY_;
 
     int hoverIndex_ = -1;
+    int prevHoverIndex_ = -1;
 
     int dragIndex_ = -1;
     bool dragActive_ = false;
@@ -60,4 +61,6 @@ private:
     float dragDyPx_ = 0.0f;
 
     int previewIndex_ = -1;
+
+    bool layoutDirty_ = true;
 };
