@@ -170,6 +170,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Engine\2D\TextSprite.cpp" />
+    <ClCompile Include="Engine\Bloom.cpp" />
+    <ClCompile Include="Engine\BloomConstantBuffer.cpp" />
+    <ClCompile Include="Engine\PostEffect.cpp" />
+    <ClCompile Include="Engine\RenderTexture.cpp" />
+    <ClCompile Include="Engine\Root.cpp" />
+    <ClCompile Include="Engine\RtvManager.cpp" />
     <ClCompile Include="Game\BattleController.cpp" />
     <ClCompile Include="Game\Card\CardDatabase.cpp" />
     <ClCompile Include="Engine\2D\Sprite.cpp" />
@@ -293,6 +299,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\2D\TextSprite.h" />
+    <ClInclude Include="Engine\Bloom.h" />
+    <ClInclude Include="Engine\BloomConstantBuffer.h" />
+    <ClInclude Include="Engine\PostEffect.h" />
+    <ClInclude Include="Engine\RenderTexture.h" />
+    <ClInclude Include="Engine\Root.h" />
+    <ClInclude Include="Engine\RtvManager.h" />
     <ClInclude Include="Engine\ScopedTimer.h" />
     <ClInclude Include="Game\BattleController.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />

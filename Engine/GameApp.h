@@ -3,6 +3,7 @@
 #include "SceneManager.h"
 #include "Input.h"
 #include "SpriteCommon.h"
+#include "Bloom.h"
 
 class WinApp;
 class DirectXCommon;
@@ -64,4 +65,7 @@ private:
     std::unique_ptr<SceneManager> sceneMgr_;
     std::unique_ptr<Input> input_; 
     std::unique_ptr<SkinningCommon> skinCom_;
+
+    std::unique_ptr<Bloom> bloom_;
+    std::unique_ptr<RtvManager> rtv_;
 };
