@@ -1629,7 +1629,7 @@ void BattleController::Draw3D(GameApp& app)
 	handView_.Draw();
 
 	for (auto& obj : costDigitModels_) {
-		obj->Draw();
+		//obj->Draw();
 	}
 
 	if (playerHpBg_) playerHpBg_->Draw();
