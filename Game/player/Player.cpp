@@ -9,8 +9,8 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
     model_->SetCamera(cam);
 
     // 複雑なコンボモデルは捨てて、基本となるモデルを1つだけ読み込む
-    model_->SetModel("human/walk.gltf");
-    model_->SetScale({ 3.0f, 3.0f, 3.0f });
+    model_->SetModel("enemy/boss/boss.gltf");
+    model_->SetScale({ 0.5f, 0.5f, 0.5f });
     // 待機アニメーションをループ再生
     if (model_->HasAnimation()) {
         model_->PlayAnimation("Idle", true);

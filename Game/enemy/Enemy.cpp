@@ -25,12 +25,12 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 
 	if (type_ == EnemyType::Boss) {
 		model_->SetModel("enemy/boss/boss.gltf");
-		model_->SetScale({ 3.0f, 3.0f, 3.0f });
+		model_->SetScale({ 1.0f, 1.0f, 1.0f });
 		ai_.LoadPattern("resources/cards/Boos.json");
 	} else if (type_ == EnemyType::Slime) {
 		// ※もしスライム用の専用3Dモデルがあればここにパスを書きます。
 		// 今回は仮として「ボスのモデルを半分のサイズ(1.5)にしたもの」をスライムと見立てます！
-		model_->SetModel("enemy/boss/boss.gltf");
+		model_->SetModel("slime/slime.obj");
 		model_->SetScale({ 1.5f, 1.5f, 1.5f });
 		ai_.LoadPattern("resources/cards/Slime.json");
 	}

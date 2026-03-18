@@ -800,6 +800,7 @@ void BattleController::StartPlayerTurn_()
 	if (player_) {
 		player_->ResetBlock();
 		player_->ResetVampireHeal();
+		player_->ResetPowerBoost();
 	}
 	playerTurnCount_++;
 
@@ -1315,32 +1316,49 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 						const CardDef* def = db_.Find(inst.defId);
 
 						if (def && def->cost <= energy_) {
-							// このカードが「Damage（攻撃）」を持っているか調べる
+							
 							bool needsTarget = false;
 							int dmgVal = 0;
+							int hitCount = 0; // 攻撃回数（バフを乗せる回数）
+
 							for (const auto& effect : def->effects) {
+								// 通常ダメージ（OverClock等で複数ある場合は加算していく）
 								if (effect.type == "Damage") {
 									needsTarget = true;
-									dmgVal = effect.value;
-									break;
-								} else if (effect.type == "DamageByBlock") {
+									dmgVal += effect.value;
+									hitCount++;
+								}
+								// クレセントムーン（奇数ターンなら+3ダメージ）
+								else if (effect.type == "DamageCrescent") {
 									needsTarget = true;
-									dmgVal = (player_ ? player_->GetBlock() : 0) * effect.value;
-									break;
+									int val = effect.value;
+									if (playerTurnCount_ % 2 != 0) {
+										val += 3; // 奇数ターンなら追加ダメージ
+									}
+									dmgVal += val;
+									hitCount++;
+								}
+								// シールドバッシュ
+								else if (effect.type == "DamageByBlock") {
+									needsTarget = true;
+									dmgVal += (player_ ? player_->GetBlock() : 0) * effect.value;
+									hitCount++;
 								}
 							}
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
-							if (needsTarget) {
-								pendingDamage_ = CalcFinalAttackDamage_(dmgVal); // ダメージを計算して覚える
-								isPokerDamageTargeting_ = false;          // 手札からの使用であることを記憶
-								pendingCardHandIndex_ = idx;              // 使ったカードの場所を記憶
-								cardState_ = CardInputState::ChoosingEnemyTarget; // ターゲット選択へ
+						if (needsTarget) {
+    int buff = nextTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
+    pendingDamage_ = dmgVal + (buff * hitCount);
 
-								selectedIndex_ = -1;
-								handView_.SetPreviewIndex(-1);
-								return;
-							}
+    isPokerDamageTargeting_ = false;                 // 手札カード由来
+    pendingCardHandIndex_ = idx;                     // 使った手札位置を覚える
+    cardState_ = CardInputState::ChoosingEnemyTarget; // 敵選択へ
+
+    selectedIndex_ = -1;
+    handView_.SetPreviewIndex(-1);
+    return;
+}
 							energy_ -= def->cost;
 
 							hand_.erase(hand_.begin() + idx);
@@ -1461,15 +1479,6 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
 						// 選んだ敵に向かって突進＆ダメージ！
-					/*	player_->PlayAttackAnim(targetEnemy.GetPos());
-						targetEnemy.TriggerHitFlash(0.2f);
-						targetEnemy.PlayDamageAnim();
-						targetEnemy.Damage(pendingDamage_);
-
-						if (player_->GetVampireHeal() > 0) {
-							player_->Heal(player_->GetVampireHeal());
-						}*/
-
 						ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
 
 						nextTurnAtkUp_ = 0;
