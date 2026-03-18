@@ -55,6 +55,12 @@ public:
 	}
 	int GetMaxHP() const { return maxHp_; }
 	const Vector3& GetPos() const { return pos_; }
+
+
+	int GetVampireHeal() const { return vampireHeal_; }
+	void AddVampireHeal(int value) { vampireHeal_ += value; }
+	void ResetVampireHeal() { vampireHeal_ = 0; }
+
 private:
 	std::unique_ptr<Object3d> model_;
 
@@ -69,6 +75,8 @@ private:
 
 	int boostedPower_ = 0;
 
+	// 攻撃時に回復する量
+	int vampireHeal_ = 0;
 
 	AABB body_{};
 	enum class AnimState { Idle, AttackForward, AttackReturn, Damage };
