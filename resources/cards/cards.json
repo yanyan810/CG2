@@ -59,7 +59,7 @@
       "artTex": "resources/cards/art/Crush.png",
       "desc": "敵全体に２ダメージ",
       "effects": [
-        { "type": "Damage", "value": 2 }
+        { "type": "DamageAll", "value": 2 }
       ],
       "subEffects": [
         {
@@ -108,7 +108,7 @@
       "artTex": "resources/cards/art/ShieldBash.png",
       "desc": "敵単体にブロック数x1ダメージ与える",
       "effects": [
-        { "type": "Damage", "value": 1 }
+        { "type": "DamageByBlock", "value": 1 }
       ]
      },
       {
@@ -218,7 +218,7 @@
       "artTex": "resources/cards/art/RuneStone.png",
       "desc": "ブロックを2獲得する",
       "effects": [
-        { "type": "Heal", "value": 2 }
+        { "type": "Block", "value": 2 }
       ],
       "subEffects": [
         {
@@ -242,7 +242,7 @@
       "artTex": "resources/cards/art/Convert.png",
       "desc": "シールドの値分体力を回復",
       "effects": [
-        { "type": "Heal", "value": 3 }
+        { "type": "HealByBlock", "value": 3 }
       ]
      },
       {
@@ -254,7 +254,7 @@
       "artTex": "resources/cards/art/LowCostRecovery.png",
       "desc": "手札にある1コストのカードx1体力を回復",
       "effects": [
-        { "type": "Heal", "value": 3 }
+        { "type": "HealByLowCostInHand", "value": 1 }
       ]
      },
       {
@@ -264,9 +264,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Vampire.png",
-      "desc": "手札にある1コストのカードx1体力を回復",
+      "desc": "このターン中、ダメージを与えるたびに1回復",
       "effects": [
-        { "type": "Heal", "value": 3 }
+        { "type": "VampireBuff", "value": 1 }
       ]
      },
        {

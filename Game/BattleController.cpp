@@ -640,6 +640,31 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				player_->AddBlock(effect.value);
 			}
 
+		} else if (effect.type == "DamageAll") {
+			if (enemyMgr_ && player_) {
+				int totalDamage = effect.value + nextTurnAtkUp_ + player_->GetBoostedPower();
+
+				// プレイヤーのアニメーション（その場で突進）
+				player_->PlayAttackAnim(player_->GetPos());
+				int hitCount = 0;
+				// 生きている敵「全員」にダメージを与える！
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.TriggerHitFlash(0.2f);
+						e.PlayDamageAnim();
+						e.Damage(totalDamage);
+						hitCount++;
+					}
+				}
+				if (hitCount > 0 && player_->GetVampireHeal() > 0) {
+					player_->Heal(player_->GetVampireHeal() * hitCount);
+				}
+			}
+
+		} else if (effect.type == "PowerBoost") {
+			if (player_) {
+				player_->PowerBoost(effect.value);
+			}
 		} else if (effect.type == "NextTurnAtkUp") {
 			nextTurnAtkUp_ += effect.value;
 
@@ -648,6 +673,30 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				player_->Heal(effect.value);
 			}
 
+		} else if (effect.type == "HealByBlock") {
+			if (player_) {
+				int healAmount = player_->GetBlock() * effect.value; // ブロック数 × 倍率
+				player_->Heal(healAmount);
+			}
+		} else if (effect.type == "HealByLowCostInHand") {
+			if (player_) {
+				int count = 0;
+				// 今の手札を1枚ずつ確認する
+				for (const auto& cardInst : hand_) {
+					const CardDef* cDef = db_.Find(cardInst.defId);
+					if (cDef && cDef->cost == 1) {
+						count++; // 1コストのカードだったらカウントを増やす
+					}
+				}
+				int healAmount = count * effect.value;
+				if (healAmount > 0) {
+					player_->Heal(healAmount);
+				}
+			}
+		} else if (effect.type == "VampireBuff") {
+			if (player_) {
+				player_->AddVampireHeal(effect.value);
+			}
 		} else if (effect.type == "SelfDamage") {
 			if (player_) {
 				player_->TriggerHitFlash(0.2f);
@@ -735,6 +784,7 @@ void BattleController::StartPlayerTurn_()
 {
 	if (player_) {
 		player_->ResetBlock();
+		player_->ResetVampireHeal();
 	}
 	playerTurnCount_++;
 
@@ -1056,7 +1106,7 @@ void BattleController::Update(GameApp& app, float dt)
 		}
 
 		if (key3Trig) {
-			pendingDamage_ = bonus.damage;
+			pendingDamage_ = bonus.damage + nextTurnAtkUp_ + player_->GetBoostedPower();
 			isPokerDamageTargeting_ = true; // ポーカーからの攻撃であることを記憶
 			cardState_ = CardInputState::ChoosingEnemyTarget; // 状態を切り替え
 			pokerChoiceState_ = PokerChoiceState::None;       // ポーカーのUIを消す
@@ -1215,12 +1265,16 @@ void BattleController::Update(GameApp& app, float dt)
 									needsTarget = true;
 									dmgVal = effect.value;
 									break;
+								} else if (effect.type == "DamageByBlock") {
+									needsTarget = true;
+									dmgVal = (player_ ? player_->GetBlock() : 0) * effect.value;
+									break;
 								}
 							}
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
 							if (needsTarget) {
-								pendingDamage_ = dmgVal + nextTurnAtkUp_; // ダメージを計算して覚える
+								pendingDamage_ = dmgVal + nextTurnAtkUp_ + player_->GetBoostedPower(); // ダメージを計算して覚える
 								isPokerDamageTargeting_ = false;          // 手札からの使用であることを記憶
 								pendingCardHandIndex_ = idx;              // 使ったカードの場所を記憶
 								cardState_ = CardInputState::ChoosingEnemyTarget; // ターゲット選択へ
@@ -1354,6 +1408,10 @@ void BattleController::Update(GameApp& app, float dt)
 						targetEnemy.PlayDamageAnim();
 						targetEnemy.Damage(pendingDamage_);
 
+						if (player_->GetVampireHeal() > 0) {
+							player_->Heal(player_->GetVampireHeal());
+						}
+						nextTurnAtkUp_ = 0;
 						if (isPokerDamageTargeting_) {
 							// ポーカー役での攻撃だった場合
 							ConsumeFieldCards_();
@@ -1666,6 +1724,7 @@ void BattleController::DrawImGui()
 	ImGui::Text("Player Hp: %d", player_->GetHP());
 	ImGui::Text("Enemy  Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
 	ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
+	ImGui::Text("Player Power: %d (NextTurnAtkUp: %d)", player_->GetBoostedPower(), nextTurnAtkUp_);
 
 }
 #endif
