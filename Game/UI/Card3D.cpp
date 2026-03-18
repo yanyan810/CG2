@@ -72,7 +72,7 @@ void Card3D::Setup(
         frame_ = std::make_unique<Object3d>();
         frame_->Initialize(objCom, dx);
         frame_->SetCamera(cam);
-        frame_->SetEnableLighting(1);
+        frame_->SetEnableLighting(0);
     }
 
     if (!art_) {
@@ -86,14 +86,14 @@ void Card3D::Setup(
         costObj_ = std::make_unique<Object3d>();
         costObj_->Initialize(objCom, dx);
         costObj_->SetCamera(cam);
-        costObj_->SetEnableLighting(1);
+        costObj_->SetEnableLighting(0);
     }
 
     if (!suitObj_) {
         suitObj_ = std::make_unique<Object3d>();
         suitObj_->Initialize(objCom, dx);
         suitObj_->SetCamera(cam);
-        suitObj_->SetEnableLighting(1);
+        suitObj_->SetEnableLighting(0);
     }
 }
 

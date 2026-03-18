@@ -240,6 +240,13 @@ namespace {
 		default:                return "?";
 		}
 	}
+
+	bool PointInRect(int mx, int my, float x, float y, float w, float h)
+	{
+		return mx >= x && mx <= x + w &&
+			my >= y && my <= y + h;
+	}
+
 }
 
 void BattleController::UpdateCostViewTransform_(float dt)
@@ -1064,9 +1071,45 @@ void BattleController::Update(GameApp& app, float dt)
 	prev2_ = key2Now;
 	prev3_ = key3Now;
 
+	POINT mouse{};
+	GetCursorPos(&mouse);
+	ScreenToClient(app.Win()->GetHwnd(), &mouse);
+
+	bool lNow = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+	bool lTrig = lNow && !prevL_;
+	bool lRel = !lNow && prevL_;
+	prevL_ = lNow;
+
+	bool rNow = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+	bool rTrig = rNow && !prevR_;
+	prevR_ = rNow;
+
+	pokerMouseChoice_ = PokerMouseChoice::None;
+
+	// -----------------------------
+	// ポーカー発動する/しない 選択
+	// -----------------------------
 	if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice)
 	{
-		if (yTrig) {
+		// 左ボタン「発動する」
+		const float yesX = 120.0f;
+		const float yesY = 430.0f;
+		const float yesW = 360.0f;
+		const float yesH = 120.0f;
+
+		// 右ボタン「発動しない」
+		const float noX = 800.0f;
+		const float noY = 430.0f;
+		const float noW = 360.0f;
+		const float noH = 120.0f;
+
+		if (PointInRect(mouse.x, mouse.y, yesX, yesY, yesW, yesH)) {
+			pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
+		} else if (PointInRect(mouse.x, mouse.y, noX, noY, noW, noH)) {
+			pokerMouseChoice_ = PokerMouseChoice::ActivateNo;
+		}
+
+		if (yTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateYes)) {
 			TriggerSubEffectsForField_(
 				SubEffectTrigger::OnPokerSkillActivated,
 				currentPoker_.rank
@@ -1074,18 +1117,55 @@ void BattleController::Update(GameApp& app, float dt)
 			pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice;
 		}
 
-		if (nTrig) {
+		if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateNo)) {
 			pokerChoiceState_ = PokerChoiceState::None;
 		}
 
 		return;
 	}
 
+	// -----------------------------
+	// ポーカー効果選択
+	// -----------------------------
 	if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice)
 	{
 		PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
 
-		if (key1Trig) {
+		// 0 = 戻る
+		const float backX = 30.0f;
+		const float backY = 40.0f;
+		const float backW = 170.0f;
+		const float backH = 90.0f;
+
+		// 1 = 効果1（ATK UP）
+		const float effect1X = 32.0f;
+		const float effect1Y = 200.0f;
+		const float effect1W = 320.0f;
+		const float effect1H = 185.0f;
+
+		// 2 = 効果2（ドロー）
+		const float effect2X = 480.0f;
+		const float effect2Y = 200.0f;
+		const float effect2W = 320.0f;
+		const float effect2H = 185.0f;
+
+		// 3 = 効果3（ダメージ）
+		const float effect3X = 928.0f;
+		const float effect3Y = 200.0f;
+		const float effect3W = 320.0f;
+		const float effect3H = 185.0f;
+
+		if (PointInRect(mouse.x, mouse.y, backX, backY, backW, backH)) {
+			pokerMouseChoice_ = PokerMouseChoice::EffectBack;
+		} else if (PointInRect(mouse.x, mouse.y, effect1X, effect1Y, effect1W, effect1H)) {
+			pokerMouseChoice_ = PokerMouseChoice::EffectAtkUp;
+		} else if (PointInRect(mouse.x, mouse.y, effect2X, effect2Y, effect2W, effect2H)) {
+			pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
+		} else if (PointInRect(mouse.x, mouse.y, effect3X, effect3Y, effect3W, effect3H)) {
+			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
+		}
+
+		if (key1Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
 			nextTurnAtkUp_ += bonus.atkUp;
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
@@ -1095,7 +1175,7 @@ void BattleController::Update(GameApp& app, float dt)
 			return;
 		}
 
-		if (key2Trig) {
+		if (key2Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
 			DrawCards_(bonus.drawCount);
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
@@ -1105,15 +1185,17 @@ void BattleController::Update(GameApp& app, float dt)
 			return;
 		}
 
-		if (key3Trig) {
-			pendingDamage_ = bonus.damage + nextTurnAtkUp_ + player_->GetBoostedPower();
-			isPokerDamageTargeting_ = true; // ポーカーからの攻撃であることを記憶
-			cardState_ = CardInputState::ChoosingEnemyTarget; // 状態を切り替え
-			pokerChoiceState_ = PokerChoiceState::None;       // ポーカーのUIを消す
+		if (key3Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
+			pendingDamage_ = bonus.damage;
+			isPokerDamageTargeting_ = true;
+			cardState_ = CardInputState::ChoosingEnemyTarget;
+			pokerChoiceState_ = PokerChoiceState::None;
+
+
 			return;
 		}
 
-		if (nTrig) {
+		if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectBack)) {
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
 			return;
 		}
@@ -1128,10 +1210,6 @@ void BattleController::Update(GameApp& app, float dt)
 	operationUiVisible_ = tabNow;
 
 	prevEnter_ = enterNow;
-
-	POINT mouse{};
-	GetCursorPos(&mouse);
-	ScreenToClient(app.Win()->GetHwnd(), &mouse);
 
 	if (turn_ == TurnState::Player) {
 
@@ -1154,15 +1232,6 @@ void BattleController::Update(GameApp& app, float dt)
 	} else {
 		handView_.SetHoverIndex(-1);
 	}
-
-	bool lNow = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-	bool lTrig = lNow && !prevL_;
-	bool lRel = !lNow && prevL_;
-	prevL_ = lNow;
-
-	bool rNow = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-	bool rTrig = rNow && !prevR_;
-	prevR_ = rNow;
 
 	if (turn_ == TurnState::Player) {
 
@@ -1769,8 +1838,8 @@ std::wstring BattleController::GetPokerChoiceUiText() const
 		text += std::wstring(GetPokerHandName_(currentPoker_.rank),
 			GetPokerHandName_(currentPoker_.rank) + std::strlen(GetPokerHandName_(currentPoker_.rank)));
 		text += L"\n";
-		text += L"Y : 発動する\n";
-		text += L"N : スキップ\n";
+		text += L"左クリック : 発動する\n";
+		text += L"左クリック : スキップ\n";
 		return text;
 	}
 
@@ -1779,35 +1848,47 @@ std::wstring BattleController::GetPokerChoiceUiText() const
 
 		std::wstring text = L"";
 		text += L"発動する効果を選んでください\n";
-		text += L"1 : 次ターンATK UP (+" + std::to_wstring(bonus.atkUp) + L")\n";
-		text += L"2 : " + std::to_wstring(bonus.drawCount) + L"枚ドロー\n";
-		text += L"3 : " + std::to_wstring(bonus.damage) + L"ダメージ\n";
-		text += L"N : 戻る\n";
+		text += L"左クリック : 次ターンATK UP (+" + std::to_wstring(bonus.atkUp) + L")\n";
+		text += L"左クリック : " + std::to_wstring(bonus.drawCount) + L"枚ドロー\n";
+		text += L"左クリック : " + std::to_wstring(bonus.damage) + L"ダメージ\n";
+		text += L"左クリック : 戻る\n";
 		return text;
 	}
 
 	return L"";
 }
 
+int BattleController::GetPokerMouseChoiceIndex() const
+{
+	switch (pokerMouseChoice_) {
+	case PokerMouseChoice::ActivateYes:   return 0;
+	case PokerMouseChoice::ActivateNo:    return 1;
+
+		// 効果選択UIは FieldUi 側で
+		// 0=戻る, 1=効果1, 2=効果2, 3=効果3
+		// になっているのでそれに合わせる
+	case PokerMouseChoice::EffectBack:    return 0;
+	case PokerMouseChoice::EffectAtkUp:   return 1;
+	case PokerMouseChoice::EffectDraw:    return 2;
+	case PokerMouseChoice::EffectDamage:  return 3;
+
+	default:                              return -1;
+	}
+}
+
+bool BattleController::IsWaitingActivateChoice() const
+{
+	return pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice;
+}
+
+bool BattleController::IsWaitingEffectChoice() const
+{
+	return pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice;
+}
+
 bool BattleController::ShouldShowOperationUi() const
 {
-	if (HasPokerChoiceUi()) {
-		return false;
-	}
-
-	if (cardState_ == CardInputState::ChoosingFieldReplace) {
-		return true;
-	}
-
-	if (!operationUiVisible_) {
-		return false;
-	}
-
-	if (GetPreviewCardDef() != nullptr) {
-		return false;
-	}
-
-	return true;
+	return operationUiVisible_;
 }
 
 std::wstring BattleController::GetOperationUiText() const
