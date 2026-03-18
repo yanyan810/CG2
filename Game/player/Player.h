@@ -61,6 +61,7 @@ public:
 	void AddVampireHeal(int value) { vampireHeal_ += value; }
 	void ResetVampireHeal() { vampireHeal_ = 0; }
 
+
 private:
 	std::unique_ptr<Object3d> model_;
 
