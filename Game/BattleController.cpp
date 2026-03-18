@@ -660,6 +660,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 						e.TriggerHitFlash(0.2f);
 						e.PlayDamageAnim();
 						e.Damage(totalDamage);
+						if (totalDamage > 0) {
+							SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						}
 						hitCount++;
 					}
 				}
@@ -1495,6 +1498,9 @@ void BattleController::Update(GameApp& app, float dt)
 							targetEnemy.PlayDamageAnim();
 						}
 						targetEnemy.Damage(pendingDamage_);
+						if (pendingDamage_ > 0) {
+							SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
+						}
 
 						if (player_->GetVampireHeal() > 0) {
 							player_->Heal(player_->GetVampireHeal());
@@ -1588,6 +1594,9 @@ void BattleController::Update(GameApp& app, float dt)
 						player_->TriggerHitFlash(0.2f);
 						player_->PlayDamageAnim();
 						player_->Damage(action.value);
+						if (action.value > 0) {
+							SpawnDamagePopup(player_->GetPos(), action.value, true); // ★追加
+						}
 					} else if (action.type == "Heal") {
 						e.Heal(action.value);
 					} else if (action.type == "Block") {
@@ -1691,7 +1700,32 @@ void BattleController::Update(GameApp& app, float dt)
 	//	RefreshAllFieldCardTransforms_(dt);
 	//}
 
+	for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
+		it->timer -= 1.0f;        // 1フレームごとにタイマーを1減らす
+		it->pos.y += 0.05f;       // 1フレームごとに少し上に昇る
 
+		if (it->timer <= 0.0f) {
+			it = damagePopups_.erase(it); // 寿命が来たら消す
+		} else {
+			float gap = 0.8f;
+		
+			float startX = it->pos.x - gap * 0.5f * (it->digitModels.size() - 1);
+
+			for (size_t i = 0; i < it->digitModels.size(); ++i) {
+				// キャラクターより少し手前(z - 1.0f)に配置
+				Vector3 digitPos = { startX + gap * i, it->pos.y, it->pos.z - 1.0f };
+
+				it->digitModels[i]->SetTranslate(digitPos);
+				it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
+
+				// （もし数字が横や後ろを向いてしまう場合はここで SetRotate で回す）
+				// it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
+
+				it->digitModels[i]->Update(dt);
+			}
+			++it;
+		}
+	}
 
 	// --------------------------------------------------
 	// スプライトの更新
@@ -1726,6 +1760,12 @@ void BattleController::Draw3D(GameApp& app)
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Draw(); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Draw(); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Draw(); }
+
+	for (auto& popup : damagePopups_) {
+		for (auto& obj : popup.digitModels) {
+			if (obj) obj->Draw();
+		}
+	}
 }
 
 #ifdef USE_IMGUI
@@ -1823,6 +1863,35 @@ void BattleController::SetPlayer(Player* player) {
 
 void BattleController::SetEnemyManager(EnemyManager* enemyMgr) {
 	enemyMgr_ = enemyMgr;
+}
+
+void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer)
+{
+	DamagePopup p;
+	p.damage = damage;
+	p.pos = pos;
+	p.pos.y += 2.0f; // キャラクターの頭上からスタート
+	p.timer = 60.0f; // 60フレーム表示させる
+
+	// 数字を文字列（"15"など）にして、1文字ずつ処理する
+	std::string dmgStr = std::to_string(damage);
+	for (char c : dmgStr) {
+		if (c >= '0' && c <= '9') {
+			// コストと同じようにモデルのパスを作る（例："cards/models/5.obj"）
+			std::string path = "cards/models/";
+			path += c;
+			path += ".obj";
+
+			auto obj = std::make_unique<Object3d>();
+			
+			obj->Initialize(objCom_, dx_);
+			obj->SetModel(path);
+
+			p.digitModels.push_back(std::move(obj));
+		}
+	}
+
+	damagePopups_.push_back(std::move(p));
 }
 
 const CardDef* BattleController::GetPreviewCardDef() const

@@ -211,6 +211,15 @@ private:
     int playerTurnCount_ = 0;
     int enemyTurnCount_ = 0;
 
+    struct DamagePopup {
+        int damage = 0;
+        Vector3 pos;
+        float timer = 60.0f; // 60フレーム（約1秒）画面に留まる
+        std::vector<std::unique_ptr<Object3d>> digitModels; // 3Dモデルの配列
+    };
+    std::vector<DamagePopup> damagePopups_;
+
+    void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 
 private:
 
