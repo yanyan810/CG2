@@ -69,19 +69,17 @@ void ImGuiManagaer::Begin()
 void ImGuiManagaer::End(ID3D12GraphicsCommandList* cmd)
 {
 #ifdef USE_IMGUI
-
-
     ImGui::Render();
 
-    // ImGui描画前に SRV heap をセット
+    // 追加
+    dxCommon_->SetBackBuffer();
+    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+
     ID3D12DescriptorHeap* heaps[] = { srvManager_->GetDescriptorHeap() };
     cmd->SetDescriptorHeaps(1, heaps);
 
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd);
-
-#endif // USE_IMGUI
-
-
+#endif
 }
 
 void ImGuiManagaer::Shutdown()
