@@ -372,6 +372,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\UI\Card3D.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />
+    <ClInclude Include="Game\UI\UiLayout.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

@@ -44,6 +44,16 @@ public:
         int damage = 0;
     };
 
+    enum class PokerMouseChoice {
+        None = 0,
+        ActivateYes,
+        ActivateNo,
+        EffectAtkUp,
+        EffectDraw,
+        EffectDamage,
+        EffectBack,
+    };
+
     void Initialize(GameApp& app, Camera* camera);
     void Update(GameApp& app, float dt);
     void Draw3D(GameApp& app);
@@ -64,6 +74,11 @@ public:
     int GetDiscardCount() const { return static_cast<int>(discard_.size()); }
     int GetFieldCount() const { return static_cast<int>(field_.size()); }
     std::wstring GetCurrentPokerHandUiText() const;
+
+    //マウス選択関連
+    int GetPokerMouseChoiceIndex() const;
+    bool IsWaitingActivateChoice() const;
+    bool IsWaitingEffectChoice() const;
 
 #ifdef USE_IMGUI
     void DrawImGui();
@@ -188,7 +203,8 @@ private:
     int prevEnergy_ = -1;
     int prevEnergyMax_ = -1;
 
- 
+    PokerMouseChoice pokerMouseChoice_ = PokerMouseChoice::None;
+    bool prevMouseLeftForPoker_ = false;
 
 private:
 
@@ -238,6 +254,8 @@ private:
     std::array<bool, 5> GetPokerHighlightMask_() const;
 
     void PreloadCardAssets_();
+
+
 
 	float deltaTime_ = 0.0f;
 
