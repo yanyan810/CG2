@@ -34,11 +34,11 @@ void GameScene::OnEnter(GameApp& app) {
 	skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
 	skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
 
-    // --------------------------------------------------
-    // 3. プレイヤーとエネミーの初期化・配置
-    // --------------------------------------------------
-    // カメラが原点なので、キャラクターは Z 方向に押し出してカメラの前に置く
-    const float charZ = 15.0f; // カメラから15.0f 奥
+	// --------------------------------------------------
+	// 3. プレイヤーとエネミーの初期化・配置
+	// --------------------------------------------------
+	// カメラが原点なので、キャラクターは Z 方向に押し出してカメラの前に置く
+	const float charZ = 15.0f; // カメラから15.0f 奥
 
 	// プレイヤーの配置（左側・右向き）
 	player_ = std::make_unique<Player>();
@@ -46,18 +46,18 @@ void GameScene::OnEnter(GameApp& app) {
 	player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
 	player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
 
-    // エネミーの配置（右側・左向き）
-    enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 5.0f }); // 奥にスライム
-    enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f,  15.0f }); // 真ん中にボス
-    enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f,  25.0f }); // 手前にスライム
-    // --------------------------------------------------
-    // 4. ライトの初期設定
-    // --------------------------------------------------
-    light_.lightingMode = 1;
-    light_.dir = { 0.3f, -1.0f, 0.2f };
-    light_.dirIntensity = 1.5f;
-    light_.dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	// エネミーの配置（右側・左向き）
+	enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
+	enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 5.0f }); // 奥にスライム
+	enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f,  15.0f }); // 真ん中にボス
+	enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f,  25.0f }); // 手前にスライム
+	// --------------------------------------------------
+	// 4. ライトの初期設定
+	// --------------------------------------------------
+	light_.lightingMode = 1;
+	light_.dir = { 0.3f, -1.0f, 0.2f };
+	light_.dirIntensity = 1.5f;
+	light_.dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 	// --------------------------------------------------
    //  5. バトルコントローラー
@@ -84,6 +84,38 @@ void GameScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
+	// ターン数描画関連
+	turnText_ = std::make_unique<TextSprite>();
+	turnText_->Initialize(app.SpriteCom(), app.Dx());
+	turnText_->SetSize({ 1.0f,1.0f,1.0f });
+	turnText_->SetPosition({ 500.0f, 20.0f });
+	turnTextBg_ = std::make_unique<Sprite>();
+	turnTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	turnTextBg_->SetPosition({ 490.f,25.f });
+	turnTextBg_->SetScale({ 250.f,60.f,1.f });
+	turnTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+
+	// コスト描画関連
+	position_ = { 90.f,420.f };
+	scale_ = { 900.f,180.f,1.f };
+
+	costText_ = std::make_unique<TextSprite>();
+	costText_->Initialize(app.SpriteCom(), app.Dx());
+	costText_->SetSize({ 1.0f,1.0f,1.0f });
+	costText_->SetPosition({ 90.0f, 400.0f });
+	costTextBg_ = std::make_unique<Sprite>();
+	costTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	costTextBg_->SetPosition({ 75.f,405.f });
+	costTextBg_->SetScale({ 170.f,55.f,1.f });
+	costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+
+	for (int i = 0; i < 3; i++) {
+		auto text = std::make_unique<TextSprite>();
+		text->Initialize(app.SpriteCom(), app.Dx());
+		text->SetSize({ 1.0f,1.0f,1.0f });
+		text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
+		enemyHpTexts_.push_back(std::move(text));
+	}
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -159,7 +191,25 @@ void GameScene::Update(GameApp& app, float dt) {
 		fieldUi_->Update(app, battle_);
 	}
 
+
+
+	if (costText_) {
+		costText_->SetText(battle_.GetEnergyText());
+	}
+
+	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
+
+	for (size_t i = 0; i < enemyHpTexts_.size(); i++) {
+		if (i < hpData.size()) {
+			enemyHpTexts_[i]->SetText(hpData[i]);
+
+			// 座標の設定（敵の頭上や、既存のHPバーの位置に合わせる）
+			// 例: 1体目 200, 2体目 500, 3体目 800 など
+			enemyHpTexts_[i]->SetPosition({ 1025.0f, 10.0f + (i * 30.0f) });
+		}
+	}
 }
+
 
 void GameScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
@@ -200,6 +250,24 @@ void GameScene::Draw2D(GameApp& app) {
 		fieldUi_->Draw(app);
 	}
 
+	if (turnText_) {
+		turnText_->Update(view, proj);
+		turnText_->Draw();
+		turnTextBg_->Update(view, proj);
+		turnTextBg_->Draw();
+	}
+
+	if (costText_) {
+		costText_->Update(view, proj);
+		costText_->Draw();
+		costTextBg_->Update(view, proj);
+		costTextBg_->Draw();
+	}
+
+	for (auto& text : enemyHpTexts_) {
+		text->Update(view, proj);
+		text->Draw();
+	}
 }
 
 void GameScene::DrawImGui(GameApp& app) {

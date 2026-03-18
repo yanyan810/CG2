@@ -998,9 +998,9 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 	Vector3 scl{ 1.15f, 1.15f, 1.15f };
 
 	if (hovered) {
-	/*	pos.y += 0.35f;
-		pos.z -= 0.25f;
-		scl = { 1.28f, 1.28f, 1.28f };*/
+		/*	pos.y += 0.35f;
+			pos.z -= 0.25f;
+			scl = { 1.28f, 1.28f, 1.28f };*/
 
 		pos.y += 0.18f;
 		pos.z -= 0.08f;
@@ -1319,7 +1319,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 						const CardDef* def = db_.Find(inst.defId);
 
 						if (def && def->cost <= energy_) {
-							
+
 							bool needsTarget = false;
 							int dmgVal = 0;
 							int hitCount = 0; // 攻撃回数（バフを乗せる回数）
@@ -2087,6 +2087,21 @@ std::wstring BattleController::GetEnergyText() const {
 	return text;
 
 }
+
+std::vector<std::wstring> BattleController::GetEnemyHpTexts() const {
+	std::vector<std::wstring> hpTexts;
+	auto& enemies = enemyMgr_->GetEnemies();
+
+	for (const auto& enemy : enemies) {
+		if (enemy.IsAlive()) {
+			// "100 / 100" という形式の文字列を作成
+			std::wstring text = std::to_wstring(enemy.GetHP()) + L" / " + std::to_wstring(enemy.GetMaxHP());
+			hpTexts.push_back(text);
+		}
+	}
+	return hpTexts;
+}
+
 
 BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
 {
