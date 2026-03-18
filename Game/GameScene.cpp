@@ -84,31 +84,6 @@ void GameScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
-	// ターン数描画関連
-	turnText_ = std::make_unique<TextSprite>();
-	turnText_->Initialize(app.SpriteCom(), app.Dx());
-	turnText_->SetSize({ 1.0f,1.0f,1.0f });
-	turnText_->SetPosition({ 500.0f, 20.0f });
-	turnTextBg_ = std::make_unique<Sprite>();
-	turnTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	turnTextBg_->SetPosition({490.f,25.f});
-	turnTextBg_->SetScale({ 250.f,60.f,1.f });
-	turnTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
-
-	// コスト描画関連
-	position_ = { 90.f,420.f };
-	scale_ = { 900.f,180.f,1.f };
-
-	costText_ = std::make_unique<TextSprite>();
-	costText_->Initialize(app.SpriteCom(), app.Dx());
-	costText_->SetSize({ 1.0f,1.0f,1.0f });
-	costText_->SetPosition({ 90.0f, 400.0f });
-	costTextBg_ = std::make_unique<Sprite>();
-	costTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	costTextBg_->SetPosition({ 75.f,405.f });
-	costTextBg_->SetScale({ 170.f,55.f,1.f });
-	costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
-
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -150,19 +125,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	enemyMgr_.Update(dt);
 	enemyMgr_.SetLighting(light_);
 
-#ifdef USE_IMGUI
-
-	ImGui::Begin("Battle Debug");
-	battle_.DrawImGui();     // ★これ
-	ImGui::DragFloat2("position", &position_.x);
-	ImGui::DragFloat3("scale", &scale_.x);
-	/*costTextBg_->SetPosition(position_);
-	costTextBg_->SetScale(scale_);*/
-
-	ImGui::End();
-#endif
-
-	battle_.Update(app, dt);
+	battle_.Update(app, *fieldUi_,dt);
 
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
@@ -196,13 +159,6 @@ void GameScene::Update(GameApp& app, float dt) {
 		fieldUi_->Update(app, battle_);
 	}
 
-	if (turnText_) {
-		turnText_->SetText(battle_.GetTurnUiText());
-	}
-
-	if (costText_) {
-		costText_->SetText(battle_.GetEnergyText());
-	}
 }
 
 void GameScene::Draw3D(GameApp& app) {
@@ -235,37 +191,32 @@ void GameScene::Draw2D(GameApp& app) {
 		showDescBg = (def != nullptr) || battle_.ShouldShowOperationUi();
 	}
 
-	if (showDescBg && cardDescBg_) {
+	/*if (showDescBg && cardDescBg_) {
 		cardDescBg_->Update(view, proj);
 		cardDescBg_->Draw();
-	}
+	}*/
 
 	if (fieldUi_) {
 		fieldUi_->Draw(app);
 	}
 
-	if (turnText_) {
-		turnText_->Update(view, proj);
-		turnText_->Draw();
-		turnTextBg_->Update(view, proj);
-		turnTextBg_->Draw();
-	}
-
-	if (costText_) {
-		costText_->Update(view, proj);
-		costText_->Draw();
-		costTextBg_->Update(view, proj);
-		costTextBg_->Draw();
-	}
 }
 
 void GameScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
 	ImGui::Begin("Battle Debug");
+
 	battle_.DrawImGui();
 
-	
+	ImGui::DragFloat2("position", &position_.x);
+	ImGui::DragFloat3("scale", &scale_.x);
 
 	ImGui::End();
+
+	if (fieldUi_) {
+		fieldUi_->DrawImGui();
+	}
+
+
 #endif
 }

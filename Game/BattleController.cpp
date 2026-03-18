@@ -12,6 +12,8 @@
 #include"Player.h"
 #include"Enemy.h"
 
+#include "FieldUi.h"
+
 //===============================
 //役
 //===============================
@@ -631,16 +633,20 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			DrawCards_(effect.value);
 
 		} else if (effect.type == "Damage") {
-			/*Enemy* targetEnemy = nullptr;
-			if (enemyMgr_ && !enemyMgr_->GetEnemies().empty()) {
-				targetEnemy = &enemyMgr_->GetEnemies()[0];
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (!e.IsAlive()) {
+						continue;
+					}
+
+					int totalDamage = CalcFinalAttackDamage_(effect.value);
+					ApplyDamageToEnemy_(e, totalDamage);
+
+					// 1回適用したら終了
+					nextTurnAtkUp_ = 0;
+					break;
+				}
 			}
-			if (player_ && targetEnemy) {
-				player_->PlayAttackAnim(targetEnemy->GetPos());
-				targetEnemy->TriggerHitFlash(0.2f);
-				targetEnemy->PlayDamageAnim();
-				targetEnemy->Damage(effect.value);
-			}*/
 
 		} else if (effect.type == "Block") {
 			if (player_) {
@@ -649,12 +655,11 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "DamageAll") {
 			if (enemyMgr_ && player_) {
-				int totalDamage = effect.value + nextTurnAtkUp_ + player_->GetBoostedPower();
+				int totalDamage = CalcFinalAttackDamage_(effect.value);
 
-				// プレイヤーのアニメーション（その場で突進）
 				player_->PlayAttackAnim(player_->GetPos());
+
 				int hitCount = 0;
-				// 生きている敵「全員」にダメージを与える！
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
 						e.TriggerHitFlash(0.2f);
@@ -663,9 +668,12 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 						hitCount++;
 					}
 				}
+
 				if (hitCount > 0 && player_->GetVampireHeal() > 0) {
 					player_->Heal(player_->GetVampireHeal() * hitCount);
 				}
+
+				nextTurnAtkUp_ = 0;
 			}
 
 		} else if (effect.type == "PowerBoost") {
@@ -1051,7 +1059,7 @@ int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
 	return best;
 }
 
-void BattleController::Update(GameApp& app, float dt)
+void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 {
 
 	bool yNow = (GetAsyncKeyState('Y') & 0x8000) != 0;
@@ -1131,38 +1139,23 @@ void BattleController::Update(GameApp& app, float dt)
 	if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice)
 	{
 		PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
+		const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
 
-		// 0 = 戻る
-		const float backX = 30.0f;
-		const float backY = 40.0f;
-		const float backW = 170.0f;
-		const float backH = 90.0f;
-
-		// 1 = 効果1（ATK UP）
-		const float effect1X = 32.0f;
-		const float effect1Y = 200.0f;
-		const float effect1W = 320.0f;
-		const float effect1H = 185.0f;
-
-		// 2 = 効果2（ドロー）
-		const float effect2X = 480.0f;
-		const float effect2Y = 200.0f;
-		const float effect2W = 320.0f;
-		const float effect2H = 185.0f;
-
-		// 3 = 効果3（ダメージ）
-		const float effect3X = 928.0f;
-		const float effect3Y = 200.0f;
-		const float effect3W = 320.0f;
-		const float effect3H = 185.0f;
-
-		if (PointInRect(mouse.x, mouse.y, backX, backY, backW, backH)) {
+		if (PointInRect(mouse.x, mouse.y,
+			layout.backRect.x, layout.backRect.y,
+			layout.backRect.w, layout.backRect.h)) {
 			pokerMouseChoice_ = PokerMouseChoice::EffectBack;
-		} else if (PointInRect(mouse.x, mouse.y, effect1X, effect1Y, effect1W, effect1H)) {
+		} else if (PointInRect(mouse.x, mouse.y,
+			layout.effectRects[0].x, layout.effectRects[0].y,
+			layout.effectRects[0].w, layout.effectRects[0].h)) {
 			pokerMouseChoice_ = PokerMouseChoice::EffectAtkUp;
-		} else if (PointInRect(mouse.x, mouse.y, effect2X, effect2Y, effect2W, effect2H)) {
+		} else if (PointInRect(mouse.x, mouse.y,
+			layout.effectRects[1].x, layout.effectRects[1].y,
+			layout.effectRects[1].w, layout.effectRects[1].h)) {
 			pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
-		} else if (PointInRect(mouse.x, mouse.y, effect3X, effect3Y, effect3W, effect3H)) {
+		} else if (PointInRect(mouse.x, mouse.y,
+			layout.effectRects[2].x, layout.effectRects[2].y,
+			layout.effectRects[2].w, layout.effectRects[2].h)) {
 			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
 		}
 
@@ -1171,7 +1164,6 @@ void BattleController::Update(GameApp& app, float dt)
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
-			enemyTurnCount_++;
 			enemyWait_ = 1.0f;
 			return;
 		}
@@ -1181,18 +1173,15 @@ void BattleController::Update(GameApp& app, float dt)
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
-			enemyTurnCount_++;
 			enemyWait_ = 1.0f;
 			return;
 		}
 
 		if (key3Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
-			pendingDamage_ = bonus.damage;
+			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
 			cardState_ = CardInputState::ChoosingEnemyTarget;
 			pokerChoiceState_ = PokerChoiceState::None;
-
-
 			return;
 		}
 
@@ -1358,17 +1347,18 @@ void BattleController::Update(GameApp& app, float dt)
 							}
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
-							if (needsTarget) {
-								int buff = nextTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
-								pendingDamage_ = dmgVal + (buff * hitCount);
+						if (needsTarget) {
+    int buff = nextTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
+    pendingDamage_ = dmgVal + (buff * hitCount);
 
-								isPokerDamageTargeting_ = false;
-								pendingCardHandIndex_ = idx;
-								cardState_ = CardInputState::ChoosingEnemyTarget;
-								selectedIndex_ = -1;
-								handView_.SetPreviewIndex(-1);
-								return;
-							}	
+    isPokerDamageTargeting_ = false;                 // 手札カード由来
+    pendingCardHandIndex_ = idx;                     // 使った手札位置を覚える
+    cardState_ = CardInputState::ChoosingEnemyTarget; // 敵選択へ
+
+    selectedIndex_ = -1;
+    handView_.SetPreviewIndex(-1);
+    return;
+}
 							energy_ -= def->cost;
 
 							hand_.erase(hand_.begin() + idx);
@@ -1489,16 +1479,8 @@ void BattleController::Update(GameApp& app, float dt)
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
 						// 選んだ敵に向かって突進＆ダメージ！
-						player_->PlayAttackAnim(targetEnemy.GetPos());
-						if (pendingDamage_ > 0) {
-							targetEnemy.TriggerHitFlash(0.2f);
-							targetEnemy.PlayDamageAnim();
-						}
-						targetEnemy.Damage(pendingDamage_);
+						ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
 
-						if (player_->GetVampireHeal() > 0) {
-							player_->Heal(player_->GetVampireHeal());
-						}
 						nextTurnAtkUp_ = 0;
 						if (isPokerDamageTargeting_) {
 							// ポーカー役での攻撃だった場合
@@ -1716,10 +1698,6 @@ void BattleController::Draw3D(GameApp& app)
 
 	handView_.Draw();
 
-	for (auto& obj : costDigitModels_) {
-		//obj->Draw();
-	}
-
 	if (playerHpBg_) playerHpBg_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
 
@@ -1814,8 +1792,43 @@ void BattleController::DrawImGui()
 	ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
 	ImGui::Text("Player Power: %d (NextTurnAtkUp: %d)", player_->GetBoostedPower(), nextTurnAtkUp_);
 
+	fieldUi_->DrawImGui();
+
 }
 #endif
+
+int BattleController::CalcFinalAttackDamage_(int baseDamage) const
+{
+	int total = baseDamage;
+
+	if (player_) {
+		total += player_->GetBoostedPower();
+	}
+
+	total += nextTurnAtkUp_;
+
+	if (total < 0) {
+		total = 0;
+	}
+
+	return total;
+}
+
+void BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)
+{
+	if (!player_) {
+		return;
+	}
+
+	player_->PlayAttackAnim(enemy.GetPos());
+	enemy.TriggerHitFlash(0.2f);
+	enemy.PlayDamageAnim();
+	enemy.Damage(damage);
+
+	if (player_->GetVampireHeal() > 0) {
+		player_->Heal(player_->GetVampireHeal());
+	}
+}
 
 void BattleController::SetPlayer(Player* player) {
 	player_ = player;
@@ -1995,4 +2008,9 @@ std::wstring BattleController::GetEnergyText() const {
 
 	return text;
 
+}
+
+BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
+{
+	return GetPokerBonus_(currentPoker_.rank);
 }
