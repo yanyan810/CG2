@@ -83,7 +83,7 @@
       "artTex": "resources/cards/art/CrescentMoon.png",
       "desc": "敵単体に3ダメージ与える。現在のターン数が奇数ならさらに3ダメージ与える",
       "effects": [
-        { "type": "Damage", "value": 3 }
+        { "type": "DamageCrescent", "value": 3 }
       ]
      },
       {
@@ -242,7 +242,7 @@
       "artTex": "resources/cards/art/Convert.png",
       "desc": "シールドの値分体力を回復",
       "effects": [
-        { "type": "HealByBlock", "value": 3 }
+        { "type": "HealByBlock", "value": 1 }
       ]
      },
       {
