@@ -74,6 +74,8 @@ public:
     int GetDiscardCount() const { return static_cast<int>(discard_.size()); }
     int GetFieldCount() const { return static_cast<int>(field_.size()); }
     std::wstring GetCurrentPokerHandUiText() const;
+    std::wstring GetTurnUiText() const;
+    std::wstring GetEnergyText() const;
 
     //マウス選択関連
     int GetPokerMouseChoiceIndex() const;
@@ -205,6 +207,10 @@ private:
 
     PokerMouseChoice pokerMouseChoice_ = PokerMouseChoice::None;
     bool prevMouseLeftForPoker_ = false;
+
+    int playerTurnCount_ = 0;
+    int enemyTurnCount_ = 0;
+
 
 private:
 

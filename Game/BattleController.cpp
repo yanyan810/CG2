@@ -647,6 +647,31 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				player_->AddBlock(effect.value);
 			}
 
+		} else if (effect.type == "DamageAll") {
+			if (enemyMgr_ && player_) {
+				int totalDamage = effect.value + nextTurnAtkUp_ + player_->GetBoostedPower();
+
+				// プレイヤーのアニメーション（その場で突進）
+				player_->PlayAttackAnim(player_->GetPos());
+				int hitCount = 0;
+				// 生きている敵「全員」にダメージを与える！
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.TriggerHitFlash(0.2f);
+						e.PlayDamageAnim();
+						e.Damage(totalDamage);
+						hitCount++;
+					}
+				}
+				if (hitCount > 0 && player_->GetVampireHeal() > 0) {
+					player_->Heal(player_->GetVampireHeal() * hitCount);
+				}
+			}
+
+		} else if (effect.type == "PowerBoost") {
+			if (player_) {
+				player_->PowerBoost(effect.value);
+			}
 		} else if (effect.type == "NextTurnAtkUp") {
 			nextTurnAtkUp_ += effect.value;
 
@@ -655,6 +680,30 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				player_->Heal(effect.value);
 			}
 
+		} else if (effect.type == "HealByBlock") {
+			if (player_) {
+				int healAmount = player_->GetBlock() * effect.value; // ブロック数 × 倍率
+				player_->Heal(healAmount);
+			}
+		} else if (effect.type == "HealByLowCostInHand") {
+			if (player_) {
+				int count = 0;
+				// 今の手札を1枚ずつ確認する
+				for (const auto& cardInst : hand_) {
+					const CardDef* cDef = db_.Find(cardInst.defId);
+					if (cDef && cDef->cost == 1) {
+						count++; // 1コストのカードだったらカウントを増やす
+					}
+				}
+				int healAmount = count * effect.value;
+				if (healAmount > 0) {
+					player_->Heal(healAmount);
+				}
+			}
+		} else if (effect.type == "VampireBuff") {
+			if (player_) {
+				player_->AddVampireHeal(effect.value);
+			}
 		} else if (effect.type == "SelfDamage") {
 			if (player_) {
 				player_->TriggerHitFlash(0.2f);
@@ -742,7 +791,10 @@ void BattleController::StartPlayerTurn_()
 {
 	if (player_) {
 		player_->ResetBlock();
+		player_->ResetVampireHeal();
 	}
+	playerTurnCount_++;
+
 	energy_ = energyMax_;
 	DrawUntilFive_();
 
@@ -1118,6 +1170,7 @@ void BattleController::Update(GameApp& app, float dt)
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
+			enemyTurnCount_++;
 			enemyWait_ = 1.0f;
 			return;
 		}
@@ -1127,6 +1180,7 @@ void BattleController::Update(GameApp& app, float dt)
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
+			enemyTurnCount_++;
 			enemyWait_ = 1.0f;
 			return;
 		}
@@ -1136,6 +1190,8 @@ void BattleController::Update(GameApp& app, float dt)
 			isPokerDamageTargeting_ = true;
 			cardState_ = CardInputState::ChoosingEnemyTarget;
 			pokerChoiceState_ = PokerChoiceState::None;
+
+
 			return;
 		}
 
@@ -1192,6 +1248,7 @@ void BattleController::Update(GameApp& app, float dt)
 				" field=" + std::to_string(field_.size()) + "\n").c_str());
 
 			turn_ = TurnState::Enemy;
+			enemyTurnCount_++;
 			hasPendingCard_ = false;
 			pendingCard_ = {};
 			enemyWait_ = 1.0f;
@@ -1277,12 +1334,16 @@ void BattleController::Update(GameApp& app, float dt)
 									needsTarget = true;
 									dmgVal = effect.value;
 									break;
+								} else if (effect.type == "DamageByBlock") {
+									needsTarget = true;
+									dmgVal = (player_ ? player_->GetBlock() : 0) * effect.value;
+									break;
 								}
 							}
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
 							if (needsTarget) {
-								pendingDamage_ = dmgVal + nextTurnAtkUp_; // ダメージを計算して覚える
+								pendingDamage_ = dmgVal + nextTurnAtkUp_ + player_->GetBoostedPower(); // ダメージを計算して覚える
 								isPokerDamageTargeting_ = false;          // 手札からの使用であることを記憶
 								pendingCardHandIndex_ = idx;              // 使ったカードの場所を記憶
 								cardState_ = CardInputState::ChoosingEnemyTarget; // ターゲット選択へ
@@ -1416,11 +1477,16 @@ void BattleController::Update(GameApp& app, float dt)
 						targetEnemy.PlayDamageAnim();
 						targetEnemy.Damage(pendingDamage_);
 
+						if (player_->GetVampireHeal() > 0) {
+							player_->Heal(player_->GetVampireHeal());
+						}
+						nextTurnAtkUp_ = 0;
 						if (isPokerDamageTargeting_) {
 							// ポーカー役での攻撃だった場合
 							ConsumeFieldCards_();
 							cardState_ = CardInputState::Idle;
 							turn_ = TurnState::Enemy;
+							enemyTurnCount_++;
 							enemyWait_ = 1.0f;
 						} else {
 							// 手札のカードでの攻撃だった場合
@@ -1632,7 +1698,7 @@ void BattleController::Draw3D(GameApp& app)
 	handView_.Draw();
 
 	for (auto& obj : costDigitModels_) {
-		obj->Draw();
+		//obj->Draw();
 	}
 
 	if (playerHpBg_) playerHpBg_->Draw();
@@ -1650,6 +1716,8 @@ void BattleController::DrawImGui()
 	Card3D::DrawAdjustImGui();
 
 	ImGui::Text("turn: %s", turn_ == TurnState::Player ? "Player" : "Enemy");
+	ImGui::Text("PlayerTurnCount : %d", playerTurnCount_);
+	ImGui::Text("EnemyTurnCount : %d", enemyTurnCount_);
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
 	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
 	ImGui::Text("field: %d", (int)field_.size());
@@ -1725,6 +1793,7 @@ void BattleController::DrawImGui()
 	ImGui::Text("Player Hp: %d", player_->GetHP());
 	ImGui::Text("Enemy  Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
 	ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
+	ImGui::Text("Player Power: %d (NextTurnAtkUp: %d)", player_->GetBoostedPower(), nextTurnAtkUp_);
 
 }
 #endif
@@ -1885,4 +1954,26 @@ std::wstring BattleController::GetCurrentPokerHandUiText() const
 	case PokerHandRank::RoyalStraightFlush: return L"役: ロイヤルストレートフラッシュ";
 	default: return L"役: ?";
 	}
+}
+
+std::wstring BattleController::GetTurnUiText() const
+{
+	std::wstring text;
+
+	switch (turn_) {
+	case TurnState::Player: return L"あなたのターン : " + std::to_wstring(playerTurnCount_);
+	case TurnState::Enemy: return L"あいてのターン : " + std::to_wstring(enemyTurnCount_);
+	}
+
+	return text;
+}
+
+std::wstring BattleController::GetEnergyText() const {
+
+	std::wstring text;
+
+	text += std::to_wstring(energy_) + L" / " + std::to_wstring(energyMax_);
+
+	return text;
+
 }
