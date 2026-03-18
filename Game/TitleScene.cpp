@@ -187,6 +187,9 @@ void TitleScene::OnEnter(GameApp& app) {
     srtObj2_.scale = { 1.2f, 1.2f, 1.2f };
  
 
+    debugFieldUi_ = std::make_unique<FieldUi>();
+    debugFieldUi_->Initialize(app);
+
 }
 
 void TitleScene::OnExit(GameApp&) {
@@ -292,112 +295,6 @@ void TitleScene::Update(GameApp& app, float dt) {
     //    titlePlayer->SetTitleTransform(srtPlayer_.pos, srtPlayer_.rot, srtPlayer_.scale);
     //}
 
-#ifdef USE_IMGUI
-
-    ImGui::Begin("Camera Debug");
-    ImGui::DragFloat3("Position", &imguiCamPos_.x, 0.1f);
-    ImGui::DragFloat3("Rotation", &imguiCamRot_.x, 0.01f);
-    ImGui::End();
-   
- 
-    ImGui::Begin("Object SRT (Per-Object)");
-
-    static const char* targetLabels[] = {
-    "SkyDome",
-    "VideoPlane",
-    "Particle",
-    "Ground",        // 追加
-    "TitlePlayer",   // 追加
-    "BG(Sprite)",
-    "PressStart(Sprite)",
-    };
-
-    ImGui::Combo("Target", &editTarget_, targetLabels, IM_ARRAYSIZE(targetLabels));
-
-    ImGui::End();
-    // ターゲットに応じて参照先を切り替え
-    SRT* cur = nullptr;
-    switch ((EditTarget)editTarget_) {
-    case EditTarget::SkyDome:     cur = &srtSky_; break;
-    case EditTarget::VideoPlane:  cur = &srtVideo_; break;
-    case EditTarget::Particle:    cur = &srtParticle_; break;
-    case EditTarget::Ground:      cur = &srtGround_; break;   
-    case EditTarget::TitlePlayer: cur = &srtPlayer_; break;   
-    case EditTarget::BG:          cur = &srtBG_; break;
-    case EditTarget::PressStart:  cur = &srtPress_; break;
-    default: break;
-    }
-
-
-
-    if (cur) {
-        ImGui::DragFloat3("T", &cur->pos.x, 0.1f);
-        ImGui::DragFloat3("R", &cur->rot.x, 0.01f);
-        ImGui::DragFloat3("S", &cur->scale.x, 0.1f, 0.001f, 100.0f);
-    }
-
-    ImGui::Begin("Video");
-
-    if (video_) {
-        int n = video_->GetAudioTrackCount();
-        ImGui::Text("Audio tracks: %d", n);
-
-        static int track = 0;
-        if (n > 0) {
-            if (track >= n) track = n - 1;
-
-            if (ImGui::BeginCombo("Audio Track", ("Track" + std::to_string(track + 1)).c_str())) {
-                for (int i = 0; i < n; ++i) {
-                    std::string label = "Track" + std::to_string(i + 1);
-                    bool selected = (i == track);
-                    if (ImGui::Selectable(label.c_str(), selected)) {
-                        track = i;
-                        video_->SetAudioTrack(i);
-                    }
-                    if (selected) ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-        }
-    }
-
-    ImGui::End();
-
-#endif
-
-#ifdef USE_IMGUI
-
-    // ===== 課題用ウィンドウ =====
-    ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_Once);
-
-    if (ImGui::Begin("Sprite Position Control"))
-    {
-        // 現在のpressStartの座標を取得
-        Vector2 pos = pressStart_->GetPosition();
-
-        // スライダーで操作（小数1桁表示）
-        ImGui::SliderFloat2(
-            "PressStart Pos",
-            &pos.x,
-            0.0f,
-            1280.0f,
-            "%04.1f"
-        );
-
-        // 変更を反映
-        pressStart_->SetPosition(pos);
-
-        // 数値表示（整数4桁、小数1桁）
-        ImGui::Text("X: %04.1f  Y: %04.1f", pos.x, pos.y);
-    }
-
-    ImGui::End();
-
-#endif
-
-
-
     spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
 
     // ---- Spot angle deg -> cos ----
@@ -482,7 +379,9 @@ void TitleScene::Update(GameApp& app, float dt) {
     ApplyObject3dSRT(ground_.get(), srtGround_);
 
    
-
+    if (debugFieldUi_ && showPokerEffectPreview_) {
+        debugFieldUi_->UpdateDebugPokerEffectPreview(debugPokerHoverIndex_);
+    }
 }
 
 void TitleScene::Draw3D(GameApp& app) {
@@ -513,6 +412,10 @@ void TitleScene::Draw2D(GameApp& app) {
     // if (bg_) { bg_->Update(view, proj); bg_->Draw(); }
     // if (pressStart_) { pressStart_->Update(view, proj); pressStart_->Draw(); }
 
+    if (debugFieldUi_ && showPokerEffectPreview_) {
+        debugFieldUi_->Draw(app);
+    }
+
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
 }
 
@@ -523,9 +426,15 @@ void TitleScene::DrawImGui(GameApp& app) {
     ImGui::Begin("Camera Debug");
     ImGui::DragFloat3("Position", &imguiCamPos_.x, 0.1f);
     ImGui::DragFloat3("Rotation", &imguiCamRot_.x, 0.01f);
+
+    ImGui::Separator();
+    ImGui::Checkbox("Show Poker Effect Preview", &showPokerEffectPreview_);
+    ImGui::SliderInt("Preview Hover", &debugPokerHoverIndex_, -1, 3);
     ImGui::End();
 
-    // 他の ImGui もここにまとめる
+    if (debugFieldUi_) {
+        debugFieldUi_->DrawImGui();
+    }
 #endif
 }
 

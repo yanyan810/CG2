@@ -19,6 +19,7 @@ class SpriteCommon;
 class Player;
 class Enemy;
 class EnemyManager;
+class FieldUi;
 
 class BattleController {
 public:
@@ -55,7 +56,7 @@ public:
     };
 
     void Initialize(GameApp& app, Camera* camera);
-    void Update(GameApp& app, float dt);
+    void Update(GameApp& app, FieldUi& fieldUi, float dt);
     void Draw3D(GameApp& app);
     void Draw2D(GameApp& app);
 
@@ -111,6 +112,11 @@ public:
     void UpdateFieldCardTransform_(int index, bool hovered, float dt);
     void RefreshAllFieldCardTransforms_(float dt);
 
+    PokerBonus GetCurrentPokerBonusForUi() const;
+
+    PokerHandRank GetCurrentPokerRankForUi() const { return currentPoker_.rank; }
+
+
     void Finalize() {
         fieldViews_.clear();
         discardView_.reset();
@@ -152,6 +158,8 @@ private:
     std::vector<CardInstance> field_;
     std::vector<std::unique_ptr<Card3D>> fieldViews_;
     std::unique_ptr<Card3D> discardView_;
+
+	std::unique_ptr<FieldUi> fieldUi_;
 
     int energyMax_ = 50;
     int energy_ = 50;
@@ -211,6 +219,15 @@ private:
     int playerTurnCount_ = 0;
     int enemyTurnCount_ = 0;
 
+    struct DamagePopup {
+        int damage = 0;
+        Vector3 pos;
+        float timer = 60.0f; // 60フレーム（約1秒）画面に留まる
+        std::vector<std::unique_ptr<Object3d>> digitModels; // 3Dモデルの配列
+    };
+    std::vector<DamagePopup> damagePopups_;
+
+    void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 
 private:
 
@@ -261,6 +278,8 @@ private:
 
     void PreloadCardAssets_();
 
+    int CalcFinalAttackDamage_(int baseDamage) const;
+    void ApplyDamageToEnemy_(Enemy& enemy, int damage);
 
 
 	float deltaTime_ = 0.0f;

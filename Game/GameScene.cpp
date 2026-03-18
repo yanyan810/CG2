@@ -157,19 +157,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	enemyMgr_.Update(dt);
 	enemyMgr_.SetLighting(light_);
 
-#ifdef USE_IMGUI
-
-	ImGui::Begin("Battle Debug");
-	battle_.DrawImGui();     // ★これ
-	ImGui::DragFloat2("position", &position_.x);
-	ImGui::DragFloat3("scale", &scale_.x);
-	/*costTextBg_->SetPosition(position_);
-	costTextBg_->SetScale(scale_);*/
-
-	ImGui::End();
-#endif
-
-	battle_.Update(app, dt);
+	battle_.Update(app, *fieldUi_,dt);
 
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
@@ -203,9 +191,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		fieldUi_->Update(app, battle_);
 	}
 
-	if (turnText_) {
-		turnText_->SetText(battle_.GetTurnUiText());
-	}
+
 
 	if (costText_) {
 		costText_->SetText(battle_.GetEnergyText());
@@ -255,10 +241,10 @@ void GameScene::Draw2D(GameApp& app) {
 		showDescBg = (def != nullptr) || battle_.ShouldShowOperationUi();
 	}
 
-	if (showDescBg && cardDescBg_) {
+	/*if (showDescBg && cardDescBg_) {
 		cardDescBg_->Update(view, proj);
 		cardDescBg_->Draw();
-	}
+	}*/
 
 	if (fieldUi_) {
 		fieldUi_->Draw(app);
@@ -287,10 +273,18 @@ void GameScene::Draw2D(GameApp& app) {
 void GameScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
 	ImGui::Begin("Battle Debug");
+
 	battle_.DrawImGui();
 
-
+	ImGui::DragFloat2("position", &position_.x);
+	ImGui::DragFloat3("scale", &scale_.x);
 
 	ImGui::End();
+
+	if (fieldUi_) {
+		fieldUi_->DrawImGui();
+	}
+
+
 #endif
 }
