@@ -45,4 +45,8 @@ private:
 
     std::unique_ptr<FieldUi> fieldUi_;
 
+    std::unique_ptr<TextSprite> turnText_;
+    std::unique_ptr<Sprite> turnTextBg_;
+
+
 };

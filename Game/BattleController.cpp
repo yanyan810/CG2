@@ -730,6 +730,8 @@ bool BattleController::DoesSubEffectConditionMatch_(const CardSubEffectDef& sub,
 
 void BattleController::StartPlayerTurn_()
 {
+	playerTurnCount_++;
+
 	energy_ = energyMax_;
 	DrawUntilFive_();
 
@@ -986,6 +988,7 @@ void BattleController::Update(GameApp& app, float dt)
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
+			enemyTurnCount_++;
 			enemyWait_ = 1.0f;
 			return;
 		}
@@ -995,6 +998,7 @@ void BattleController::Update(GameApp& app, float dt)
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
+			enemyTurnCount_++;
 			enemyWait_ = 1.0f;
 			return;
 		}
@@ -1066,6 +1070,7 @@ void BattleController::Update(GameApp& app, float dt)
 				" field=" + std::to_string(field_.size()) + "\n").c_str());
 
 			turn_ = TurnState::Enemy;
+			enemyTurnCount_++;
 			hasPendingCard_ = false;
 			pendingCard_ = {};
 			enemyWait_ = 1.0f;
@@ -1282,6 +1287,7 @@ void BattleController::Update(GameApp& app, float dt)
 							ConsumeFieldCards_();
 							cardState_ = CardInputState::Idle;
 							turn_ = TurnState::Enemy;
+							enemyTurnCount_++;
 							enemyWait_ = 1.0f;
 						} else {
 							// 手札のカードでの攻撃だった場合
@@ -1527,6 +1533,8 @@ void BattleController::DrawImGui()
 	Card3D::DrawAdjustImGui();
 
 	ImGui::Text("turn: %s", turn_ == TurnState::Player ? "Player" : "Enemy");
+	ImGui::Text("PlayerTurnCount : %d", playerTurnCount_);
+	ImGui::Text("EnemyTurnCount : %d", enemyTurnCount_);
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
 	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
 	ImGui::Text("field: %d", (int)field_.size());
@@ -1749,4 +1757,16 @@ std::wstring BattleController::GetCurrentPokerHandUiText() const
 	case PokerHandRank::RoyalStraightFlush: return L"役: ロイヤルストレートフラッシュ";
 	default: return L"役: ?";
 	}
+}
+
+std::wstring BattleController::GetTurnUiText() const
+{
+	std::wstring text;
+
+	switch (turn_) {
+	case TurnState::Player: return L"あなたのターン : " + std::to_wstring(playerTurnCount_);
+	case TurnState::Enemy: return L"あいてのターン : " + std::to_wstring(enemyTurnCount_);
+	}
+
+	return text;
 }
