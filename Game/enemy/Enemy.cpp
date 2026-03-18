@@ -23,28 +23,29 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	model_->Initialize(objCommon_, dx_);
 	model_->SetCamera(cam_);
 
-	// 今回はボスのモデルのみ読み込む
-	model_->SetModel("enemy/boss/boss.gltf");
-	model_->SetScale({ 3.0f, 3.0f, 3.0f });
+	if (type_ == EnemyType::Boss) {
+		model_->SetModel("enemy/boss/boss.gltf");
+		model_->SetScale({ 3.0f, 3.0f, 3.0f });
+		ai_.LoadPattern("resources/cards/Boos.json");
+	} else if (type_ == EnemyType::Slime) {
+		// ※もしスライム用の専用3Dモデルがあればここにパスを書きます。
+		// 今回は仮として「ボスのモデルを半分のサイズ(1.5)にしたもの」をスライムと見立てます！
+		model_->SetModel("enemy/boss/boss.gltf");
+		model_->SetScale({ 1.5f, 1.5f, 1.5f });
+		ai_.LoadPattern("resources/cards/Slime.json");
+	}
+
 	// エネミーを左側（プレイヤー側）に向かせる
 	rot_ = { 0.0f, -1.5708f, 0.0f };
 
-	// 待機アニメーションの再生
 	if (model_->HasAnimation()) {
 		model_->PlayAnimation("Idle", true);
 	}
 
-	// AIの初期化（もうHP管理など簡単なものだけ）
-	ai_.Reset(hp_);
+	// 読み込んだJSONの最大HPを、現在のHPにセットする
+	hp_ = ai_.GetMaxHP();
 
 	basePos_ = pos_;
-
-	if (type == EnemyType::Boss) {
-		ai_.LoadPattern("resources/cards/Boos.json");
-	}
-	else if (type == EnemyType::Slime) {
-		ai_.LoadPattern("resources/cards/Slime.json");
-	}
 }
 
 void Enemy::PlayAttackAnim(const Vector3& targetPos) {

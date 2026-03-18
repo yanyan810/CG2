@@ -11,10 +11,61 @@
 #include <chrono>
 #include <thread>
 
+#include "Root.h"
+
+enum ShaderType {
+	kPostEffect,
+	kShadow,
+};
+
+enum PostEffectType {
+	Bloom_Extract,
+	Bloom_Downsample,
+	Bloom_BlurH,
+	Bloom_BlurV,
+	Bloom_Composite,
+};
+
 class DirectXCommon
 {
 
 public:
+
+	struct PSO {
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsDesc_{};
+		Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsState_ = nullptr;
+		Root root_;
+		Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob_ = nullptr;
+		Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob_ = nullptr;
+		ShaderType shaderType_;
+		std::wstring vsFilePath_;
+		std::wstring psFilePath_;
+		PostEffectType postEffectType_;
+	};
+
+	PSO& GetPSOEffect(PostEffectType effect) {
+		switch (effect)
+		{
+		case Bloom_Extract:
+			return bloomPSO;
+			break;
+		case Bloom_Downsample:
+			return downsamplePSO;
+			break;
+		case Bloom_BlurH:
+			return blurHPSO;
+			break;
+		case Bloom_BlurV:
+			return blurVPSO;
+			break;
+		case Bloom_Composite:
+			return conpositePSO;
+			break;
+		}
+		return bloomPSO;
+	}
+
+
 	void	Initialize(WinApp* winApp);
 
 	//描画前処理
@@ -51,7 +102,8 @@ public:
 	ID3D12Device* GetDevice() const { return device_.Get(); }
 	ID3D12GraphicsCommandList* GetCommandList() const { return commandList.Get(); }
 
-
+	void CreateShaderCommon(PSO& pso);
+	void CreateShader();
 
 	void ReportLiveObjects();
 
@@ -64,6 +116,7 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource>CreateBufferResource(size_t sizeInBytes);
 
 	Microsoft::WRL::ComPtr<ID3D12Resource>CreateTextureResource(const DirectX::TexMetadata& metadata);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResourceRenderTexture(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, const D3D12_CLEAR_VALUE* clearValue);
 
 	void UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages);
 
@@ -103,6 +156,10 @@ public:
 	static	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr < ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriporSize, uint32_t index);
 
 
+	D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc() { return rtvDesc; }
+	DXGI_SWAP_CHAIN_DESC1 GetSwapChainDesc() { return swapChainDesc; }
+
+	void ExecuteCommandListAndWait();
 
 private:
 
@@ -124,7 +181,6 @@ private:
 	void InitializeFixFPS();
 	//FPS固定更新
 	void UpdateFixFPS();
-
 
 private:
 
@@ -187,6 +243,33 @@ private:
 
 	// 現在のFPS
 	float fps_ = 0.0f;
+
+	PSO objectPSO_None;
+	PSO objectPSO_Alpha;
+	PSO psoParticle_;
+	PSO psoModelParticle_;
+	PSO bloomPSO;
+	PSO downsamplePSO;
+	PSO blurHPSO;
+	PSO blurVPSO;
+	PSO conpositePSO;
+	PSO shadowPSO;
+	ShaderType shaderType_;
+
+	void CommandListExecuteAndReset();
+
+	public:
+
+		void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+		void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+
+		void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+
+		void ClearDepthBuffer();
+
+		void SetBackBuffer();
+
+		void SetViewport(uint32_t width, uint32_t height);
 
 };
 

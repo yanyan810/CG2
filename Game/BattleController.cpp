@@ -203,6 +203,7 @@ void BattleController::ConsumeFieldCards_()
 	field_.clear();
 	fieldViews_.clear();
 	RebuildDiscardView_();
+	fieldLayoutDirty_ = true;
 }
 
 namespace {
@@ -635,7 +636,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}*/
 
 		} else if (effect.type == "Block") {
-			// 例: playerBlock_ += effect.value;
+			if (player_) {
+				player_->AddBlock(effect.value);
+			}
 
 		} else if (effect.type == "NextTurnAtkUp") {
 			nextTurnAtkUp_ += effect.value;
@@ -730,6 +733,9 @@ bool BattleController::DoesSubEffectConditionMatch_(const CardSubEffectDef& sub,
 
 void BattleController::StartPlayerTurn_()
 {
+	if (player_) {
+		player_->ResetBlock();
+	}
 	playerTurnCount_++;
 
 	energy_ = energyMax_;
@@ -898,6 +904,52 @@ void BattleController::RebuildFieldView_()
 
 		fieldViews_.push_back(std::move(card));
 	}
+
+	fieldLayoutDirty_ = true;
+}
+
+void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float dt)
+{
+	if (index < 0 || index >= (int)fieldViews_.size()) {
+		return;
+	}
+
+	const int fieldCount = (int)fieldViews_.size();
+	if (fieldCount <= 0) {
+		return;
+	}
+
+	const float y = -5.0f;
+	const float z = 5.0f;
+	const float gap = 5.0f;
+	const float startX = -gap * 0.5f * (fieldCount - 1);
+
+	Vector3 pos{ startX + gap * index, y, z };
+	Vector3 rot{ 0.0f, 0.0f, 0.0f };
+	Vector3 scl{ 1.15f, 1.15f, 1.15f };
+
+	if (hovered) {
+	/*	pos.y += 0.35f;
+		pos.z -= 0.25f;
+		scl = { 1.28f, 1.28f, 1.28f };*/
+
+		pos.y += 0.18f;
+		pos.z -= 0.08f;
+		scl = { 1.18f, 1.18f, 1.18f };
+
+	}
+
+	fieldViews_[index]->SetTransform(pos, rot, scl);
+	fieldViews_[index]->Update(dt);
+}
+
+void BattleController::RefreshAllFieldCardTransforms_(float dt)
+{
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		const bool hovered =
+			(cardState_ == CardInputState::ChoosingFieldReplace && i == fieldReplaceHoverIndex_);
+		UpdateFieldCardTransform_(i, hovered, dt);
+	}
 }
 
 int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
@@ -1035,14 +1087,20 @@ void BattleController::Update(GameApp& app, float dt)
 
 		if (cardState_ != CardInputState::ChoosingFieldReplace) {
 			fieldReplaceHoverIndex_ = -1;
+			prevFieldReplaceHoverIndex_ = -1;
 		}
 
-		int hover = handView_.PickIndexByMouse(
-			mouse.x, mouse.y,
-			cam_->GetViewProjectionMatrix(),
-			(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-		);
-		handView_.SetHoverIndex(hover);
+		if (cardState_ == CardInputState::ChoosingFieldReplace ||
+			cardState_ == CardInputState::Preview) {
+			handView_.SetHoverIndex(-1);
+		} else {
+			int hover = handView_.PickIndexByMouse(
+				mouse.x, mouse.y,
+				cam_->GetViewProjectionMatrix(),
+				(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
+			);
+			handView_.SetHoverIndex(hover);
+		}
 	} else {
 		handView_.SetHoverIndex(-1);
 	}
@@ -1060,6 +1118,7 @@ void BattleController::Update(GameApp& app, float dt)
 
 		if (cardState_ != CardInputState::ChoosingFieldReplace) {
 			fieldReplaceHoverIndex_ = -1;
+			prevFieldReplaceHoverIndex_ = -1;
 		}
 
 		if (enterTrig && cardState_ == CardInputState::Idle) {
@@ -1079,8 +1138,11 @@ void BattleController::Update(GameApp& app, float dt)
 			handView_.SetPreviewIndex(-1);
 			selectedIndex_ = -1;
 			cardState_ = CardInputState::Idle;
+			fieldReplaceHoverIndex_ = -1;
+			prevFieldReplaceHoverIndex_ = -1;
 		} else {
-			if (cardState_ != CardInputState::Preview) {
+			if (cardState_ != CardInputState::Preview &&
+				cardState_ != CardInputState::ChoosingFieldReplace) {
 				int hover = handView_.PickIndexByMouse(
 					mouse.x, mouse.y,
 					cam_->GetViewProjectionMatrix(),
@@ -1217,7 +1279,12 @@ void BattleController::Update(GameApp& app, float dt)
 
 			case CardInputState::ChoosingFieldReplace:
 			{
-				fieldReplaceHoverIndex_ = PickFieldIndexByMouse_(mouse.x, mouse.y);
+				int newHover = PickFieldIndexByMouse_(mouse.x, mouse.y);
+
+				if (newHover != fieldReplaceHoverIndex_) {
+					fieldReplaceHoverIndex_ = newHover;
+					fieldLayoutDirty_ = true;
+				}
 
 				if (lTrig) {
 					int replaceIndex = fieldReplaceHoverIndex_;
@@ -1237,7 +1304,9 @@ void BattleController::Update(GameApp& app, float dt)
 						hasPendingCard_ = false;
 						pendingCard_ = {};
 						fieldReplaceHoverIndex_ = -1;
+						prevFieldReplaceHoverIndex_ = -1;
 						cardState_ = CardInputState::Idle;
+						fieldLayoutDirty_ = true;
 					}
 				}
 
@@ -1247,9 +1316,12 @@ void BattleController::Update(GameApp& app, float dt)
 					}
 					hasPendingCard_ = false;
 					pendingCard_ = {};
+
 					fieldReplaceHoverIndex_ = -1;
+					prevFieldReplaceHoverIndex_ = -1;
 					cardState_ = CardInputState::Idle;
 					RebuildDiscardView_();
+					fieldLayoutDirty_ = true;
 				}
 
 				handView_.SetHoverIndex(-1);
@@ -1395,32 +1467,9 @@ void BattleController::Update(GameApp& app, float dt)
 
 	handView_.Update(dt);
 
-	//for (auto& c : fieldViews_) {
-	//	c->Update(dt);
-	//}
-
-	const int fieldCount = (int)fieldViews_.size();
-	if (fieldCount > 0) {
-		const float y = -5.0f;
-		const float z = 5.0f;
-		const float gap = 5.0f;
-		const float startX = -gap * 0.5f * (fieldCount - 1);
-
-		for (int i = 0; i < fieldCount; ++i) {
-			Vector3 pos{ startX + gap * i, y, z };
-			Vector3 rot{ 0.0f, 0.0f, 0.0f };
-			Vector3 scl{ 1.15f, 1.15f, 1.15f };
-
-			if (cardState_ == CardInputState::ChoosingFieldReplace &&
-				i == fieldReplaceHoverIndex_) {
-				pos.y += 0.35f;
-				pos.z -= 0.25f;
-				scl = { 1.28f, 1.28f, 1.28f };
-			}
-
-			fieldViews_[i]->SetTransform(pos, rot, scl);
-			fieldViews_[i]->Update(dt);
-		}
+	if (fieldLayoutDirty_) {
+		RefreshAllFieldCardTransforms_(dt);
+		fieldLayoutDirty_ = false;
 	}
 
 	if (discardView_) {
@@ -1490,6 +1539,13 @@ void BattleController::Update(GameApp& app, float dt)
 	} else {
 		UpdateCostViewTransform_(dt);
 	}
+
+
+	//if (cardState_ == CardInputState::ChoosingFieldReplace) {
+	//	RefreshAllFieldCardTransforms_(dt);
+	//}
+
+
 
 	// --------------------------------------------------
 	// スプライトの更新
@@ -1609,6 +1665,7 @@ void BattleController::DrawImGui()
 
 	ImGui::Text("Player Hp: %d", player_->GetHP());
 	ImGui::Text("Enemy  Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
+	ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
 
 }
 #endif
@@ -1769,4 +1826,14 @@ std::wstring BattleController::GetTurnUiText() const
 	}
 
 	return text;
+}
+
+std::wstring BattleController::GetEnergyText() const {
+
+	std::wstring text;
+
+	text += std::to_wstring(energy_) + L" / " + std::to_wstring(energyMax_);
+
+	return text;
+
 }

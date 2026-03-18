@@ -45,8 +45,14 @@ private:
 
     std::unique_ptr<FieldUi> fieldUi_;
 
+    // ターン数描画関連
     std::unique_ptr<TextSprite> turnText_;
     std::unique_ptr<Sprite> turnTextBg_;
 
+    // コスト描画関連
+    std::unique_ptr<TextSprite> costText_;
+    std::unique_ptr<Sprite> costTextBg_;
+    Vector2 position_;
+    Vector3 scale_;
 
 };

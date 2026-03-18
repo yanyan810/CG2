@@ -40,11 +40,17 @@ int GameApp::Run() {
 
         sceneMgr_->Update(*this, dt);
 
+        bloom_->Update();
+
         dx_->PreDraw();
         srv_->PreDraw();
 
+        bloom_->PreDraw();
+
         Draw3D();
         Draw2D();
+
+        bloom_->PostDraw();
 
 #ifdef USE_IMGUI
         DrawImGui();
@@ -69,6 +75,12 @@ bool GameApp::Initialize_() {
 
     srv_ = std::make_unique<SrvManager>();
     srv_->Initialize(dx_.get());
+
+    rtv_ = std::make_unique<RtvManager>();
+    rtv_->Initialize(dx_.get());
+
+    bloom_ = std::make_unique<Bloom>();
+    bloom_->Initialize(dx_.get(), srv_.get(), rtv_.get());
 
     spriteCommon_ = std::make_unique<SpriteCommon>();
     spriteCommon_->Initialize(dx_.get());

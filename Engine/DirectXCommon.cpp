@@ -238,6 +238,36 @@ Microsoft::WRL::ComPtr<ID3D12Resource>DirectXCommon::CreateTextureResource(const
 	return resource;
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResourceRenderTexture(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, const D3D12_CLEAR_VALUE* clearValue)
+{
+	D3D12_RESOURCE_DESC desc{};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	desc.Width = width;
+	desc.Height = height;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = format;
+	desc.SampleDesc.Count = 1;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	desc.Flags = flags;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+
+	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+
+	HRESULT hr = device_->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		clearValue,
+		IID_PPV_ARGS(&resource)
+	);
+	assert(SUCCEEDED(hr));
+
+	return resource;
+}
+
 // DirectXCommon.cpp
 void DirectXCommon::UploadTextureData(
 	const Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
@@ -316,14 +346,16 @@ void DirectXCommon::Initialize(WinApp* winApp) {
 	RenderTargetViewInitialize();
 	DepthStencilViewInitialize();
 	FanceInitialize();
-	ViewPortInitialize();
-	SizeringInitialize();
+	//ViewPortInitialize();
+	//SizeringInitialize();
 	DXCCompilierSpawn();
 //	ImGuiInitialize();
 
 	HRESULT hr = commandList->Close();                                // いったん閉じる（開いていてもOK）
 	hr = commandAllocator->Reset();                                    // アロケータをリセット
 	hr = commandList->Reset(commandAllocator.Get(), nullptr);          // 開き直す（←重要）
+
+	CreateShader();
 
 }
 
@@ -686,85 +718,58 @@ void DirectXCommon::UpdateFixFPS() {
 
 
 void DirectXCommon::PreDraw() {
-	const UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-	// Present → RenderTarget
+	// これから書き込むバックバッファのインデックスを取得
+	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+	// TransitionBarrierの設定
 	D3D12_RESOURCE_BARRIER barrier{};
+	// 今回のバリアはTransition
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	// Noneにしておく
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	// バリアを張る対象のリソース。現在のバックバッファに対して行う
 	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
+	// 遷移前(現在)のResourceState
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	// 遷移後のResourceState
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	// TransitionBarrierを張る
 	commandList->ResourceBarrier(1, &barrier);
-
-	// ★ “今の”バックバッファの RTV をセット（固定 0 を使わない）
-	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], FALSE, &dsvHandle);
-
-	// クリア
-	const float clearColor[4] = { 0.10f, 0.25f, 0.50f, 1.0f };
+	// 描画先のRTVとDSVを設定する
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
+	// 指定した色で画面全体をクリアする
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	//float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f };
 	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+	// 指定して深度で画面全体をクリアする
 	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	// VP/Scissor
-	commandList->RSSetViewports(1, &viewport);
-	commandList->RSSetScissorRects(1, &scissorRect);
-
+	SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 }
-
-
-// DirectXCommon::PostDraw()
 
 void DirectXCommon::PostDraw() {
-	const UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-	// ← このログは誤解を招く名前なので移動＆名前修正（後述）
-	// OutputDebugStringA(std::format("[PreDraw] backBufferIndex = {}\n", backBufferIndex).c_str());
-
-	// RenderTarget → Present
+	// これから書き込むバックバッファのインデックスを取得
+	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+	// TransitionBarrierの設定
 	D3D12_RESOURCE_BARRIER barrier{};
+	// 今回のバリアはTransition
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	// Noneにしておく
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	// バリアを張る対象のリソース。現在のバックバッファに対して行う
 	barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
+	// 遷移前(現在)のResourceState
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	// 遷移後のResourceState
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	// TranssitionBarrierを張る
 	commandList->ResourceBarrier(1, &barrier);
 
-	HRESULT hr = commandList->Close(); assert(SUCCEEDED(hr));
-	ID3D12CommandList* lists[] = { commandList.Get() };
-	commandQueue->ExecuteCommandLists(1, lists);
+	CommandListExecuteAndReset();
 
-	UpdateFixFPS();
-
-	hr = swapChain->Present(1, 0);
-	if (FAILED(hr)) {
-		char buf[256];
-		sprintf_s(buf, "[Present] hr=0x%08X\n", hr);
-		OutputDebugStringA(buf);
-
-		HRESULT reason = device_->GetDeviceRemovedReason();
-		sprintf_s(buf, "[DeviceRemovedReason] 0x%08X\n", reason);
-		OutputDebugStringA(buf);
-	}
-
-	if (hr == DXGI_STATUS_OCCLUDED) {
-		// 画面が隠れている場合。インデックスが進まないのは正常なので待つ
-		Sleep(16);
-	}
-
-	// フェンス待ち → Reset
-	fenceValue++;
-	hr = commandQueue->Signal(fence.Get(), fenceValue); assert(SUCCEEDED(hr));
-	if (fence->GetCompletedValue() < fenceValue) {
-		hr = fence->SetEventOnCompletion(fenceValue, fenceEvent); assert(SUCCEEDED(hr));
-		WaitForSingleObject(fenceEvent, INFINITE);
-	}
-	hr = commandAllocator->Reset();                           assert(SUCCEEDED(hr));
-	hr = commandList->Reset(commandAllocator.Get(), nullptr); assert(SUCCEEDED(hr));
-
-	// ★ここで「今フレームの Present 後」の index をログ
-	const UINT idxAfter = swapChain->GetCurrentBackBufferIndex();
-	OutputDebugStringA(std::format("[After Present] backBufferIndex = {}\n", idxAfter).c_str());
 }
+
 
 void DirectXCommon::ReportLiveObjects()
 {
@@ -824,4 +829,250 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
 	const wchar_t* profile
 ) {
 	return CompilesSharder(filePath, profile);
+}
+
+void DirectXCommon::CommandListExecuteAndReset()
+{
+
+	// コマンドリストの内容を確定させるすべてのコマンドを積んでからCloseすること
+	HRESULT hr = commandList->Close();
+	assert(SUCCEEDED(hr));
+
+	// GPUにコマンドリストの実行を行わせる
+	ID3D12CommandList* commandLists[] = { commandList.Get() };
+	commandQueue->ExecuteCommandLists(1, commandLists);
+	//GPUとOSに画面の交換を行うよう通知する
+	swapChain->Present(1, 0);
+	// fenceの値を更新
+	fenceValue++;
+	// GPUがここまでたどり着いたときに、Fenceの値を指定して値に代入するようにSignalを送る
+	commandQueue->Signal(fence.Get(), fenceValue);
+	// Fenceの値が指定したSignal値にたどり着いているか確認する
+	// GetCompletedValueの初期値はFence作成時に渡した初期値
+	if (fence->GetCompletedValue() < fenceValue) {
+		// 指定したSignalにたどり着いていないので、たどり着くまで待つようにイベントを設定する
+		fence->SetEventOnCompletion(fenceValue, fenceEvent);
+		// イベント待つ
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+
+	// FPS固定
+	UpdateFixFPS();
+
+	// 次のフレーム用のコマンドリストを準備
+	hr = commandAllocator->Reset();
+	assert(SUCCEEDED(hr));
+	hr = commandList->Reset(commandAllocator.Get(), nullptr);
+	assert(SUCCEEDED(hr));
+}
+
+void DirectXCommon::SetRenderTarget(
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
+	//D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle
+) {
+
+	commandList->OMSetRenderTargets(
+		1,
+		&rtvHandle,
+		false,
+		&dsvHandle
+	);
+}
+
+void DirectXCommon::SetRenderTargetNoDepth(
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
+) {
+	commandList->OMSetRenderTargets(
+		1,
+		&rtvHandle,
+		false,
+		nullptr
+	);
+}
+
+void DirectXCommon::ClearRenderTarget(
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
+) {
+	float clearColor[4] = { 0, 0, 0, 1 };
+	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+}
+
+void DirectXCommon::ClearDepthBuffer() {
+	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+}
+
+void DirectXCommon::SetBackBuffer() {
+
+	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtvHandles[backBufferIndex];
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv =
+		dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+
+	commandList->OMSetRenderTargets(
+		1,
+		&rtv,
+		false,
+		&dsv
+	);
+}
+
+void DirectXCommon::SetViewport(uint32_t width, uint32_t height)
+{
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.Width = FLOAT(width);
+	viewport.Height = FLOAT(height);
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+
+	scissorRect.left = 0;
+	scissorRect.top = 0;
+	scissorRect.right = LONG(width);
+	scissorRect.bottom = LONG(height);
+
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
+}
+
+void DirectXCommon::CreateShaderCommon(PSO& pso)
+{
+	// 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
+	switch (pso.shaderType_)
+	{
+
+	case kShadow:
+		pso.root_.InitalizeForShadow();
+		pso.vsFilePath_ = L"resources/shaders/Shadow.VS.hlsl";
+		pso.psFilePath_ = L"";
+		break;
+	case kPostEffect:
+		pso.root_.InitializeForPostEffect();
+		pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
+		switch (pso.postEffectType_) {
+		case Bloom_Extract:   pso.psFilePath_ = L"resources/shaders/BloomExtract.PS.hlsl"; break;
+		case Bloom_Downsample:pso.psFilePath_ = L"resources/shaders/BloomDownsample.PS.hlsl"; break;
+		case Bloom_BlurH:      pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl"; break;
+		case Bloom_BlurV:      pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
+		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
+		}
+		break;
+	default: assert(false); break;
+	}
+
+	// 2. ルートシグネチャ生成
+	pso.root_.Create(device_);
+
+	// 3. シェーダーコンパイル
+	pso.vertexShaderBlob_ = CompileShader(pso.vsFilePath_, L"vs_6_0");
+	assert(pso.vertexShaderBlob_ != nullptr);
+
+	pso.pixelShaderBlob_ = nullptr;
+	if (pso.shaderType_ != kShadow && !pso.psFilePath_.empty()) {
+		pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
+		assert(pso.pixelShaderBlob_ != nullptr);
+	}
+
+	// 4. グラフィックスパイプライン記述子の初期化
+	ZeroMemory(&pso.graphicsDesc_, sizeof(pso.graphicsDesc_));
+
+	// --- 旧 State クラスの処理をここに統合 ---
+
+	// [RasterizerState] の設定
+	pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	pso.graphicsDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+
+	// [BlendState] の設定
+	pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	if (pso.postEffectType_ == Bloom_Composite) {
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	} else {
+		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
+	}
+
+	// [DepthStencilState] のデフォルト設定
+	pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+	pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	// --- 統合ここまで ---
+
+	// 5. 個別設定の上書き (Shadow / PostEffect / Normal)
+	pso.graphicsDesc_.pRootSignature = pso.root_.GetSignature().Get();
+	pso.graphicsDesc_.VS = { pso.vertexShaderBlob_->GetBufferPointer(), pso.vertexShaderBlob_->GetBufferSize() };
+	if (pso.pixelShaderBlob_) {
+		pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(), pso.pixelShaderBlob_->GetBufferSize() };
+	}
+
+	if (pso.shaderType_ == kShadow) {
+		pso.graphicsDesc_.NumRenderTargets = 0;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		// Shadow用に比較関数を調整（必要に応じて）
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		//pso.inputDesc_.Initialize();
+		//pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
+	} else if (pso.shaderType_ == kPostEffect) {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
+		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
+	}
+	// 6. 残りの共通設定
+	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pso.graphicsDesc_.SampleDesc.Count = 1;
+	pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+	// 7. PSO生成
+	HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_, IID_PPV_ARGS(&pso.graphicsState_));
+	assert(SUCCEEDED(hr));
+}
+
+void DirectXCommon::CreateShader()
+{
+
+	bloomPSO.shaderType_ = kPostEffect;
+	bloomPSO.postEffectType_ = Bloom_Extract;
+	blurHPSO.shaderType_ = kPostEffect;
+	blurHPSO.postEffectType_ = Bloom_BlurH;
+	blurVPSO.shaderType_ = kPostEffect;
+	blurVPSO.postEffectType_ = Bloom_BlurV;
+	conpositePSO.shaderType_ = kPostEffect;
+	conpositePSO.postEffectType_ = Bloom_Composite;
+	downsamplePSO.shaderType_ = kPostEffect;
+	downsamplePSO.postEffectType_ = Bloom_Downsample;
+
+	CreateShaderCommon(bloomPSO);
+	CreateShaderCommon(blurHPSO);
+	CreateShaderCommon(blurVPSO);
+	CreateShaderCommon(conpositePSO);
+	CreateShaderCommon(downsamplePSO);
+}
+
+void DirectXCommon::ExecuteCommandListAndWait()
+{
+	// Close
+	commandList->Close();
+
+	// 実行
+	ID3D12CommandList* lists[] = { commandList.Get() };
+	commandQueue->ExecuteCommandLists(1, lists);
+
+	// Fence
+	fenceValue++;
+	commandQueue->Signal(fence.Get(), fenceValue);
+	if (fence->GetCompletedValue() < fenceValue) {
+		fence->SetEventOnCompletion(fenceValue, fenceEvent);
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+
+	// Reset
+	commandAllocator->Reset();
+	commandList->Reset(commandAllocator.Get(), nullptr);
 }
