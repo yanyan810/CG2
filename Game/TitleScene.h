@@ -14,7 +14,7 @@
 #include "Player.h"
 #include "PlayerCombo.h"
 
-
+#include "FieldUi.h"
 
 class Particle;
 class Camera;
@@ -186,5 +186,11 @@ private:
 
 	SRT srtObj1_{};
 	SRT srtObj2_{};
+
+
+	//テストUi用
+	std::unique_ptr<FieldUi> debugFieldUi_;
+	bool showPokerEffectPreview_ = true;
+	int debugPokerHoverIndex_ = -1;
 
 };

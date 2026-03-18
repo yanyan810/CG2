@@ -23,6 +23,39 @@ struct PokerEffectChoiceLayout {
     UiVec2 effectTexts[3];
 };
 
+struct UiText {
+    float x;
+    float y;
+    float scale;
+};
+
+
+struct FieldUiLayout {
+
+    UiRect cardDescBg;
+    UiText cardDescText;
+
+    UiRect deckBg;
+    UiText deckText;
+
+    UiRect discardBg;
+    UiText discardText;
+
+    UiRect handBg;
+    UiText handText;
+
+    UiRect fieldBg;
+    UiText fieldText;
+
+    UiRect turnBg;
+    UiText turnText;
+
+    UiRect costBg;
+    UiText costText;
+
+    UiRect overlay;
+};
+
 inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 {
     PokerEffectChoiceLayout l{};
