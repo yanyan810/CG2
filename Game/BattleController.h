@@ -64,6 +64,8 @@ public:
     int GetDiscardCount() const { return static_cast<int>(discard_.size()); }
     int GetFieldCount() const { return static_cast<int>(field_.size()); }
     std::wstring GetCurrentPokerHandUiText() const;
+    std::wstring GetTurnUiText() const;
+    std::wstring GetEnergyText() const;
 
 #ifdef USE_IMGUI
     void DrawImGui();
@@ -188,7 +190,8 @@ private:
     int prevEnergy_ = -1;
     int prevEnergyMax_ = -1;
 
- 
+    int playerTurnCount_ = 0;
+    int enemyTurnCount_ = 0;
 
 private:
 
