@@ -28,7 +28,13 @@ public:
     void Draw();
 
     bool IsAlive() const { return alive_; }
-    void Damage(int damage) { hp_ -= damage; if (hp_ < 0) hp_ = 0; }
+    void Damage(int damage) {
+        hp_ -= damage;
+        if (hp_ < 0) {
+            hp_ = 0;
+            alive_ = false;
+        }
+    }
     int GetHP() const { return hp_; }
     int GetMaxHP() const { return ai_.GetMaxHP(); }
     void SetHighlight(bool enable) { isHighlighted_ = enable; }

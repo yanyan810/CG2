@@ -2107,3 +2107,11 @@ BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
 {
 	return GetPokerBonus_(currentPoker_.rank);
 }
+
+bool BattleController::IsAllEnemiesDead() const {
+	auto& enemies = enemyMgr_->GetEnemies();
+	for (auto& e : enemies) {
+		if (e.IsAlive()) return false; // 一人でも生きていたらfalse
+	}
+	return true; // 全員死んでいたらtrue
+}
