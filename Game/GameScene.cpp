@@ -2,6 +2,7 @@
 #include "GameApp.h"
 #include "Input.h"
 #include "ModelParticleManager.h"
+#include <random>
 
 static std::wstring Utf8ToWString(const std::string& s)
 {
@@ -17,12 +18,18 @@ void GameScene::OnEnter(GameApp& app) {
 	// 1. カメラの初期化と設定
 	// --------------------------------------------------
 	camera_ = std::make_unique<Camera>();
-
-	// ★カメラを原点(0, 0, 0)に配置し、少しだけ見下ろす角度に
-	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f }); // 高さを4.0fにして見下ろす
-	camera_->SetRotate({ 0.15f, 0.0f, 0.0f });     // 軽く見下ろす角度
+	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+	camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
 	app.ObjCom()->SetDefaultCamera(camera_.get());
 
+	animCamera_ = std::make_unique<Camera>();
+	animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+	animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+
+	cameraAnim_ = std::make_unique<CameraAnimator>();
+	cameraAnim_->Initialize(animCamera_.get());
+	ChangeRandomCamera();
+	
 	// --------------------------------------------------
 	// 2. 背景（天球）の初期化
 	// --------------------------------------------------
@@ -85,31 +92,6 @@ void GameScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
-	//// ターン数描画関連
-	//turnText_ = std::make_unique<TextSprite>();
-	//turnText_->Initialize(app.SpriteCom(), app.Dx());
-	//turnText_->SetSize({ 1.0f,1.0f,1.0f });
-	//turnText_->SetPosition({ 500.0f, 20.0f });
-	//turnTextBg_ = std::make_unique<Sprite>();
-	//turnTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	//turnTextBg_->SetPosition({ 490.f,25.f });
-	//turnTextBg_->SetScale({ 250.f,60.f,1.f });
-	//turnTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
-
-	//// コスト描画関連
-	//position_ = { 90.f,420.f };
-	//scale_ = { 900.f,180.f,1.f };
-
-	//costText_ = std::make_unique<TextSprite>();
-	//costText_->Initialize(app.SpriteCom(), app.Dx());
-	//costText_->SetSize({ 1.0f,1.0f,1.0f });
-	//costText_->SetPosition({ 90.0f, 400.0f });
-	//costTextBg_ = std::make_unique<Sprite>();
-	//costTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	//costTextBg_->SetPosition({ 75.f,405.f });
-	//costTextBg_->SetScale({ 170.f,55.f,1.f });
-	//costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
-
 	// プレイヤーHP数字
 	playerHpText_ = std::make_unique<TextSprite>();
 	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
@@ -149,9 +131,19 @@ void GameScene::Update(GameApp& app, float dt) {
 	Input* input = app.GetInput();
 	if (!input) return;
 
-	
+	if (cameraAnim_) {
+		if (cameraAnim_->Update(dt)) {
+			ChangeRandomCamera();
+		}
+	}
 
-	camera_->Update();
+	if (camera_) {
+		camera_->Update();     // 固定カメラの更新
+	}
+	if (animCamera_) {
+		animCamera_->Update(); // 動くカメラの更新
+	}
+	
 
 	// ESCキーでタイトルへ戻る
 	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
@@ -170,6 +162,21 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	enemyMgr_.Update(dt);
 	enemyMgr_.SetLighting(light_);
+
+	// 天球（背景）に動くカメラをセット
+	if (skyDome_) {
+		skyDome_->SetCamera(animCamera_.get());
+	}
+
+	// プレイヤーに動くカメラをセット
+	if (player_) {
+		player_->SetCamera(animCamera_.get());
+	}
+
+	// すべての敵に動くカメラをセット
+	for (auto& enemy : enemyMgr_.GetEnemies()) {
+		enemy.SetCamera(animCamera_.get());
+	}
 
 	battle_.Update(app, *fieldUi_,dt);
 
@@ -289,13 +296,21 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	//playerHpText_->SetPosition(position_);
 
-	ImGui::End();
-
+	if (cameraAnim_) {
+		cameraAnim_->DrawImGui();
+	}
+	if (ImGui::Button("Test: Change Camera!")) {
+		ChangeRandomCamera();
+	}
 	if (fieldUi_) {
 		fieldUi_->DrawImGui();
 	}
 
+	ImGui::End();
 
+	
+
+	
 #endif
 }
 
@@ -325,4 +340,22 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 void GameScene::DrawPostEffect2D(GameApp& app)
 {
 
+}
+
+void GameScene::ChangeRandomCamera() {
+	if (!cameraAnim_) return;
+
+	// 1〜3のランダムな数字を作る
+	static std::random_device rd;
+	static std::mt19937 gen(rd());
+	std::uniform_int_distribution<int> dist(1, 3);
+	int randomId = dist(gen);
+
+	// ファイル名を組み立てて読み込む
+	std::string filepath = "resources/camera/camera_idle_" + std::to_string(randomId) + ".json";
+
+	std::string msg = ">>> Camera Changed: " + filepath + "\n";
+	OutputDebugStringA(msg.c_str());
+	
+	cameraAnim_->LoadFromJson(filepath);
 }
