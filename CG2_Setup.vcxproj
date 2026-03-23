@@ -233,6 +233,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\player\PlayerCombo.cpp" />
     <ClCompile Include="Game\player\Player.cpp" />
     <ClCompile Include="Game\TestScene.cpp" />
+    <ClCompile Include="Engine\ModelParticleManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -372,6 +373,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\UI\Card3D.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />
+    <ClInclude Include="Engine\ModelParticleManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

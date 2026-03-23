@@ -940,7 +940,11 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 	// 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
 	switch (pso.shaderType_)
 	{
-
+	case kModelParticle:
+		pso.root_.InitalizeForModelParticle();
+		pso.vsFilePath_ = L"resources/shaders/ModelParticle.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/ModelParticle.PS.hlsl";
+		break;
 	case kShadow:
 		pso.root_.InitalizeForShadow();
 		pso.vsFilePath_ = L"resources/shaders/Shadow.VS.hlsl";
@@ -984,7 +988,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 
 	// [BlendState] の設定
 	pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	if (pso.postEffectType_ == Bloom_Composite) {
+	if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle) {
 		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
 		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -1023,7 +1027,34 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
 		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
 		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
+	} else {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		pso.elementDescs_[0].SemanticName = "POSITION";
+		pso.elementDescs_[0].SemanticIndex = 0;
+		pso.elementDescs_[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		pso.elementDescs_[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		pso.elementDescs_[1].SemanticName = "TEXCOORD";
+		pso.elementDescs_[1].SemanticIndex = 0;
+		pso.elementDescs_[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+		pso.elementDescs_[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		pso.elementDescs_[2].SemanticName = "NORMAL";
+		pso.elementDescs_[2].SemanticIndex = 0;
+		pso.elementDescs_[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		pso.elementDescs_[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+		pso.layout_.pInputElementDescs = pso.elementDescs_;
+		pso.layout_.NumElements = _countof(pso.elementDescs_);
+
+		pso.graphicsDesc_.InputLayout = pso.layout_;
+		// ★ここを確実に設定！
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	}
+
 	// 6. 残りの共通設定
 	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pso.graphicsDesc_.SampleDesc.Count = 1;
@@ -1048,11 +1079,14 @@ void DirectXCommon::CreateShader()
 	downsamplePSO.shaderType_ = kPostEffect;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
+	psoModelParticle_.shaderType_ = kModelParticle;
+
 	CreateShaderCommon(bloomPSO);
 	CreateShaderCommon(blurHPSO);
 	CreateShaderCommon(blurVPSO);
 	CreateShaderCommon(conpositePSO);
 	CreateShaderCommon(downsamplePSO);
+	CreateShaderCommon(psoModelParticle_);
 }
 
 void DirectXCommon::ExecuteCommandListAndWait()
@@ -1075,4 +1109,50 @@ void DirectXCommon::ExecuteCommandListAndWait()
 	// Reset
 	commandAllocator->Reset();
 	commandList->Reset(commandAllocator.Get(), nullptr);
+}
+
+void DirectXCommon::Release() {
+
+	bloomPSO.root_.GetSignatureBlob()->Release();
+	if (bloomPSO.root_.GetErrorBlob()) {
+		bloomPSO.root_.GetErrorBlob()->Release();
+	}
+	bloomPSO.pixelShaderBlob_->Release();
+	bloomPSO.vertexShaderBlob_->Release();
+
+	downsamplePSO.root_.GetSignatureBlob()->Release();
+	if (downsamplePSO.root_.GetErrorBlob()) {
+		downsamplePSO.root_.GetErrorBlob()->Release();
+	}
+	downsamplePSO.pixelShaderBlob_->Release();
+	downsamplePSO.vertexShaderBlob_->Release();
+
+	blurHPSO.root_.GetSignatureBlob()->Release();
+	if (blurHPSO.root_.GetErrorBlob()) {
+		blurHPSO.root_.GetErrorBlob()->Release();
+	}
+	blurHPSO.pixelShaderBlob_->Release();
+	blurHPSO.vertexShaderBlob_->Release();
+
+	blurVPSO.root_.GetSignatureBlob()->Release();
+	if (blurVPSO.root_.GetErrorBlob()) {
+		blurVPSO.root_.GetErrorBlob()->Release();
+	}
+	blurVPSO.pixelShaderBlob_->Release();
+	blurVPSO.vertexShaderBlob_->Release();
+
+	conpositePSO.root_.GetSignatureBlob()->Release();
+	if (conpositePSO.root_.GetErrorBlob()) {
+		conpositePSO.root_.GetErrorBlob()->Release();
+	}
+	conpositePSO.pixelShaderBlob_->Release();
+	conpositePSO.vertexShaderBlob_->Release();
+
+	psoModelParticle_.root_.GetSignatureBlob()->Release();
+	if (psoModelParticle_.root_.GetErrorBlob()) {
+		psoModelParticle_.root_.GetErrorBlob()->Release();
+	}
+	psoModelParticle_.pixelShaderBlob_->Release();
+	psoModelParticle_.vertexShaderBlob_->Release();
+
 }

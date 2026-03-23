@@ -45,6 +45,27 @@ void SceneManager::Draw2D(GameApp& app)
     }
 }
 
+void SceneManager::DrawSkydome(GameApp& app)
+{
+    if (current_) {
+        current_->DrawSkydome(app);
+    }
+}
+
+void SceneManager::DrawPostEffect3D(GameApp& app)
+{
+    if (current_) {
+        current_->DrawPostEffect3D(app);
+    }
+}
+
+void SceneManager::DrawPostEffect2D(GameApp& app)
+{
+    if (current_) {
+        current_->DrawPostEffect2D(app);
+    }
+}
+
 void SceneManager::DrawImGui(GameApp& app)
 {
     if (current_) {

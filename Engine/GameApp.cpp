@@ -15,6 +15,7 @@
 #include "Object3dCommon.h"
 #include "ParticleCommon.h"
 #include "ImGuiManagaer.h"
+#include "ModelParticleManager.h"
 
 #include <Windows.h>
 
@@ -45,12 +46,19 @@ int GameApp::Run() {
         dx_->PreDraw();
         srv_->PreDraw();
 
+        sceneMgr_->DrawSkydome(*this);
+
+        // ポストエフェクト描画
         bloom_->PreDraw();
 
-        Draw3D();
-        Draw2D();
+        sceneMgr_->DrawPostEffect3D(*this);
+        sceneMgr_->DrawPostEffect2D(*this);
 
         bloom_->PostDraw();
+
+        // 普通の描画
+        Draw3D();
+        Draw2D();
 
 #ifdef USE_IMGUI
         DrawImGui();
@@ -114,6 +122,8 @@ bool GameApp::Initialize_() {
 
 
     WarmupAssets_();
+
+    ModelParticleManager::GetInstance()->Initialize(dx_.get(), srv_.get());
 
     // SceneManager
     sceneMgr_ = std::make_unique<SceneManager>();
@@ -214,6 +224,7 @@ void GameApp::WarmupAssets_() {
     ModelManager::GetInstance()->LoadModel("cards/models/5.obj");
     ModelManager::GetInstance()->LoadModel("cards/models/art_plane.obj");
     ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
+    ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
     
     OutputDebugStringA("[Warmup] END\n");
 }

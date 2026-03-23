@@ -488,8 +488,6 @@ void TitleScene::Update(GameApp& app, float dt) {
 void TitleScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
-    if (skyDome_) skyDome_->Draw();
-
     // 必要なら
     // if (!showVideo_) {
     //     ground_->Draw();
@@ -527,6 +525,21 @@ void TitleScene::DrawImGui(GameApp& app) {
 
     // 他の ImGui もここにまとめる
 #endif
+}
+
+void TitleScene::DrawSkydome(GameApp& app)
+{
+    if (skyDome_) skyDome_->Draw();
+}
+
+void TitleScene::DrawPostEffect3D(GameApp& app)
+{
+
+}
+
+void TitleScene::DrawPostEffect2D(GameApp& app)
+{
+
 }
 
 void TitleScene::DrawImGui_ModelSwitchBlock(const char* header,

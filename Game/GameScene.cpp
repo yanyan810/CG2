@@ -1,6 +1,7 @@
 #include "GameScene.h"
 #include "GameApp.h"
 #include "Input.h"
+#include "ModelParticleManager.h"
 
 static std::wstring Utf8ToWString(const std::string& s)
 {
@@ -30,6 +31,7 @@ void GameScene::OnEnter(GameApp& app) {
     skyDome_->SetModel("skydome/skydome.obj");
     skyDome_->SetCamera(camera_.get());
     skyDome_->SetEnableLighting(0);
+
     // ★カメラが原点になったので、天球の中心も原点にする
     skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
     skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
@@ -124,21 +126,22 @@ void GameScene::Update(GameApp& app, float dt) {
     if (fieldUi_) {
         fieldUi_->Update(app, battle_);
     }
+
+    ModelParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
+
 }
 
 void GameScene::Draw3D(GameApp& app) {
+
     app.ObjCom()->SetGraphicsPipelineState();
 
-    if (skyDome_) skyDome_->Draw();
-    if (player_) player_->Draw();
-    enemyMgr_.Draw();
-
     battle_.Draw3D(app);
+
 }
 
 void GameScene::Draw2D(GameApp& app) {
     app.SpriteCom()->SetGraphicsPipelineState();
-
+    
     Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
         0, 0,
@@ -146,21 +149,21 @@ void GameScene::Draw2D(GameApp& app) {
         float(WinApp::kClientHeight),
         0, 100
     );
-
+    
     bool showDescBg = false;
-
+    
     if (battle_.HasPokerChoiceUi()) {
         showDescBg = true;
     } else {
         const CardDef* def = battle_.GetPreviewCardDef();
         showDescBg = (def != nullptr) || battle_.ShouldShowOperationUi();
     }
-
+    
     if (showDescBg && cardDescBg_) {
         cardDescBg_->Update(view, proj);
         cardDescBg_->Draw();
     }
-
+    
     if (fieldUi_) {
         fieldUi_->Draw(app);
     }
@@ -172,4 +175,28 @@ void GameScene::DrawImGui(GameApp& app) {
     battle_.DrawImGui();
     ImGui::End();
 #endif
+}
+
+void GameScene::DrawSkydome(GameApp& app)
+{
+    app.ObjCom()->SetGraphicsPipelineState();
+
+    if (skyDome_) skyDome_->Draw();
+}
+
+void GameScene::DrawPostEffect3D(GameApp& app)
+{
+
+    app.ObjCom()->SetGraphicsPipelineState();
+
+    if (player_) player_->Draw();
+    enemyMgr_.Draw();
+
+    ModelParticleManager::GetInstance()->Draw();
+
+}
+
+void GameScene::DrawPostEffect2D(GameApp& app)
+{
+
 }
