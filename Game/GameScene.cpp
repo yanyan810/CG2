@@ -141,7 +141,7 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead()) {
+	if (battle_.IsAllEnemiesDead()||!player_->GetIsAlive()) {
 		RequestChangeScene_("Title");
 	}
 

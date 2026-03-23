@@ -1350,18 +1350,18 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							}
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
-						if (needsTarget) {
-    int buff = nextTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
-    pendingDamage_ = dmgVal + (buff * hitCount);
+							if (needsTarget) {
+								int buff = nextTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
+								pendingDamage_ = dmgVal + (buff * hitCount);
 
-    isPokerDamageTargeting_ = false;                 // 手札カード由来
-    pendingCardHandIndex_ = idx;                     // 使った手札位置を覚える
-    cardState_ = CardInputState::ChoosingEnemyTarget; // 敵選択へ
+								isPokerDamageTargeting_ = false;                 // 手札カード由来
+								pendingCardHandIndex_ = idx;                     // 使った手札位置を覚える
+								cardState_ = CardInputState::ChoosingEnemyTarget; // 敵選択へ
 
-    selectedIndex_ = -1;
-    handView_.SetPreviewIndex(-1);
-    return;
-}
+								selectedIndex_ = -1;
+								handView_.SetPreviewIndex(-1);
+								return;
+							}
 							energy_ -= def->cost;
 
 							hand_.erase(hand_.begin() + idx);
@@ -1699,7 +1699,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			it = damagePopups_.erase(it); // 寿命が来たら消す
 		} else {
 			float gap = 0.8f;
-		
+
 			float startX = it->pos.x - gap * 0.5f * (it->digitModels.size() - 1);
 
 			for (size_t i = 0; i < it->digitModels.size(); ++i) {
@@ -1905,7 +1905,7 @@ void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isP
 			path += ".obj";
 
 			auto obj = std::make_unique<Object3d>();
-			
+
 			obj->Initialize(objCom_, dx_);
 			obj->SetModel(path);
 
@@ -2116,7 +2116,7 @@ std::wstring BattleController::GetPlayerHpTexts() const {
 
 	return text;
 }
-  
+
 bool BattleController::IsAllEnemiesDead() const {
 	auto& enemies = enemyMgr_->GetEnemies();
 	for (auto& e : enemies) {
