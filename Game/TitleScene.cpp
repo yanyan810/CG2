@@ -123,9 +123,6 @@ void TitleScene::Update(GameApp& app, float dt) {
 void TitleScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	//天球描画
-	skyDome_->Draw();
-	
 }
 
 //------------------------------------------------------------
@@ -180,4 +177,20 @@ void TitleScene::DrawImGui(GameApp& app) {
 #else
 	(void)app;
 #endif
+}
+
+void TitleScene::DrawSkydome(GameApp& app)
+{
+	app.ObjCom()->SetGraphicsPipelineState();
+	if (skyDome_) skyDome_->Draw();
+}
+
+void TitleScene::DrawPostEffect3D(GameApp& app)
+{
+
+}
+
+void TitleScene::DrawPostEffect2D(GameApp& app)
+{
+
 }

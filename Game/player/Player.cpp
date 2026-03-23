@@ -2,6 +2,7 @@
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
 #include "Camera.h"
+#include "ModelParticleManager.h"
 
 void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam) {
     model_ = std::make_unique<Object3d>();
@@ -87,6 +88,13 @@ void Player::Update(float dt) {
     // 敵の弾などが当たったか判定するための箱（AABB）を自分の位置に合わせて更新
     body_.min = { pos_.x - 1.0f, pos_.y, pos_.z - 1.0f };
     body_.max = { pos_.x + 1.0f, pos_.y + 2.0f, pos_.z + 1.0f };
+
+    ParticleEmitterConfig config = ParticleEmitterConfig::CreateFire(pos_ + Vector3(0.0f, 1.0f, 0.0f));
+
+    for (uint32_t index = 0; index < 10; ++index) {
+
+        ModelParticleManager::GetInstance()->Emit(ModelParticleManager::GetInstance()->MakeParticle(config));
+    }
 }
 
 void Player::Draw() {

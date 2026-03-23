@@ -25,6 +25,11 @@ public:
     void Draw2D(GameApp& app) override;
     void DrawImGui(GameApp& app) override;
 
+    void DrawSkydome(GameApp& app) override;
+
+    void DrawPostEffect3D(GameApp& app) override;
+    void DrawPostEffect2D(GameApp& app) override;
+
 private:
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球

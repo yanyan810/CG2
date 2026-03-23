@@ -1,6 +1,7 @@
 #include "GameScene.h"
 #include "GameApp.h"
 #include "Input.h"
+#include "ModelParticleManager.h"
 
 static std::wstring Utf8ToWString(const std::string& s)
 {
@@ -226,15 +227,13 @@ void GameScene::Update(GameApp& app, float dt) {
 			enemyHpTexts_[i]->SetText(L"");
 		}
 	}
+
+	ModelParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
 }
 
 
 void GameScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
-
-	if (skyDome_) skyDome_->Draw();
-	if (player_) player_->Draw();
-	enemyMgr_.Draw();
 
 	battle_.Draw3D(app);
 }
@@ -295,4 +294,28 @@ void GameScene::DrawImGui(GameApp& app) {
 
 
 #endif
+}
+
+void GameScene::DrawSkydome(GameApp& app)
+{
+	app.ObjCom()->SetGraphicsPipelineState();
+
+	if (skyDome_) skyDome_->Draw();
+}
+
+void GameScene::DrawPostEffect3D(GameApp& app)
+{
+
+	app.ObjCom()->SetGraphicsPipelineState();
+
+	if (player_) player_->Draw();
+	enemyMgr_.Draw();
+
+	ModelParticleManager::GetInstance()->Draw();
+
+}
+
+void GameScene::DrawPostEffect2D(GameApp& app)
+{
+
 }
