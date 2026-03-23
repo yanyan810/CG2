@@ -167,8 +167,8 @@ private:
 
 	std::unique_ptr<FieldUi> fieldUi_;
 
-    int energyMax_ = 50;
-    int energy_ = 50;
+    int energyMax_ = 10;
+    int energy_ = 10;
 
  
     float enemyWait_ = 0.0f;
