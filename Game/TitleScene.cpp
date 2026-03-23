@@ -1,484 +1,179 @@
 #include "TitleScene.h"
-#include <Windows.h>
 
 #include "GameApp.h"
-#include "Particle.h"
-#include "ParticleCommon.h"
 #include "Camera.h"
+#include "WinApp.h"
+#include "TextureManager.h"
 
-struct SRT {
-    Vector3 pos{ 0,0,0 };
-    Vector3 rot{ 0,0,0 };   // degで管理が楽（必要ならSet時にradへ）
-    Vector3 scale{ 1,1,1 };
-};
-
-
-
-
+//------------------------------------------------------------
+// シーン開始時の初期化
+//------------------------------------------------------------
 void TitleScene::OnEnter(GameApp& app) {
+	// タイトル状態を初期化
+	state_ = State::Idle;
+	circle_ = 1.0f;
+	softness_ = 0.6f;
 
-    state_ = State::Idle;
-    circle_ = 1.0f;     // 最初は表示されている
-    softness_ = 0.6f;
-    prevSpace_ = false;
+	//--------------------------------------------------------
+	// カメラ作成
+	//--------------------------------------------------------
+	camera_ = std::make_unique<Camera>();
+	camera_->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	camera_->SetRotate({ 0.0f, 0.0f, 0.0f });
+	app.ObjCom()->SetDefaultCamera(camera_.get());
 
-    TextureManager::GetInstance()->LoadTexture("resources/ui/char/title.png");
+	//--------------------------------------------------------
+	// 3Dモデルの初期化
+	//--------------------------------------------------------
+	skyDome_ = std::make_unique<Object3d>();
+	skyDome_->Initialize(app.ObjCom(), app.Dx());
+	skyDome_->SetModel("skydome/skydome.obj");
+	skyDome_->SetCamera(camera_.get());
+	skyDome_->SetEnableLighting(0);
+	// ★カメラが原点になったので、天球の中心も原点にする
+	skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
 
+	//--------------------------------------------------------
+	// 背景画像
+	//--------------------------------------------------------
+	bg_ = std::make_unique<Sprite>();
+	bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/Title.png");
+	bg_->SetAnchorPoint({ 0.0f, 0.0f });
+	bg_->SetPosition({ 0.0f, 0.0f });
+	bg_->SetScale({ 1.0f, 1.0f, 1.0f });
 
-    // カメラ（Particle は内部カメラでも動くけど、外部カメラを渡すと安定）
-    camera_ = std::make_unique<Camera>();
-    camera_->SetRotate({ 0, 0, 0 });
-    camera_->SetTranslate({ 0, 0, -0 });
+	//--------------------------------------------------------
+	// Press Space画像
+	//--------------------------------------------------------
+	pressStart_ = std::make_unique<Sprite>();
+	pressStart_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/pressSpace.png");
+	pressStart_->SetAnchorPoint({ 0.0f, 0.0f });
 
-    app.ObjCom()->SetDefaultCamera(camera_.get());
-
-    //player
-    titlePlayer = std::make_unique<Player>();
-    titlePlayer->Initialize(app.ObjCom(), app.Dx(), camera_.get());
-    titlePlayer->SetSpawnPos({ -12.0f, 0.0f, 5.0f }); // 好みで調整
-	//titlePlayer->SetLighting(light_); // 操作禁止
- //   titlePlayer->ResetTitleAttackDemo();
-
-    //ground
-    ground_ = std::make_unique<Object3d>();
-    ground_->Initialize(app.ObjCom(), app.Dx());
-    ground_->SetCamera(camera_.get());
-    ground_->SetModel("ground/ground.obj");
-
-    // 位置・大きさは好みで調整
-    ground_->SetTranslate({ 0.0f, -5.0f, 0.0f });
-    ground_->SetScale({ 1.0f, 1.0f, 1.0f });
-    ground_->SetRotate({ 0.0f, 0.0f, 0.0f });
-    ground_->SetEnableLighting(0);
-
-
-
-
-    // Particle
-    particle_ = std::make_unique<Particle>();
-    particle_->Initialize(app.ParticleCom(), app.Dx(), app.Srv());
-
-    // ★これが無いと「model_ が null」で Draw しても何も出ません
-    particle_->SetModel(assimpPlanePaths_[assimpPlaneIndex_]);
-    assimpPlaneIndexPrev_ = assimpPlaneIndex_;
-
-    // カメラを渡せるなら渡す（Particle.cpp は camera_ があればそれを使う仕様）
-    particle_->SetCamera(camera_.get());
-    Vector3 rotate = { 0.0f,0.0f,0.0f };
-
-    particle_->SetRotate(rotate);
-    // 見えやすいように（任意）
-    particle_->SetBlendMode(ParticleCommon::BlendMode::kBlendModeAdd);
-    particle_->SetMaterialColor({ 1, 1, 1, 1 });
-
-
-    skyDome_ = std::make_unique<Object3d>();
-    skyDome_->Initialize(app.ObjCom(), app.Dx());
-    skyDome_->SetModel("skydome/SkyDome.obj");
-
-    // ★スカイドームは基本「ライト無視」
-    skyDome_->SetEnableLighting(0);              // ← あなたの仕様の「無照明モード」に合わせて
-    skyDome_->SetMaterialColor({ 1,1,1,1 });       // 念のため
-    skyDome_->SetShininess(1.0f);                // 影響しないけど保険
-    skyDome_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
-
-    bg_ = std::make_unique<Sprite>();
-    bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/Title.png");
-    bg_->SetAnchorPoint({ 0,0 });
-    bg_->SetPosition({ 0,0 });
-    bg_->SetScale({ 1,1,1 }); // 1280x720ならそのまま
-
-
-    pressStart_ = std::make_unique<Sprite>();
-    pressStart_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/pressSpace.png"); // 例
-    pressStart_->SetAnchorPoint({ 0, 0 });
-    pressStart_->SetPosition({ 100,100});
-    pressStart_->SetScale({ 1,1,1 }); // 128x128なら等倍でOK
-
-    // ===== Video Plane =====
-    videoPlane_ = std::make_unique<Object3d>();
-    videoPlane_->Initialize(app.ObjCom(), app.Dx());
-    videoPlane_->SetModel("video/plane.obj");
-
-    // 表示しやすい設定（ライト無視）
-    videoPlane_->SetEnableLighting(0);
-    videoPlane_->SetMaterialColor({ 1,1,1,1 });
-    videoPlane_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
-
-    // 位置調整（カメラの前に置く）
-    videoPlane_->SetTranslate({ 0.0f, 3.0f, 3.1f });  // 例：Zはカメラ向きに合わせて調整
-    videoPlane_->SetScale({ 9.5f, 5.3f, 2.0f });
-    videoPlane_->SetRotate({ 0.0f, 3.17f, 0.0f });
-
-    // ===== Video Player =====
-    video_ = std::make_unique<VideoPlayerMF>();
-
-    // ※ ここはあなたの実装の関数名に合わせて
-    video_->Open("resources/video/title.mp4", true); // loop = true
-    video_->CreateDxResources(app.Dx()->GetDevice(), app.Srv()); // SRV確保 + texture作成
-	video_->SetVolume(1.5f); // 音量セット（0.0f〜1.0f）
-    enableVideo_ = true;
-
-    bool ok = video_->ReadNextFrame();  // ★最初の1枚
-    if (!ok) {
-        OutputDebugStringA("[TitleScene] First ReadNextFrame failed\n");
-    }
-
-
-    // Sky
-    srtSky_.pos = { 0,0,0 };
-    srtSky_.rot = { 0,0,0 };
-    srtSky_.scale = { 1,1,1 };
-
-    // VideoPlane（あなたの初期値と合わせる）
-    srtVideo_.pos = { 0.0f, 3.0f, 3.1f };
-    srtVideo_.scale = { 9.5f, 5.3f, 2.0f };
-    srtVideo_.rot = { 0.0f, 3.14f, 0.0f };
-
-    // BG / Press（2D）
-    srtBG_.pos = { 0,0,0 };
-    srtBG_.scale = { 1,1,1 };
-    srtPress_.pos = { 0,0,0 };
-    srtPress_.scale = { 1,1,1 };
-
-    dt_ = 0.0f;
-
-    // Ground（いま SetTranslate/Scale/Rotate してる値を反映）
-    srtGround_.pos = { 0.0f, -5.0f, 0.0f };
-    srtGround_.rot = { 0.0f,  1.34f, 0.0f };
-    srtGround_.scale = { 1.0f,  1.0f, 1.0f };
-
-    // Player（SetSpawnPos の値を反映。回転/スケールはとりあえず既定）
-    srtPlayer_.pos = { -0.2f, 0.2f, -5.1f };
-    srtPlayer_.rot = { 0.0f, 1.14f, 0.0f };
-    srtPlayer_.scale = { 2.0f, 2.0f, 2.0f };
-
-    // 切替初期化（最初はプレイヤー表示）
-    showVideo_ = false;     // ← 最初は titlePlayer を出す
-    switchT_ = 0.0f;        // ← タイマーリセット
-
-    // ===== 同じモデルを2個使い回して色が分かれるか確認 =====
-    obj1_ = std::make_unique<Object3d>();
-    obj1_->Initialize(app.ObjCom(), app.Dx());
-    obj1_->SetCamera(camera_.get());
-    obj1_->SetModel("plane.obj");
-    obj1_->SetEnableLighting(0);
-    obj1_->SetTranslate({ -1.2f, 0.0f, 8.0f });
-    obj1_->SetRotate({ 0.0f, 0.3f, 0.0f });
-    obj1_->SetScale({ 0.5f, 0.5f, 0.5f });
-    obj1_->SetMaterialColor({ 1.0f, 0.0f, 0.0f, 1.0f }); // 赤
-
-    obj2_ = std::make_unique<Object3d>();
-    obj2_->Initialize(app.ObjCom(), app.Dx());
-    obj2_->SetCamera(camera_.get());
-    obj2_->SetModel("plane.obj"); // ★同じモデルを使い回す
-    obj2_->SetEnableLighting(0);
-    obj2_->SetTranslate({ 1.2f, 0.0f, 8.0f });
-    obj2_->SetRotate({ 0.0f, -0.3f, 0.0f });
-    obj2_->SetScale({ 0.5f, 0.5f, 0.5f });
-    obj2_->SetMaterialColor({ 0.0f, 0.0f, 1.0f, 1.0f }); // 青
-
-    srtObj1_.pos = { -1.2f, 0.0f, 8.0f };
-    srtObj1_.rot = { 0.0f, 0.3f, 0.0f };
-    srtObj1_.scale = { 1.2f, 1.2f, 1.2f };
-
-    srtObj2_.pos = { 1.2f, 0.0f, 8.0f };
-    srtObj2_.rot = { 0.0f, -0.3f, 0.0f };
-    srtObj2_.scale = { 1.2f, 1.2f, 1.2f };
- 
-
-    debugFieldUi_ = std::make_unique<FieldUi>();
-    debugFieldUi_->Initialize(app);
-
+	// 位置はあとで調整しやすいように中央下寄りに置く
+	pressStart_->SetPosition({ 430.0f, 560.0f });
+	pressStart_->SetScale({ 1.0f, 1.0f, 1.0f });
 }
 
+//------------------------------------------------------------
+// シーン終了時の解放
+//------------------------------------------------------------
 void TitleScene::OnExit(GameApp&) {
-    if (video_) {
-        video_->Close();
-    }
-
-    obj1_.reset();
-    obj2_.reset();
-    videoPlane_.reset();
-    ground_.reset();
-    bg_.reset();
-    pressStart_.reset();
-
-    skyDome_.reset();
-    particle_.reset();
-    nodeObj_.reset();
-
-    titlePlayer.reset();
-    video_.reset();
-    camera_.reset();
+	pressStart_.reset();
+	bg_.reset();
+	camera_.reset();
 }
 
+//------------------------------------------------------------
+// 毎フレーム更新
+//------------------------------------------------------------
 void TitleScene::Update(GameApp& app, float dt) {
+	Input* input = app.GetInput();
+	if (!input) {
+		return;
+	}
 
-    // ESC で終了（Input クラス持ってるなら差し替え）
-    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-        app.RequestQuit();
-        return;
-    }
+	//--------------------------------------------------------
+	// ESCでアプリ終了
+	//--------------------------------------------------------
+	if (input->IsKeyPressed(DIK_ESCAPE)) {
+		app.RequestQuit();
+		return;
+	}
 
-    bool spaceNow = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
-    bool spaceTrig = spaceNow && !prevSpace_;
-    prevSpace_ = spaceNow;
-    
-    dt_ = dt;
+	//--------------------------------------------------------
+	// SPACEの押した瞬間
+	//--------------------------------------------------------
+	bool spaceTrig = input->IsKeyTrigger(DIK_SPACE);
 
-    switch (state_) {
-    case State::Idle:
-        if (spaceTrig) {
-            state_ = State::ExitClose; // ★すぐ遷移しない
-        }
-        break;
+	//--------------------------------------------------------
+	// 状態更新
+	//--------------------------------------------------------
+	switch (state_) {
+	case State::Idle:
+		// 入力待ち中にSPACEで閉じ演出へ
+		if (spaceTrig) {
+			state_ = State::ExitClose;
+		}
+		break;
 
-    case State::ExitClose:
-        circle_ -= 1.8f * dt;          // ★閉じる
-        if (circle_ <= 0.0f) {
-            circle_ = 0.0f;
-            RequestChangeScene_(kNextScene_);
-        }
-        break;
-    }
+	case State::ExitClose:
+		// 円形マスクを閉じていく
+		circle_ -= 1.8f * dt;
 
+		if (circle_ <= 0.0f) {
+			circle_ = 0.0f;
+			RequestChangeScene_(kNextScene_);
+		}
+		break;
+	}
 
-    // 3D更新など…
-    skyDome_->Update(dt);
-    ground_->Update(dt);
+	//3D更新
+	skyDome_->Update(dt);
 
-    obj1_->Update(dt);
-	obj2_->Update(dt);
-
-
-    // 動画のデコード/音声は「表示中のみ」
-    if (enableVideo_ && video_ && showVideo_) {
-
-        if (videoPlane_) {
-            videoPlane_->SetTranslate(srtVideo_.pos);
-            videoPlane_->SetRotate(srtVideo_.rot);
-            videoPlane_->SetScale(srtVideo_.scale);
-            videoPlane_->Update(dt);
-        }
-
-        video_->ReadNextVideoFrame();
-        video_->PumpAudio();
-    }
-
-
-    // ---- 表示切替（自前タイマーで安定） ----
-    switchT_ += dt;
-
-    if (showVideo_) {
-        // 動画表示中
-        if (switchT_ >= videoSec_) {
-            switchT_ = 0.0f;
-            showVideo_ = false; // 次はプレイヤー
-        }
-    } else {
-        // プレイヤー表示中
-        if (switchT_ >= playerSec_) {
-            switchT_ = 0.0f;
-            showVideo_ = true; // 次は動画
-        }
-    }
-
-
-
-    //// タイトル用プレイヤーがいるならデモ再生
-    //if (titlePlayer) {
-    //    titlePlayer->UpdateTitleAttackDemo(dt, 1.0f); // 1秒ごとに I/O 交互
-    //}
-
-    //if (titlePlayer) {
-    //    titlePlayer->SetTitleTransform(srtPlayer_.pos, srtPlayer_.rot, srtPlayer_.scale);
-    //}
-
-    spotCos = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
-
-    // ---- Spot angle deg -> cos ----
-//    const float kPi = 3.14159265f;
-
-    // 外側は spotAngleDeg_
-// 内側は spotFalloffStartDeg_（必ず外側より小さく）
-    spotFalloffStartDeg_ = std::min(spotFalloffStartDeg_, spotAngleDeg_ - 0.1f);
-
-    float cosOuter = std::cosf(spotAngleDeg_ * (std::numbers::pi_v<float> / 180.0f));
-    float cosInner = std::cosf(spotFalloffStartDeg_ * (std::numbers::pi_v<float> / 180.0f));
-
-    // cosは「角度が小さいほど大きい」ので、内側のcosは外側より大きいのが正しい
-    // cosInner > cosOuter になってる状態が正常
-
-
-
-    if (orbitCam_ && camera_) {
-        orbitT_ += orbitSpeed_ * dt;
-
-        Vector3 target{ 0.0f, 1.0f, 0.0f }; // testObjを見る想定
-        Vector3 eye{
-            target.x + std::cosf(orbitT_) * orbitRadius_,
-            target.y + 3.0f,
-            target.z + std::sinf(orbitT_) * orbitRadius_
-        };
-
-        camera_->SetTranslate(eye);
-
-        // 回転は「LookAt」関数が無いなら、いったん手動でYawだけでもOK
-        // ここはあなたのCamera仕様次第なので、とりあえずImGui回転を残す運用でもOK
-    }
-
-    int lighting = lightingMode_;
-    if (lightViewMode_ == 1) lighting = 11; // DirOnly
-    if (lightViewMode_ == 2) lighting = 12; // PointOnly
-
-
-  
-    // ===== カメラ反映 =====
-    if (camera_) {
-        camera_->SetTranslate(imguiCamPos_);
-        camera_->SetRotate(imguiCamRot_);
-        camera_->Update();
-    }
-
-
-
-    auto ApplyObject3dSRT = [](Object3d* o, const SRT& s) {
-        if (!o) return;
-        o->SetTranslate(s.pos);
-        o->SetRotate(s.rot);   // ※Object3dがdeg前提ならOK。radなら変換が必要。
-        o->SetScale(s.scale);
-        };
-
-    auto ApplySpriteSRT = [](Sprite* sp, const SRT& s) {
-        if (!sp) return;
-        // Spriteが2D(Vector2)なら適宜合わせる
-        sp->SetPosition({ s.pos.x, s.pos.y });
-        sp->SetScale({ s.scale.x, s.scale.y, 1.0f }); // あなたのSpriteがVector3ならそのまま
-        // Spriteに回転があるなら sp->SetRotation(s.rot.z) など
-        };
-
-    // 3D
-    ApplyObject3dSRT(skyDome_.get(), srtSky_);
-    ApplyObject3dSRT(videoPlane_.get(), srtVideo_);
-    if (particle_) {
-        particle_->SetTranslate(srtParticle_.pos);
-        particle_->SetRotate(srtParticle_.rot);
-        particle_->SetScale(srtParticle_.scale); // Particleに無ければ外す
-    }
-
-    // ===== testObj の SRT反映 =====
-    ApplyObject3dSRT(obj1_.get(), srtObj1_);
-    ApplyObject3dSRT(obj2_.get(), srtObj2_);
-
-    // ===== 色変化テスト =====
-   
-    // 2D
-    ApplySpriteSRT(bg_.get(), srtBG_);
-    //ApplySpriteSRT(pressStart_.get(), srtPress_);
-    ApplyObject3dSRT(ground_.get(), srtGround_);
-
-   
-    if (debugFieldUi_ && showPokerEffectPreview_) {
-        debugFieldUi_->UpdateDebugPokerEffectPreview(debugPokerHoverIndex_);
-    }
 }
 
+//------------------------------------------------------------
+// 3D描画
+//------------------------------------------------------------
 void TitleScene::Draw3D(GameApp& app) {
-    app.ObjCom()->SetGraphicsPipelineState();
+	app.ObjCom()->SetGraphicsPipelineState();
 
-    if (skyDome_) skyDome_->Draw();
-
-    // 必要なら
-    // if (!showVideo_) {
-    //     ground_->Draw();
-    //     titlePlayer->Draw();
-    // }
-
-    if (obj1_) obj1_->Draw();
-    if (obj2_) obj2_->Draw();
-
-    app.ParticleCom()->SetGraphicsPipelineState();
-    // if (particle_) particle_->Draw();
+	//天球描画
+	skyDome_->Draw();
+	
 }
 
+//------------------------------------------------------------
+// 2D描画
+//------------------------------------------------------------
 void TitleScene::Draw2D(GameApp& app) {
-    app.SpriteCom()->SetGraphicsPipelineState();
+	app.SpriteCom()->SetGraphicsPipelineState();
 
-    Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
-    Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
-        0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
+	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
+		0, 0,
+		float(WinApp::kClientWidth),
+		float(WinApp::kClientHeight),
+		0, 100
+	);
 
-    // if (bg_) { bg_->Update(view, proj); bg_->Draw(); }
-    // if (pressStart_) { pressStart_->Update(view, proj); pressStart_->Draw(); }
+	//--------------------------------------------------------
+	// 背景描画
+	//--------------------------------------------------------
+	if (bg_) {
+		bg_->Update(view, proj);
+		bg_->Draw();
+	}
 
-    if (debugFieldUi_ && showPokerEffectPreview_) {
-        debugFieldUi_->Draw(app);
-    }
+	//--------------------------------------------------------
+	// Press Space描画
+	//--------------------------------------------------------
+	if (pressStart_) {
+		pressStart_->Update(view, proj);
+		pressStart_->Draw();
+	}
 
-    app.SpriteCom()->DrawCircleMask(circle_, softness_);
+	//--------------------------------------------------------
+	// 円形マスク描画
+	//--------------------------------------------------------
+	app.SpriteCom()->DrawCircleMask(circle_, softness_);
 }
 
+//------------------------------------------------------------
+// ImGui描画
+// 今回は使わないので空
+//------------------------------------------------------------
 void TitleScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
-    DrawImGui_ModelSwitchersOneWindow();
-
-    ImGui::Begin("Camera Debug");
-    ImGui::DragFloat3("Position", &imguiCamPos_.x, 0.1f);
-    ImGui::DragFloat3("Rotation", &imguiCamRot_.x, 0.01f);
-
-    ImGui::Separator();
-    ImGui::Checkbox("Show Poker Effect Preview", &showPokerEffectPreview_);
-    ImGui::SliderInt("Preview Hover", &debugPokerHoverIndex_, -1, 3);
-    ImGui::End();
-
-    if (debugFieldUi_) {
-        debugFieldUi_->DrawImGui();
-    }
+	ImGui::Begin("Title Debug");
+	ImGui::Text("Simple Title Scene");
+	ImGui::Text("SPACE : Start Game");
+	ImGui::Text("ESC   : Quit");
+	ImGui::SliderFloat("Circle", &circle_, 0.0f, 1.0f);
+	ImGui::SliderFloat("Softness", &softness_, 0.0f, 1.0f);
+	ImGui::End();
+#else
+	(void)app;
 #endif
-}
-
-void TitleScene::DrawImGui_ModelSwitchBlock(const char* header,
-    const char* comboLabel,
-    int& index,
-    const char* const* paths,
-    int count,
-    const char* const* labels,
-    int labelCount)
-{
-    // 折りたたみ（好きなら TreeNode でもOK）
-    if (ImGui::CollapsingHeader(header, ImGuiTreeNodeFlags_DefaultOpen)) {
-
-        if (labels && labelCount == count) {
-            ImGui::Combo(comboLabel, &index, labels, labelCount);
-        }
-        else {
-            ImGui::Combo(comboLabel, &index, paths, count);
-        }
-
-        ImGui::Text("Path: %s", paths[index]);
-        ImGui::Separator();
-    }
-}
-
-void TitleScene::DrawImGui_ModelSwitchersOneWindow()
-{
-    ImGui::Begin("Model Switchers");  // ★ウィンドウはこれ1個だけ
-
-
-    // Assimp Plane
-    {
-        static const char* labelsPlane[] = { "plane.obj", "plane.gltf" };
-        DrawImGui_ModelSwitchBlock(
-            "Assimp Plane",
-            "Plane##Assimp",
-            assimpPlaneIndex_,
-            assimpPlanePaths_.data(),
-            (int)assimpPlanePaths_.size(),
-            labelsPlane,
-            IM_ARRAYSIZE(labelsPlane)
-        );
-    }
-
-    ImGui::End();
 }

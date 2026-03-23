@@ -84,30 +84,30 @@ void GameScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
-	// ターン数描画関連
-	turnText_ = std::make_unique<TextSprite>();
-	turnText_->Initialize(app.SpriteCom(), app.Dx());
-	turnText_->SetSize({ 1.0f,1.0f,1.0f });
-	turnText_->SetPosition({ 500.0f, 20.0f });
-	turnTextBg_ = std::make_unique<Sprite>();
-	turnTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	turnTextBg_->SetPosition({ 490.f,25.f });
-	turnTextBg_->SetScale({ 250.f,60.f,1.f });
-	turnTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+	//// ターン数描画関連
+	//turnText_ = std::make_unique<TextSprite>();
+	//turnText_->Initialize(app.SpriteCom(), app.Dx());
+	//turnText_->SetSize({ 1.0f,1.0f,1.0f });
+	//turnText_->SetPosition({ 500.0f, 20.0f });
+	//turnTextBg_ = std::make_unique<Sprite>();
+	//turnTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	//turnTextBg_->SetPosition({ 490.f,25.f });
+	//turnTextBg_->SetScale({ 250.f,60.f,1.f });
+	//turnTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
-	// コスト描画関連
-	position_ = { 90.f,420.f };
-	scale_ = { 900.f,180.f,1.f };
+	//// コスト描画関連
+	//position_ = { 90.f,420.f };
+	//scale_ = { 900.f,180.f,1.f };
 
-	costText_ = std::make_unique<TextSprite>();
-	costText_->Initialize(app.SpriteCom(), app.Dx());
-	costText_->SetSize({ 1.0f,1.0f,1.0f });
-	costText_->SetPosition({ 90.0f, 400.0f });
-	costTextBg_ = std::make_unique<Sprite>();
-	costTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	costTextBg_->SetPosition({ 75.f,405.f });
-	costTextBg_->SetScale({ 170.f,55.f,1.f });
-	costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+	//costText_ = std::make_unique<TextSprite>();
+	//costText_->Initialize(app.SpriteCom(), app.Dx());
+	//costText_->SetSize({ 1.0f,1.0f,1.0f });
+	//costText_->SetPosition({ 90.0f, 400.0f });
+	//costTextBg_ = std::make_unique<Sprite>();
+	//costTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	//costTextBg_->SetPosition({ 75.f,405.f });
+	//costTextBg_->SetScale({ 170.f,55.f,1.f });
+	//costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
 	for (int i = 0; i < 3; i++) {
 		auto text = std::make_unique<TextSprite>();
@@ -256,7 +256,7 @@ void GameScene::Draw2D(GameApp& app) {
 		fieldUi_->Draw(app);
 	}
 
-	if (turnText_) {
+	/*if (turnText_) {
 		turnText_->Update(view, proj);
 		turnText_->Draw();
 		turnTextBg_->Update(view, proj);
@@ -268,7 +268,7 @@ void GameScene::Draw2D(GameApp& app) {
 		costText_->Draw();
 		costTextBg_->Update(view, proj);
 		costTextBg_->Draw();
-	}
+	}*/
 
 	for (auto& text : enemyHpTexts_) {
 		text->Update(view, proj);

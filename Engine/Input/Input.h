@@ -21,25 +21,35 @@ public:
     // 離した瞬間
     bool IsKeyReleased(BYTE keyCode) const;
 
-    POINT prevMousePos_{};
-    POINT mouseDelta_{};
+	//マウス関連の関数を追加
+    bool IsMousePressed(int button) const;
+    bool IsMouseTrigger(int button) const;
+    bool IsMouseReleased(int button) const;
 
-    void UpdateMouseDelta();
+    POINT GetMousePosition() const { return mousePos_; }
     POINT GetMouseDelta() const { return mouseDelta_; }
 
- /*   bool IsKeyPressed(BYTE keyCode) const;
-    bool IsKeyReleased(BYTE keyCode) const;*/
+    void UpdateMouseDelta();
 
 private:
     IDirectInput8* directInput_ = nullptr;
     IDirectInputDevice8* keyboardDevice_ = nullptr;
+
     BYTE keys_[256]{};
     BYTE prevKeys_[256]{};
+
+	// マウス関連の変数を追加
+    BYTE mouseButtons_[2]{};      // 0:左 1:右
+    BYTE prevMouseButtons_[2]{};
+
+    POINT mousePos_{};
+    POINT prevMousePos_{};
+    POINT mouseDelta_{};
+
     bool firstMouseUpdate_ = true;
     bool cameraControlEnabled_ = false;
-    bool prevToggleKeyState_ = false; // トグル用
+    bool prevToggleKeyState_ = false;
     bool justEnteredCameraMode_ = false;
 
     WinApp* winApp_ = nullptr;
-
 };
