@@ -45,6 +45,12 @@ public:
         }
     }
 
+    void SetCamera(Camera* camera) {
+        if (model_) {
+            model_->SetCamera(camera);
+        }
+    }
+
     Vector3 GetPos() const { return pos_; }
     AABB GetBodyAABB() const { return body_; }
     BossAI& GetBossAI() { return ai_; }

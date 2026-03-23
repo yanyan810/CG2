@@ -63,6 +63,12 @@ public:
 
 	bool GetIsAlive() { return isAlive_; }
 
+	void SetCamera(Camera* camera) {
+		if (model_) {
+			model_->SetCamera(camera);
+		}
+	}
+
 
 private:
 	std::unique_ptr<Object3d> model_;

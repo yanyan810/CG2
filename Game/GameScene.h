@@ -2,6 +2,7 @@
 #include "IScene.h"
 #include <memory>
 #include "Camera.h"
+#include "CameraAnimator.h"
 #include "Object3d.h"
 #include "Enemy.h"
 #include "Player.h"
@@ -30,8 +31,12 @@ public:
     void DrawPostEffect3D(GameApp& app) override;
     void DrawPostEffect2D(GameApp& app) override;
 
+    void ChangeRandomCamera();
+
 private:
     std::unique_ptr<Camera> camera_;
+    std::unique_ptr<Camera> animCamera_;
+    std::unique_ptr<CameraAnimator> cameraAnim_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球
 
     std::unique_ptr<Player> player_;
