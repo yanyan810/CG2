@@ -677,6 +677,56 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				nextTurnAtkUp_ = 0;
 			}
 
+		} else if (effect.type == "DamageCrescent") {
+			if (enemyMgr_) {
+				// 奇数ターンなら+3ダメージの計算
+				int baseVal = effect.value;
+				if (playerTurnCount_ % 2 != 0) {
+					baseVal += 3;
+				}
+
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()) {
+						int totalDamage = CalcFinalAttackDamage_(baseVal);
+						ApplyDamageToEnemy_(e, totalDamage);
+						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+					}
+				} else {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (!e.IsAlive()) continue;
+						int totalDamage = CalcFinalAttackDamage_(baseVal);
+						ApplyDamageToEnemy_(e, totalDamage);
+						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						break;
+					}
+				}
+				nextTurnAtkUp_ = 0;
+			}
+
+		} else if (effect.type == "DamageByBlock") {
+			if (enemyMgr_) {
+				// ブロック数 × 倍率 の計算
+				int baseVal = (player_ ? player_->GetBlock() : 0) * effect.value;
+
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()) {
+						int totalDamage = CalcFinalAttackDamage_(baseVal);
+						ApplyDamageToEnemy_(e, totalDamage);
+						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+					}
+				} else {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (!e.IsAlive()) continue;
+						int totalDamage = CalcFinalAttackDamage_(baseVal);
+						ApplyDamageToEnemy_(e, totalDamage);
+						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						break;
+					}
+				}
+				nextTurnAtkUp_ = 0;
+			}
 		} else if (effect.type == "Block") {
 			if (player_) {
 				player_->AddBlock(effect.value);
