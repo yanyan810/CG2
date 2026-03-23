@@ -52,7 +52,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
 
     // ブルームパラメータ
     bloomParam_.threshold = 0.2f;
-    bloomParam_.intensity = 1.0f;
+    bloomParam_.intensity = 3.0f;
     bloomParam_.vignetteIntensity = 0.0f;
     bloomParam_.vignetteScale = 0.0f;
     bloomParam_.chromAbAmount = 0.01f;

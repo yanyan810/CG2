@@ -236,6 +236,11 @@ void GameScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	battle_.Draw3D(app);
+
+	enemyMgr_.Draw();
+
+	if (player_) player_->Draw();
+
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -308,10 +313,11 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	if (player_) player_->Draw();
-	enemyMgr_.Draw();
 
 	ModelParticleManager::GetInstance()->Draw();
+
+
+
 
 }
 
