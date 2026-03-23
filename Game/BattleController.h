@@ -3,6 +3,7 @@
 #include "CardDatabase.h"
 #include "HandView3D.h"
 #include "CardInstance.h"
+#include "Input.h"
 #include "DeckDef.h"
 #include "DeckLoader.h"
 #include "Card3D.h"

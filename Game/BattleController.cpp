@@ -1065,36 +1065,24 @@ int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
 void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 {
 
-	bool yNow = (GetAsyncKeyState('Y') & 0x8000) != 0;
-	bool nNow = (GetAsyncKeyState('N') & 0x8000) != 0;
-	bool key1Now = (GetAsyncKeyState('1') & 0x8000) != 0;
-	bool key2Now = (GetAsyncKeyState('2') & 0x8000) != 0;
-	bool key3Now = (GetAsyncKeyState('3') & 0x8000) != 0;
+	Input* input = app.GetInput();
+	if (!input) {
+		return;
+	}
 
-	bool yTrig = yNow && !prevY_;
-	bool nTrig = nNow && !prevN_;
-	bool key1Trig = key1Now && !prev1_;
-	bool key2Trig = key2Now && !prev2_;
-	bool key3Trig = key3Now && !prev3_;
+	bool yTrig = input->IsKeyTrigger(DIK_Y);
+	bool nTrig = input->IsKeyTrigger(DIK_N);
+	bool key1Trig = input->IsKeyTrigger(DIK_1);
+	bool key2Trig = input->IsKeyTrigger(DIK_2);
+	bool key3Trig = input->IsKeyTrigger(DIK_3);
 
-	prevY_ = yNow;
-	prevN_ = nNow;
-	prev1_ = key1Now;
-	prev2_ = key2Now;
-	prev3_ = key3Now;
+	POINT mouse = input->GetMousePosition();
 
-	POINT mouse{};
-	GetCursorPos(&mouse);
-	ScreenToClient(app.Win()->GetHwnd(), &mouse);
+	bool lNow = input->IsMousePressed(0);
+	bool lTrig = input->IsMouseTrigger(0);
+	bool lRel = input->IsMouseReleased(0);
 
-	bool lNow = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-	bool lTrig = lNow && !prevL_;
-	bool lRel = !lNow && prevL_;
-	prevL_ = lNow;
-
-	bool rNow = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-	bool rTrig = rNow && !prevR_;
-	prevR_ = rNow;
+	bool rTrig = input->IsMouseTrigger(1);
 
 	pokerMouseChoice_ = PokerMouseChoice::None;
 
@@ -1196,13 +1184,8 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		return;
 	}
 
-	bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
-	bool enterTrig = enterNow && !prevEnter_;
-
-	bool tabNow = (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
-	operationUiVisible_ = tabNow;
-
-	prevEnter_ = enterNow;
+	bool enterTrig = input->IsKeyTrigger(DIK_RETURN);
+	operationUiVisible_ = input->IsKeyPressed(DIK_TAB);
 
 	if (turn_ == TurnState::Player) {
 
@@ -1680,12 +1663,11 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	float height = (float)WinApp::kClientHeight;
 	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
 
-	if (energy_ != prevEnergy_ || energyMax_ != prevEnergyMax_) {
-		RebuildCostView_(dt);
-	} else {
-		UpdateCostViewTransform_(dt);
-	}
-
+	//if (energy_ != prevEnergy_ || energyMax_ != prevEnergyMax_) {
+	//	RebuildCostView_(dt);
+	//} else {
+	//	UpdateCostViewTransform_(dt);
+	//}
 
 	//if (cardState_ == CardInputState::ChoosingFieldReplace) {
 	//	RefreshAllFieldCardTransforms_(dt);
@@ -2045,11 +2027,11 @@ std::wstring BattleController::GetCurrentPokerHandUiText() const
 	PokerHandResult poker = EvaluatePokerHand_();
 
 	if (field_.size() < 5) {
-		return L"役: 判定中";
+		return L"役:       判定中";
 	}
 
 	if (poker.rank == PokerHandRank::None) {
-		return L"役: なし";
+		return L"役:       なし";
 	}
 
 	switch (poker.rank) {
