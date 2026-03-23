@@ -1419,6 +1419,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 								isPokerDamageTargeting_ = false;                 // 手札カード由来
 								pendingCardHandIndex_ = idx;                     // 使った手札位置を覚える
+								handView_.SetFocusIndex(idx);
 								cardState_ = CardInputState::ChoosingEnemyTarget; // 敵選択へ
 
 								selectedIndex_ = -1;
@@ -1573,6 +1574,8 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							// ダメージ以外の効果（ドローなど）を発動
 							ApplyCardEffects_(*def, hoverIndex);
 
+							handView_.SetFocusIndex(-1);
+
 							// 場に出す処理
 							if ((int)field_.size() < 5) {
 								field_.push_back(inst);
@@ -1595,6 +1598,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 				// 右クリック：キャンセルして元に戻る
 				if (rTrig) {
+					handView_.SetFocusIndex(-1);
 					cardState_ = CardInputState::Idle;
 					if (isPokerDamageTargeting_) {
 						pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice; // ポーカー選択へ戻る
