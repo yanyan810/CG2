@@ -181,6 +181,13 @@ void HandView3D::Update(float dt)
             scl = { 2.0f, 2.0f, 2.0f };
         }
 
+        if (focusIndex_ >= 0 && i == focusIndex_) {
+            pos = { -10.f, 2.0f, 3.0f };   // BattleControllerからセットされた座標
+            rot = { 0.0f, 0.0f, 0.0f }; // プレイヤーに見えやすいよう正面に向ける
+            scl = { 1.f, 1.f, 1.f }; // 少し大きくする
+            stillAnimating = true;      // 座標を固定するために更新を継続させる
+        }
+
         cards_[i]->SetTransform(pos, rot, scl);
         cards_[i]->Update(dt);
     }

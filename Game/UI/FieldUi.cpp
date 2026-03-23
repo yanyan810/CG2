@@ -116,6 +116,7 @@ void FieldUi::ApplyFieldUiLayout_()
     if (costTextBg_) {
         costTextBg_->SetPosition({ layout_.costBg.x, layout_.costBg.y });
         costTextBg_->SetScale({ layout_.costBg.w, layout_.costBg.h, 1.0f });
+        costTextBg_->SetColor({ 0.f,1.f,0.f,0.5f });
     }
     if (costText_) {
         costText_->SetPosition({ layout_.costText.x, layout_.costText.y });
