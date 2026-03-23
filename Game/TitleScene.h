@@ -17,6 +17,8 @@
 
 #include "FieldUi.h"
 
+#include "BattleController.h"
+
 class Particle;
 class Camera;
 
@@ -69,4 +71,8 @@ private:
 	// 遷移先
 	//--------------------------------------------------------
 	const char* kNextScene_ = "Game";
+
+	//先読み
+	BattleController battle_;
+
 };

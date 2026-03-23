@@ -53,6 +53,10 @@ void TitleScene::OnEnter(GameApp& app) {
 	// 位置はあとで調整しやすいように中央下寄りに置く
 	pressStart_->SetPosition({ 430.0f, 560.0f });
 	pressStart_->SetScale({ 1.0f, 1.0f, 1.0f });
+
+	//カード慣例を先に読む
+	battle_.Preload(app);
+
 }
 
 //------------------------------------------------------------

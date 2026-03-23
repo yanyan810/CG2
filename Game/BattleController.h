@@ -120,6 +120,8 @@ public:
 
     PokerHandRank GetCurrentPokerRankForUi() const { return currentPoker_.rank; }
 
+    //先読み関数
+    void Preload(GameApp& app);
 
     void Finalize() {
         fieldViews_.clear();
@@ -231,7 +233,15 @@ private:
     };
     std::vector<DamagePopup> damagePopups_;
 
-    void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
+    //先読み変数
+    bool assetsPreloaded_ = false;
+    bool cardDbLoaded_ = false;
+
+	//先読み用のデッキ（カードDBとモデルを先に読み込むため）
+    std::vector<CardInstance> prebuiltDeck_;
+
+    //デルタタイム
+    float deltaTime_ = 0.0f;
 
 private:
 
@@ -285,9 +295,6 @@ private:
     int CalcFinalAttackDamage_(int baseDamage) const;
     void ApplyDamageToEnemy_(Enemy& enemy, int damage);
 
-
-	float deltaTime_ = 0.0f;
-
-  
+    void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 
 };

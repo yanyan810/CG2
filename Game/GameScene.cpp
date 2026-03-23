@@ -62,9 +62,9 @@ void GameScene::OnEnter(GameApp& app) {
 	// --------------------------------------------------
    //  5. バトルコントローラー
    // --------------------------------------------------
-	battle_.Initialize(app, camera_.get());
 	battle_.SetPlayer(player_.get());
 	battle_.SetEnemyManager(&enemyMgr_);
+	battle_.Initialize(app, camera_.get());
 
 	// --------------------------------------------------
 	// 6. 文字描画の初期化
@@ -259,28 +259,11 @@ void GameScene::Draw2D(GameApp& app) {
 		showDescBg = (def != nullptr) || battle_.ShouldShowOperationUi();
 	}
 
-	/*if (showDescBg && cardDescBg_) {
-		cardDescBg_->Update(view, proj);
-		cardDescBg_->Draw();
-	}*/
+	battle_.Draw2D(app);
 
 	if (fieldUi_) {
 		fieldUi_->Draw(app);
 	}
-
-	/*if (turnText_) {
-		turnText_->Update(view, proj);
-		turnText_->Draw();
-		turnTextBg_->Update(view, proj);
-		turnTextBg_->Draw();
-	}
-
-	if (costText_) {
-		costText_->Update(view, proj);
-		costText_->Draw();
-		costTextBg_->Update(view, proj);
-		costTextBg_->Draw();
-	}*/
 
 	if (playerHpText_) {
 		playerHpText_->Update(view, proj);

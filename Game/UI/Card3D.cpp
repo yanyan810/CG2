@@ -273,16 +273,19 @@ void Card3D::Update(float dt)
 
     // 一の位
     if (numberObjOnes_) {
-        float digitSpacing = 0.18f; // 2桁時の文字間隔
+        float digitSpacing = 0.18f;
         float baseX = g_numberX[mode];
         if (hasTensDigit_) {
-            baseX += digitSpacing * 0.5f; // 2桁のとき一の位を少し右へ
+            baseX += digitSpacing * 0.5f;
         }
 
+        Vector3 localOffset = { baseX, g_numberY[mode], g_numberZ[mode] };
+        Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
+
         Vector3 onesPos = {
-            pos_.x + baseX,
-            pos_.y + g_numberY[mode],
-            pos_.z + g_numberZ[mode]
+            pos_.x + rotatedOffset.x,
+            pos_.y + rotatedOffset.y,
+            pos_.z + rotatedOffset.z
         };
 
         numberObjOnes_->SetTranslate(onesPos);
@@ -298,12 +301,15 @@ void Card3D::Update(float dt)
     // 十の位
     if (hasTensDigit_ && numberObjTens_) {
         float digitSpacing = 0.7f;
-        float baseX = g_numberX[mode] - digitSpacing * 0.5f; // 十の位を少し左へ
+        float baseX = g_numberX[mode] - digitSpacing * 0.5f;
+
+        Vector3 localOffset = { baseX, g_numberY[mode], g_numberZ[mode] };
+        Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
         Vector3 tensPos = {
-            pos_.x + baseX,
-            pos_.y + g_numberY[mode],
-            pos_.z + g_numberZ[mode]
+            pos_.x + rotatedOffset.x,
+            pos_.y + rotatedOffset.y,
+            pos_.z + rotatedOffset.z
         };
 
         numberObjTens_->SetTranslate(tensPos);
