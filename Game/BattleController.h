@@ -83,6 +83,8 @@ public:
     bool IsWaitingActivateChoice() const;
     bool IsWaitingEffectChoice() const;
 
+    bool IsAllEnemiesDead() const;
+
 #ifdef USE_IMGUI
     void DrawImGui();
 #endif
