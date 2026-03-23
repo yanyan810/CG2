@@ -1,6 +1,6 @@
 {
   "name": "Boss",
-  "maxHp": 300,
+  "maxHp": 100,
   "actions": [
     { "type": "Attack", "value": 10, "name": "通常攻撃" },
     { "type": "Attack", "value": 10, "name": "通常攻撃" },
