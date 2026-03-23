@@ -154,6 +154,8 @@ public:
 
 	static ModelData    LoadAssimpFile(const std::string& fullPath);
 
+	ModelData& GetModelData() { return modelData_; }
+
 	Vector4& GetMaterialColor()
 	{
 		static Vector4 dummy{ 1,1,1,1 };

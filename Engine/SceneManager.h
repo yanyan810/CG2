@@ -20,6 +20,11 @@ public:
     void Draw2D(GameApp& app);
     void DrawImGui(GameApp& app);
 
+    void DrawSkydome(GameApp& app);
+
+    void DrawPostEffect3D(GameApp& app);
+    void DrawPostEffect2D(GameApp& app);
+
     IScene* Current() { return current_.get(); }
 
 private:

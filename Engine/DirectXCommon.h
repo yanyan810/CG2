@@ -14,11 +14,14 @@
 #include "Root.h"
 
 enum ShaderType {
+	kModelParticle,
 	kPostEffect,
 	kShadow,
 };
 
 enum PostEffectType {
+	kNone,
+
 	Bloom_Extract,
 	Bloom_Downsample,
 	Bloom_BlurH,
@@ -41,7 +44,11 @@ public:
 		std::wstring vsFilePath_;
 		std::wstring psFilePath_;
 		PostEffectType postEffectType_;
+		D3D12_INPUT_ELEMENT_DESC elementDescs_[3] = {};
+		D3D12_INPUT_LAYOUT_DESC layout_{};
 	};
+
+	PSO& GetPSOModelParticle() { return psoModelParticle_; }
 
 	PSO& GetPSOEffect(PostEffectType effect) {
 		switch (effect)
@@ -244,16 +251,16 @@ private:
 	// 現在のFPS
 	float fps_ = 0.0f;
 
-	PSO objectPSO_None;
-	PSO objectPSO_Alpha;
-	PSO psoParticle_;
+	//PSO objectPSO_None;
+	//PSO objectPSO_Alpha;
+	//PSO psoParticle_;
 	PSO psoModelParticle_;
 	PSO bloomPSO;
 	PSO downsamplePSO;
 	PSO blurHPSO;
 	PSO blurVPSO;
 	PSO conpositePSO;
-	PSO shadowPSO;
+	//PSO shadowPSO;
 	ShaderType shaderType_;
 
 	void CommandListExecuteAndReset();
@@ -270,6 +277,8 @@ private:
 		void SetBackBuffer();
 
 		void SetViewport(uint32_t width, uint32_t height);
+
+		void Release();
 
 };
 

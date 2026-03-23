@@ -14,6 +14,11 @@ public:
     virtual void Draw2D(GameApp& app) {}
     virtual void DrawImGui(GameApp& app) {}
 
+    virtual void DrawSkydome(GameApp& app) {}
+
+    virtual void DrawPostEffect3D(GameApp& app) {}
+    virtual void DrawPostEffect2D(GameApp& app) {}
+
     const char* GetRequestedScene_() const { return nextScene_; }
     void ClearRequestedScene_() { nextScene_ = nullptr; }
 
