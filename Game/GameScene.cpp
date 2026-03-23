@@ -141,8 +141,14 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
+	if (battle_.IsAllEnemiesDead()) {
+		RequestChangeScene_("Title");
+	}
+
 	Input* input = app.GetInput();
 	if (!input) return;
+
+	
 
 	camera_->Update();
 

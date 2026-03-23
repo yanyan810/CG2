@@ -55,6 +55,8 @@ private:
     std::unique_ptr<Object3d> art_;
     std::unique_ptr<Object3d> costObj_;
     std::unique_ptr<Object3d> suitObj_;
+    std::unique_ptr<Object3d> numberObjTens_;
+    std::unique_ptr<Object3d> numberObjOnes_;
 
     D3D12_GPU_DESCRIPTOR_HANDLE artSrv_{};
 
@@ -69,5 +71,9 @@ private:
     bool transformDirty_ = true;
     bool frameColorDirty_ = true;
     bool hasSubmittedOnce_ = false;
+
+	// 10の位の数字を描画するオブジェクトが必要かどうか
+    bool hasTensDigit_ = false;
+
 
 };

@@ -33,6 +33,17 @@ static float g_suitRotX_deg[2] = { -90.0f, -90.0f };
 static float g_suitRotY_deg[2] = { 0.0f, 0.0f };
 static float g_suitRotZ_deg[2] = { 270.0f, 270.0f };
 
+// 番号用の調整変数
+static float g_numberX[2] = { 2.260f, 2.260f };
+static float g_numberY[2] = { -2.0f, -2.0f };
+static float g_numberZ[2] = { -0.1f, -0.1f };
+static float g_numberScaleX[2] = { 0.9f, 0.9f };
+static float g_numberScaleY[2] = { 0.9f, 0.9f };
+static float g_numberScaleZ[2] = { 0.75f, 0.75f };
+static float g_numberRotX_deg[2] = { -90.0f, -90.0f };
+static float g_numberRotY_deg[2] = { 0.0f, 0.0f };
+static float g_numberRotZ_deg[2] = { 270.0f, 270.0f };
+
 // カードの向きと大きさに合わせて、マークのズレ（オフセット）を計算する関数
 static Vector3 CalcLocalOffset(const Vector3& offset, const Vector3& cardScale, const Vector3& cardRot)
 {
@@ -95,13 +106,28 @@ void Card3D::Setup(
         suitObj_->SetCamera(cam);
         suitObj_->SetEnableLighting(0);
     }
+
+    if (!numberObjTens_) {
+        numberObjTens_ = std::make_unique<Object3d>();
+        numberObjTens_->Initialize(objCom, dx);
+        numberObjTens_->SetCamera(cam);
+        numberObjTens_->SetEnableLighting(0);
+    }
+
+    if (!numberObjOnes_) {
+        numberObjOnes_ = std::make_unique<Object3d>();
+        numberObjOnes_->Initialize(objCom, dx);
+        numberObjOnes_->SetCamera(cam);
+        numberObjOnes_->SetEnableLighting(0);
+    }
+
 }
 
 void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
 {
     ScopedTimer timer("Card3D::SetCardData");
 
-    if (!frame_ || !art_ || !costObj_ || !suitObj_) {
+    if (!frame_ || !art_ || !costObj_ || !suitObj_ || !numberObjTens_ || !numberObjOnes_) {
         return;
     }
 
@@ -115,9 +141,6 @@ void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
         art_->SetModel(def.artModel.c_str());
     }
 
-    // ここは削除 or 初回だけ
-    // TextureManager::GetInstance()->LoadTexture(def.artTex);
-
     {
         ScopedTimer t("  GetSrvHandleGPU");
         artSrv_ = TextureManager::GetInstance()->GetSrvHandleGPU(def.artTex);
@@ -127,6 +150,25 @@ void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
     {
         ScopedTimer t("  cost SetModel");
         costObj_->SetModel(costModelPath.c_str());
+    }
+
+    int tens = inst.number / 10;
+    int ones = inst.number % 10;
+
+    hasTensDigit_ = (inst.number >= 10);
+
+    // 一の位は常に表示
+    {
+        std::string onesPath = "cards/models/" + std::to_string(ones) + ".obj";
+        ScopedTimer t("  ones SetModel");
+        numberObjOnes_->SetModel(onesPath.c_str());
+    }
+
+    // 十の位があるときだけ表示
+    if (hasTensDigit_) {
+        std::string tensPath = "cards/models/" + std::to_string(tens) + ".obj";
+        ScopedTimer t("  tens SetModel");
+        numberObjTens_->SetModel(tensPath.c_str());
     }
 
     std::string suitModelPath;
@@ -229,6 +271,51 @@ void Card3D::Update(float dt)
         suitObj_->Update(dt);
     }
 
+    // 一の位
+    if (numberObjOnes_) {
+        float digitSpacing = 0.18f; // 2桁時の文字間隔
+        float baseX = g_numberX[mode];
+        if (hasTensDigit_) {
+            baseX += digitSpacing * 0.5f; // 2桁のとき一の位を少し右へ
+        }
+
+        Vector3 onesPos = {
+            pos_.x + baseX,
+            pos_.y + g_numberY[mode],
+            pos_.z + g_numberZ[mode]
+        };
+
+        numberObjOnes_->SetTranslate(onesPos);
+        numberObjOnes_->SetRotate(fixRot);
+        numberObjOnes_->SetScale({
+            scale_.x * g_numberScaleX[mode],
+            scale_.y * g_numberScaleY[mode],
+            scale_.z * g_numberScaleZ[mode]
+            });
+        numberObjOnes_->Update(dt);
+    }
+
+    // 十の位
+    if (hasTensDigit_ && numberObjTens_) {
+        float digitSpacing = 0.7f;
+        float baseX = g_numberX[mode] - digitSpacing * 0.5f; // 十の位を少し左へ
+
+        Vector3 tensPos = {
+            pos_.x + baseX,
+            pos_.y + g_numberY[mode],
+            pos_.z + g_numberZ[mode]
+        };
+
+        numberObjTens_->SetTranslate(tensPos);
+        numberObjTens_->SetRotate(fixRot);
+        numberObjTens_->SetScale({
+            scale_.x * g_numberScaleX[mode],
+            scale_.y * g_numberScaleY[mode],
+            scale_.z * g_numberScaleZ[mode]
+            });
+        numberObjTens_->Update(dt);
+    }
+
     transformDirty_ = false;
     frameColorDirty_ = false;
     hasSubmittedOnce_ = true;
@@ -241,9 +328,12 @@ void Card3D::Draw()
     frame_->Draw();
     art_->DrawWithOverrideSrv(artSrv_);
 
-    // コストとマークを描画
+    // コストとマークと数字を描画
     if (costObj_) costObj_->Draw();
     if (suitObj_) suitObj_->Draw();
+    if (hasTensDigit_ && numberObjTens_) numberObjTens_->Draw();
+    if (numberObjOnes_) numberObjOnes_->Draw();
+
 }
 void Card3D::SetFrameColor(const Vector4& color)
 {
@@ -309,6 +399,22 @@ void Card3D::DrawAdjustImGui()
     ImGui::DragFloat("Suit Scale Y", &g_suitScaleY[editMode], 0.01f);
     ImGui::DragFloat("Suit Scale Z", &g_suitScaleZ[editMode], 0.01f);
 
+    ImGui::Separator();
+
+    ImGui::Text("Number Icon");
+    ImGui::DragFloat("Number X (Left/Right)", &g_numberX[editMode], 0.01f);
+    ImGui::DragFloat("Number Y (Up/Down)", &g_numberY[editMode], 0.01f);
+    ImGui::DragFloat("Number Z (Depth)", &g_numberZ[editMode], 0.01f);
+    ImGui::DragFloat("Number Rot X", &g_numberRotX_deg[editMode], 1.0f);
+    ImGui::DragFloat("Number Rot Y", &g_numberRotY_deg[editMode], 1.0f);
+    ImGui::DragFloat("Number Rot Z", &g_numberRotZ_deg[editMode], 1.0f);
+    ImGui::DragFloat("Number Scale X", &g_numberScaleX[editMode], 0.01f);
+    ImGui::DragFloat("Number Scale Y", &g_numberScaleY[editMode], 0.01f);
+    ImGui::DragFloat("Number Scale Z", &g_numberScaleZ[editMode], 0.01f);
+
     ImGui::End();
+
+ 
+
 }
 #endif
