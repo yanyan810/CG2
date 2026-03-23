@@ -986,6 +986,17 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 	pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	pso.graphicsDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 
+	// [DepthStencilState] のデフォルト設定
+	pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+	if (pso.shaderType_ == kModelParticle) {
+		// 深度テストは行うが、深度バッファへの書き込みは行わない
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	} else {
+		// 通常のモデルは書き込む
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	}
+	pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
 	// [BlendState] の設定
 	pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle) {
@@ -999,11 +1010,6 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 	} else {
 		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
 	}
-
-	// [DepthStencilState] のデフォルト設定
-	pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
-	pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
 	// --- 統合ここまで ---
 
@@ -1049,10 +1055,6 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 		pso.layout_.NumElements = _countof(pso.elementDescs_);
 
 		pso.graphicsDesc_.InputLayout = pso.layout_;
-		// ★ここを確実に設定！
-		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
-		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	}
 
 	// 6. 残りの共通設定
