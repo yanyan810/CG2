@@ -109,6 +109,13 @@ void GameScene::OnEnter(GameApp& app) {
 	costTextBg_->SetScale({ 170.f,55.f,1.f });
 	costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
+	// プレイヤーHP数字
+	playerHpText_ = std::make_unique<TextSprite>();
+	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
+	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
+	playerHpText_->SetPosition({ 140.0f, 12.5f});
+
+	// 敵HP数字
 	for (int i = 0; i < 3; i++) {
 		auto text = std::make_unique<TextSprite>();
 		text->Initialize(app.SpriteCom(), app.Dx());
@@ -203,15 +210,20 @@ void GameScene::Update(GameApp& app, float dt) {
 		costText_->SetText(battle_.GetEnergyText());
 	}
 
+	if (playerHpText_) {
+		playerHpText_->SetText(battle_.GetPlayerHpTexts());
+	}
+
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
 
 	for (size_t i = 0; i < enemyHpTexts_.size(); i++) {
 		if (i < hpData.size()) {
 			enemyHpTexts_[i]->SetText(hpData[i]);
 
-			// 座標の設定（敵の頭上や、既存のHPバーの位置に合わせる）
-			// 例: 1体目 200, 2体目 500, 3体目 800 など
 			enemyHpTexts_[i]->SetPosition({ 1025.0f, 10.0f + (i * 30.0f) });
+		} else {
+			
+			enemyHpTexts_[i]->SetText(L"");
 		}
 	}
 }
@@ -270,6 +282,11 @@ void GameScene::Draw2D(GameApp& app) {
 		costTextBg_->Draw();
 	}
 
+	if (playerHpText_) {
+		playerHpText_->Update(view, proj);
+		playerHpText_->Draw();
+	}
+
 	for (auto& text : enemyHpTexts_) {
 		text->Update(view, proj);
 		text->Draw();
@@ -284,6 +301,8 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	ImGui::DragFloat2("position", &position_.x);
 	ImGui::DragFloat3("scale", &scale_.x);
+
+	//playerHpText_->SetPosition(position_);
 
 	ImGui::End();
 

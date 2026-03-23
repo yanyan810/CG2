@@ -77,6 +77,7 @@ public:
     std::wstring GetCurrentPokerHandUiText() const;
     std::wstring GetTurnUiText() const;
     std::wstring GetEnergyText() const;
+    std::wstring GetPlayerHpTexts() const;
     std::vector<std::wstring> GetEnemyHpTexts() const;
     //マウス選択関連
     int GetPokerMouseChoiceIndex() const;
