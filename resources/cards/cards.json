@@ -44,9 +44,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/PowerShot.png",
-      "desc": "敵単体に8ダメージ与えてカードを1枚引く",
+      "desc": "敵単体に10ダメージ与えてカードを1枚引く",
       "effects": [
-        { "type": "Damage", "value": 8 },
+        { "type": "Damage", "value": 10 },
         { "type": "Draw", "value": 1 }
       ]
      },
