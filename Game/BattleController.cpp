@@ -2107,3 +2107,11 @@ BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
 {
 	return GetPokerBonus_(currentPoker_.rank);
 }
+
+std::wstring BattleController::GetPlayerHpTexts() const {
+	std::wstring text;
+
+	text = std::to_wstring(player_->GetHP()) + L" / " + std::to_wstring(player_->GetMaxHP());
+
+	return text;
+}

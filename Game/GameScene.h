@@ -55,6 +55,7 @@ private:
     Vector2 position_;
     Vector3 scale_;
 
+    std::unique_ptr<TextSprite> playerHpText_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
 
 };
