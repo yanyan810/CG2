@@ -127,7 +127,7 @@
           "trigger": "OnTurnStartWithPoker",
           "condition": {
             "type": "AtLeastRank",
-            "rank": "ThreeCard"
+            "rank": "ThreeOfAKind"
           },
           "effects": [
             { "type": "Damage", "value": 100 }

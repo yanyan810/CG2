@@ -251,7 +251,7 @@ private:
     void RebuildFieldView_();
     int PickFieldIndexByMouse_(int mouseX, int mouseY) const;
     void DrawCards_(int count);
-    void ApplyCardEffects_(const CardDef& def);
+    void ApplyCardEffects_(const CardDef& def, int targetIndex = -1);
     PokerHandResult EvaluatePokerHand_() const;
     const char* GetPokerHandName_(PokerHandRank rank) const;
 
@@ -263,7 +263,7 @@ private:
     bool IsRankInFamily_(PokerHandRank rank, const std::string& family) const;
     bool DoesSubEffectConditionMatch_(const CardSubEffectDef& sub, PokerHandRank rank) const;
 
-    void ApplyEffectsList_(const std::vector<CardEffectDef>& effects);
+    void ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex = -1);
     void TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank);
     void TriggerSubEffectsForCard_(const CardInstance& card, SubEffectTrigger trigger, PokerHandRank rank);
 
