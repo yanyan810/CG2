@@ -626,7 +626,7 @@ void BattleController::DrawCards_(int count)
 	//	handView_.Rebuild(hand_);
 }
 
-void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects)
+void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects,int targetIndex)
 {
 	for (const auto& effect : effects) {
 		if (effect.type == "Draw") {
@@ -634,18 +634,26 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "Damage") {
 			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (!e.IsAlive()) {
-						continue;
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()) {
+						int totalDamage = CalcFinalAttackDamage_(effect.value);
+						ApplyDamageToEnemy_(e, totalDamage);
+						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
 					}
-
-					int totalDamage = CalcFinalAttackDamage_(effect.value);
-					ApplyDamageToEnemy_(e, totalDamage);
-
-					// 1回適用したら終了
-					nextTurnAtkUp_ = 0;
-					break;
 				}
+				else
+				{
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (!e.IsAlive()) continue;
+						int totalDamage = CalcFinalAttackDamage_(effect.value);
+						ApplyDamageToEnemy_(e, totalDamage);
+						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						break;
+					}
+				}
+				
+				nextTurnAtkUp_ = 0;
 			}
 
 		} else if (effect.type == "Block") {
@@ -731,9 +739,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 	}
 }
 
-void BattleController::ApplyCardEffects_(const CardDef& def)
+void BattleController::ApplyCardEffects_(const CardDef& def, int targetIndex)
 {
-	ApplyEffectsList_(def.effects);
+	ApplyEffectsList_(def.effects, targetIndex);
 }
 
 BattleController::PokerHandRank BattleController::ParsePokerRankString_(const std::string& s) const
@@ -1122,11 +1130,9 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		}
 
 		if (yTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateYes)) {
-			TriggerSubEffectsForField_(
-				SubEffectTrigger::OnPokerSkillActivated,
-				currentPoker_.rank
-			);
+			
 			pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice;
+			return;
 		}
 
 		if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateNo)) {
@@ -1164,6 +1170,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 		if (key1Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
 			nextTurnAtkUp_ += bonus.atkUp;
+			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
@@ -1173,6 +1180,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 		if (key2Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
 			DrawCards_(bonus.drawCount);
+			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
@@ -1181,6 +1189,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		}
 
 		if (key3Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
+			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
 			cardState_ = CardInputState::ChoosingEnemyTarget;
@@ -1481,23 +1490,15 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 					if (hoverIndex >= 0) {
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
-						// 選んだ敵に向かって突進＆ダメージ！
-
-						player_->PlayAttackAnim(targetEnemy.GetPos());
-						if (pendingDamage_ > 0) {
-							targetEnemy.TriggerHitFlash(0.2f);
-							targetEnemy.PlayDamageAnim();
-						}
-						targetEnemy.Damage(pendingDamage_);
-						if (pendingDamage_ > 0) {
-							SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
-						}
-
-						ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
-
-
 						nextTurnAtkUp_ = 0;
 						if (isPokerDamageTargeting_) {
+							ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
+							// 選んだ敵に向かって突進＆ダメージ！
+							if (pendingDamage_ > 0) {
+								SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
+							}
+
+							
 							// ポーカー役での攻撃だった場合
 							ConsumeFieldCards_();
 							cardState_ = CardInputState::Idle;
@@ -1516,7 +1517,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							handView_.Rebuild(hand_);
 
 							// ダメージ以外の効果（ドローなど）を発動
-							ApplyCardEffects_(*def);
+							ApplyCardEffects_(*def, hoverIndex);
 
 							// 場に出す処理
 							if ((int)field_.size() < 5) {
