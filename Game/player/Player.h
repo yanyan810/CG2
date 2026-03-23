@@ -61,6 +61,8 @@ public:
 	void AddVampireHeal(int value) { vampireHeal_ += value; }
 	void ResetVampireHeal() { vampireHeal_ = 0; }
 
+	bool GetIsAlive() { return isAlive_; }
+
 
 private:
 	std::unique_ptr<Object3d> model_;
@@ -90,4 +92,6 @@ private:
 	Vector3 targetPos_{}; // アニメーション目標位置
 
 	float flashTimer_ = 0.0f;
+
+	bool isAlive_ = true;
 };

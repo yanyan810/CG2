@@ -20,6 +20,8 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
 
     block_ = 0;
     boostedPower_ = 0;
+
+    isAlive_ = true;
 }
 
 void Player::PlayAttackAnim(const Vector3& targetPos) {
@@ -124,5 +126,8 @@ void Player::Damage(int damage)
 
     hp_ -= damage;
 
-    if (hp_ < 0) hp_ = 0;
+    if (hp_ < 0) {
+        hp_ = 0;
+        isAlive_ = false;
+    }
 }
