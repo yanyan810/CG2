@@ -459,13 +459,74 @@ void BattleController::PreloadCardAssets_()
 	}
 }
 
+void BattleController::Preload(GameApp& app)
+{
+	objCom_ = app.ObjCom();
+	dx_ = app.Dx();
+	spriteCom_ = app.SpriteCom();
+
+	if (!cardDbLoaded_) {
+		if (!db_.LoadFromJson("resources/cards/cards.json")) {
+			db_.BuildSample();
+		}
+		cardDbLoaded_ = true;
+	}
+
+	if (!assetsPreloaded_) {
+		PreloadCardAssets_();
+
+		// デッキ定義もここで読んでおくと、ゲーム開始時がさらに軽くなる
+		DeckDef deckDef{};
+		std::string err;
+
+		prebuiltDeck_.clear();
+
+		if (DeckLoader::LoadFromJson("resources/cards/deck/deck.json", deckDef) &&
+			DeckLoader::ValidateDeck(deckDef, db_, err)) {
+
+			for (const auto& e : deckDef.cards) {
+				for (int i = 0; i < e.count; ++i) {
+					prebuiltDeck_.push_back(MakeCardInstance(e.id));
+				}
+			}
+		} else {
+			for (int i = 0; i < 4; ++i) {
+				prebuiltDeck_.push_back(MakeCardInstance(9));
+				prebuiltDeck_.push_back(MakeCardInstance(8));
+				prebuiltDeck_.push_back(MakeCardInstance(7));
+				prebuiltDeck_.push_back(MakeCardInstance(6));
+				prebuiltDeck_.push_back(MakeCardInstance(5));
+				prebuiltDeck_.push_back(MakeCardInstance(4));
+				prebuiltDeck_.push_back(MakeCardInstance(3));
+				prebuiltDeck_.push_back(MakeCardInstance(2));
+				prebuiltDeck_.push_back(MakeCardInstance(1));
+				prebuiltDeck_.push_back(MakeCardInstance(20));
+				prebuiltDeck_.push_back(MakeCardInstance(19));
+				prebuiltDeck_.push_back(MakeCardInstance(18));
+				prebuiltDeck_.push_back(MakeCardInstance(17));
+				prebuiltDeck_.push_back(MakeCardInstance(16));
+				prebuiltDeck_.push_back(MakeCardInstance(15));
+				prebuiltDeck_.push_back(MakeCardInstance(14));
+				prebuiltDeck_.push_back(MakeCardInstance(13));
+				prebuiltDeck_.push_back(MakeCardInstance(12));
+				prebuiltDeck_.push_back(MakeCardInstance(11));
+				prebuiltDeck_.push_back(MakeCardInstance(10));
+			}
+		}
+
+		assetsPreloaded_ = true;
+	}
+}
+
 void BattleController::Initialize(GameApp& app, Camera* camera)
 {
 	cam_ = camera;
 	objCom_ = app.ObjCom();
 	dx_ = app.Dx();
-
 	spriteCom_ = app.SpriteCom();
+
+	// まだ先読みされていなければここで保険として実行
+	Preload(app);
 
 	// -----------------------------
 	// HPゲージ作成
@@ -479,33 +540,36 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	playerHpFg_ = std::make_unique<Sprite>();
 	playerHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f });
-	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });   // ← 最初から正しい値
-	playerHpFg_->SetPosition({ 80.0f, 40.0f });       // ← 最初から正しい値
+	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
+	playerHpFg_->SetPosition({ 80.0f, 40.0f });
 
-	// 敵の最大数（3体）分のゲージを生成する
 	enemyHpBgs_.clear();
 	enemyHpFgs_.clear();
+	enemyIntentIcons_.clear();
+
 	for (int i = 0; i < 3; ++i) {
 		auto bg = std::make_unique<Sprite>();
 		bg->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-		bg->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });           // 暗いグレー
+		bg->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
+		bg->SetScale({ 0.0f, 0.0f, 1.0f });
+		bg->SetPosition({ 0.0f, 0.0f });
 		enemyHpBgs_.push_back(std::move(bg));
 
 		auto fg = std::make_unique<Sprite>();
 		fg->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-		fg->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });           // 赤色
+		fg->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+		fg->SetScale({ 0.0f, 0.0f, 1.0f });
+		fg->SetPosition({ 0.0f, 0.0f });
 		enemyHpFgs_.push_back(std::move(fg));
 
-		// 予告アイコンの生成
 		auto icon = std::make_unique<Sprite>();
 		icon->Initialize(spriteCom_, dx_, "resources/ui/white.png");
+		icon->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+		icon->SetScale({ 0.0f, 0.0f, 1.0f });
+		icon->SetPosition({ 0.0f, 0.0f });
 		enemyIntentIcons_.push_back(std::move(icon));
 	}
 
-
-	// -----------------------------
-	// ここで一度だけ即時反映
-	// -----------------------------
 	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
 	float width = (float)WinApp::kClientWidth;
 	float height = (float)WinApp::kClientHeight;
@@ -514,76 +578,33 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
 
-	if (!db_.LoadFromJson("resources/cards/cards.json")) {
-		db_.BuildSample();
-	}
+	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
+	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
+	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 
-	PreloadCardAssets_();
-
-	DeckDef deckDef{};
-	std::string err;
-
-	if (DeckLoader::LoadFromJson("resources/cards/deck/deck.json", deckDef) &&
-		DeckLoader::ValidateDeck(deckDef, db_, err)) {
-
-		deck_.clear();
-		for (const auto& e : deckDef.cards) {
-			for (int i = 0; i < e.count; ++i) {
-				deck_.push_back(MakeCardInstance(e.id));
-			}
-		}
-	} else {
-		deck_.clear();
-		for (int i = 0; i < 4; ++i) {
-
-			deck_.push_back(MakeCardInstance(9));
-			deck_.push_back(MakeCardInstance(8));
-			deck_.push_back(MakeCardInstance(7));
-			deck_.push_back(MakeCardInstance(6));
-			deck_.push_back(MakeCardInstance(5));
-			deck_.push_back(MakeCardInstance(4));
-			deck_.push_back(MakeCardInstance(3));
-			deck_.push_back(MakeCardInstance(2));
-			deck_.push_back(MakeCardInstance(1));
-			deck_.push_back(MakeCardInstance(20));
-			deck_.push_back(MakeCardInstance(19));
-			deck_.push_back(MakeCardInstance(18));
-			deck_.push_back(MakeCardInstance(17));
-			deck_.push_back(MakeCardInstance(16));
-			deck_.push_back(MakeCardInstance(15));
-			deck_.push_back(MakeCardInstance(14));
-			deck_.push_back(MakeCardInstance(13));
-			deck_.push_back(MakeCardInstance(12));
-			deck_.push_back(MakeCardInstance(11));
-			deck_.push_back(MakeCardInstance(10));
-		}
-	}
-
-
-
+	// ここはコピーだけ
+	deck_ = prebuiltDeck_;
 	ShuffleDeck_();
 
 	hand_.clear();
 	discard_.clear();
 	field_.clear();
 	fieldViews_.clear();
+	damagePopups_.clear();
 
 	hasPendingCard_ = false;
 	pendingCard_ = {};
+	currentEnemyIndex_ = 0;
+	nextTurnAtkUp_ = 0;
 
 	energy_ = energyMax_;
+
 	handView_.Initialize(objCom_, dx_, cam_, &db_);
 	handView_.Clear();
 
 	StartPlayerTurn_();
-	OutputDebugStringA(("After StartPlayerTurn hand=" + std::to_string(hand_.size()) +
-		" deck=" + std::to_string(deck_.size()) +
-		" discard=" + std::to_string(discard_.size()) + "\n").c_str());
-
 	RebuildDiscardView_();
-
 	RebuildCostView_(deltaTime_);
-
 }
 
 bool BattleController::DrawOne_()
@@ -1723,18 +1744,30 @@ void BattleController::Draw3D(GameApp& app)
 
 	handView_.Draw();
 
-	if (playerHpBg_) playerHpBg_->Draw();
-	if (playerHpFg_) playerHpFg_->Draw();
-
-	for (auto& bg : enemyHpBgs_) { if (bg) bg->Draw(); }
-	for (auto& fg : enemyHpFgs_) { if (fg) fg->Draw(); }
-	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Draw(); }
-
 	for (auto& popup : damagePopups_) {
 		for (auto& obj : popup.digitModels) {
 			if (obj) obj->Draw();
 		}
 	}
+}
+
+void BattleController::Draw2D(GameApp& app)
+{
+
+
+	if (playerHpBg_) playerHpBg_->Draw();
+	if (playerHpFg_) playerHpFg_->Draw();
+
+	for (auto& bg : enemyHpBgs_) {
+		if (bg) bg->Draw();
+	}
+	for (auto& fg : enemyHpFgs_) {
+		if (fg) fg->Draw();
+	}
+	for (auto& icon : enemyIntentIcons_) {
+		if (icon) icon->Draw();
+	}
+
 }
 
 #ifdef USE_IMGUI

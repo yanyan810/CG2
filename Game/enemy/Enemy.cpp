@@ -46,6 +46,11 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	hp_ = ai_.GetMaxHP();
 
 	basePos_ = pos_;
+
+	model_->SetTranslate(pos_);
+	model_->SetRotate(rot_);
+	model_->Update(0.0f);
+
 }
 
 void Enemy::PlayAttackAnim(const Vector3& targetPos) {
