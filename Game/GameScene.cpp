@@ -239,8 +239,6 @@ void GameScene::Draw3D(GameApp& app) {
 
 	enemyMgr_.Draw();
 
-	if (player_) player_->Draw();
-
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -306,6 +304,9 @@ void GameScene::DrawSkydome(GameApp& app)
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	if (skyDome_) skyDome_->Draw();
+
+	if (player_) player_->Draw();
+
 }
 
 void GameScene::DrawPostEffect3D(GameApp& app)

@@ -51,12 +51,12 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 2, WinApp::kClientHeight / 2);
 
     // ブルームパラメータ
-    bloomParam_.threshold = 0.2f;
-    bloomParam_.intensity = 3.0f;
+    bloomParam_.threshold = 0.0f;
+    bloomParam_.intensity = 1.0f;
     bloomParam_.vignetteIntensity = 0.0f;
     bloomParam_.vignetteScale = 0.0f;
     bloomParam_.chromAbAmount = 0.01f;
-    bloomParam_.distortionAmount = 0.005f;
+    bloomParam_.distortionAmount = 0.0f;
     bloomParam_.noiseIntensity = 0.1f;
     bloomParam_.scanlineIntensity = 0.1f;
     bloomParam_.scanlineFrequency = 100.0f;
