@@ -110,24 +110,24 @@ void GameScene::OnEnter(GameApp& app) {
 	// パワーブースト
 	powerBoostBg_ = std::make_unique<Sprite>();
 	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	powerBoostBg_->SetPosition({ 105.0f, 60.0f });
-	powerBoostBg_->SetScale({ 16.0f, 16.0f, 1.0f });
+	powerBoostBg_->SetPosition({ 95.0f, 60.0f });
+	powerBoostBg_->SetScale({ 32.0f, 32.0f, 1.0f });
 	powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
 	powerBoostText_ = std::make_unique<TextSprite>();
 	powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
-	powerBoostText_->SetSize({ 0.5f,0.5f,0.5f });
-	powerBoostText_->SetPosition({ 100.0f, 50.f });
+	powerBoostText_->SetSize({ 1.f,1.f,0.5f });
+	powerBoostText_->SetPosition({ 88.f, 40.f });
 
 	// ブロック
 	blockBg_ = std::make_unique<Sprite>();
 	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	blockBg_->SetPosition({ 145.0f, 60.0f });
-	blockBg_->SetScale({ 16.0f, 16.0f, 1.0f });
+	blockBg_->SetScale({ 32.0f, 32.0f, 1.0f });
 	blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
 	blockText_ = std::make_unique<TextSprite>();
 	blockText_->Initialize(app.SpriteCom(), app.Dx());
-	blockText_->SetSize({ 0.5f,0.5f,0.5f });
-	blockText_->SetPosition({ 140.0f, 50.f });
+	blockText_->SetSize({ 1.f,1.f,0.5f });
+	blockText_->SetPosition({ 138.f, 40.f });
 }
 
 void GameScene::OnExit(GameApp& app) {
