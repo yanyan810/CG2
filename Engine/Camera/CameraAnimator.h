@@ -28,6 +28,14 @@ public:
     // エディットモード中かどうかを外から知るための関数
     bool IsEditing() const { return !isPlaying_; }
 
+	//ループするかどうか
+    void SetLoop(bool value) { isLoop_ = value; }
+    bool GetLoop() const { return isLoop_; }
+
+	// 再生中かどうか
+    void SetPlaying(bool value) { isPlaying_ = value; }
+    bool GetPlaying() const { return isPlaying_; }
+
 private:
     Camera* camera_ = nullptr;
     Input* input_ = nullptr;

@@ -2,6 +2,8 @@
 #include "Matrix4x4.h"
 #ifdef USE_IMGUI
 #include <imgui.h>
+#endif
+
 #include <fstream>
 #include <algorithm>
 #include <windows.h> // OutputDebugStringAのため
@@ -178,6 +180,8 @@ void CameraAnimator::SaveToJson(const std::string& filepath) {
         OutputDebugStringA((">>> ERROR: Failed to save " + filepath + "\n").c_str());
     }
 }
+
+#ifdef USE_IMGUI
 
 void CameraAnimator::DrawImGui() {
     if (!camera_) return;

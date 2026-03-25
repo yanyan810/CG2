@@ -1565,7 +1565,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			prevFieldReplaceHoverIndex_ = -1;
 		}
 
-		if ((enterTrig || endTurnButtonClicked) && cardState_ == CardInputState::Idle) {
+		if ((/*enterTrig ||*/ endTurnButtonClicked) && cardState_ == CardInputState::Idle) {
 
 			OutputDebugStringA(("Before EndTurn hand=" + std::to_string(hand_.size()) +
 				" deck=" + std::to_string(deck_.size()) +
