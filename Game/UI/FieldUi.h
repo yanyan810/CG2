@@ -25,7 +25,9 @@ public:
 
     void Initialize(GameApp& app);
     void Update(GameApp& app, const BattleController& battle);
-    void Draw(GameApp& app);
+  //  void Draw(GameApp& app);
+    void Draw(GameApp& app, const BattleController& battle);
+
 
 #ifdef USE_IMGUI
     void DrawImGui();
@@ -46,33 +48,43 @@ private:
     void SetTextScale_(TextSprite* text, float s);
 
 private:
+
+    //==================================
+	// UI文字と背景スプライト。頻繁に更新されるものはポインタを保持、カード説明テキストはキャッシュから都度取得。
+    //==================================
     std::unique_ptr<TextSprite> cardDescText_;
 
     std::unique_ptr<TextSprite> deckCountText_;
     std::unique_ptr<TextSprite> discardCountText_;
     std::unique_ptr<TextSprite> handCountText_;
     std::unique_ptr<TextSprite> fieldCountText_;
+    std::unique_ptr<TextSprite> pokerPreviewText_;
+    std::unique_ptr<TextSprite> turnText_;
+    std::unique_ptr<TextSprite> costText_;
+    std::unique_ptr<TextSprite> pokerTitleText_;
+    std::unique_ptr<TextSprite> pokerOptionTexts_[4];
+    std::unique_ptr<TextSprite> pokerInfoButtonText_;
+    std::unique_ptr<TextSprite> pokerPreviewTitleText_;
 
+	//ui用の背景スプライト
+    std::unique_ptr<Sprite>     turnTextBg_;
+    std::unique_ptr<Sprite>     costTextBg_;
     std::unique_ptr<Sprite> cardDescBg_;
     std::unique_ptr<Sprite> deckCountBg_;
     std::unique_ptr<Sprite> discardCountBg_;
     std::unique_ptr<Sprite> handCountBg_;
     std::unique_ptr<Sprite> fieldCountBg_;
-
-    std::unique_ptr<TextSprite> turnText_;
-    std::unique_ptr<Sprite>     turnTextBg_;
-
-    std::unique_ptr<TextSprite> costText_;
-    std::unique_ptr<Sprite>     costTextBg_;
-
-    std::unique_ptr<TextSprite> pokerTitleText_;
-    std::unique_ptr<TextSprite> pokerOptionTexts_[4];
     std::unique_ptr<Sprite> pokerOptionBgs_[4];
-
     std::unique_ptr<Sprite> modalOverlayBg_;
+    std::unique_ptr<Sprite> pokerPreviewBg_;
+
 
     std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
     TextSprite* activeCardDescText_ = nullptr;
+
+    //キャッシュ用メンバ
+    std::wstring lastPokerPreviewText_;
+    bool lastPokerPreviewVisible_ = false;
 
     bool showPokerOptions_ = false;
     int pokerHoverIndex_ = -1;
