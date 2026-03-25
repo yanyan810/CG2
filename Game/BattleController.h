@@ -208,6 +208,7 @@ private:
     int selectedIndex_ = -1;
     CardInstance pendingCard_;
     bool hasPendingCard_ = false;
+    std::unique_ptr<Card3D> pendingCardView_;
 
     POINT dragStartMouse_{};
     float dragDx_ = 0.0f;

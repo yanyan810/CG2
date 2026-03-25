@@ -196,11 +196,15 @@ void HandView3D::Update(float dt)
         cards_[i]->SetTargetTransform(pos, rot, scl, isDrag);
         cards_[i]->Update(dt);
 
-        if (cards_[i]->GetWorldPos().x != pos.x ||
-            cards_[i]->GetWorldPos().y != pos.y ||
-            cards_[i]->GetWorldPos().z != pos.z) {
+        Vector3 curPos = cards_[i]->GetWorldPos();
+        float distSq = (curPos.x - pos.x) * (curPos.x - pos.x) +
+            (curPos.y - pos.y) * (curPos.y - pos.y) +
+            (curPos.z - pos.z) * (curPos.z - pos.z);
+        if (distSq > 0.00001f) {
             stillAnimating = true;
         }
+
+        
     }
 
     for (auto& card : discardingCards_) {
@@ -323,6 +327,7 @@ void HandView3D::AddCard(const CardInstance& inst)
     }
 
     c->SetIsHand(true);
+    c->SetTransform({ -25.0f, -15.0f, 10.0f }, { 0.0f, 3.14159f, 0.0f }, { 0.0f, 0.0f, 0.0f });
     cards_.push_back(std::move(c));
 
     basePos_.push_back({});
@@ -374,11 +379,8 @@ void HandView3D::RemoveCardAt(int index)
     Update(1.0f / 60.0f);
 }
 
-std::unique_ptr<Card3D> HandView3D::ExtractCardAt(int index)
-{
-    if (index < 0 || index >= static_cast<int>(cards_.size())) {
-        return nullptr;
-    }
+std::unique_ptr<Card3D> HandView3D::ExtractCardAt(int index) {
+    if (index < 0 || index >= static_cast<int>(cards_.size())) return nullptr;
 
     auto extractedCard = std::move(cards_[index]);
 
@@ -391,23 +393,20 @@ std::unique_ptr<Card3D> HandView3D::ExtractCardAt(int index)
 
     if (hoverIndex_ == index) hoverIndex_ = -1;
     else if (hoverIndex_ > index) --hoverIndex_;
-
     if (previewIndex_ == index) previewIndex_ = -1;
     else if (previewIndex_ > index) --previewIndex_;
-
-    if (dragIndex_ == index) {
-        dragIndex_ = -1;
-        dragActive_ = false;
-        dragDxPx_ = 0.0f;
-        dragDyPx_ = 0.0f;
-    } else if (dragIndex_ > index) {
-        --dragIndex_;
-    }
+    if (dragIndex_ == index) { dragIndex_ = -1; dragActive_ = false; dragDxPx_ = 0; dragDyPx_ = 0; } else if (dragIndex_ > index) --dragIndex_;
 
     LayoutFan_();
     Update(1.0f / 60.0f);
 
     return extractedCard;
+}
+
+void HandView3D::AddDiscardingCard(std::unique_ptr<Card3D> card) {
+    if (!card) return;
+    card->SetTargetTransform({ 25.0f, -15.0f, 10.0f }, { 0.0f, 3.14159f, 0.0f }, { 0.0f, 0.0f, 0.0f }, false);
+    discardingCards_.push_back(std::move(card));
 }
 
 void HandView3D::RefreshLayout()

@@ -258,30 +258,25 @@ void Card3D::Update(float dt)
 	float dx = targetPos_.x - pos_.x;
 	float dy = targetPos_.y - pos_.y;
 	float dz = targetPos_.z - pos_.z;
-	float distSq = dx * dx + dy * dy + dz * dz;
+	float rotDx = targetRot_.x - rot_.x;
+	float rotDy = targetRot_.y - rot_.y;
+	float rotDz = targetRot_.z - rot_.z;
+	float sclDx = targetScale_.x - scale_.x;
+	float sclDy = targetScale_.y - scale_.y;
+	float sclDz = targetScale_.z - scale_.z;
 
-	float drx = targetRot_.x - rot_.x;
-	float dry = targetRot_.y - rot_.y;
-	float drz = targetRot_.z - rot_.z;
-	float rotSq = drx * drx + dry * dry + drz * drz;
+	if (std::abs(dx) > 0.00001f || std::abs(dy) > 0.00001f || std::abs(dz) > 0.00001f ||
+		std::abs(rotDx) > 0.00001f || std::abs(rotDy) > 0.00001f || std::abs(rotDz) > 0.00001f ||
+		std::abs(sclDx) > 0.00001f || std::abs(sclDy) > 0.00001f || std::abs(sclDz) > 0.00001f) {
 
-	float dsx = targetScale_.x - scale_.x;
-	float dsy = targetScale_.y - scale_.y;
-	float dsz = targetScale_.z - scale_.z;
-	float sclSq = dsx * dsx + dsy * dsy + dsz * dsz;
-
-	// わずかでも目標とズレていれば移動する
-	if (distSq > 0.0001f || rotSq > 0.0001f || sclSq > 0.0001f) {
 		float speed = 15.0f;
-		float k = 1.0f - std::exp(-speed * dt); // 爆発しない安全な計算式
+		float k = 1.0f - std::exp(-speed * dt);
 
 		pos_.x += dx * k; pos_.y += dy * k; pos_.z += dz * k;
-		rot_.x += drx * k; rot_.y += dry * k; rot_.z += drz * k;
-		scale_.x += dsx * k; scale_.y += dsy * k; scale_.z += dsz * k;
-
+		rot_.x += rotDx * k; rot_.y += rotDy * k; rot_.z += rotDz * k;
+		scale_.x += sclDx * k; scale_.y += sclDy * k; scale_.z += sclDz * k;
 		transformDirty_ = true;
 	} else {
-		// 到着したらピッタリ合わせる
 		pos_ = targetPos_; rot_ = targetRot_; scale_ = targetScale_;
 	}
 
