@@ -199,11 +199,17 @@ void BattleController::RebuildDiscardView_()
 
 void BattleController::ConsumeFieldCards_()
 {
+	for (auto& view : fieldViews_) {
+		if (view) {
+			handView_.AddDiscardingCard(std::move(view));
+		}
+	}
+	fieldViews_.clear();
+
 	for (auto& c : field_) {
 		discard_.push_back(c);
 	}
 	field_.clear();
-	fieldViews_.clear();
 	RebuildDiscardView_();
 	fieldLayoutDirty_ = true;
 }
@@ -1137,12 +1143,21 @@ void BattleController::TriggerSubEffectsForCard_(
 
 void BattleController::RebuildFieldView_()
 {
-	fieldViews_.clear();
-	fieldViews_.reserve(field_.size());
-
 	const int n = (int)field_.size();
 	if (n <= 0) {
+		fieldViews_.clear();
 		return;
+	}
+
+	while (fieldViews_.size() < field_.size()) {
+		int i = (int)fieldViews_.size();
+		const CardDef* def = db_.Find(field_[i].defId);
+
+		auto card = std::make_unique<Card3D>();
+		if (def) card->Initialize(objCom_, dx_, cam_, *def, field_[i]);
+		card->SetIsHand(false);
+		card->SetTransform({ 0.0f, -10.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 1.15f, 1.15f, 1.15f }); // 見えない場所から
+		fieldViews_.push_back(std::move(card));
 	}
 
 	std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
@@ -1153,28 +1168,19 @@ void BattleController::RebuildFieldView_()
 	const float startX = -gap * 0.5f * (n - 1);
 
 	for (int i = 0; i < n; ++i) {
-		const CardDef* def = db_.Find(field_[i].defId);
-		if (!def) {
-			continue;
-		}
-
-		auto card = std::make_unique<Card3D>();
-		card->Initialize(objCom_, dx_, cam_, *def, field_[i]);
+		if (!fieldViews_[i]) continue;
 
 		Vector3 pos{ startX + gap * i, y, z };
 		Vector3 rot{ 0.0f, 0.0f, 0.0f };
 		Vector3 scl{ 1.15f, 1.15f, 1.15f };
 
-		card->SetTransform(pos, rot, scl);
+		fieldViews_[i]->SetTargetTransform(pos, rot, scl, false);
 
-		// 役に含まれるカードの枠色を変更
 		if (i < 5 && highlightMask[i]) {
-			card->SetFrameColor({ 1.0f, 0.85f, 0.2f, 1.0f }); // 金っぽい色
+			fieldViews_[i]->SetFrameColor({ 1.0f, 0.85f, 0.2f, 1.0f });
 		} else {
-			card->ResetFrameColor();
+			fieldViews_[i]->ResetFrameColor();
 		}
-
-		fieldViews_.push_back(std::move(card));
 	}
 
 	fieldLayoutDirty_ = true;
@@ -1201,18 +1207,23 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 	Vector3 scl{ 1.15f, 1.15f, 1.15f };
 
 	if (hovered) {
-		/*	pos.y += 0.35f;
-			pos.z -= 0.25f;
-			scl = { 1.28f, 1.28f, 1.28f };*/
-
+		
 		pos.y += 0.18f;
 		pos.z -= 0.08f;
 		scl = { 1.18f, 1.18f, 1.18f };
 
 	}
 
-	fieldViews_[index]->SetTransform(pos, rot, scl);
+	fieldViews_[index]->SetTargetTransform(pos, rot, scl, false);
 	fieldViews_[index]->Update(dt);
+
+	Vector3 curPos = fieldViews_[index]->GetWorldPos();
+	float distSq = (curPos.x - pos.x) * (curPos.x - pos.x) +
+		(curPos.y - pos.y) * (curPos.y - pos.y) +
+		(curPos.z - pos.z) * (curPos.z - pos.z);
+	if (distSq > 0.00001f) {
+		fieldLayoutDirty_ = true;
+	}
 }
 
 void BattleController::RefreshAllFieldCardTransforms_(float dt)
@@ -1696,18 +1707,21 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 								return;
 							}
 							energy_ -= def->cost;
-
+							auto usedCardView = handView_.ExtractCardAt(idx);
 							hand_.erase(hand_.begin() + idx);
 							//handView_.Rebuild(hand_);
 
-							handView_.RemoveCardAt(idx);
+							
 
 							ApplyCardEffects_(*def);
 
 							if ((int)field_.size() < 5) {
 								field_.push_back(inst);
+								if (usedCardView) {
+									usedCardView->SetIsHand(false);
+									fieldViews_.push_back(std::move(usedCardView));
+								}
 								RebuildFieldView_();
-
 								if ((int)field_.size() == 5) {
 									PokerHandResult poker = EvaluatePokerHand_();
 									TriggerSubEffectsForCard_(
@@ -1723,6 +1737,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							} else {
 								pendingCard_ = inst;
 								hasPendingCard_ = true;
+								pendingCardView_ = std::move(usedCardView);
 								cardState_ = CardInputState::ChoosingFieldReplace;
 							}
 						} else {
@@ -1755,8 +1770,15 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 				if (lTrig) {
 					int replaceIndex = fieldReplaceHoverIndex_;
 					if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
+						if (fieldViews_[replaceIndex]) {
+							handView_.AddDiscardingCard(std::move(fieldViews_[replaceIndex]));
+						}
 						discard_.push_back(field_[replaceIndex]);
 						field_[replaceIndex] = pendingCard_;
+						if (pendingCardView_) {
+							pendingCardView_->SetIsHand(false);
+							fieldViews_[replaceIndex] = std::move(pendingCardView_);
+						}
 						RebuildFieldView_();
 						RebuildDiscardView_();
 
@@ -1779,6 +1801,9 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 				if (rTrig) {
 					if (hasPendingCard_) {
 						discard_.push_back(pendingCard_);
+					}
+					if (pendingCardView_) {
+						handView_.AddDiscardingCard(std::move(pendingCardView_));
 					}
 					hasPendingCard_ = false;
 					pendingCard_ = {};
@@ -1837,7 +1862,9 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 							// コストを消費して手札から消す
 							energy_ -= def->cost;
+							auto usedCardView = handView_.ExtractCardAt(idx);
 							hand_.erase(hand_.begin() + idx);
+							
 							handView_.Rebuild(hand_);
 
 							// ダメージ以外の効果（ドローなど）を発動
@@ -1848,6 +1875,10 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							// 場に出す処理
 							if ((int)field_.size() < 5) {
 								field_.push_back(inst);
+								if (usedCardView) {
+									usedCardView->SetIsHand(false);
+									fieldViews_.push_back(std::move(usedCardView));
+								}
 								RebuildFieldView_();
 								if ((int)field_.size() == 5) {
 									PokerHandResult poker = EvaluatePokerHand_();
@@ -1859,6 +1890,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							} else {
 								pendingCard_ = inst;
 								hasPendingCard_ = true;
+								pendingCardView_ = std::move(usedCardView);
 								cardState_ = CardInputState::ChoosingFieldReplace;
 							}
 						}
@@ -1939,19 +1971,16 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		}
 	}
 
-	if (pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi) {
-		handView_.Update(dt);
+	handView_.Update(dt);
+	if (fieldLayoutDirty_ || cardState_ == CardInputState::ChoosingFieldReplace || pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi) {
 		RefreshAllFieldCardTransforms_(dt);
 		fieldLayoutDirty_ = false;
-	} else {
-		handView_.Update(dt);
-
-		if (fieldLayoutDirty_) {
-			RefreshAllFieldCardTransforms_(dt);
-			fieldLayoutDirty_ = false;
+	}
+	for (auto& cardView : fieldViews_) {
+		if (cardView) {
+			cardView->Update(dt);
 		}
 	}
-
 	if (discardView_) {
 		discardView_->Update(dt);
 	}

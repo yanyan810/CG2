@@ -42,7 +42,7 @@ public:
     std::unique_ptr<Card3D> ExtractCardAt(int index);
     void MoveToField(std::unique_ptr<Card3D> card, const Vector3& targetPos);
     void MoveFieldToDiscard(std::unique_ptr<Card3D> card);
-
+    void AddDiscardingCard(std::unique_ptr<Card3D> card);
 private:
     void LayoutFan_();
 
