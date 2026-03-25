@@ -27,7 +27,7 @@ void GameScene::OnEnter(GameApp& app) {
 	animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
 
 	cameraAnim_ = std::make_unique<CameraAnimator>();
-	cameraAnim_->Initialize(animCamera_.get());
+	cameraAnim_->Initialize(animCamera_.get(), app.GetInput());
 	ChangeRandomCamera();
 	
 	// --------------------------------------------------
@@ -130,6 +130,25 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	Input* input = app.GetInput();
 	if (!input) return;
+
+	// エディットモードならゲームの時間を止める
+	if (cameraAnim_ && cameraAnim_->IsEditing()) {
+		cameraAnim_->Update(dt); // カメラの操作だけは受け付ける
+		animCamera_->Update();   // カメラ行列更新
+
+		if (skyDome_) {
+			skyDome_->SetCamera(animCamera_.get());
+		}
+		if (player_) {
+			player_->SetCamera(animCamera_.get());
+			player_->Update(0.0f);
+		}
+
+		enemyMgr_.UpdateCamera(animCamera_.get());
+		enemyMgr_.Update(0.0f);
+
+		return;
+	}
 
 	if (cameraAnim_) {
 		if (cameraAnim_->Update(dt)) {
