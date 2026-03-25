@@ -3,6 +3,7 @@
 #include "DirectXCommon.h"
 #include "Camera.h"
 #include <cmath>
+#include <algorithm>
 
 // ==========================================
 // Enemy 本体
@@ -28,8 +29,7 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 		model_->SetScale({ 1.0f, 1.0f, 1.0f });
 		ai_.LoadPattern("resources/cards/Boos.json");
 	} else if (type_ == EnemyType::Slime) {
-		// ※もしスライム用の専用3Dモデルがあればここにパスを書きます。
-		// 今回は仮として「ボスのモデルを半分のサイズ(1.5)にしたもの」をスライムと見立てます！
+		
 		model_->SetModel("slime/slime.obj");
 		model_->SetScale({ 1.5f, 1.5f, 1.5f });
 		ai_.LoadPattern("resources/cards/Slime.json");

@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 
+#include"Camera.h"
 #include "Vector3.h"
 #include "AABB.h"
 #include "Object3d.h"
@@ -110,7 +111,15 @@ public:
     std::vector<Enemy>& GetEnemies() { return enemies_; }
     int PickEnemyByMouse(int mouseX, int mouseY, const Matrix4x4& viewProj, float screenWidth, float screenHeight);
 
+    void UpdateCamera(Camera* camera) {
+        camera_ = camera;
+        for (auto& enemy : enemies_) {
+            enemy.SetCamera(camera);
+        }
+    }
+
 private:
+    Camera* camera_ = nullptr;
     Object3dCommon* objCommon_ = nullptr;
     DirectXCommon* dx_ = nullptr;
     Camera* cam_ = nullptr;
