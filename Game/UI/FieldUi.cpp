@@ -62,80 +62,80 @@ void FieldUi::SetTextScale_(TextSprite* text, float s)
 void FieldUi::ApplyFieldUiLayout_()
 {
 
-    if (cardDescBg_) {
-        cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
-        cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
-    }
-    if (cardDescText_) {
-        cardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
-        SetTextScale_(cardDescText_.get(), layout_.cardDescText.scale);
-    }
+	if (cardDescBg_) {
+		cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
+		cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
+	}
+	if (cardDescText_) {
+		cardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
+		SetTextScale_(cardDescText_.get(), layout_.cardDescText.scale);
+	}
 
-    if (deckCountBg_) {
-        deckCountBg_->SetPosition({ layout_.deckBg.x, layout_.deckBg.y });
-        deckCountBg_->SetScale({ layout_.deckBg.w, layout_.deckBg.h, 1.0f });
-    }
-    if (deckCountText_) {
-        deckCountText_->SetPosition({ layout_.deckText.x, layout_.deckText.y });
-        SetTextScale_(deckCountText_.get(), layout_.deckText.scale);
-    }
+	if (deckCountBg_) {
+		deckCountBg_->SetPosition({ layout_.deckBg.x, layout_.deckBg.y });
+		deckCountBg_->SetScale({ layout_.deckBg.w, layout_.deckBg.h, 1.0f });
+	}
+	if (deckCountText_) {
+		deckCountText_->SetPosition({ layout_.deckText.x, layout_.deckText.y });
+		SetTextScale_(deckCountText_.get(), layout_.deckText.scale);
+	}
 
-    if (discardCountBg_) {
-        discardCountBg_->SetPosition({ layout_.discardBg.x, layout_.discardBg.y });
-        discardCountBg_->SetScale({ layout_.discardBg.w, layout_.discardBg.h, 1.0f });
-    }
-    if (discardCountText_) {
-        discardCountText_->SetPosition({ layout_.discardText.x, layout_.discardText.y });
-        SetTextScale_(discardCountText_.get(), layout_.discardText.scale);
-    }
+	if (discardCountBg_) {
+		discardCountBg_->SetPosition({ layout_.discardBg.x, layout_.discardBg.y });
+		discardCountBg_->SetScale({ layout_.discardBg.w, layout_.discardBg.h, 1.0f });
+	}
+	if (discardCountText_) {
+		discardCountText_->SetPosition({ layout_.discardText.x, layout_.discardText.y });
+		SetTextScale_(discardCountText_.get(), layout_.discardText.scale);
+	}
 
-    if (handCountBg_) {
-        handCountBg_->SetPosition({ layout_.handBg.x, layout_.handBg.y });
-        handCountBg_->SetScale({ layout_.handBg.w, layout_.handBg.h, 1.0f });
-    }
-    if (handCountText_) {
-        handCountText_->SetPosition({ layout_.handText.x, layout_.handText.y });
-        SetTextScale_(handCountText_.get(), layout_.handText.scale);
-    }
+	if (handCountBg_) {
+		handCountBg_->SetPosition({ layout_.handBg.x, layout_.handBg.y });
+		handCountBg_->SetScale({ layout_.handBg.w, layout_.handBg.h, 1.0f });
+	}
+	if (handCountText_) {
+		handCountText_->SetPosition({ layout_.handText.x, layout_.handText.y });
+		SetTextScale_(handCountText_.get(), layout_.handText.scale);
+	}
 
-    if (fieldCountBg_) {
-        fieldCountBg_->SetPosition({ layout_.fieldBg.x, layout_.fieldBg.y });
-        fieldCountBg_->SetScale({ layout_.fieldBg.w, layout_.fieldBg.h, 1.0f });
-    }
-    if (fieldCountText_) {
-        fieldCountText_->SetPosition({ layout_.fieldText.x, layout_.fieldText.y });
-        SetTextScale_(fieldCountText_.get(), layout_.fieldText.scale);
-    }
+	if (fieldCountBg_) {
+		fieldCountBg_->SetPosition({ layout_.fieldBg.x, layout_.fieldBg.y });
+		fieldCountBg_->SetScale({ layout_.fieldBg.w, layout_.fieldBg.h, 1.0f });
+	}
+	if (fieldCountText_) {
+		fieldCountText_->SetPosition({ layout_.fieldText.x, layout_.fieldText.y });
+		SetTextScale_(fieldCountText_.get(), layout_.fieldText.scale);
+	}
 
-    if (turnTextBg_) {
-        turnTextBg_->SetPosition({ layout_.turnBg.x, layout_.turnBg.y });
-        turnTextBg_->SetScale({ layout_.turnBg.w, layout_.turnBg.h, 1.0f });
-    }
-    if (turnText_) {
-        turnText_->SetPosition({ layout_.turnText.x, layout_.turnText.y });
-        SetTextScale_(turnText_.get(), layout_.turnText.scale);
-    }
+	if (turnTextBg_) {
+		turnTextBg_->SetPosition({ layout_.turnBg.x, layout_.turnBg.y });
+		turnTextBg_->SetScale({ layout_.turnBg.w, layout_.turnBg.h, 1.0f });
+	}
+	if (turnText_) {
+		turnText_->SetPosition({ layout_.turnText.x, layout_.turnText.y });
+		SetTextScale_(turnText_.get(), layout_.turnText.scale);
+	}
 
-    if (costTextBg_) {
-        costTextBg_->SetPosition({ layout_.costBg.x, layout_.costBg.y });
-        costTextBg_->SetScale({ layout_.costBg.w, layout_.costBg.h, 1.0f });
-        costTextBg_->SetColor({ 0.f,1.f,0.f,0.5f });
-    }
-    if (costText_) {
-        costText_->SetPosition({ layout_.costText.x, layout_.costText.y });
-        SetTextScale_(costText_.get(), layout_.costText.scale);
-    }
+	if (costTextBg_) {
+		costTextBg_->SetPosition({ layout_.costBg.x, layout_.costBg.y });
+		costTextBg_->SetScale({ layout_.costBg.w, layout_.costBg.h, 1.0f });
+		costTextBg_->SetColor({ 0.f,1.f,0.f,0.5f });
+	}
+	if (costText_) {
+		costText_->SetPosition({ layout_.costText.x, layout_.costText.y });
+		SetTextScale_(costText_.get(), layout_.costText.scale);
+	}
 
-    if (modalOverlayBg_) {
-        modalOverlayBg_->SetPosition({ layout_.overlay.x, layout_.overlay.y });
-        modalOverlayBg_->SetScale({ layout_.overlay.w, layout_.overlay.h, 1.0f });
-    }
+	if (modalOverlayBg_) {
+		modalOverlayBg_->SetPosition({ layout_.overlay.x, layout_.overlay.y });
+		modalOverlayBg_->SetScale({ layout_.overlay.w, layout_.overlay.h, 1.0f });
+	}
 
-    for (auto& [id, sprite] : cardDescSpriteCache_) {
-        if (!sprite) continue;
-        sprite->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
-        SetTextScale_(sprite.get(), layout_.cardDescText.scale);
-    }
+	for (auto& [id, sprite] : cardDescSpriteCache_) {
+		if (!sprite) continue;
+		sprite->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
+		SetTextScale_(sprite.get(), layout_.cardDescText.scale);
+	}
 }
 
 TextSprite* FieldUi::GetOrCreateCardDescSprite_(GameApp& app, const CardDef& def)
@@ -244,6 +244,18 @@ void FieldUi::Initialize(GameApp& app)
 	pokerPreviewBg_ = std::make_unique<Sprite>();
 	pokerPreviewBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	pokerPreviewBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+
+	clickChoiceText_ = std::make_unique<TextSprite>();
+	clickChoiceText_->Initialize(app.SpriteCom(), app.Dx());
+	clickChoiceText_->SetText(L"");
+	clickChoiceText_->SetSize({ 1.0f, 1.0f, 1.0f });
+	clickChoiceText_->SetPosition({ 435.f,500.f });
+
+	clickChoiceBg_ = std::make_unique<Sprite>();
+	clickChoiceBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+	clickChoiceBg_->SetScale({ 400.f,50.f,1.f });
+	clickChoiceBg_->SetPosition({ 435.f,500.f });
 
 	pokerActivateDescBg_ = std::make_unique<Sprite>();
 	pokerActivateDescBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -388,6 +400,8 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 				});
 		}
 
+
+
 		const bool previewVisible = battle.IsPokerQuickPreviewVisible();
 
 		if (previewVisible && pokerPreviewText_) {
@@ -497,6 +511,26 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 	if (costText_) {
 		costText_->SetText(battle.GetEnergyText());
 	}
+
+	BattleController::CardInputState inputState = battle.GetNowCardInputState();
+
+
+	switch (inputState) {
+	case BattleController::CardInputState::Preview:
+		clickChoiceText_->SetText(L"左クリック : カード決定 右クリック : キャンセル");
+		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+		break;
+	case BattleController::CardInputState::ChoosingEnemyTarget:
+		clickChoiceText_->SetText(L"左クリック : 敵を選択   右クリック : キャンセル");
+		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+		break;
+	default:
+		// それ以外の状態（何も表示しないとき）
+		clickChoiceText_->SetText(L"");
+		clickChoiceBg_->SetColor({ 1.f, 1.f, 1.f, 0.f });
+		break;
+	}
+
 }
 
 void FieldUi::Draw(GameApp& app, const BattleController& battle)
@@ -800,6 +834,11 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		costTextBg_->Draw();
 	}
 
+	if (clickChoiceBg_) {
+		clickChoiceBg_->Update(view, proj);
+		clickChoiceBg_->Draw();
+	}
+
 	if (activeCardDescText_) {
 		activeCardDescText_->Update(view, proj);
 		activeCardDescText_->Draw();
@@ -832,6 +871,11 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 	if (costText_) {
 		costText_->Update(view, proj);
 		costText_->Draw();
+	}
+
+	if (clickChoiceText_) {
+		clickChoiceText_->Update(view, proj);
+		clickChoiceText_->Draw();
 	}
 }
 
@@ -1050,7 +1094,8 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 	json j;
 	try {
 		ifs >> j;
-	} catch (...) {
+	}
+	catch (...) {
 		pokerEffectLayout_ = MakeDefaultPokerEffectChoiceLayout();
 		return false;
 	}
@@ -1232,7 +1277,8 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 	json j;
 	try {
 		f >> j;
-	} catch (...) {
+	}
+	catch (...) {
 		return false;
 	}
 

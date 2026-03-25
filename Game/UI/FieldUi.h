@@ -16,55 +16,56 @@ class GameApp;
 
 class FieldUi {
 public:
-    enum class DescMode {
-        None,
-        PokerChoice,
-        CardDesc,
-        Operation
-    };
+	enum class DescMode {
+		None,
+		PokerChoice,
+		CardDesc,
+		Operation
+	};
 
-    void Initialize(GameApp& app);
-    void Update(GameApp& app, const BattleController& battle);
-  //  void Draw(GameApp& app);
-    void Draw(GameApp& app, const BattleController& battle);
+	void Initialize(GameApp& app);
+	void Update(GameApp& app, const BattleController& battle);
+	//  void Draw(GameApp& app);
+	void Draw(GameApp& app, const BattleController& battle);
 
 
 #ifdef USE_IMGUI
-    void DrawImGui();
+	void DrawImGui();
 #endif
 
-    bool LoadPokerEffectChoiceLayout(const std::string& path);
-    bool SavePokerEffectChoiceLayout(const std::string& path) const;
+	bool LoadPokerEffectChoiceLayout(const std::string& path);
+	bool SavePokerEffectChoiceLayout(const std::string& path) const;
 
-    bool LoadFieldUiLayout(const std::string& path);
-    bool SaveFieldUiLayout(const std::string& path) const;
+	bool LoadFieldUiLayout(const std::string& path);
+	bool SaveFieldUiLayout(const std::string& path) const;
 
-    const PokerEffectChoiceLayout& GetPokerEffectChoiceLayout() const { return pokerEffectLayout_; }
+	const PokerEffectChoiceLayout& GetPokerEffectChoiceLayout() const { return pokerEffectLayout_; }
 
-    void UpdateDebugPokerEffectPreview(int hoverIndex = -1);
-
-private:
-    void ApplyFieldUiLayout_();
-    void SetTextScale_(TextSprite* text, float s);
+	void UpdateDebugPokerEffectPreview(int hoverIndex = -1);
 
 private:
+	void ApplyFieldUiLayout_();
+	void SetTextScale_(TextSprite* text, float s);
 
-    //==================================
+private:
+
+	//==================================
 	// UI文字と背景スプライト。頻繁に更新されるものはポインタを保持、カード説明テキストはキャッシュから都度取得。
-    //==================================
-    std::unique_ptr<TextSprite> cardDescText_;
+	//==================================
+	std::unique_ptr<TextSprite> cardDescText_;
 
-    std::unique_ptr<TextSprite> deckCountText_;
-    std::unique_ptr<TextSprite> discardCountText_;
-    std::unique_ptr<TextSprite> handCountText_;
-    std::unique_ptr<TextSprite> fieldCountText_;
-    std::unique_ptr<TextSprite> pokerPreviewText_;
-    std::unique_ptr<TextSprite> turnText_;
-    std::unique_ptr<TextSprite> costText_;
-    std::unique_ptr<TextSprite> pokerTitleText_;
-    std::unique_ptr<TextSprite> pokerOptionTexts_[5];
-    std::unique_ptr<TextSprite> pokerInfoButtonText_;
-    std::unique_ptr<TextSprite> pokerPreviewTitleText_;
+	std::unique_ptr<TextSprite> deckCountText_;
+	std::unique_ptr<TextSprite> discardCountText_;
+	std::unique_ptr<TextSprite> handCountText_;
+	std::unique_ptr<TextSprite> fieldCountText_;
+	std::unique_ptr<TextSprite> pokerPreviewText_;
+	std::unique_ptr<TextSprite> turnText_;
+	std::unique_ptr<TextSprite> costText_;
+	std::unique_ptr<TextSprite> pokerTitleText_;
+	std::unique_ptr<TextSprite> pokerOptionTexts_[5];
+	std::unique_ptr<TextSprite> pokerInfoButtonText_;
+	std::unique_ptr<TextSprite> pokerPreviewTitleText_;
+	std::unique_ptr<TextSprite> clickChoiceText_;
 
 	//ui用の背景スプライト
     std::unique_ptr<Sprite>     turnTextBg_;
@@ -79,39 +80,42 @@ private:
     std::unique_ptr<Sprite> pokerPreviewBg_;
     std::unique_ptr<Sprite> pokerActivateDescBg_;
     std::unique_ptr<Sprite> pokerEffectDescBg_;
+	std::unique_ptr<Sprite> clickChoiceBg_;
 
+	std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
+	TextSprite* activeCardDescText_ = nullptr;
 
-    std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
-    TextSprite* activeCardDescText_ = nullptr;
+	//キャッシュ用メンバ
+	std::wstring lastPokerPreviewText_;
+	bool lastPokerPreviewVisible_ = false;
 
-    //キャッシュ用メンバ
-    std::wstring lastPokerPreviewText_;
-    bool lastPokerPreviewVisible_ = false;
+	bool showPokerOptions_ = false;
+	int pokerHoverIndex_ = -1;
+	int pokerOptionCount_ = 0;
+	bool showDescBg_ = false;
 
-    bool showPokerOptions_ = false;
-    int pokerHoverIndex_ = -1;
-    int pokerOptionCount_ = 0;
-    bool showDescBg_ = false;
+	DescMode lastDescMode_ = DescMode::None;
+	int lastPreviewDefId_ = -1;
+	std::wstring lastDescText_;
 
-    DescMode lastDescMode_ = DescMode::None;
-    int lastPreviewDefId_ = -1;
-    std::wstring lastDescText_;
+	PokerEffectChoiceLayout pokerEffectLayout_ = MakeDefaultPokerEffectChoiceLayout();
+	std::string pokerEffectLayoutPath_ = "resources/ui/poker_effect_choice_ui.json";
 
-    PokerEffectChoiceLayout pokerEffectLayout_ = MakeDefaultPokerEffectChoiceLayout();
-    std::string pokerEffectLayoutPath_ = "resources/ui/poker_effect_choice_ui.json";
+	FieldUiLayout layout_{};
+	std::string layoutPath_ = "resources/ui/field_ui_layout.json";
 
-    FieldUiLayout layout_{};
-    std::string layoutPath_ = "resources/ui/field_ui_layout.json";
+	// ポーカーUI文字キャッシュ
+	BattleController::PokerHandRank cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
 
-    // ポーカーUI文字キャッシュ
-    BattleController::PokerHandRank cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
-
-    void BuildStaticPokerUiTexts_();
-    void UpdateDynamicPokerBonusTexts_(const BattleController& battle);
+	void BuildStaticPokerUiTexts_();
+	void UpdateDynamicPokerBonusTexts_(const BattleController& battle);
 
 private:
-    static std::wstring Utf8ToWString_(const std::string& s);
+	static std::wstring Utf8ToWString_(const std::string& s);
 
-    TextSprite* GetOrCreateCardDescSprite_(GameApp& app, const CardDef& def);
+	TextSprite* GetOrCreateCardDescSprite_(GameApp& app, const CardDef& def);
+
+
+	Vector2 debugPosition_ = {};
 
 };

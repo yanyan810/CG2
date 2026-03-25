@@ -137,6 +137,8 @@ public:
     bool IsPokerQuickPreviewVisible() const { return pokerQuickPreviewVisible_; }
     std::wstring GetPokerQuickPreviewText() const { return GetPokerEffectPreviewText(); }
     void SetPokerQuickPreviewVisible(bool visible);
+
+    CardInputState GetNowCardInputState()const { return cardState_; }
  
     std::wstring GetPokerEffectPreviewText() const;
 
