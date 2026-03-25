@@ -34,6 +34,14 @@ public:
     void ChangeRandomCamera();
 
 private:
+
+    
+	// カメラアニメーション関連の関数
+    void ReloadCameraFileList_();
+    bool LoadCameraByIndex_(int index);
+    bool LoadCameraByPath_(const std::string& path);
+
+private:
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<Camera> animCamera_;
     std::unique_ptr<CameraAnimator> cameraAnim_;
@@ -74,5 +82,11 @@ private:
     std::unique_ptr<TextSprite> powerBoostText_;
     std::unique_ptr<Sprite> blockBg_;
     std::unique_ptr<TextSprite> blockText_;
+
+    //カメラアニメ
+    std::vector<std::string> cameraFiles_;
+    int currentCameraIndex_ = -1;
+    bool randomCameraEnabled_ = true;   // true: ランダム切替
+    bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
 };

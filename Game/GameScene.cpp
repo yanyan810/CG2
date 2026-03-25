@@ -3,6 +3,10 @@
 #include "Input.h"
 #include "ModelParticleManager.h"
 #include <random>
+#include <filesystem>
+#include <algorithm>
+
+namespace fs = std::filesystem;
 
 static std::wstring Utf8ToWString(const std::string& s)
 {
@@ -28,7 +32,12 @@ void GameScene::OnEnter(GameApp& app) {
 
 	cameraAnim_ = std::make_unique<CameraAnimator>();
 	cameraAnim_->Initialize(animCamera_.get(), app.GetInput());
-	ChangeRandomCamera();
+
+	ReloadCameraFileList_();
+
+	if (!cameraFiles_.empty()) {
+		ChangeRandomCamera();
+	}
 
 	// --------------------------------------------------
 	// 2. 背景（天球）の初期化
@@ -171,22 +180,45 @@ void GameScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
-	if (battle_.IsPlayerTargeting()) {
-		// カードを触っている時はアニメーションの時間を止めて初期位置に固定する
-		animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
-		animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
-	} else {
-		// 触っていない時は、今まで通りアニメーションを再生する
-		if (cameraAnim_) {
-			if (cameraAnim_->Update(dt)) {
-				ChangeRandomCamera();
-			}
-		}
-	}
+	//if (battle_.IsPlayerTargeting()) {
+	//	// カードを触っている時はアニメーションの時間を止めて初期位置に固定する
+	//	animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+	//	animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+	//} else {
+	//	// 触っていない時は、今まで通りアニメーションを再生する
+	//	if (cameraAnim_) {
+	//		if (cameraAnim_->Update(dt)) {
+	//			ChangeRandomCamera();
+	//		}
+	//	}
+	//}
+
+	//bool isTargeting = battle_.IsPlayerTargeting();
+
+	//// 割合を計算（0.2秒かけて 0.0 と 1.0 の間を移動する）
+	//if (isTargeting) {
+	//	cameraBlend_ += dt * 5.0f;
+	//	if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
+	//} else {
+	//	cameraBlend_ -= dt * 5.0f;
+	//	if (cameraBlend_ < 0.0f) cameraBlend_ = 0.0f;
+	//}
+
+	//if (cameraAnim_) {
+	//	if (isTargeting) {
+	//		// ターゲット中はアニメの時間を止める（現在地をキープ）
+	//		cameraAnim_->Update(0.0f);
+	//	} else {
+	//		// ターゲット解除後はアニメを再開する
+	//		if (cameraAnim_->Update(dt)) {
+	//			ChangeRandomCamera();
+	//		}
+	//	}
+	//}
 
 	bool isTargeting = battle_.IsPlayerTargeting();
 
-	// 割合を計算（0.2秒かけて 0.0 と 1.0 の間を移動する）
+	// 割合を計算
 	if (isTargeting) {
 		cameraBlend_ += dt * 5.0f;
 		if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
@@ -196,12 +228,17 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (cameraAnim_) {
+		bool finished = false;
+
 		if (isTargeting) {
-			// ターゲット中はアニメの時間を止める（現在地をキープ）
-			cameraAnim_->Update(0.0f);
+			// ターゲット中は時間停止
+			finished = cameraAnim_->Update(0.0f);
 		} else {
-			// ターゲット解除後はアニメを再開する
-			if (cameraAnim_->Update(dt)) {
+			finished = cameraAnim_->Update(dt);
+		}
+
+		if (finished) {
+			if (randomCameraEnabled_ && !sameCameraLoopEnabled_) {
 				ChangeRandomCamera();
 			}
 		}
@@ -415,9 +452,39 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	if (cameraAnim_) {
 		cameraAnim_->DrawImGui();
-	}
-	if (ImGui::Button("Test: Change Camera!")) {
-		ChangeRandomCamera();
+
+		ImGui::Separator();
+		ImGui::Text("=== Camera File Browser ===");
+
+		if (ImGui::Button("Reload Camera Files")) {
+			ReloadCameraFileList_();
+		}
+
+		ImGui::Checkbox("Random Camera Change", &randomCameraEnabled_);
+		ImGui::Checkbox("Same Camera Loop", &sameCameraLoopEnabled_);
+
+		// 両方ONは分かりづらいので排他にする
+		if (sameCameraLoopEnabled_) {
+			randomCameraEnabled_ = false;
+		}
+
+		cameraAnim_->SetLoop(sameCameraLoopEnabled_);
+
+		ImGui::Text("Camera Files: %d", static_cast<int>(cameraFiles_.size()));
+		ImGui::Text("Current Index: %d", currentCameraIndex_);
+
+		for (int i = 0; i < static_cast<int>(cameraFiles_.size()); ++i) {
+			std::string label = fs::path(cameraFiles_[i]).filename().string();
+			bool selected = (i == currentCameraIndex_);
+
+			if (ImGui::Selectable(label.c_str(), selected)) {
+				LoadCameraByIndex_(i);
+			}
+		}
+
+		if (ImGui::Button("Play Random Camera")) {
+			ChangeRandomCamera();
+		}
 	}
 
 	ImGui::End();
@@ -459,20 +526,92 @@ void GameScene::DrawPostEffect2D(GameApp& app)
 
 }
 
+//============================
+//カメラアニメーション
+//============================
+
 void GameScene::ChangeRandomCamera() {
 	if (!cameraAnim_) return;
 
-	// 1〜3のランダムな数字を作る
+	if (cameraFiles_.empty()) {
+		ReloadCameraFileList_();
+		if (cameraFiles_.empty()) {
+			OutputDebugStringA(">>> No camera json files found.\n");
+			return;
+		}
+	}
+
 	static std::random_device rd;
 	static std::mt19937 gen(rd());
-	std::uniform_int_distribution<int> dist(1, 3);
-	int randomId = dist(gen);
+	std::uniform_int_distribution<int> dist(0, static_cast<int>(cameraFiles_.size()) - 1);
 
-	// ファイル名を組み立てて読み込む
-	std::string filepath = "resources/camera/camera_idle_" + std::to_string(randomId) + ".json";
+	int randomIndex = dist(gen);
 
-	std::string msg = ">>> Camera Changed: " + filepath + "\n";
+	// 1個しかないならそのまま
+	// 複数あるなら同じもの連続を少し避ける
+	if (cameraFiles_.size() > 1 && randomIndex == currentCameraIndex_) {
+		randomIndex = (randomIndex + 1) % static_cast<int>(cameraFiles_.size());
+	}
+
+	LoadCameraByIndex_(randomIndex);
+}
+
+void GameScene::ReloadCameraFileList_() {
+	cameraFiles_.clear();
+
+	const fs::path folder = "resources/camera";
+
+	if (!fs::exists(folder) || !fs::is_directory(folder)) {
+		OutputDebugStringA(">>> Camera folder not found: resources/camera\n");
+		return;
+	}
+
+	for (const auto& entry : fs::directory_iterator(folder)) {
+		if (!entry.is_regular_file()) {
+			continue;
+		}
+
+		if (entry.path().extension() != ".json") {
+			continue;
+		}
+
+		cameraFiles_.push_back(entry.path().string());
+	}
+
+	std::sort(cameraFiles_.begin(), cameraFiles_.end());
+
+	std::string msg = ">>> Camera files found: " + std::to_string(cameraFiles_.size()) + "\n";
 	OutputDebugStringA(msg.c_str());
+}
 
-	cameraAnim_->LoadFromJson(filepath);
+bool GameScene::LoadCameraByPath_(const std::string& path) {
+	if (!cameraAnim_) {
+		return false;
+	}
+
+	if (!cameraAnim_->LoadFromJson(path)) {
+		std::string msg = ">>> Failed to load camera: " + path + "\n";
+		OutputDebugStringA(msg.c_str());
+		return false;
+	}
+
+	auto it = std::find(cameraFiles_.begin(), cameraFiles_.end(), path);
+	if (it != cameraFiles_.end()) {
+		currentCameraIndex_ = static_cast<int>(std::distance(cameraFiles_.begin(), it));
+	}
+
+	// ここで再生モードを反映
+	cameraAnim_->SetLoop(sameCameraLoopEnabled_);
+	cameraAnim_->SetPlaying(true);
+
+	std::string msg = ">>> Camera Loaded: " + path + "\n";
+	OutputDebugStringA(msg.c_str());
+	return true;
+}
+
+bool GameScene::LoadCameraByIndex_(int index) {
+	if (index < 0 || index >= static_cast<int>(cameraFiles_.size())) {
+		return false;
+	}
+	return LoadCameraByPath_(cameraFiles_[index]);
 }
