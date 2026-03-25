@@ -39,6 +39,8 @@ private:
     std::unique_ptr<CameraAnimator> cameraAnim_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球
 
+    float cameraBlend_ = 0.0f;
+
     std::unique_ptr<Player> player_;
     EnemyManager enemyMgr_;
 

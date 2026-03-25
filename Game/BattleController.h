@@ -37,7 +37,8 @@ public:
     {
         None,
         WaitingActivateChoice, // 発動する/しない
-        WaitingEffectChoice    // 発動すると決めた後、どの効果か選ぶ
+        WaitingEffectChoice,   // 発動すると決めた後、どの効果か選ぶ
+        ViewingBoardFromPokerUi // 場を見る専用
     };
 
     struct PokerBonus {
@@ -50,10 +51,13 @@ public:
         None = 0,
         ActivateYes,
         ActivateNo,
+        ActivateViewBoard,   
         EffectAtkUp,
         EffectDraw,
         EffectDamage,
         EffectBack,
+        EffectViewBoard,     
+        ReturnFromBoard,     
     };
 
     void Initialize(GameApp& app, Camera* camera);
@@ -87,6 +91,7 @@ public:
     int GetPokerMouseChoiceIndex() const;
     bool IsWaitingActivateChoice() const;
     bool IsWaitingEffectChoice() const;
+    bool IsViewingBoardFromPokerUi() const;
 
     bool IsAllEnemiesDead() const;
 
@@ -165,6 +170,12 @@ public:
         spriteCom_ = nullptr;
     }
 
+    bool IsPlayerTargeting() const {
+        return cardState_ == CardInputState::ChoosingEnemyTarget;
+          /*  cardState_ == CardInputState::Dragging ||
+            cardState_ == CardInputState::Preview;*/
+    }
+
 private:
     enum class TurnState { Player, Enemy };
     TurnState turn_ = TurnState::Player;
@@ -200,6 +211,7 @@ private:
     float dragDy_ = 0.0f;
 
     PokerChoiceState pokerChoiceState_ = PokerChoiceState::None;
+    PokerChoiceState pokerReturnState_ = PokerChoiceState::None;
     PokerHandResult currentPoker_;
 
     //キー用

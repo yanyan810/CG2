@@ -36,11 +36,10 @@ void HandView3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* c
 
 void HandView3D::SetHoverIndex(int idx)
 {
-    if (hoverIndex_ == idx) {
-        return;
+    if (hoverIndex_ != idx) {
+        prevHoverIndex_ = hoverIndex_;
+        hoverIndex_ = idx;
     }
-    prevHoverIndex_ = hoverIndex_;
-    hoverIndex_ = idx;
     layoutDirty_ = true;
 }
 

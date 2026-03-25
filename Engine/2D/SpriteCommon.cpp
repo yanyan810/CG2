@@ -104,9 +104,10 @@ void SpriteCommon::CreateGraphicsPipelineState() {
 
     // === Depth/Stencil ===
     D3D12_DEPTH_STENCIL_DESC ds{};
-    ds.DepthEnable = TRUE;                    // 必要に応じて FALSE（UI最前面に）でもOK
-    ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-    ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    ds.DepthEnable = FALSE;
+    ds.StencilEnable = FALSE;
+    ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    ds.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
     // === PSO ===
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
@@ -122,7 +123,7 @@ void SpriteCommon::CreateGraphicsPipelineState() {
     psoDesc.SampleDesc.Count = 1;
     psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 
     HRESULT hr = dx_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso_));
     assert(SUCCEEDED(hr));

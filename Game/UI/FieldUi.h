@@ -62,24 +62,25 @@ private:
 	std::unique_ptr<TextSprite> turnText_;
 	std::unique_ptr<TextSprite> costText_;
 	std::unique_ptr<TextSprite> pokerTitleText_;
-	std::unique_ptr<TextSprite> pokerOptionTexts_[4];
+	std::unique_ptr<TextSprite> pokerOptionTexts_[5];
 	std::unique_ptr<TextSprite> pokerInfoButtonText_;
 	std::unique_ptr<TextSprite> pokerPreviewTitleText_;
 	std::unique_ptr<TextSprite> clickChoiceText_;
 
 	//ui用の背景スプライト
-	std::unique_ptr<Sprite>     turnTextBg_;
-	std::unique_ptr<Sprite>     costTextBg_;
-	std::unique_ptr<Sprite> cardDescBg_;
-	std::unique_ptr<Sprite> deckCountBg_;
-	std::unique_ptr<Sprite> discardCountBg_;
-	std::unique_ptr<Sprite> handCountBg_;
-	std::unique_ptr<Sprite> fieldCountBg_;
-	std::unique_ptr<Sprite> pokerOptionBgs_[4];
-	std::unique_ptr<Sprite> modalOverlayBg_;
-	std::unique_ptr<Sprite> pokerPreviewBg_;
+    std::unique_ptr<Sprite>     turnTextBg_;
+    std::unique_ptr<Sprite>     costTextBg_;
+    std::unique_ptr<Sprite> cardDescBg_;
+    std::unique_ptr<Sprite> deckCountBg_;
+    std::unique_ptr<Sprite> discardCountBg_;
+    std::unique_ptr<Sprite> handCountBg_;
+    std::unique_ptr<Sprite> fieldCountBg_;
+    std::unique_ptr<Sprite> pokerOptionBgs_[5];
+    std::unique_ptr<Sprite> modalOverlayBg_;
+    std::unique_ptr<Sprite> pokerPreviewBg_;
+    std::unique_ptr<Sprite> pokerActivateDescBg_;
+    std::unique_ptr<Sprite> pokerEffectDescBg_;
 	std::unique_ptr<Sprite> clickChoiceBg_;
-
 
 	std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
 	TextSprite* activeCardDescText_ = nullptr;
