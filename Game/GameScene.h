@@ -68,4 +68,9 @@ private:
     std::unique_ptr<TextSprite> playerHpText_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
 
+    std::unique_ptr<Sprite> powerBoostBg_;
+    std::unique_ptr<TextSprite> powerBoostText_;
+    std::unique_ptr<Sprite> blockBg_;
+    std::unique_ptr<TextSprite> blockText_;
+
 };

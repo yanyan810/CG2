@@ -80,12 +80,17 @@ public:
     std::wstring GetEnergyText() const;
     std::wstring GetPlayerHpTexts() const;
     std::vector<std::wstring> GetEnemyHpTexts() const;
+    std::wstring GetPlayerPowerBoostText()const;
+    std::wstring GetPlayerBlockText()const;
+
     //マウス選択関連
     int GetPokerMouseChoiceIndex() const;
     bool IsWaitingActivateChoice() const;
     bool IsWaitingEffectChoice() const;
 
     bool IsAllEnemiesDead() const;
+
+    
 
 #ifdef USE_IMGUI
     void DrawImGui();

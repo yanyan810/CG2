@@ -29,7 +29,7 @@ void GameScene::OnEnter(GameApp& app) {
 	cameraAnim_ = std::make_unique<CameraAnimator>();
 	cameraAnim_->Initialize(animCamera_.get());
 	ChangeRandomCamera();
-	
+
 	// --------------------------------------------------
 	// 2. 背景（天球）の初期化
 	// --------------------------------------------------
@@ -96,7 +96,7 @@ void GameScene::OnEnter(GameApp& app) {
 	playerHpText_ = std::make_unique<TextSprite>();
 	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
 	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
-	playerHpText_->SetPosition({ 140.0f, 12.5f});
+	playerHpText_->SetPosition({ 140.0f, 12.5f });
 
 	// 敵HP数字
 	for (int i = 0; i < 3; i++) {
@@ -106,6 +106,28 @@ void GameScene::OnEnter(GameApp& app) {
 		text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
 		enemyHpTexts_.push_back(std::move(text));
 	}
+
+	// パワーブースト
+	powerBoostBg_ = std::make_unique<Sprite>();
+	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	powerBoostBg_->SetPosition({ 105.0f, 60.0f });
+	powerBoostBg_->SetScale({ 16.0f, 16.0f, 1.0f });
+	powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+	powerBoostText_ = std::make_unique<TextSprite>();
+	powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
+	powerBoostText_->SetSize({ 0.5f,0.5f,0.5f });
+	powerBoostText_->SetPosition({ 100.0f, 50.f });
+
+	// ブロック
+	blockBg_ = std::make_unique<Sprite>();
+	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	blockBg_->SetPosition({ 145.0f, 60.0f });
+	blockBg_->SetScale({ 16.0f, 16.0f, 1.0f });
+	blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
+	blockText_ = std::make_unique<TextSprite>();
+	blockText_->Initialize(app.SpriteCom(), app.Dx());
+	blockText_->SetSize({ 0.5f,0.5f,0.5f });
+	blockText_->SetPosition({ 140.0f, 50.f });
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -124,7 +146,7 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead()||!player_->GetIsAlive()) {
+	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive()) {
 		RequestChangeScene_("Title");
 	}
 
@@ -143,7 +165,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	if (animCamera_) {
 		animCamera_->Update(); // 動くカメラの更新
 	}
-	
+
 
 	// ESCキーでタイトルへ戻る
 	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
@@ -178,7 +200,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		enemy.SetCamera(animCamera_.get());
 	}
 
-	battle_.Update(app, *fieldUi_,dt);
+	battle_.Update(app, *fieldUi_, dt);
 
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
@@ -222,6 +244,15 @@ void GameScene::Update(GameApp& app, float dt) {
 		playerHpText_->SetText(battle_.GetPlayerHpTexts());
 	}
 
+	if (powerBoostText_) {
+		powerBoostText_->SetText(battle_.GetPlayerPowerBoostText());
+
+	}
+
+	if (blockText_) {
+		blockText_->SetText(battle_.GetPlayerBlockText());
+	}
+
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
 
 	for (size_t i = 0; i < enemyHpTexts_.size(); i++) {
@@ -230,7 +261,7 @@ void GameScene::Update(GameApp& app, float dt) {
 
 			enemyHpTexts_[i]->SetPosition({ 1025.0f, 10.0f + (i * 30.0f) });
 		} else {
-			
+
 			enemyHpTexts_[i]->SetText(L"");
 		}
 	}
@@ -279,6 +310,19 @@ void GameScene::Draw2D(GameApp& app) {
 		playerHpText_->Draw();
 	}
 
+	if (powerBoostText_) {
+		powerBoostText_->Update(view, proj);
+		powerBoostText_->Draw();
+		powerBoostBg_->Update(view, proj);
+		powerBoostBg_->Draw();
+	}
+	if (blockText_) {
+		blockText_->Update(view, proj);
+		blockText_->Draw();
+		blockBg_->Update(view, proj);
+		blockBg_->Draw();
+	}
+
 	for (auto& text : enemyHpTexts_) {
 		text->Update(view, proj);
 		text->Draw();
@@ -308,9 +352,9 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	ImGui::End();
 
-	
 
-	
+
+
 #endif
 }
 
@@ -356,6 +400,6 @@ void GameScene::ChangeRandomCamera() {
 
 	std::string msg = ">>> Camera Changed: " + filepath + "\n";
 	OutputDebugStringA(msg.c_str());
-	
+
 	cameraAnim_->LoadFromJson(filepath);
 }

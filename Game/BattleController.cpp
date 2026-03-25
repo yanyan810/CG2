@@ -2349,3 +2349,19 @@ bool BattleController::IsAllEnemiesDead() const {
 	}
 	return true; // 全員死んでいたらtrue
 }
+
+std::wstring BattleController::GetPlayerPowerBoostText()const {
+	std::wstring text;
+
+	text = std::to_wstring(player_->GetBoostedPower());
+
+	return text;
+}
+
+std::wstring BattleController::GetPlayerBlockText()const {
+	std::wstring text;
+
+	text = std::to_wstring(player_->GetBlock());
+
+	return text;
+}
