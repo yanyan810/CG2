@@ -233,12 +233,57 @@ void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3&
 	scale_ = scale;
 
 	// まずは必ず更新扱いにする
+	targetPos_ = pos;
+	targetRot_ = rot;
+	targetScale_ = scale;
 	transformDirty_ = true;
+}
+
+void Card3D::SetTargetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale, bool instant)
+{
+	if (instant) {
+		SetTransform(pos, rot, scale);
+	} else {
+		targetPos_ = pos;
+		targetRot_ = rot;
+		targetScale_ = scale;
+		transformDirty_ = true; // 動かすために更新フラグを立てる
+	}
 }
 
 void Card3D::Update(float dt)
 {
 	if (!frame_ || !art_) return;
+
+	float dx = targetPos_.x - pos_.x;
+	float dy = targetPos_.y - pos_.y;
+	float dz = targetPos_.z - pos_.z;
+	float distSq = dx * dx + dy * dy + dz * dz;
+
+	float drx = targetRot_.x - rot_.x;
+	float dry = targetRot_.y - rot_.y;
+	float drz = targetRot_.z - rot_.z;
+	float rotSq = drx * drx + dry * dry + drz * drz;
+
+	float dsx = targetScale_.x - scale_.x;
+	float dsy = targetScale_.y - scale_.y;
+	float dsz = targetScale_.z - scale_.z;
+	float sclSq = dsx * dsx + dsy * dsy + dsz * dsz;
+
+	// わずかでも目標とズレていれば移動する
+	if (distSq > 0.0001f || rotSq > 0.0001f || sclSq > 0.0001f) {
+		float speed = 15.0f;
+		float k = 1.0f - std::exp(-speed * dt); // 爆発しない安全な計算式
+
+		pos_.x += dx * k; pos_.y += dy * k; pos_.z += dz * k;
+		rot_.x += drx * k; rot_.y += dry * k; rot_.z += drz * k;
+		scale_.x += dsx * k; scale_.y += dsy * k; scale_.z += dsz * k;
+
+		transformDirty_ = true;
+	} else {
+		// 到着したらピッタリ合わせる
+		pos_ = targetPos_; rot_ = targetRot_; scale_ = targetScale_;
+	}
 
 	if (hasSubmittedOnce_ && !transformDirty_ && !frameColorDirty_) {
 		return;

@@ -39,6 +39,10 @@ public:
     void DrawImGui();
 #endif
 
+    std::unique_ptr<Card3D> ExtractCardAt(int index);
+    void MoveToField(std::unique_ptr<Card3D> card, const Vector3& targetPos);
+    void MoveFieldToDiscard(std::unique_ptr<Card3D> card);
+
 private:
     void LayoutFan_();
 
@@ -50,6 +54,8 @@ private:
     std::vector<std::unique_ptr<Card3D>> cards_;
     std::vector<std::unique_ptr<Card3D>> cardPool_;
     std::vector<CardInstance> handCards_;
+
+    std::vector<std::unique_ptr<Card3D>> discardingCards_;
 
     std::vector<Vector3> basePos_;
     std::vector<Vector3> baseRot_;
