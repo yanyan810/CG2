@@ -30,6 +30,11 @@ void HandView3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* c
         auto c = std::make_unique<Card3D>();
         c->Setup(objCom_, dx_, cam_);
         c->SetIsHand(true);
+        c->SetTransform(
+            { -25.0f, -15.0f, 10.0f }, // 山札の座標
+            { 0.0f, 3.14159f, 0.0f },  // 裏向き
+            { 0.0f, 0.0f, 0.0f }       // 見えないサイズ
+        );
         cardPool_.push_back(std::move(c));
     }
 }
@@ -125,7 +130,7 @@ void HandView3D::LayoutFan_()
 
 void HandView3D::Update(float dt)
 {
-    if (!layoutDirty_) {
+    if (!layoutDirty_ && discardingCards_.empty()) {
         return;
     }
 
@@ -188,8 +193,35 @@ void HandView3D::Update(float dt)
             stillAnimating = true;      // 座標を固定するために更新を継続させる
         }
 
-        cards_[i]->SetTransform(pos, rot, scl);
+        bool isDrag = (dragActive_ && i == dragIndex_);
+        cards_[i]->SetTargetTransform(pos, rot, scl, isDrag);
         cards_[i]->Update(dt);
+
+        if (cards_[i]->GetWorldPos().x != pos.x ||
+            cards_[i]->GetWorldPos().y != pos.y ||
+            cards_[i]->GetWorldPos().z != pos.z) {
+            stillAnimating = true;
+        }
+    }
+
+    for (auto& card : discardingCards_) {
+        card->Update(dt);
+    }
+    discardingCards_.erase(
+        std::remove_if(discardingCards_.begin(), discardingCards_.end(),
+            [this](std::unique_ptr<Card3D>& c) {
+                float dx = c->GetWorldPos().x - 25.0f;
+                float dy = c->GetWorldPos().y - (-15.0f);
+                if (dx * dx + dy * dy < 1.0f) { // 墓地に到着
+                    cardPool_.push_back(std::move(c));
+                    return true;
+                }
+                return false;
+            }),
+        discardingCards_.end()
+    );
+    if (!discardingCards_.empty()) {
+        stillAnimating = true;
     }
 
     layoutDirty_ = stillAnimating;
@@ -198,6 +230,7 @@ void HandView3D::Update(float dt)
 void HandView3D::Draw()
 {
     for (auto& c : cards_) c->Draw();
+    for (auto& c : discardingCards_) c->Draw();
 }
 
 int HandView3D::PickIndexByMouse(int mouseX, int mouseY,
@@ -314,7 +347,6 @@ void HandView3D::RemoveCardAt(int index)
     if (index < 0 || index >= static_cast<int>(cards_.size())) {
         return;
     }
-
     cardPool_.push_back(std::move(cards_[index]));
 
     handCards_.erase(handCards_.begin() + index);
@@ -341,6 +373,42 @@ void HandView3D::RemoveCardAt(int index)
 
     LayoutFan_();
     Update(1.0f / 60.0f);
+}
+
+std::unique_ptr<Card3D> HandView3D::ExtractCardAt(int index)
+{
+    if (index < 0 || index >= static_cast<int>(cards_.size())) {
+        return nullptr;
+    }
+
+    auto extractedCard = std::move(cards_[index]);
+
+    handCards_.erase(handCards_.begin() + index);
+    cards_.erase(cards_.begin() + index);
+    basePos_.erase(basePos_.begin() + index);
+    baseRot_.erase(baseRot_.begin() + index);
+    baseScl_.erase(baseScl_.begin() + index);
+    liftY_.erase(liftY_.begin() + index);
+
+    if (hoverIndex_ == index) hoverIndex_ = -1;
+    else if (hoverIndex_ > index) --hoverIndex_;
+
+    if (previewIndex_ == index) previewIndex_ = -1;
+    else if (previewIndex_ > index) --previewIndex_;
+
+    if (dragIndex_ == index) {
+        dragIndex_ = -1;
+        dragActive_ = false;
+        dragDxPx_ = 0.0f;
+        dragDyPx_ = 0.0f;
+    } else if (dragIndex_ > index) {
+        --dragIndex_;
+    }
+
+    LayoutFan_();
+    Update(1.0f / 60.0f);
+
+    return extractedCard;
 }
 
 void HandView3D::RefreshLayout()
