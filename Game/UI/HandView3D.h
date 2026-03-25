@@ -31,6 +31,8 @@ public:
     void SetDrag(int idx, float dxPx, float dyPx, bool active);
     void SetPreviewIndex(int idx) { previewIndex_ = idx; layoutDirty_ = true; }
 
+    void SetFocusIndex(int index) { focusIndex_ = index; }
+
 #ifdef USE_IMGUI
     void DrawImGui();
 #endif
@@ -63,4 +65,6 @@ private:
     int previewIndex_ = -1;
 
     bool layoutDirty_ = true;
+
+    int focusIndex_ = -1;
 };

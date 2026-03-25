@@ -59,80 +59,81 @@ void FieldUi::SetTextScale_(TextSprite* text, float s)
 
 void FieldUi::ApplyFieldUiLayout_()
 {
-	if (cardDescBg_) {
-		cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
-		cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
-	}
-	if (cardDescText_) {
-		cardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
-		SetTextScale_(cardDescText_.get(), layout_.cardDescText.scale);
-	}
 
-	if (deckCountBg_) {
-		deckCountBg_->SetPosition({ layout_.deckBg.x, layout_.deckBg.y });
-		deckCountBg_->SetScale({ layout_.deckBg.w, layout_.deckBg.h, 1.0f });
-	}
-	if (deckCountText_) {
-		deckCountText_->SetPosition({ layout_.deckText.x, layout_.deckText.y });
-		SetTextScale_(deckCountText_.get(), layout_.deckText.scale);
-	}
+    if (cardDescBg_) {
+        cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
+        cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
+    }
+    if (cardDescText_) {
+        cardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
+        SetTextScale_(cardDescText_.get(), layout_.cardDescText.scale);
+    }
 
-	if (discardCountBg_) {
-		discardCountBg_->SetPosition({ layout_.discardBg.x, layout_.discardBg.y });
-		discardCountBg_->SetScale({ layout_.discardBg.w, layout_.discardBg.h, 1.0f });
-	}
-	if (discardCountText_) {
-		discardCountText_->SetPosition({ layout_.discardText.x, layout_.discardText.y });
-		SetTextScale_(discardCountText_.get(), layout_.discardText.scale);
-	}
+    if (deckCountBg_) {
+        deckCountBg_->SetPosition({ layout_.deckBg.x, layout_.deckBg.y });
+        deckCountBg_->SetScale({ layout_.deckBg.w, layout_.deckBg.h, 1.0f });
+    }
+    if (deckCountText_) {
+        deckCountText_->SetPosition({ layout_.deckText.x, layout_.deckText.y });
+        SetTextScale_(deckCountText_.get(), layout_.deckText.scale);
+    }
 
-	if (handCountBg_) {
-		handCountBg_->SetPosition({ layout_.handBg.x, layout_.handBg.y });
-		handCountBg_->SetScale({ layout_.handBg.w, layout_.handBg.h, 1.0f });
-	}
-	if (handCountText_) {
-		handCountText_->SetPosition({ layout_.handText.x, layout_.handText.y });
-		SetTextScale_(handCountText_.get(), layout_.handText.scale);
-	}
+    if (discardCountBg_) {
+        discardCountBg_->SetPosition({ layout_.discardBg.x, layout_.discardBg.y });
+        discardCountBg_->SetScale({ layout_.discardBg.w, layout_.discardBg.h, 1.0f });
+    }
+    if (discardCountText_) {
+        discardCountText_->SetPosition({ layout_.discardText.x, layout_.discardText.y });
+        SetTextScale_(discardCountText_.get(), layout_.discardText.scale);
+    }
 
-	if (fieldCountBg_) {
-		fieldCountBg_->SetPosition({ layout_.fieldBg.x, layout_.fieldBg.y });
-		fieldCountBg_->SetScale({ layout_.fieldBg.w, layout_.fieldBg.h, 1.0f });
-	}
-	if (fieldCountText_) {
-		fieldCountText_->SetPosition({ layout_.fieldText.x, layout_.fieldText.y });
-		SetTextScale_(fieldCountText_.get(), layout_.fieldText.scale);
-	}
+    if (handCountBg_) {
+        handCountBg_->SetPosition({ layout_.handBg.x, layout_.handBg.y });
+        handCountBg_->SetScale({ layout_.handBg.w, layout_.handBg.h, 1.0f });
+    }
+    if (handCountText_) {
+        handCountText_->SetPosition({ layout_.handText.x, layout_.handText.y });
+        SetTextScale_(handCountText_.get(), layout_.handText.scale);
+    }
 
-	if (turnTextBg_) {
-		turnTextBg_->SetPosition({ layout_.turnBg.x, layout_.turnBg.y });
-		turnTextBg_->SetScale({ layout_.turnBg.w, layout_.turnBg.h, 1.0f });
-	}
-	if (turnText_) {
-		turnText_->SetPosition({ layout_.turnText.x, layout_.turnText.y });
-		SetTextScale_(turnText_.get(), layout_.turnText.scale);
-	}
+    if (fieldCountBg_) {
+        fieldCountBg_->SetPosition({ layout_.fieldBg.x, layout_.fieldBg.y });
+        fieldCountBg_->SetScale({ layout_.fieldBg.w, layout_.fieldBg.h, 1.0f });
+    }
+    if (fieldCountText_) {
+        fieldCountText_->SetPosition({ layout_.fieldText.x, layout_.fieldText.y });
+        SetTextScale_(fieldCountText_.get(), layout_.fieldText.scale);
+    }
 
-	if (costTextBg_) {
-		costTextBg_->SetPosition({ layout_.costBg.x, layout_.costBg.y });
-		costTextBg_->SetScale({ layout_.costBg.w, layout_.costBg.h, 1.0f });
-	}
-	if (costText_) {
-		costText_->SetPosition({ layout_.costText.x, layout_.costText.y });
-		SetTextScale_(costText_.get(), layout_.costText.scale);
-	}
+    if (turnTextBg_) {
+        turnTextBg_->SetPosition({ layout_.turnBg.x, layout_.turnBg.y });
+        turnTextBg_->SetScale({ layout_.turnBg.w, layout_.turnBg.h, 1.0f });
+    }
+    if (turnText_) {
+        turnText_->SetPosition({ layout_.turnText.x, layout_.turnText.y });
+        SetTextScale_(turnText_.get(), layout_.turnText.scale);
+    }
 
-	if (modalOverlayBg_) {
-		modalOverlayBg_->SetPosition({ layout_.overlay.x, layout_.overlay.y });
-		modalOverlayBg_->SetScale({ layout_.overlay.w, layout_.overlay.h, 1.0f });
-	}
+    if (costTextBg_) {
+        costTextBg_->SetPosition({ layout_.costBg.x, layout_.costBg.y });
+        costTextBg_->SetScale({ layout_.costBg.w, layout_.costBg.h, 1.0f });
+        costTextBg_->SetColor({ 0.f,1.f,0.f,0.5f });
+    }
+    if (costText_) {
+        costText_->SetPosition({ layout_.costText.x, layout_.costText.y });
+        SetTextScale_(costText_.get(), layout_.costText.scale);
+    }
 
-	for (auto& [id, sprite] : cardDescSpriteCache_) {
-		if (!sprite) continue;
-		sprite->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
-		SetTextScale_(sprite.get(), layout_.cardDescText.scale);
-	}
+    if (modalOverlayBg_) {
+        modalOverlayBg_->SetPosition({ layout_.overlay.x, layout_.overlay.y });
+        modalOverlayBg_->SetScale({ layout_.overlay.w, layout_.overlay.h, 1.0f });
+    }
 
+    for (auto& [id, sprite] : cardDescSpriteCache_) {
+        if (!sprite) continue;
+        sprite->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
+        SetTextScale_(sprite.get(), layout_.cardDescText.scale);
+    }
 }
 
 TextSprite* FieldUi::GetOrCreateCardDescSprite_(GameApp& app, const CardDef& def)
