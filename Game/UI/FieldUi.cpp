@@ -514,8 +514,6 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 
 	BattleController::CardInputState inputState = battle.GetNowCardInputState();
 
-	clickChoiceText_->SetText(L"");
-	clickChoiceBg_->SetColor({ 1.f, 1.f, 1.f, 0.f });
 
 	switch (inputState) {
 	case BattleController::CardInputState::Preview:
@@ -525,6 +523,11 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 	case BattleController::CardInputState::ChoosingEnemyTarget:
 		clickChoiceText_->SetText(L"左クリック : 敵を選択   右クリック : キャンセル");
 		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+		break;
+	default:
+		// それ以外の状態（何も表示しないとき）
+		clickChoiceText_->SetText(L"");
+		clickChoiceBg_->SetColor({ 1.f, 1.f, 1.f, 0.f });
 		break;
 	}
 
