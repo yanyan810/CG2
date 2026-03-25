@@ -271,7 +271,7 @@ void GameScene::Draw2D(GameApp& app) {
 	battle_.Draw2D(app);
 
 	if (fieldUi_) {
-		fieldUi_->Draw(app);
+		fieldUi_->Draw(app,battle_);
 	}
 
 	if (playerHpText_) {

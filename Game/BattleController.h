@@ -123,6 +123,18 @@ public:
     //先読み関数
     void Preload(GameApp& app);
 
+	//ポーカーのサブ効果のUI
+    bool IsPokerQuickPreviewVisible() const { return pokerQuickPreviewVisible_; }
+    std::wstring GetPokerQuickPreviewText() const { return GetPokerEffectPreviewText(); }
+    void SetPokerQuickPreviewVisible(bool visible);
+ 
+    std::wstring GetPokerEffectPreviewText() const;
+
+    std::vector<std::wstring> CollectSubEffectPreviewLines_(
+        SubEffectTrigger trigger,
+        PokerHandRank rank
+    ) const;
+
     void Finalize() {
         fieldViews_.clear();
         discardView_.reset();
@@ -165,12 +177,9 @@ private:
     std::vector<std::unique_ptr<Card3D>> fieldViews_;
     std::unique_ptr<Card3D> discardView_;
 
-	std::unique_ptr<FieldUi> fieldUi_;
-
     int energyMax_ = 10;
     int energy_ = 10;
 
- 
     float enemyWait_ = 0.0f;
 
     CardInputState cardState_ = CardInputState::Idle;
@@ -195,6 +204,9 @@ private:
     bool prevEnter_ = false;
     bool prevL_ = false;
     bool prevR_ = false;
+
+	//ポーカー選択UI用
+    bool pokerChoiceJustOpened_ = false;
 
     int nextTurnAtkUp_ = 0;
     int currentEnemyIndex_ = 0;
@@ -242,6 +254,8 @@ private:
 
     //デルタタイム
     float deltaTime_ = 0.0f;
+
+    bool pokerQuickPreviewVisible_ = false;
 
 private:
 

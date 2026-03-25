@@ -13,6 +13,14 @@ struct UiRect {
     float h = 0.0f;
 };
 
+
+struct UiText {
+    float x;
+    float y;
+    float scale;
+};
+
+
 struct PokerEffectChoiceLayout {
     UiVec2 titleText;
 
@@ -21,12 +29,14 @@ struct PokerEffectChoiceLayout {
 
     UiRect effectRects[3];
     UiVec2 effectTexts[3];
-};
 
-struct UiText {
-    float x;
-    float y;
-    float scale;
+    UiRect infoButtonRect;
+    UiText infoButtonText;
+
+    UiRect previewPanelBg;
+    UiText previewPanelTitle;
+    UiText previewPanelText;
+
 };
 
 
@@ -54,6 +64,7 @@ struct FieldUiLayout {
     UiText costText;
 
     UiRect overlay;
+
 };
 
 inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
@@ -72,6 +83,13 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
     l.effectTexts[0] = { 78.0f, 280.0f };
     l.effectTexts[1] = { 585.0f, 280.0f };
     l.effectTexts[2] = { 1015.0f, 280.0f };
+
+    l .infoButtonRect = { 1080.0f, 40.0f, 160.0f, 60.0f };
+    l.infoButtonText = { 1112.0f, 54.0f, 0.9f };
+
+    l.previewPanelBg = { 700.0f, 120.0f, 540.0f, 450.0f };
+    l.previewPanelTitle = { 735.0f, 140.0f, 1.0f };
+    l.previewPanelText = { 725.0f, 185.0f, 0.78f };
 
     return l;
 }
