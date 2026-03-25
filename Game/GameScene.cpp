@@ -343,12 +343,13 @@ void GameScene::Update(GameApp& app, float dt) {
 
 
 void GameScene::Draw3D(GameApp& app) {
+	app.Dx()->SetBackBuffer();   // RTV + DSV を再バインド
+	app.Dx()->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	battle_.Draw3D(app);
-
 	enemyMgr_.Draw();
-
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -418,16 +419,16 @@ void GameScene::DrawImGui(GameApp& app) {
 	if (ImGui::Button("Test: Change Camera!")) {
 		ChangeRandomCamera();
 	}
-	if (fieldUi_) {
-		fieldUi_->DrawImGui();
-	}
 
 	ImGui::End();
 
+	if (fieldUi_) {
+		ImGui::Begin("FieldUi Debug");
+		fieldUi_->DrawImGui();
+		ImGui::End();
+	}
 
-
-
-#endif
+  #endif
 }
 
 void GameScene::DrawSkydome(GameApp& app)

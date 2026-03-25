@@ -33,6 +33,8 @@ public:
 
     void SetFocusIndex(int index) { focusIndex_ = index; }
 
+    int GetHoverIndex() const { return hoverIndex_; }
+
 #ifdef USE_IMGUI
     void DrawImGui();
 #endif
