@@ -163,6 +163,12 @@ public:
         spriteCom_ = nullptr;
     }
 
+    bool IsPlayerTargeting() const {
+        return cardState_ == CardInputState::ChoosingEnemyTarget;
+          /*  cardState_ == CardInputState::Dragging ||
+            cardState_ == CardInputState::Preview;*/
+    }
+
 private:
     enum class TurnState { Player, Enemy };
     TurnState turn_ = TurnState::Player;
