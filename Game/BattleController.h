@@ -84,6 +84,9 @@ public:
     std::wstring GetEnergyText() const;
     std::wstring GetPlayerHpTexts() const;
     std::vector<std::wstring> GetEnemyHpTexts() const;
+    std::wstring GetPlayerPowerBoostText()const;
+    std::wstring GetPlayerBlockText()const;
+
     //マウス選択関連
     int GetPokerMouseChoiceIndex() const;
     bool IsWaitingActivateChoice() const;
@@ -91,6 +94,8 @@ public:
     bool IsViewingBoardFromPokerUi() const;
 
     bool IsAllEnemiesDead() const;
+
+    
 
 #ifdef USE_IMGUI
     void DrawImGui();
@@ -161,6 +166,12 @@ public:
         objCom_ = nullptr;
         dx_ = nullptr;
         spriteCom_ = nullptr;
+    }
+
+    bool IsPlayerTargeting() const {
+        return cardState_ == CardInputState::ChoosingEnemyTarget;
+          /*  cardState_ == CardInputState::Dragging ||
+            cardState_ == CardInputState::Preview;*/
     }
 
 private:

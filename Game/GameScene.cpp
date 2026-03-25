@@ -27,9 +27,9 @@ void GameScene::OnEnter(GameApp& app) {
 	animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
 
 	cameraAnim_ = std::make_unique<CameraAnimator>();
-	cameraAnim_->Initialize(animCamera_.get());
+	cameraAnim_->Initialize(animCamera_.get(), app.GetInput());
 	ChangeRandomCamera();
-	
+
 	// --------------------------------------------------
 	// 2. 背景（天球）の初期化
 	// --------------------------------------------------
@@ -96,7 +96,7 @@ void GameScene::OnEnter(GameApp& app) {
 	playerHpText_ = std::make_unique<TextSprite>();
 	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
 	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
-	playerHpText_->SetPosition({ 140.0f, 12.5f});
+	playerHpText_->SetPosition({ 140.0f, 12.5f });
 
 	// 敵HP数字
 	for (int i = 0; i < 3; i++) {
@@ -106,6 +106,28 @@ void GameScene::OnEnter(GameApp& app) {
 		text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
 		enemyHpTexts_.push_back(std::move(text));
 	}
+
+	// パワーブースト
+	powerBoostBg_ = std::make_unique<Sprite>();
+	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	powerBoostBg_->SetPosition({ 95.0f, 60.0f });
+	powerBoostBg_->SetScale({ 32.0f, 32.0f, 1.0f });
+	powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+	powerBoostText_ = std::make_unique<TextSprite>();
+	powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
+	powerBoostText_->SetSize({ 1.f,1.f,0.5f });
+	powerBoostText_->SetPosition({ 88.f, 40.f });
+
+	// ブロック
+	blockBg_ = std::make_unique<Sprite>();
+	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	blockBg_->SetPosition({ 145.0f, 60.0f });
+	blockBg_->SetScale({ 32.0f, 32.0f, 1.0f });
+	blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
+	blockText_ = std::make_unique<TextSprite>();
+	blockText_->Initialize(app.SpriteCom(), app.Dx());
+	blockText_->SetSize({ 1.f,1.f,0.5f });
+	blockText_->SetPosition({ 138.f, 40.f });
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -124,17 +146,93 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead()||!player_->GetIsAlive()) {
+	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive()) {
 		RequestChangeScene_("Title");
 	}
 
 	Input* input = app.GetInput();
 	if (!input) return;
 
-	if (cameraAnim_) {
-		if (cameraAnim_->Update(dt)) {
-			ChangeRandomCamera();
+	if (cameraAnim_ && cameraAnim_->IsEditing()) {
+		cameraAnim_->Update(dt); // カメラの操作だけは受け付ける
+		animCamera_->Update();   // カメラ行列更新
+
+		if (skyDome_) {
+			skyDome_->SetCamera(animCamera_.get());
 		}
+		if (player_) {
+			player_->SetCamera(animCamera_.get());
+			player_->Update(0.0f);
+		}
+
+		enemyMgr_.UpdateCamera(animCamera_.get());
+		enemyMgr_.Update(0.0f);
+
+		return;
+	}
+
+	if (battle_.IsPlayerTargeting()) {
+		// カードを触っている時はアニメーションの時間を止めて初期位置に固定する
+		animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+		animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+	} else {
+		// 触っていない時は、今まで通りアニメーションを再生する
+		if (cameraAnim_) {
+			if (cameraAnim_->Update(dt)) {
+				ChangeRandomCamera();
+			}
+		}
+	}
+
+	bool isTargeting = battle_.IsPlayerTargeting();
+
+	// 割合を計算（0.2秒かけて 0.0 と 1.0 の間を移動する）
+	if (isTargeting) {
+		cameraBlend_ += dt * 5.0f;
+		if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
+	} else {
+		cameraBlend_ -= dt * 5.0f;
+		if (cameraBlend_ < 0.0f) cameraBlend_ = 0.0f;
+	}
+
+	if (cameraAnim_) {
+		if (isTargeting) {
+			// ターゲット中はアニメの時間を止める（現在地をキープ）
+			cameraAnim_->Update(0.0f);
+		} else {
+			// ターゲット解除後はアニメを再開する
+			if (cameraAnim_->Update(dt)) {
+				ChangeRandomCamera();
+			}
+		}
+	}
+
+	// 割合が 0.0 より大きいなら、アニメの座標と固定座標を混ぜる（Lerp）
+	if (cameraBlend_ > 0.0f) {
+		Vector3 animPos = animCamera_->GetTranslate();
+		Vector3 animRot = animCamera_->GetRotate();
+
+		Vector3 defaultPos = { 0.0f, 4.0f, -40.0f };
+		Vector3 defaultRot = { 0.15f, 0.0f, 0.0f };
+
+		float t = cameraBlend_;
+		float easeT = t * t * (3.0f - 2.0f * t);
+
+		// アニメの場所(0.0) から 固定位置(1.0) へブレンド
+		Vector3 blendedPos = {
+			animPos.x + (defaultPos.x - animPos.x) * easeT,
+			animPos.y + (defaultPos.y - animPos.y) * easeT,
+			animPos.z + (defaultPos.z - animPos.z) * easeT
+		};
+		Vector3 blendedRot = {
+			animRot.x + (defaultRot.x - animRot.x) * easeT,
+			animRot.y + (defaultRot.y - animRot.y) * easeT,
+			animRot.z + (defaultRot.z - animRot.z) * easeT
+		};
+
+		// 混ざったヌルッとした座標をカメラにセット！
+		animCamera_->SetTranslate(blendedPos);
+		animCamera_->SetRotate(blendedRot);
 	}
 
 	if (camera_) {
@@ -143,7 +241,6 @@ void GameScene::Update(GameApp& app, float dt) {
 	if (animCamera_) {
 		animCamera_->Update(); // 動くカメラの更新
 	}
-	
 
 	// ESCキーでタイトルへ戻る
 	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
@@ -178,7 +275,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		enemy.SetCamera(animCamera_.get());
 	}
 
-	battle_.Update(app, *fieldUi_,dt);
+	battle_.Update(app, *fieldUi_, dt);
 
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
@@ -212,14 +309,20 @@ void GameScene::Update(GameApp& app, float dt) {
 		fieldUi_->Update(app, battle_);
 	}
 
-
-
 	if (costText_) {
 		costText_->SetText(battle_.GetEnergyText());
 	}
 
 	if (playerHpText_) {
 		playerHpText_->SetText(battle_.GetPlayerHpTexts());
+	}
+
+	if (powerBoostText_) {
+		powerBoostText_->SetText(battle_.GetPlayerPowerBoostText());
+	}
+
+	if (blockText_) {
+		blockText_->SetText(battle_.GetPlayerBlockText());
 	}
 
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
@@ -230,7 +333,7 @@ void GameScene::Update(GameApp& app, float dt) {
 
 			enemyHpTexts_[i]->SetPosition({ 1025.0f, 10.0f + (i * 30.0f) });
 		} else {
-			
+
 			enemyHpTexts_[i]->SetText(L"");
 		}
 	}
@@ -280,6 +383,19 @@ void GameScene::Draw2D(GameApp& app) {
 		playerHpText_->Draw();
 	}
 
+	if (powerBoostText_) {
+		powerBoostText_->Update(view, proj);
+		powerBoostText_->Draw();
+		powerBoostBg_->Update(view, proj);
+		powerBoostBg_->Draw();
+	}
+	if (blockText_) {
+		blockText_->Update(view, proj);
+		blockText_->Draw();
+		blockBg_->Update(view, proj);
+		blockBg_->Draw();
+	}
+
 	for (auto& text : enemyHpTexts_) {
 		text->Update(view, proj);
 		text->Draw();
@@ -312,8 +428,7 @@ void GameScene::DrawImGui(GameApp& app) {
 		ImGui::End();
 	}
 
-	
-#endif
+  #endif
 }
 
 void GameScene::DrawSkydome(GameApp& app)
@@ -358,6 +473,6 @@ void GameScene::ChangeRandomCamera() {
 
 	std::string msg = ">>> Camera Changed: " + filepath + "\n";
 	OutputDebugStringA(msg.c_str());
-	
+
 	cameraAnim_->LoadFromJson(filepath);
 }

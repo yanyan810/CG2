@@ -39,6 +39,8 @@ private:
     std::unique_ptr<CameraAnimator> cameraAnim_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球
 
+    float cameraBlend_ = 0.0f;
+
     std::unique_ptr<Player> player_;
     EnemyManager enemyMgr_;
 
@@ -67,5 +69,10 @@ private:
 
     std::unique_ptr<TextSprite> playerHpText_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
+
+    std::unique_ptr<Sprite> powerBoostBg_;
+    std::unique_ptr<TextSprite> powerBoostText_;
+    std::unique_ptr<Sprite> blockBg_;
+    std::unique_ptr<TextSprite> blockText_;
 
 };
