@@ -131,6 +131,16 @@ void FieldUi::ApplyFieldUiLayout_()
 		modalOverlayBg_->SetScale({ layout_.overlay.w, layout_.overlay.h, 1.0f });
 	}
 
+	if (endTurnButtonBg_) {
+		endTurnButtonBg_->SetPosition({ layout_.endTurnBg.x, layout_.endTurnBg.y });
+		endTurnButtonBg_->SetScale({ layout_.endTurnBg.w, layout_.endTurnBg.h, 1.0f });
+	}
+
+	if (endTurnButtonText_) {
+		endTurnButtonText_->SetPosition({ layout_.endTurnText.x, layout_.endTurnText.y });
+		SetTextScale_(endTurnButtonText_.get(), layout_.endTurnText.scale);
+	}
+
 	for (auto& [id, sprite] : cardDescSpriteCache_) {
 		if (!sprite) continue;
 		sprite->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
@@ -264,6 +274,16 @@ void FieldUi::Initialize(GameApp& app)
 	pokerEffectDescBg_ = std::make_unique<Sprite>();
 	pokerEffectDescBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	pokerEffectDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.88f });
+
+	//ターン終了ボタンは常に同じ位置に表示する
+	endTurnButtonText_ = std::make_unique<TextSprite>();
+	endTurnButtonText_->Initialize(app.SpriteCom(), app.Dx());
+	endTurnButtonText_->SetText(L"End\nTurn");
+
+	//ターン終了用背景
+	endTurnButtonBg_ = std::make_unique<Sprite>();
+	endTurnButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	endTurnButtonBg_->SetColor({ 0.1f, 0.3f, 0.95f, 0.95f });
 
 	LoadPokerEffectChoiceLayout(pokerEffectLayoutPath_);
 	LoadFieldUiLayout(layoutPath_);
@@ -497,6 +517,32 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 			lastDescMode_ = newMode;
 			lastPreviewDefId_ = newPreviewDefId;
 			lastDescText_ = newText;
+		}
+	}
+
+	showEndTurnButton_ =
+		battle.IsPlayerTurn() &&
+		!battle.HasPokerChoiceUi() &&
+		!battle.IsViewingBoardFromPokerUi() &&
+		!battle.IsPlayerTargeting();
+
+	endTurnHovered_ = battle.IsEndTurnButtonHovered();
+
+	if (endTurnButtonBg_) {
+		if (endTurnHovered_) {
+			endTurnButtonBg_->SetColor({ 0.2f, 0.45f, 1.0f, 1.0f });
+			endTurnButtonBg_->SetScale({
+				layout_.endTurnBg.w * 1.05f,
+				layout_.endTurnBg.h * 1.05f,
+				1.0f
+				});
+		} else {
+			endTurnButtonBg_->SetColor({ 0.1f, 0.3f, 0.95f, 0.95f });
+			endTurnButtonBg_->SetScale({
+				layout_.endTurnBg.w,
+				layout_.endTurnBg.h,
+				1.0f
+				});
 		}
 	}
 
@@ -800,9 +846,23 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		}
 	}
 
+
+
 	// ==============================
 	// 通常UI
 	// ==============================
+
+	if (showEndTurnButton_) {
+		if (endTurnButtonBg_) {
+			endTurnButtonBg_->Update(view, proj);
+			endTurnButtonBg_->Draw();
+		}
+		if (endTurnButtonText_) {
+			endTurnButtonText_->Update(view, proj);
+			endTurnButtonText_->Draw();
+		}
+	}
+
 	if (showDescBg_ && cardDescBg_) {
 		cardDescBg_->Update(view, proj);
 		cardDescBg_->Draw();
@@ -965,6 +1025,9 @@ void FieldUi::DrawImGui()
 
 		changed |= ImGui::DragFloat4("costBg", &layout_.costBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("costText", &layout_.costText.x, 1.0f);
+
+		changed |= ImGui::DragFloat4("endTurnBg", &layout_.endTurnBg.x, 1.0f);
+		changed |= ImGui::DragFloat3("endTurnText", &layout_.endTurnText.x, 1.0f);
 
 		changed |= ImGui::DragFloat4("overlay", &layout_.overlay.x, 1.0f);
 
@@ -1336,6 +1399,9 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 	readRect("costBg", layout_.costBg);
 	readText("costText", layout_.costText);
 
+	readRect("endTurnBg", layout_.endTurnBg);
+	readText("endTurnText", layout_.endTurnText);
+
 	readRect("overlay", layout_.overlay);
 
 	return true;
@@ -1378,6 +1444,9 @@ bool FieldUi::SaveFieldUiLayout(const std::string& path) const
 
 	writeRect("costBg", layout_.costBg);
 	writeText("costText", layout_.costText);
+
+	writeRect("endTurnBg", layout_.endTurnBg);
+	writeText("endTurnText", layout_.endTurnText);
 
 	writeRect("overlay", layout_.overlay);
 

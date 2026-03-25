@@ -176,6 +176,9 @@ public:
             cardState_ == CardInputState::Preview;*/
     }
 
+    bool IsPlayerTurn() const { return turn_ == TurnState::Player; }
+    bool IsEndTurnButtonHovered() const { return endTurnButtonHovered_; }
+
 private:
     enum class TurnState { Player, Enemy };
     TurnState turn_ = TurnState::Player;
@@ -243,6 +246,8 @@ private:
     int prevFieldReplaceHoverIndex_ = -1;
     bool fieldLayoutDirty_ = true;
 
+    //エンドボタン用
+    bool endTurnButtonHovered_ = false;
 
     std::unique_ptr<Object3d> costLabel_;
     std::vector<std::unique_ptr<Object3d>> costDigitModels_;

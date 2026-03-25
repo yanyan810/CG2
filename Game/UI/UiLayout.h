@@ -77,8 +77,10 @@ struct FieldUiLayout {
     UiRect costBg;
     UiText costText;
 
-    UiRect overlay;
+    UiRect endTurnBg;
+    UiText endTurnText;
 
+    UiRect overlay;
 };
 
 inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()

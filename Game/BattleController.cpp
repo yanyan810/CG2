@@ -1516,6 +1516,26 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	bool enterTrig = input->IsKeyTrigger(DIK_RETURN);
 	operationUiVisible_ = input->IsKeyPressed(DIK_TAB);
 
+	bool endTurnButtonClicked = false;
+	endTurnButtonHovered_ = false;
+
+	if (turn_ == TurnState::Player &&
+		cardState_ == CardInputState::Idle &&
+		pokerChoiceState_ == PokerChoiceState::None) {
+
+		const auto& ui = fieldUi.GetFieldUiLayout();
+
+		endTurnButtonHovered_ = PointInRect(
+			mouse.x, mouse.y,
+			ui.endTurnBg.x, ui.endTurnBg.y,
+			ui.endTurnBg.w, ui.endTurnBg.h
+		);
+
+		if (endTurnButtonHovered_ && lTrig) {
+			endTurnButtonClicked = true;
+		}
+	}
+
 	if (turn_ == TurnState::Player) {
 
 		if (cardState_ != CardInputState::ChoosingFieldReplace) {
@@ -1545,7 +1565,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			prevFieldReplaceHoverIndex_ = -1;
 		}
 
-		if (enterTrig && cardState_ == CardInputState::Idle) {
+		if ((enterTrig || endTurnButtonClicked) && cardState_ == CardInputState::Idle) {
 
 			OutputDebugStringA(("Before EndTurn hand=" + std::to_string(hand_.size()) +
 				" deck=" + std::to_string(deck_.size()) +

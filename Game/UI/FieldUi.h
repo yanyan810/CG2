@@ -43,6 +43,8 @@ public:
 
 	void UpdateDebugPokerEffectPreview(int hoverIndex = -1);
 
+    const FieldUiLayout& GetFieldUiLayout() const { return layout_; }
+
 private:
 	void ApplyFieldUiLayout_();
 	void SetTextScale_(TextSprite* text, float s);
@@ -66,6 +68,7 @@ private:
 	std::unique_ptr<TextSprite> pokerInfoButtonText_;
 	std::unique_ptr<TextSprite> pokerPreviewTitleText_;
 	std::unique_ptr<TextSprite> clickChoiceText_;
+	std::unique_ptr<TextSprite> endTurnButtonText_;
 
 	//ui用の背景スプライト
     std::unique_ptr<Sprite>     turnTextBg_;
@@ -81,9 +84,10 @@ private:
     std::unique_ptr<Sprite> pokerActivateDescBg_;
     std::unique_ptr<Sprite> pokerEffectDescBg_;
 	std::unique_ptr<Sprite> clickChoiceBg_;
+    std::unique_ptr<Sprite> endTurnButtonBg_;
 
-	std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
-	TextSprite* activeCardDescText_ = nullptr;
+    std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
+    TextSprite* activeCardDescText_ = nullptr;
 
 	//キャッシュ用メンバ
 	std::wstring lastPokerPreviewText_;
@@ -93,6 +97,10 @@ private:
 	int pokerHoverIndex_ = -1;
 	int pokerOptionCount_ = 0;
 	bool showDescBg_ = false;
+
+	//ターン終了用変数
+	bool showEndTurnButton_ = false;
+	bool endTurnHovered_ = false;
 
 	DescMode lastDescMode_ = DescMode::None;
 	int lastPreviewDefId_ = -1;
