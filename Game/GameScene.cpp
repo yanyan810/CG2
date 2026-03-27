@@ -401,15 +401,15 @@ void GameScene::Update(GameApp& app, float dt) {
 	// 3. 軌跡を更新！
 	trailManager_->Update(worldTip, worldBase);
 
-	ModelParticleManager::GetInstance()->LoadFromJson("sword_particle.json", effectConfig_);
-	
-	// Update内
-	for (int i = 0; i < 3; ++i) {
-		effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f))) + Vector3(0, 0, 0); // 位置だけ更新
-		ModelParticleManager::GetInstance()->Emit(
-			ModelParticleManager::GetInstance()->MakeParticle(effectConfig_)
-		);
-	}
+	//ModelParticleManager::GetInstance()->LoadFromJson("sword_particle.json", effectConfig_);
+	//
+	//// Update内
+	//for (int i = 0; i < 3; ++i) {
+	//	effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f))) + Vector3(0, 0, 0); // 位置だけ更新
+	//	ModelParticleManager::GetInstance()->Emit(
+	//		ModelParticleManager::GetInstance()->MakeParticle(effectConfig_)
+	//	);
+	//}
 
 	ModelParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
 
@@ -553,10 +553,10 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	app.ObjCom()->SetGraphicsPipelineState();
 
 
-	ModelParticleManager::GetInstance()->Draw();
+	//ModelParticleManager::GetInstance()->Draw();
 
-	Matrix4x4 vp = camera_->GetViewProjectionMatrix();
-	trailManager_->Draw(vp);
+	//Matrix4x4 vp = camera_->GetViewProjectionMatrix();
+	//trailManager_->Draw(vp);
 }
 
 void GameScene::DrawPostEffect2D(GameApp& app)
