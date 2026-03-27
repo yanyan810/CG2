@@ -28,30 +28,7 @@ std::wstring FieldUi::Utf8ToWString_(const std::string& s)
 	return Utf8ToWStringLocal(s);
 }
 
-void FieldUi::BuildStaticPokerUiTexts_()
-{
-	if (pokerTitleText_) {
-		pokerTitleText_->SetText(L"特殊効果を発動しますか？");
-	}
 
-	if (pokerOptionTexts_[0]) pokerOptionTexts_[0]->SetText(L"発動する");
-	if (pokerOptionTexts_[1]) pokerOptionTexts_[1]->SetText(L"発動しない");
-	if (pokerOptionTexts_[2]) pokerOptionTexts_[2]->SetText(L"場を見る");
-	if (pokerOptionTexts_[3]) pokerOptionTexts_[3]->SetText(L"");
-	if (pokerOptionTexts_[4]) pokerOptionTexts_[4]->SetText(L"");
-}
-
-void FieldUi::UpdateDynamicPokerBonusTexts_(const BattleController& battle)
-{
-	BattleController::PokerBonus bonus = battle.GetCurrentPokerBonusForUi();
-
-	pokerTitleText_->SetText(L"発動する効果を選んでください");
-	pokerOptionTexts_[0]->SetText(L"戻る");
-	pokerOptionTexts_[1]->SetText(L"次ターンATK UP +" + std::to_wstring(bonus.atkUp));
-	pokerOptionTexts_[2]->SetText(std::to_wstring(bonus.drawCount) + L"枚ドロー");
-	pokerOptionTexts_[3]->SetText(std::to_wstring(bonus.damage) + L"ダメージ");
-	pokerOptionTexts_[4]->SetText(L"場を見る");
-}
 
 void FieldUi::SetTextScale_(TextSprite* text, float s)
 {
@@ -59,6 +36,93 @@ void FieldUi::SetTextScale_(TextSprite* text, float s)
 	text->SetSize({ s, s, 1.0f });
 }
 
+void FieldUi::ApplyPokerOptionImageLayout_(const BattleController& battle)
+{
+	if (pokerTitleImage_) {
+		pokerTitleImage_->SetPosition({
+			pokerEffectLayout_.titleImage.x,
+			pokerEffectLayout_.titleImage.y
+			});
+	}
+
+	if (battle.IsWaitingActivateChoice()) {
+		if (pokerOptionImageSprites_[0]) {
+			pokerOptionImageSprites_[0]->SetPosition({
+				pokerEffectLayout_.activateYesImage.x,
+				pokerEffectLayout_.activateYesImage.y
+				});
+		}
+		if (pokerOptionImageSprites_[1]) {
+			pokerOptionImageSprites_[1]->SetPosition({
+				pokerEffectLayout_.activateNoImage.x,
+				pokerEffectLayout_.activateNoImage.y
+				});
+		}
+		if (pokerOptionImageSprites_[2]) {
+			pokerOptionImageSprites_[2]->SetPosition({
+				pokerEffectLayout_.activateViewBoardImage.x,
+				pokerEffectLayout_.activateViewBoardImage.y
+				});
+		}
+	}
+
+	if (battle.IsWaitingEffectChoice()) {
+		if (pokerOptionImageSprites_[0]) {
+			pokerOptionImageSprites_[0]->SetPosition({
+				pokerEffectLayout_.backImage.x,
+				pokerEffectLayout_.backImage.y
+				});
+		}
+		if (pokerOptionImageSprites_[1]) {
+			pokerOptionImageSprites_[1]->SetPosition({
+				pokerEffectLayout_.effectImages[0].x,
+				pokerEffectLayout_.effectImages[0].y
+				});
+		}
+		if (pokerOptionImageSprites_[2]) {
+			pokerOptionImageSprites_[2]->SetPosition({
+				pokerEffectLayout_.effectImages[1].x,
+				pokerEffectLayout_.effectImages[1].y
+				});
+		}
+		if (pokerOptionImageSprites_[3]) {
+			pokerOptionImageSprites_[3]->SetPosition({
+				pokerEffectLayout_.effectImages[2].x,
+				pokerEffectLayout_.effectImages[2].y
+				});
+		}
+		if (pokerOptionImageSprites_[4]) {
+			pokerOptionImageSprites_[4]->SetPosition({
+				pokerEffectLayout_.effectViewBoardImage.x,
+				pokerEffectLayout_.effectViewBoardImage.y
+				});
+		}
+	}
+
+	if (pokerInfoButtonImage_) {
+		pokerInfoButtonImage_->SetPosition({
+			pokerEffectLayout_.infoButtonImage.x,
+			pokerEffectLayout_.infoButtonImage.y
+			});
+		pokerInfoButtonImage_->SetScale({
+			pokerEffectLayout_.infoButtonImage.scale,
+			pokerEffectLayout_.infoButtonImage.scale,
+			1.0f
+			});
+	}
+
+	if (pokerPreviewTitleImage_) {
+		pokerPreviewTitleImage_->SetPosition({
+			pokerEffectLayout_.previewPanelTitleImage.x,
+			pokerEffectLayout_.previewPanelTitleImage.y
+			});
+		pokerPreviewTitleImage_->SetScale({
+			pokerEffectLayout_.previewPanelTitleImage.scale,
+			pokerEffectLayout_.previewPanelTitleImage.scale,
+			1.0f
+			});
+	}
+}
 void FieldUi::ApplyFieldUiLayout_()
 {
 
@@ -203,9 +267,6 @@ void FieldUi::Initialize(GameApp& app)
 	fieldCountBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	fieldCountBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.45f });
 
-	pokerTitleText_ = std::make_unique<TextSprite>();
-	pokerTitleText_->Initialize(app.SpriteCom(), app.Dx());
-	pokerTitleText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
 	for (int i = 0; i < 5; ++i) {
 		pokerOptionBgs_[i] = std::make_unique<Sprite>();
@@ -213,9 +274,7 @@ void FieldUi::Initialize(GameApp& app)
 		pokerOptionBgs_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 0.65f });
 		pokerOptionBgs_[i]->SetScale({ 380.0f, 130.0f, 1.0f });
 
-		pokerOptionTexts_[i] = std::make_unique<TextSprite>();
-		pokerOptionTexts_[i]->Initialize(app.SpriteCom(), app.Dx());
-		pokerOptionTexts_[i]->SetSize({ 1.0f, 1.0f, 1.0f });
+	
 	}
 
 	turnText_ = std::make_unique<TextSprite>();
@@ -241,15 +300,6 @@ void FieldUi::Initialize(GameApp& app)
 	pokerPreviewText_->SetSize({ 0.9f, 0.9f, 1.0f });
 	pokerPreviewText_->SetPosition({ 160.0f, 250.0f });
 
-	pokerInfoButtonText_ = std::make_unique<TextSprite>();
-	pokerInfoButtonText_->Initialize(app.SpriteCom(), app.Dx());
-	pokerInfoButtonText_->SetText(L"効果一覧");
-	pokerInfoButtonText_->SetSize({ 0.9f, 0.9f, 1.0f });
-
-	pokerPreviewTitleText_ = std::make_unique<TextSprite>();
-	pokerPreviewTitleText_->Initialize(app.SpriteCom(), app.Dx());
-	pokerPreviewTitleText_->SetText(L"発動する効果");
-	pokerPreviewTitleText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
 	pokerPreviewBg_ = std::make_unique<Sprite>();
 	pokerPreviewBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -285,12 +335,36 @@ void FieldUi::Initialize(GameApp& app)
 	endTurnButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	endTurnButtonBg_->SetColor({ 0.1f, 0.3f, 0.95f, 0.95f });
 
+	//==================
+	//画像文字の描画
+	//==================
+	pokerTitleImage_ = std::make_unique<Sprite>();
+	pokerTitleImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/doActivation.png");
+
+	for (int i = 0; i < 5; ++i) {
+		pokerOptionImageSprites_[i] = std::make_unique<Sprite>();
+		pokerOptionImageSprites_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/back.png");
+		pokerOptionImageSprites_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+	}
+
+	pokerInfoButtonImage_ = std::make_unique<Sprite>();
+	pokerInfoButtonImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/effectsList.png");
+
+	pokerPreviewTitleImage_ = std::make_unique<Sprite>();
+	pokerPreviewTitleImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/activatingEffect.png");
+
+	pokerTitleImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+	pokerInfoButtonImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+	pokerPreviewTitleImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+
+	//==================
+	// レイアウトの読み込みと適用
+	//==================
 	LoadPokerEffectChoiceLayout(pokerEffectLayoutPath_);
 	LoadFieldUiLayout(layoutPath_);
 	ApplyFieldUiLayout_();
 
-	BuildStaticPokerUiTexts_();
-	cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
+//	cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
 }
 
 void FieldUi::Update(GameApp& app, const BattleController& battle)
@@ -309,116 +383,24 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		showDescBg_ = true;
 		showPokerOptions_ = true;
 		pokerHoverIndex_ = battle.GetPokerMouseChoiceIndex();
-
 		if (battle.IsWaitingActivateChoice()) {
 			pokerOptionCount_ = 3;
 
-			BuildStaticPokerUiTexts_();
+			pokerTitleImage_->SetTextureFilePath("resources/ui/text/doActivation.png");
 
-			pokerTitleText_->SetSize({ 1.15f, 1.15f, 1.0f });
-			pokerTitleText_->SetPosition({
-				pokerEffectLayout_.titleText.x,
-				pokerEffectLayout_.titleText.y
-				});
-
-			pokerOptionTexts_[0]->SetPosition({
-				pokerEffectLayout_.activateYesText.x,
-				pokerEffectLayout_.activateYesText.y
-				});
-			pokerOptionTexts_[1]->SetPosition({
-				pokerEffectLayout_.activateNoText.x,
-				pokerEffectLayout_.activateNoText.y
-				});
-			pokerOptionTexts_[2]->SetPosition({
-				pokerEffectLayout_.activateViewBoardText.x,
-				pokerEffectLayout_.activateViewBoardText.y
-				});
-
-
-			cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
+			pokerOptionImageSprites_[0]->SetTextureFilePath("resources/ui/text/activation.png");
+			pokerOptionImageSprites_[1]->SetTextureFilePath("resources/ui/text/noActivation.png");
+			pokerOptionImageSprites_[2]->SetTextureFilePath("resources/ui/text/showField.png");
 		} else if (battle.IsWaitingEffectChoice()) {
 			pokerOptionCount_ = 5;
 
-			auto currentRank = battle.GetCurrentPokerRankForUi();
-			UpdateDynamicPokerBonusTexts_(battle);
-			cachedPokerBonusRank_ = currentRank;
+			pokerTitleImage_->SetTextureFilePath("resources/ui/text/chooseActive.png");
 
-			pokerTitleText_->SetSize({ 1.05f, 1.05f, 1.0f });
-			pokerTitleText_->SetPosition({
-				pokerEffectLayout_.titleText.x,
-				pokerEffectLayout_.titleText.y
-				});
-
-			pokerOptionTexts_[0]->SetPosition({
-				pokerEffectLayout_.backText.x,
-				pokerEffectLayout_.backText.y
-				});
-			pokerOptionTexts_[0]->SetSize({ 1.15f, 1.15f, 1.0f });
-
-			pokerOptionTexts_[1]->SetPosition({
-				pokerEffectLayout_.effectTexts[0].x,
-				pokerEffectLayout_.effectTexts[0].y
-				});
-			pokerOptionTexts_[2]->SetPosition({
-				pokerEffectLayout_.effectTexts[1].x,
-				pokerEffectLayout_.effectTexts[1].y
-				});
-			pokerOptionTexts_[3]->SetPosition({
-				pokerEffectLayout_.effectTexts[2].x,
-				pokerEffectLayout_.effectTexts[2].y
-				});
-			pokerOptionTexts_[4]->SetPosition({
-	pokerEffectLayout_.effectViewBoardText.x,
-	pokerEffectLayout_.effectViewBoardText.y
-				});
+			pokerOptionImageSprites_[0]->SetTextureFilePath("resources/ui/text/back.png");
+			pokerOptionImageSprites_[4]->SetTextureFilePath("resources/ui/text/showField.png");
 		}
 
-		for (int i = 0; i < 5; ++i) {
-			if (i >= pokerOptionCount_) {
-				if (pokerOptionTexts_[i]) {
-					pokerOptionTexts_[i]->SetSize({ 1.0f, 1.0f, 1.0f });
-				}
-				continue;
-			}
-
-			if (i == pokerHoverIndex_) {
-				if (battle.IsWaitingEffectChoice() && i == 0) {
-					pokerOptionTexts_[i]->SetSize({ 1.20f, 1.20f, 1.0f });
-				} else {
-					pokerOptionTexts_[i]->SetSize({ 1.06f, 1.06f, 1.0f });
-				}
-			} else {
-				if (battle.IsWaitingEffectChoice() && i == 0) {
-					pokerOptionTexts_[i]->SetSize({ 1.15f, 1.15f, 1.0f });
-				} else {
-					pokerOptionTexts_[i]->SetSize({ 1.0f, 1.0f, 1.0f });
-				}
-			}
-		}
-
-		if (pokerInfoButtonText_) {
-			pokerInfoButtonText_->SetPosition({
-				pokerEffectLayout_.infoButtonText.x,
-				pokerEffectLayout_.infoButtonText.y
-				});
-			pokerInfoButtonText_->SetSize({
-				pokerEffectLayout_.infoButtonText.scale,
-				pokerEffectLayout_.infoButtonText.scale,
-				1.0f
-				});
-		}
-
-		if (pokerPreviewTitleText_) {
-			pokerPreviewTitleText_->SetPosition({
-				pokerEffectLayout_.previewPanelTitle.x,
-				pokerEffectLayout_.previewPanelTitle.y
-				});
-			pokerPreviewTitleText_->SetSize({
-				pokerEffectLayout_.previewPanelTitle.scale,
-				pokerEffectLayout_.previewPanelTitle.scale,
-				1.0f
-				});
-		}
+	
 
 
 
@@ -452,18 +434,18 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 
 		lastPokerPreviewVisible_ = previewVisible;
 
+		ApplyPokerOptionImageLayout_(battle);
+
 	} else {
 		if (battle.IsViewingBoardFromPokerUi()) {
 			pokerHoverIndex_ = battle.GetPokerMouseChoiceIndex();
 
-
-			if (pokerOptionTexts_[0]) {
-				pokerOptionTexts_[0]->SetText(L"特殊効果選択に戻る");
-				pokerOptionTexts_[0]->SetPosition({
-					pokerEffectLayout_.backText.x - 40.0f,
-					pokerEffectLayout_.backText.y
+			if (pokerOptionImageSprites_[0]) {
+				pokerOptionImageSprites_[0]->SetTextureFilePath("resources/ui/text/back.png");
+				pokerOptionImageSprites_[0]->SetPosition({
+		pokerEffectLayout_.backImage.x,
+		pokerEffectLayout_.backImage.y
 					});
-				pokerOptionTexts_[0]->SetSize({ 1.0f, 1.0f, 1.0f });
 			}
 
 			activeCardDescText_ = nullptr;
@@ -483,6 +465,9 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 					SetTextScale_(activeCardDescText_, layout_.cardDescText.scale);
 				}
 			}
+
+			ApplyPokerOptionImageLayout_(battle);
+
 		} else if (battle.ShouldShowOperationUi()) {
 			newMode = DescMode::Operation;
 			showDescBg_ = true;
@@ -749,23 +734,29 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 
 		}
 
-		if (pokerTitleText_) {
-			pokerTitleText_->Update(view, proj);
-			pokerTitleText_->Draw();
+		if (pokerTitleImage_) {
+			pokerTitleImage_->SetPosition({
+		pokerEffectLayout_.titleImage.x,
+		pokerEffectLayout_.titleImage.y
+				});
+			pokerTitleImage_->Update(view, proj);
+			pokerTitleImage_->Draw();
 		}
 
 		for (int i = 0; i < pokerOptionCount_; ++i) {
-			if (pokerOptionTexts_[i]) {
-				pokerOptionTexts_[i]->Update(view, proj);
-				pokerOptionTexts_[i]->Draw();
-			}
-		}
+			if (!pokerOptionImageSprites_[i]) continue;
 
-		if (pokerInfoButtonText_) {
-			if (pokerPreviewBg_) {
-				// 右上のボタン背景として使わず、
-				// ここでは別の既存bgがないので pokerOptionBgs_[0] は使わない方が安全
+			// ホバー時に少し拡大
+			float scale = (pokerHoverIndex_ == i) ? 1.06f : 1.0f;
+
+			// 戻るだけ少し大きめでもよければ
+			if (i == 0 && pokerOptionCount_ == 5) {
+				scale = (pokerHoverIndex_ == i) ? 1.12f : 1.05f;
 			}
+
+			pokerOptionImageSprites_[i]->SetScale({ scale, scale, 1.0f });
+			pokerOptionImageSprites_[i]->Update(view, proj);
+			pokerOptionImageSprites_[i]->Draw();
 		}
 
 		if (showPokerOptions_) {
@@ -785,9 +776,9 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 				cardDescBg_->Draw();
 			}
 
-			if (pokerInfoButtonText_) {
-				pokerInfoButtonText_->Update(view, proj);
-				pokerInfoButtonText_->Draw();
+			if (pokerInfoButtonImage_) {
+				pokerInfoButtonImage_->Update(view, proj);
+				pokerInfoButtonImage_->Draw();
 			}
 
 			if (battle.IsPokerQuickPreviewVisible()) {
@@ -805,9 +796,9 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 					pokerPreviewBg_->Draw();
 				}
 
-				if (pokerPreviewTitleText_) {
-					pokerPreviewTitleText_->Update(view, proj);
-					pokerPreviewTitleText_->Draw();
+				if (pokerPreviewTitleImage_) {
+					pokerPreviewTitleImage_->Update(view, proj);
+					pokerPreviewTitleImage_->Draw();
 				}
 
 				if (pokerPreviewText_) {
@@ -847,9 +838,11 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 			pokerOptionBgs_[0]->Draw();
 		}
 
-		if (pokerOptionTexts_[0]) {
-			pokerOptionTexts_[0]->Update(view, proj);
-			pokerOptionTexts_[0]->Draw();
+		if (pokerOptionImageSprites_[0]) {
+			float scale = (pokerHoverIndex_ == 0) ? 1.12f : 1.05f;
+			pokerOptionImageSprites_[0]->SetScale({ scale, scale, 1.0f });
+			pokerOptionImageSprites_[0]->Update(view, proj);
+			pokerOptionImageSprites_[0]->Draw();
 		}
 	}
 
@@ -952,51 +945,47 @@ void FieldUi::DrawImGui()
 	if (ImGui::TreeNode("PokerEffectChoiceLayout")) {
 		bool changed = false;
 
-		changed |= ImGui::DragFloat2("Title", &pokerEffectLayout_.titleText.x, 1.0f);
+		changed |= ImGui::DragFloat2("Title Image", &pokerEffectLayout_.titleImage.x, 1.0f);
 
 		ImGui::Separator();
 		ImGui::Text("Activate Choice");
 		changed |= ImGui::DragFloat4("Activate Title Bg", &pokerEffectLayout_.activateTitleBg.x, 1.0f);
 		changed |= ImGui::DragFloat4("Yes Rect", &pokerEffectLayout_.activateYesRect.x, 1.0f);
-		changed |= ImGui::DragFloat2("Yes Text", &pokerEffectLayout_.activateYesText.x, 1.0f);
+		changed |= ImGui::DragFloat2("Yes Image", &pokerEffectLayout_.activateYesImage.x, 1.0f);
 		changed |= ImGui::DragFloat4("No Rect", &pokerEffectLayout_.activateNoRect.x, 1.0f);
-		changed |= ImGui::DragFloat2("No Text", &pokerEffectLayout_.activateNoText.x, 1.0f);
+		changed |= ImGui::DragFloat2("No Image", &pokerEffectLayout_.activateNoImage.x, 1.0f);
 		changed |= ImGui::DragFloat4("ViewBoard Rect", &pokerEffectLayout_.activateViewBoardRect.x, 1.0f);
-		changed |= ImGui::DragFloat2("ViewBoard Text", &pokerEffectLayout_.activateViewBoardText.x, 1.0f);
+		changed |= ImGui::DragFloat2("ViewBoard Image", &pokerEffectLayout_.activateViewBoardImage.x, 1.0f);
 
 		ImGui::Separator();
 		ImGui::Text("Effect Choice");
 		changed |= ImGui::DragFloat4("Effect Title Bg", &pokerEffectLayout_.effectTitleBg.x, 1.0f);
 
 		changed |= ImGui::DragFloat4("Back Rect", &pokerEffectLayout_.backRect.x, 1.0f);
-		changed |= ImGui::DragFloat2("Back Text", &pokerEffectLayout_.backText.x, 1.0f);
+		changed |= ImGui::DragFloat2("Back Image", &pokerEffectLayout_.backImage.x, 1.0f);
 
 		changed |= ImGui::DragFloat4("Effect1 Rect", &pokerEffectLayout_.effectRects[0].x, 1.0f);
-		changed |= ImGui::DragFloat2("Effect1 Text", &pokerEffectLayout_.effectTexts[0].x, 1.0f);
+		changed |= ImGui::DragFloat2("Effect1 Image", &pokerEffectLayout_.effectImages[0].x, 1.0f);
 
 		changed |= ImGui::DragFloat4("Effect2 Rect", &pokerEffectLayout_.effectRects[1].x, 1.0f);
-		changed |= ImGui::DragFloat2("Effect2 Text", &pokerEffectLayout_.effectTexts[1].x, 1.0f);
+		changed |= ImGui::DragFloat2("Effect2 Image", &pokerEffectLayout_.effectImages[1].x, 1.0f);
 
 		changed |= ImGui::DragFloat4("Effect3 Rect", &pokerEffectLayout_.effectRects[2].x, 1.0f);
-		changed |= ImGui::DragFloat2("Effect3 Text", &pokerEffectLayout_.effectTexts[2].x, 1.0f);
+		changed |= ImGui::DragFloat2("Effect3 Image", &pokerEffectLayout_.effectImages[2].x, 1.0f);
 
 		changed |= ImGui::DragFloat4("Effect ViewBoard Rect", &pokerEffectLayout_.effectViewBoardRect.x, 1.0f);
-		changed |= ImGui::DragFloat2("Effect ViewBoard Text", &pokerEffectLayout_.effectViewBoardText.x, 1.0f);
+		changed |= ImGui::DragFloat2("Effect ViewBoard Image", &pokerEffectLayout_.effectViewBoardImage.x, 1.0f);
 
 		ImGui::Separator();
 		ImGui::Text("InfoButton");
 		changed |= ImGui::DragFloat4("InfoButton Rect", &pokerEffectLayout_.infoButtonRect.x, 1.0f);
-		changed |= ImGui::DragFloat3("InfoButton Text", &pokerEffectLayout_.infoButtonText.x, 1.0f);
+		changed |= ImGui::DragFloat3("InfoButton Image", &pokerEffectLayout_.infoButtonImage.x, 1.0f);
 
 		ImGui::Separator();
 		ImGui::Text("PreviewPanel");
 		changed |= ImGui::DragFloat4("PreviewPanel Bg", &pokerEffectLayout_.previewPanelBg.x, 1.0f);
-		changed |= ImGui::DragFloat3("PreviewPanel Title", &pokerEffectLayout_.previewPanelTitle.x, 1.0f);
+		changed |= ImGui::DragFloat3("PreviewPanel Title Image", &pokerEffectLayout_.previewPanelTitleImage.x, 1.0f);
 		changed |= ImGui::DragFloat3("PreviewPanel Text", &pokerEffectLayout_.previewPanelText.x, 1.0f);
-
-		if (changed) {
-			// PokerUI は Update / Draw が毎フレーム layout を見るのでこれで即反映
-		}
 
 		if (ImGui::Button("Save PokerEffectChoiceLayout")) {
 			SavePokerEffectChoiceLayout(pokerEffectLayoutPath_);
@@ -1063,15 +1052,15 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 {
 	json j;
 
-	j["title"]["x"] = pokerEffectLayout_.titleText.x;
-	j["title"]["y"] = pokerEffectLayout_.titleText.y;
+	j["title"]["x"] = pokerEffectLayout_.titleImage.x;
+	j["title"]["y"] = pokerEffectLayout_.titleImage.y;
 
 	j["backButton"]["rect"]["x"] = pokerEffectLayout_.backRect.x;
 	j["backButton"]["rect"]["y"] = pokerEffectLayout_.backRect.y;
 	j["backButton"]["rect"]["w"] = pokerEffectLayout_.backRect.w;
 	j["backButton"]["rect"]["h"] = pokerEffectLayout_.backRect.h;
-	j["backButton"]["text"]["x"] = pokerEffectLayout_.backText.x;
-	j["backButton"]["text"]["y"] = pokerEffectLayout_.backText.y;
+	j["backButton"]["image"]["x"] = pokerEffectLayout_.backImage.x;
+	j["backButton"]["image"]["y"] = pokerEffectLayout_.backImage.y;
 
 	for (int i = 0; i < 3; ++i) {
 		std::string key = "effect" + std::to_string(i + 1);
@@ -1081,26 +1070,26 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 		j[key]["rect"]["w"] = pokerEffectLayout_.effectRects[i].w;
 		j[key]["rect"]["h"] = pokerEffectLayout_.effectRects[i].h;
 
-		j[key]["text"]["x"] = pokerEffectLayout_.effectTexts[i].x;
-		j[key]["text"]["y"] = pokerEffectLayout_.effectTexts[i].y;
+		j[key]["image"]["x"] = pokerEffectLayout_.effectImages[i].x;
+		j[key]["image"]["y"] = pokerEffectLayout_.effectImages[i].y;
 	}
 
 	j["infoButton"]["rect"]["x"] = pokerEffectLayout_.infoButtonRect.x;
 	j["infoButton"]["rect"]["y"] = pokerEffectLayout_.infoButtonRect.y;
 	j["infoButton"]["rect"]["w"] = pokerEffectLayout_.infoButtonRect.w;
 	j["infoButton"]["rect"]["h"] = pokerEffectLayout_.infoButtonRect.h;
-	j["infoButton"]["text"]["x"] = pokerEffectLayout_.infoButtonText.x;
-	j["infoButton"]["text"]["y"] = pokerEffectLayout_.infoButtonText.y;
-	j["infoButton"]["text"]["scale"] = pokerEffectLayout_.infoButtonText.scale;
+	j["infoButton"]["image"]["x"] = pokerEffectLayout_.infoButtonImage.x;
+	j["infoButton"]["image"]["y"] = pokerEffectLayout_.infoButtonImage.y;
+	j["infoButton"]["image"]["scale"] = pokerEffectLayout_.infoButtonImage.scale;
 
 	j["previewPanelBg"]["x"] = pokerEffectLayout_.previewPanelBg.x;
 	j["previewPanelBg"]["y"] = pokerEffectLayout_.previewPanelBg.y;
 	j["previewPanelBg"]["w"] = pokerEffectLayout_.previewPanelBg.w;
 	j["previewPanelBg"]["h"] = pokerEffectLayout_.previewPanelBg.h;
 
-	j["previewPanelTitle"]["x"] = pokerEffectLayout_.previewPanelTitle.x;
-	j["previewPanelTitle"]["y"] = pokerEffectLayout_.previewPanelTitle.y;
-	j["previewPanelTitle"]["scale"] = pokerEffectLayout_.previewPanelTitle.scale;
+	j["previewPanelTitle"]["x"] = pokerEffectLayout_.previewPanelTitleImage.x;
+	j["previewPanelTitle"]["y"] = pokerEffectLayout_.previewPanelTitleImage.y;
+	j["previewPanelTitle"]["scale"] = pokerEffectLayout_.previewPanelTitleImage.scale;
 
 	j["previewPanelText"]["x"] = pokerEffectLayout_.previewPanelText.x;
 	j["previewPanelText"]["y"] = pokerEffectLayout_.previewPanelText.y;
@@ -1115,22 +1104,22 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 	j["activateYes"]["rect"]["y"] = pokerEffectLayout_.activateYesRect.y;
 	j["activateYes"]["rect"]["w"] = pokerEffectLayout_.activateYesRect.w;
 	j["activateYes"]["rect"]["h"] = pokerEffectLayout_.activateYesRect.h;
-	j["activateYes"]["text"]["x"] = pokerEffectLayout_.activateYesText.x;
-	j["activateYes"]["text"]["y"] = pokerEffectLayout_.activateYesText.y;
+	j["activateYes"]["image"]["x"] = pokerEffectLayout_.activateYesImage.x;
+	j["activateYes"]["image"]["y"] = pokerEffectLayout_.activateYesImage.y;
 
 	j["activateNo"]["rect"]["x"] = pokerEffectLayout_.activateNoRect.x;
 	j["activateNo"]["rect"]["y"] = pokerEffectLayout_.activateNoRect.y;
 	j["activateNo"]["rect"]["w"] = pokerEffectLayout_.activateNoRect.w;
 	j["activateNo"]["rect"]["h"] = pokerEffectLayout_.activateNoRect.h;
-	j["activateNo"]["text"]["x"] = pokerEffectLayout_.activateNoText.x;
-	j["activateNo"]["text"]["y"] = pokerEffectLayout_.activateNoText.y;
+	j["activateNo"]["image"]["x"] = pokerEffectLayout_.activateNoImage.x;
+	j["activateNo"]["image"]["y"] = pokerEffectLayout_.activateNoImage.y;
 
 	j["activateViewBoard"]["rect"]["x"] = pokerEffectLayout_.activateViewBoardRect.x;
 	j["activateViewBoard"]["rect"]["y"] = pokerEffectLayout_.activateViewBoardRect.y;
 	j["activateViewBoard"]["rect"]["w"] = pokerEffectLayout_.activateViewBoardRect.w;
 	j["activateViewBoard"]["rect"]["h"] = pokerEffectLayout_.activateViewBoardRect.h;
-	j["activateViewBoard"]["text"]["x"] = pokerEffectLayout_.activateViewBoardText.x;
-	j["activateViewBoard"]["text"]["y"] = pokerEffectLayout_.activateViewBoardText.y;
+	j["activateViewBoard"]["image"]["x"] = pokerEffectLayout_.activateViewBoardImage.x;
+	j["activateViewBoard"]["image"]["y"] = pokerEffectLayout_.activateViewBoardImage.y;
 
 	j["effectTitleBg"]["x"] = pokerEffectLayout_.effectTitleBg.x;
 	j["effectTitleBg"]["y"] = pokerEffectLayout_.effectTitleBg.y;
@@ -1141,8 +1130,8 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 	j["effectViewBoard"]["rect"]["y"] = pokerEffectLayout_.effectViewBoardRect.y;
 	j["effectViewBoard"]["rect"]["w"] = pokerEffectLayout_.effectViewBoardRect.w;
 	j["effectViewBoard"]["rect"]["h"] = pokerEffectLayout_.effectViewBoardRect.h;
-	j["effectViewBoard"]["text"]["x"] = pokerEffectLayout_.effectViewBoardText.x;
-	j["effectViewBoard"]["text"]["y"] = pokerEffectLayout_.effectViewBoardText.y;
+	j["effectViewBoard"]["image"]["x"] = pokerEffectLayout_.effectViewBoardImage.x;
+	j["effectViewBoard"]["image"]["y"] = pokerEffectLayout_.effectViewBoardImage.y;
 
 	std::ofstream ofs(path);
 	if (!ofs.is_open()) {
@@ -1164,17 +1153,18 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 	json j;
 	try {
 		ifs >> j;
-	}
-	catch (...) {
+	} catch (...) {
 		pokerEffectLayout_ = MakeDefaultPokerEffectChoiceLayout();
 		return false;
 	}
 
 	pokerEffectLayout_ = MakeDefaultPokerEffectChoiceLayout();
 
-	pokerEffectLayout_.titleText.x = j.value("title", json::object()).value("x", pokerEffectLayout_.titleText.x);
-	pokerEffectLayout_.titleText.y = j.value("title", json::object()).value("y", pokerEffectLayout_.titleText.y);
+	// title
+	pokerEffectLayout_.titleImage.x = j.value("title", json::object()).value("x", pokerEffectLayout_.titleImage.x);
+	pokerEffectLayout_.titleImage.y = j.value("title", json::object()).value("y", pokerEffectLayout_.titleImage.y);
 
+	// backButton
 	if (j.contains("backButton")) {
 		auto& b = j["backButton"];
 		if (b.contains("rect")) {
@@ -1183,12 +1173,13 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.backRect.w = b["rect"].value("w", pokerEffectLayout_.backRect.w);
 			pokerEffectLayout_.backRect.h = b["rect"].value("h", pokerEffectLayout_.backRect.h);
 		}
-		if (b.contains("text")) {
-			pokerEffectLayout_.backText.x = b["text"].value("x", pokerEffectLayout_.backText.x);
-			pokerEffectLayout_.backText.y = b["text"].value("y", pokerEffectLayout_.backText.y);
+		if (b.contains("image")) {
+			pokerEffectLayout_.backImage.x = b["image"].value("x", pokerEffectLayout_.backImage.x);
+			pokerEffectLayout_.backImage.y = b["image"].value("y", pokerEffectLayout_.backImage.y);
 		}
 	}
 
+	// effect1 ~ effect3
 	for (int i = 0; i < 3; ++i) {
 		std::string key = "effect" + std::to_string(i + 1);
 		if (!j.contains(key)) {
@@ -1202,12 +1193,13 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.effectRects[i].w = e["rect"].value("w", pokerEffectLayout_.effectRects[i].w);
 			pokerEffectLayout_.effectRects[i].h = e["rect"].value("h", pokerEffectLayout_.effectRects[i].h);
 		}
-		if (e.contains("text")) {
-			pokerEffectLayout_.effectTexts[i].x = e["text"].value("x", pokerEffectLayout_.effectTexts[i].x);
-			pokerEffectLayout_.effectTexts[i].y = e["text"].value("y", pokerEffectLayout_.effectTexts[i].y);
+		if (e.contains("image")) {
+			pokerEffectLayout_.effectImages[i].x = e["image"].value("x", pokerEffectLayout_.effectImages[i].x);
+			pokerEffectLayout_.effectImages[i].y = e["image"].value("y", pokerEffectLayout_.effectImages[i].y);
 		}
 	}
 
+	// infoButton
 	if (j.contains("infoButton")) {
 		auto& ib = j["infoButton"];
 		if (ib.contains("rect")) {
@@ -1216,13 +1208,14 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.infoButtonRect.w = ib["rect"].value("w", pokerEffectLayout_.infoButtonRect.w);
 			pokerEffectLayout_.infoButtonRect.h = ib["rect"].value("h", pokerEffectLayout_.infoButtonRect.h);
 		}
-		if (ib.contains("text")) {
-			pokerEffectLayout_.infoButtonText.x = ib["text"].value("x", pokerEffectLayout_.infoButtonText.x);
-			pokerEffectLayout_.infoButtonText.y = ib["text"].value("y", pokerEffectLayout_.infoButtonText.y);
-			pokerEffectLayout_.infoButtonText.scale = ib["text"].value("scale", pokerEffectLayout_.infoButtonText.scale);
+		if (ib.contains("image")) {
+			pokerEffectLayout_.infoButtonImage.x = ib["image"].value("x", pokerEffectLayout_.infoButtonImage.x);
+			pokerEffectLayout_.infoButtonImage.y = ib["image"].value("y", pokerEffectLayout_.infoButtonImage.y);
+			pokerEffectLayout_.infoButtonImage.scale = ib["image"].value("scale", pokerEffectLayout_.infoButtonImage.scale);
 		}
 	}
 
+	// previewPanelBg
 	if (j.contains("previewPanelBg")) {
 		pokerEffectLayout_.previewPanelBg.x = j["previewPanelBg"].value("x", pokerEffectLayout_.previewPanelBg.x);
 		pokerEffectLayout_.previewPanelBg.y = j["previewPanelBg"].value("y", pokerEffectLayout_.previewPanelBg.y);
@@ -1230,18 +1223,21 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 		pokerEffectLayout_.previewPanelBg.h = j["previewPanelBg"].value("h", pokerEffectLayout_.previewPanelBg.h);
 	}
 
+	// previewPanelTitle
 	if (j.contains("previewPanelTitle")) {
-		pokerEffectLayout_.previewPanelTitle.x = j["previewPanelTitle"].value("x", pokerEffectLayout_.previewPanelTitle.x);
-		pokerEffectLayout_.previewPanelTitle.y = j["previewPanelTitle"].value("y", pokerEffectLayout_.previewPanelTitle.y);
-		pokerEffectLayout_.previewPanelTitle.scale = j["previewPanelTitle"].value("scale", pokerEffectLayout_.previewPanelTitle.scale);
+		pokerEffectLayout_.previewPanelTitleImage.x = j["previewPanelTitle"].value("x", pokerEffectLayout_.previewPanelTitleImage.x);
+		pokerEffectLayout_.previewPanelTitleImage.y = j["previewPanelTitle"].value("y", pokerEffectLayout_.previewPanelTitleImage.y);
+		pokerEffectLayout_.previewPanelTitleImage.scale = j["previewPanelTitle"].value("scale", pokerEffectLayout_.previewPanelTitleImage.scale);
 	}
 
+	// previewPanelText
 	if (j.contains("previewPanelText")) {
 		pokerEffectLayout_.previewPanelText.x = j["previewPanelText"].value("x", pokerEffectLayout_.previewPanelText.x);
 		pokerEffectLayout_.previewPanelText.y = j["previewPanelText"].value("y", pokerEffectLayout_.previewPanelText.y);
 		pokerEffectLayout_.previewPanelText.scale = j["previewPanelText"].value("scale", pokerEffectLayout_.previewPanelText.scale);
 	}
 
+	// activateTitleBg
 	if (j.contains("activateTitleBg")) {
 		pokerEffectLayout_.activateTitleBg.x = j["activateTitleBg"].value("x", pokerEffectLayout_.activateTitleBg.x);
 		pokerEffectLayout_.activateTitleBg.y = j["activateTitleBg"].value("y", pokerEffectLayout_.activateTitleBg.y);
@@ -1249,6 +1245,7 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 		pokerEffectLayout_.activateTitleBg.h = j["activateTitleBg"].value("h", pokerEffectLayout_.activateTitleBg.h);
 	}
 
+	// activateYes
 	if (j.contains("activateYes")) {
 		auto& a = j["activateYes"];
 		if (a.contains("rect")) {
@@ -1257,12 +1254,13 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.activateYesRect.w = a["rect"].value("w", pokerEffectLayout_.activateYesRect.w);
 			pokerEffectLayout_.activateYesRect.h = a["rect"].value("h", pokerEffectLayout_.activateYesRect.h);
 		}
-		if (a.contains("text")) {
-			pokerEffectLayout_.activateYesText.x = a["text"].value("x", pokerEffectLayout_.activateYesText.x);
-			pokerEffectLayout_.activateYesText.y = a["text"].value("y", pokerEffectLayout_.activateYesText.y);
+		if (a.contains("image")) {
+			pokerEffectLayout_.activateYesImage.x = a["image"].value("x", pokerEffectLayout_.activateYesImage.x);
+			pokerEffectLayout_.activateYesImage.y = a["image"].value("y", pokerEffectLayout_.activateYesImage.y);
 		}
 	}
 
+	// activateNo
 	if (j.contains("activateNo")) {
 		auto& a = j["activateNo"];
 		if (a.contains("rect")) {
@@ -1271,12 +1269,13 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.activateNoRect.w = a["rect"].value("w", pokerEffectLayout_.activateNoRect.w);
 			pokerEffectLayout_.activateNoRect.h = a["rect"].value("h", pokerEffectLayout_.activateNoRect.h);
 		}
-		if (a.contains("text")) {
-			pokerEffectLayout_.activateNoText.x = a["text"].value("x", pokerEffectLayout_.activateNoText.x);
-			pokerEffectLayout_.activateNoText.y = a["text"].value("y", pokerEffectLayout_.activateNoText.y);
+		if (a.contains("image")) {
+			pokerEffectLayout_.activateNoImage.x = a["image"].value("x", pokerEffectLayout_.activateNoImage.x);
+			pokerEffectLayout_.activateNoImage.y = a["image"].value("y", pokerEffectLayout_.activateNoImage.y);
 		}
 	}
 
+	// activateViewBoard
 	if (j.contains("activateViewBoard")) {
 		auto& a = j["activateViewBoard"];
 		if (a.contains("rect")) {
@@ -1285,12 +1284,13 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.activateViewBoardRect.w = a["rect"].value("w", pokerEffectLayout_.activateViewBoardRect.w);
 			pokerEffectLayout_.activateViewBoardRect.h = a["rect"].value("h", pokerEffectLayout_.activateViewBoardRect.h);
 		}
-		if (a.contains("text")) {
-			pokerEffectLayout_.activateViewBoardText.x = a["text"].value("x", pokerEffectLayout_.activateViewBoardText.x);
-			pokerEffectLayout_.activateViewBoardText.y = a["text"].value("y", pokerEffectLayout_.activateViewBoardText.y);
+		if (a.contains("image")) {
+			pokerEffectLayout_.activateViewBoardImage.x = a["image"].value("x", pokerEffectLayout_.activateViewBoardImage.x);
+			pokerEffectLayout_.activateViewBoardImage.y = a["image"].value("y", pokerEffectLayout_.activateViewBoardImage.y);
 		}
 	}
 
+	// effectTitleBg
 	if (j.contains("effectTitleBg")) {
 		pokerEffectLayout_.effectTitleBg.x = j["effectTitleBg"].value("x", pokerEffectLayout_.effectTitleBg.x);
 		pokerEffectLayout_.effectTitleBg.y = j["effectTitleBg"].value("y", pokerEffectLayout_.effectTitleBg.y);
@@ -1298,6 +1298,7 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 		pokerEffectLayout_.effectTitleBg.h = j["effectTitleBg"].value("h", pokerEffectLayout_.effectTitleBg.h);
 	}
 
+	// effectViewBoard
 	if (j.contains("effectViewBoard")) {
 		auto& e = j["effectViewBoard"];
 		if (e.contains("rect")) {
@@ -1306,9 +1307,9 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.effectViewBoardRect.w = e["rect"].value("w", pokerEffectLayout_.effectViewBoardRect.w);
 			pokerEffectLayout_.effectViewBoardRect.h = e["rect"].value("h", pokerEffectLayout_.effectViewBoardRect.h);
 		}
-		if (e.contains("text")) {
-			pokerEffectLayout_.effectViewBoardText.x = e["text"].value("x", pokerEffectLayout_.effectViewBoardText.x);
-			pokerEffectLayout_.effectViewBoardText.y = e["text"].value("y", pokerEffectLayout_.effectViewBoardText.y);
+		if (e.contains("image")) {
+			pokerEffectLayout_.effectViewBoardImage.x = e["image"].value("x", pokerEffectLayout_.effectViewBoardImage.x);
+			pokerEffectLayout_.effectViewBoardImage.y = e["image"].value("y", pokerEffectLayout_.effectViewBoardImage.y);
 		}
 	}
 
@@ -1464,63 +1465,4 @@ bool FieldUi::SaveFieldUiLayout(const std::string& path) const
 
 	ofs << j.dump(4);
 	return true;
-}
-
-void FieldUi::UpdateDebugPokerEffectPreview(int hoverIndex)
-{
-	showDescBg_ = true;
-	showPokerOptions_ = true;
-	pokerHoverIndex_ = hoverIndex;
-	pokerOptionCount_ = 4;
-
-	pokerTitleText_->SetText(L"発動する効果を選んでください");
-	pokerTitleText_->SetSize({ 1.05f, 1.05f, 1.0f });
-	pokerTitleText_->SetPosition({
-		pokerEffectLayout_.titleText.x,
-		pokerEffectLayout_.titleText.y
-		});
-
-	pokerOptionTexts_[0]->SetText(L"戻る");
-	pokerOptionTexts_[0]->SetPosition({
-		pokerEffectLayout_.backText.x,
-		pokerEffectLayout_.backText.y
-		});
-	pokerOptionTexts_[0]->SetSize(
-		hoverIndex == 0 ?
-		Vector3{ 1.20f, 1.20f, 1.0f } :
-		Vector3{ 1.15f, 1.15f, 1.0f }
-	);
-
-	pokerOptionTexts_[1]->SetText(L"次ターンATK UP");
-	pokerOptionTexts_[1]->SetPosition({
-		pokerEffectLayout_.effectTexts[0].x,
-		pokerEffectLayout_.effectTexts[0].y
-		});
-	pokerOptionTexts_[1]->SetSize(
-		hoverIndex == 1 ?
-		Vector3{ 1.06f, 1.06f, 1.0f } :
-		Vector3{ 1.0f, 1.0f, 1.0f }
-	);
-
-	pokerOptionTexts_[2]->SetText(L"ドロー");
-	pokerOptionTexts_[2]->SetPosition({
-		pokerEffectLayout_.effectTexts[1].x,
-		pokerEffectLayout_.effectTexts[1].y
-		});
-	pokerOptionTexts_[2]->SetSize(
-		hoverIndex == 2 ?
-		Vector3{ 1.06f, 1.06f, 1.0f } :
-		Vector3{ 1.0f, 1.0f, 1.0f }
-	);
-
-	pokerOptionTexts_[3]->SetText(L"ダメージ");
-	pokerOptionTexts_[3]->SetPosition({
-		pokerEffectLayout_.effectTexts[2].x,
-		pokerEffectLayout_.effectTexts[2].y
-		});
-	pokerOptionTexts_[3]->SetSize(
-		hoverIndex == 3 ?
-		Vector3{ 1.06f, 1.06f, 1.06f } :
-		Vector3{ 1.0f, 1.0f, 1.0f }
-	);
 }
