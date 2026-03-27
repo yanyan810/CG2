@@ -565,10 +565,17 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 	case BattleController::CardInputState::Preview:
 		clickChoiceText_->SetText(L"左クリック : カード決定 右クリック : キャンセル");
 		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+		clickChoiceBg_->SetScale({ 400.f,50.f,1.f });
 		break;
 	case BattleController::CardInputState::ChoosingEnemyTarget:
 		clickChoiceText_->SetText(L"左クリック : 敵を選択   右クリック : キャンセル");
 		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+		clickChoiceBg_->SetScale({ 400.f,50.f,1.f });
+		break;
+	case BattleController::CardInputState::ChoosingFieldReplace:
+		clickChoiceText_->SetText(L"左クリック : 場のカードを選択して、使ったカードと交換\n   右クリック : 使ったカードをそのまま墓地へ送る");
+		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
+		clickChoiceBg_->SetScale({ 500.f,80.f,1.f });
 		break;
 	default:
 		// それ以外の状態（何も表示しないとき）
