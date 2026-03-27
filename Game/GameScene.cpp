@@ -411,15 +411,23 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	//ModelParticleManager::GetInstance()->LoadFromJson("sword_particle.json", effectConfig_);
 	//
-	//// Update内
-	//for (int i = 0; i < 3; ++i) {
-	//	effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f))) + Vector3(0, 0, 0); // 位置だけ更新
-	//	ModelParticleManager::GetInstance()->Emit(
-	//		ModelParticleManager::GetInstance()->MakeParticle(effectConfig_)
-	//	);
+	//// 1. 今回発生させるパーティクルを格納するリストを作成
+	//std::vector<ModelParticleManager::Particle> particlesToEmit;
+	//particlesToEmit.reserve(1000); // メモリ確保を1回で済ませる
+	//
+	//for (int i = 0; i < 1000; ++i) {
+	//	// 位置の更新（既存のロジック）
+	//	effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f)));
+	//
+	//	// パーティクルデータを作成してリストに追加
+	//	particlesToEmit.push_back(ModelParticleManager::GetInstance()->MakeParticle(effectConfig_));
 	//}
+	//
+	//// 2. まとめて Emit！
+	//ModelParticleManager::GetInstance()->EmitBatch(particlesToEmit);
 
-	ModelParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
+	// 3. GPUで計算開始
+	ModelParticleManager::GetInstance()->Dispatch(1.0f / 60.0f, camera_.get());
 
 }
 

@@ -75,9 +75,17 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     model_ = ModelManager::GetInstance()->FindModel("triangleParticle.obj");
 
     // 2. インスタンシング用リソースの作成
-    instancingResource_ = dxCommon_->CreateBufferResource(sizeof(ModelParticleTransformationMatrix) * kMaxInstance);
-    instancingResource_->Map(0, nullptr, reinterpret_cast<void**>(&instancingData_));
-
+    instancingResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ModelParticleTransformationMatrix) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    
+    // 2. UAVの作成 (Compute Shaderで書き込むため)
+    uavIndexRenderData_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(
+        uavIndexRenderData_,
+        instancingResource_.Get(),
+        kMaxInstance,
+        sizeof(ModelParticleTransformationMatrix)
+    );
+    
     // 3. SRVの作成 (SrvManagerを活用！)
     srvIndex_ = srvManager_->Allocate(); // 空き番号を自動取得
     srvManager_->CreateSRVforStructuredBuffer(
@@ -129,13 +137,91 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     // 初期値（とりあえず原点）
     cameraData_->worldPosition = { 0.0f, 0.0f, 0.0f };
     cameraData_->padding = 0.0f;
+    
+
+    // 1. 物理バッファの作成 (Default Heap)
+    particleResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ParticleGPU) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+    // 3. UAVの作成 (SrvManagerにUAV作成機能がある想定)
+    uavIndexParticles_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexParticles_, particleResource_.Get(), kMaxInstance, sizeof(ParticleGPU));
+
+    uavIndexRenderData_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexRenderData_, instancingResource_.Get(), kMaxInstance, sizeof(ModelParticleTransformationMatrix));
+
+    computeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
+    computeConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&computeConfigData_));
+
+    // ComputeShader用のシーン定数バッファ (b1)
+    computeSceneResource_ = dxCommon_->CreateBufferResource(sizeof(SceneConfig));
+    computeSceneResource_->Map(0, nullptr, reinterpret_cast<void**>(&computeSceneData_));
+
+    // Emit用の転送バッファ (1個分)
+    emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * 1000);
 
 }
 
 void ModelParticleManager::Emit(const Particle& particle) {
-    if (particles_.size() >= kMaxInstance) return;
+    // 1. すでに作成済みの emitStagingResource_ に書き込む
+    ParticleGPU* mappedData = nullptr;
+    emitStagingResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
+    
+    mappedData->position = particle.transform.translate;
+    mappedData->velocity = particle.velocity;
+    mappedData->acceleration = particle.acceleration;
+    mappedData->angularVelocity = particle.angularVelocity;
+    mappedData->currentTime = 0.0f;
+    mappedData->lifeTime = particle.lifeTime;
+    mappedData->startScale = particle.startScale;
+    mappedData->endScale = particle.endScale;
+    mappedData->startColor = particle.startColor;
+    mappedData->endColor = particle.endColor;
+    mappedData->rotate = particle.transform.rotate;
+    mappedData->isActive = 1;
 
-    particles_.push_back(particle);
+    emitStagingResource_->Unmap(0, nullptr);
+
+    // 2. GPU上の StructuredBuffer の特定のインデックスへコピー
+    dxCommon_->GetCommandList()->CopyBufferRegion(
+        particleResource_.Get(), freeIndex_ * sizeof(ParticleGPU),
+        emitStagingResource_.Get(), 0, sizeof(ParticleGPU)
+    );
+
+    freeIndex_ = (freeIndex_ + 1) % kMaxInstance;
+}
+
+void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
+    if (particles.empty()) return;
+
+    size_t count = std::min(particles.size(), (size_t)1000); // 一度の転送制限
+
+    // 1. Stagingバッファを配列としてマップ
+    ParticleGPU* mappedData = nullptr;
+    emitStagingResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData));
+
+    for (size_t i = 0; i < count; ++i) {
+        mappedData[i].position = particles[i].transform.translate;
+        mappedData[i].velocity = particles[i].velocity;
+        mappedData[i].acceleration = particles[i].acceleration;
+        mappedData[i].angularVelocity = particles[i].angularVelocity;
+        mappedData[i].currentTime = 0.0f;
+        mappedData[i].lifeTime = particles[i].lifeTime;
+        mappedData[i].startScale = particles[i].startScale;
+        mappedData[i].endScale = particles[i].endScale;
+        mappedData[i].startColor = particles[i].startColor;
+        mappedData[i].endColor = particles[i].endColor;
+        mappedData[i].rotate = particles[i].transform.rotate;
+        mappedData[i].isActive = 1;
+    }
+    emitStagingResource_->Unmap(0, nullptr);
+
+    // 2. まとめてコピー
+    dxCommon_->GetCommandList()->CopyBufferRegion(
+        particleResource_.Get(), freeIndex_ * sizeof(ParticleGPU),
+        emitStagingResource_.Get(), 0, count * sizeof(ParticleGPU)
+    );
+
+    freeIndex_ = (freeIndex_ + count) % kMaxInstance;
 }
 
 ModelParticleManager::Particle ModelParticleManager::MakeParticle(const ParticleEmitterConfig& config) {
@@ -170,59 +256,45 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     return particle;
 }
 
-void ModelParticleManager::Update(float deltaTime, Camera* camera) {
-    uint32_t instanceCount = 0;
-    for (auto it = particles_.begin(); it != particles_.end(); ) {
-        it->currentTime += deltaTime;
-        if (it->currentTime >= it->lifeTime) {
-            it = particles_.erase(it);
-            continue;
-        }
+void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
+{
+    auto commandList = dxCommon_->GetCommandList();
+    auto& psoCS = dxCommon_->GetPSOComputeParticle();
 
-        // 進捗率 (0.0 ～ 1.0)
-        float t = it->currentTime / it->lifeTime;
-        
-        // 色の線形補間 (Lerp)
-        it->color.x = it->startColor.x + (it->endColor.x - it->startColor.x) * t;
-        it->color.y = it->startColor.y + (it->endColor.y - it->startColor.y) * t;
-        it->color.z = it->startColor.z + (it->endColor.z - it->startColor.z) * t;
-        it->color.w = it->startColor.w + (it->endColor.w - it->startColor.w) * t;
-        
-        // 1. 加速度の適用 (速度を更新してから移動)
-        it->velocity += it->acceleration * deltaTime;
-        it->transform.translate += it->velocity * deltaTime;
+    // 1. 定数バッファの更新
+    computeConfigData_->deltaTime = deltaTime;
+    computeConfigData_->maxParticles = kMaxInstance;
+    computeSceneData_->viewProjection = camera->GetViewMatrix() * camera->GetProjectionMatrix();
+    
+    // ★ ここが重要！ SRV/UAV管理用のディスクリプタヒープをセットする
+    ID3D12DescriptorHeap* ppHeaps[] = { srvManager_->GetDescriptorHeap() };
+    commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-        // 2. スケールのイージング (線形補間)
-        float currentScale = it->startScale + (it->endScale - it->startScale) * t;
-        it->transform.scale = { currentScale, currentScale, currentScale };
+    // 2. Compute Pipeline の設定
+    commandList->SetComputeRootSignature(psoCS.root_.GetSignature().Get());
+    commandList->SetPipelineState(psoCS.computeState_.Get());
 
-        // 3. 回転
-        it->transform.rotate += it->angularVelocity * deltaTime;
+    // 3. ルートパラメータのセット (Shaderのregister番号に合わせる)
+    // b0: GlobalConfig
+    commandList->SetComputeRootConstantBufferView(0, computeConfigResource_->GetGPUVirtualAddress());
+    // b1: SceneConfig
+    commandList->SetComputeRootConstantBufferView(1, computeSceneResource_->GetGPUVirtualAddress());
+    // u0: ParticleBuffer
+    commandList->SetComputeRootDescriptorTable(2, srvManager_->GetGPUDescriptionHandle(uavIndexParticles_));
+    // u1: RenderDataBuffer
+    commandList->SetComputeRootDescriptorTable(3, srvManager_->GetGPUDescriptionHandle(uavIndexRenderData_));
 
-        if (instanceCount < kMaxInstance) {
-            Matrix4x4 world = Matrix4x4::MakeAffineMatrix(it->transform.scale, it->transform.rotate, it->transform.translate);
+    commandList->Dispatch((kMaxInstance + 1023) / 1024, 1, 1);
 
-            // 色の計算（フェードアウト）
-            // 炎などの場合、後半で一気に透明にするなら t*t などを使うと綺麗です
-            float alpha = 1.0f - t;
-            Vector4 finalColor = it->color;
-            finalColor.w *= alpha;
-
-            // GPUへのデータ転送
-            instancingData_[instanceCount].WVP = world * camera->GetViewMatrix() * camera->GetProjectionMatrix();
-            instancingData_[instanceCount].World = world;
-            instancingData_[instanceCount].color = finalColor;
-
-            instanceCount++;
-        }
-        ++it;
-    }
+    // 4. 描画前にバリアを張る
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        instancingResource_.Get(),
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    commandList->ResourceBarrier(1, &barrier);
 }
 
 void ModelParticleManager::Draw() {
-    if (particles_.empty()) return;
-
-    //skyDome_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeAdd);
 
     auto commandList = dxCommon_->GetCommandList();
 
@@ -251,9 +323,20 @@ void ModelParticleManager::Draw() {
 
     // Index 4: Texture (t0) - DescriptorTable
 	commandList->SetGraphicsRootDescriptorTable(4, TextureManager::GetInstance()->GetSrvHandleGPU(model_->GetModelData().materials[0].textureFilePath)); // 0番目のマテリアルのSRVをセット
-
-    // 3. 描画実行
-	commandList->DrawInstanced(static_cast<UINT>(model_->GetModelData().meshes[0].vertices.size()), static_cast<UINT>(particles_.size()), 0, 0); // 頂点数は3（plane.objの三角形1枚分）、インスタンス数はパーティクルの数
+    
+    uint32_t drawCount = std::min(freeIndex_ + 1000, kMaxInstance);
+    commandList->DrawInstanced(
+        static_cast<UINT>(model_->GetModelData().meshes[0].vertices.size()),
+        drawCount,
+        0, 0
+    );
+    
+    // 描画が終わったら、次のフレームの計算のために UAV 状態に戻しておく
+    CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        instancingResource_.Get(),
+        D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    commandList->ResourceBarrier(1, &barrier);
 }
 
 void ModelParticleManager::UpdateImGui(ParticleEmitterConfig& editingConfig) {
