@@ -294,6 +294,8 @@ private:
 
     std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
 
+    std::unique_ptr<Sprite> highlightFilter_;
+
     void StartPlayerTurn_();
     void DrawUntilFive_();
     bool DrawOne_();

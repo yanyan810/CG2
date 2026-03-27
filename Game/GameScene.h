@@ -83,6 +83,8 @@ private:
     std::unique_ptr<Sprite> blockBg_;
     std::unique_ptr<TextSprite> blockText_;
 
+    std::unique_ptr<Sprite> highlightFilter_;
+
     //カメラアニメ
     std::vector<std::string> cameraFiles_;
     int currentCameraIndex_ = -1;

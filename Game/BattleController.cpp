@@ -630,6 +630,13 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	StartPlayerTurn_();
 	RebuildDiscardView_();
 	RebuildCostView_(deltaTime_);
+
+	// ハイライト用Filter
+	highlightFilter_ = std::make_unique<Sprite>();
+	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	highlightFilter_->SetPosition({ 0.0f, 0.0f });
+	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
+	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
 }
 
 bool BattleController::DrawOne_()
@@ -1506,6 +1513,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		}
 
 		// ここを追加
+		
 		handView_.Update(dt);
 		RefreshAllFieldCardTransforms_(dt);
 		fieldLayoutDirty_ = false;
@@ -2088,26 +2096,42 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
+	if(highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
 }
 
 void BattleController::Draw3D(GameApp& app)
 {
-	for (auto& c : fieldViews_) {
-		c->Draw();
-	}
 
+	// 墓地
 	if (discardView_) {
 		discardView_->Draw();
 	}
 
+	// 手札
 	handView_.Draw();
 
+	// ダメージポップアップ
 	for (auto& popup : damagePopups_) {
 		for (auto& obj : popup.digitModels) {
 			if (obj) obj->Draw();
 		}
 	}
+
+	// 場と交換時フィルター
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		highlightFilter_->Draw();
+	}
+
+	// 場のカード
+	for (auto& c : fieldViews_) {
+		c->Draw();
+	}
+
+	if (cardState_ == CardInputState::ChoosingEnemyTarget) {
+		highlightFilter_->Draw();
+	}
+
 }
 
 void BattleController::Draw2D(GameApp& app)
