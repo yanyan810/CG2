@@ -61,6 +61,16 @@ public:
     void PlayAttackAnim(const Vector3& targetPos);
     void PlayDamageAnim();
 
+    int GetIncomingDamage() const {
+        if (!alive_) return 0;
+        // AIの現在の行動を取得
+        auto action = ai_.GetNextAction();
+        if (action.type == "Attack") {
+            return action.value;
+        }
+        return 0;
+    }
+
 private:
     Object3dCommon* objCommon_ = nullptr;
     DirectXCommon* dx_ = nullptr;

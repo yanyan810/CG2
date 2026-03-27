@@ -145,6 +145,14 @@ void GameScene::OnEnter(GameApp& app) {
 	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
 	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
 
+
+	//
+
+	highlightFilter_ = std::make_unique<Sprite>();
+	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	highlightFilter_->SetPosition({ 0.0f, 0.0f });
+	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
+	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -430,6 +438,13 @@ void GameScene::Draw3D(GameApp& app) {
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
+	if (player_) player_->Draw();
+
+	// 敵以外のモデルにFilterを書ける
+	if (battle_.GetNowCardInputState() == BattleController::CardInputState::ChoosingEnemyTarget) {
+		highlightFilter_->Draw();
+	}
+
 	battle_.Draw3D(app);
 	enemyMgr_.Draw();
 }
@@ -455,6 +470,9 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 	battle_.Draw2D(app);
+
+
+	highlightFilter_->Update(view, proj);
 
 	if (fieldUi_) {
 		fieldUi_->Draw(app,battle_);
@@ -550,8 +568,6 @@ void GameScene::DrawSkydome(GameApp& app)
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	if (skyDome_) skyDome_->Draw();
-
-	if (player_) player_->Draw();
 
 }
 
