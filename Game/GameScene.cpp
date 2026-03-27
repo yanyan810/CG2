@@ -137,6 +137,14 @@ void GameScene::OnEnter(GameApp& app) {
 	blockText_->Initialize(app.SpriteCom(), app.Dx());
 	blockText_->SetSize({ 1.f,1.f,0.5f });
 	blockText_->SetPosition({ 138.f, 40.f });
+
+	TextureManager::GetInstance()->LoadTexture("resources/gradation.png");
+
+	// 1. TrailManagerの初期化（仮にメンバ変数 std::unique_ptr<TrailManager> trailManager_ を追加）
+	trailManager_ = std::make_unique<TrailManager>();
+	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
+	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
+
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -375,7 +383,36 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 	}
 
+	// 1. 剣をぶん回すアニメーション（テスト用）
+	static float timer = 0.0f;
+	timer += 0.05f;
+
+	// 2. ワールド行列から先端と根元の座標を計算
+	// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
+	Matrix4x4 worldMat = Matrix4x4::MakeScaleMatrix({ 1.0f, 1.0f, 1.0f }) * Matrix4x4::RotateXYZ(0.0f, 0.0, timer) * Matrix4x4::Translation(player_->GetPos());
+
+	Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
+	Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
+
+	// ローカル座標をワールド座標へ変換
+	Vector3 worldBase = trailManager_->Transform(localBase, worldMat);
+	Vector3 worldTip = trailManager_->Transform(localTip, worldMat);
+
+	// 3. 軌跡を更新！
+	trailManager_->Update(worldTip, worldBase);
+
+	ModelParticleManager::GetInstance()->LoadFromJson("sword_particle.json", effectConfig_);
+	
+	// Update内
+	for (int i = 0; i < 3; ++i) {
+		effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f))) + Vector3(0, 0, 0); // 位置だけ更新
+		ModelParticleManager::GetInstance()->Emit(
+			ModelParticleManager::GetInstance()->MakeParticle(effectConfig_)
+		);
+	}
+
 	ModelParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
+
 }
 
 
@@ -489,6 +526,8 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	ImGui::End();
 
+	ModelParticleManager::GetInstance()->UpdateImGui(attackEffectConfig_);
+
 	if (fieldUi_) {
 		ImGui::Begin("FieldUi Debug");
 		fieldUi_->DrawImGui();
@@ -516,9 +555,8 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	ModelParticleManager::GetInstance()->Draw();
 
-
-
-
+	Matrix4x4 vp = camera_->GetViewProjectionMatrix();
+	trailManager_->Draw(vp);
 }
 
 void GameScene::DrawPostEffect2D(GameApp& app)
