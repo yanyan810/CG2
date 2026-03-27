@@ -1,0 +1,143 @@
+struct Particle
+{
+    float3 position;
+    float currentTime;
+    float3 velocity;
+    float lifeTime;
+    float3 acceleration;
+    float startScale;
+    float4 startColor;
+    float4 endColor;
+    float endScale;
+    uint isActive;
+    float2 padding0; // ← ここを追加
+    float3 rotate;
+    float padding1;
+    float3 angularVelocity;
+    float padding2;
+};
+
+struct RenderData
+{
+    float4x4 WVP;
+    float4x4 World;
+    float4x4 WorldInverseTranspose;
+    float4 color;
+};
+
+// バッファ
+RWStructuredBuffer<Particle> gParticles : register(u0);
+RWStructuredBuffer<RenderData> gRenderData : register(u1); // 描画用
+
+// 定数
+struct GlobalConfig
+{
+    float deltaTime;
+    uint maxParticles;
+};
+struct SceneConfig
+{
+    float4x4 viewProjection;
+};
+
+ConstantBuffer<GlobalConfig> gConfig : register(b0);
+ConstantBuffer<SceneConfig> gScene : register(b1);
+
+// --- 行列生成関数 ---
+float4x4 MakeAffineMatrix(float3 scale, float3 rotate, float3 translate)
+{
+    // スケール行列
+    float4x4 mScale =
+    {
+        scale.x, 0, 0, 0,
+        0, scale.y, 0, 0,
+        0, 0, scale.z, 0,
+        0, 0, 0, 1
+    };
+
+    // 回転行列 (XYZ順)
+    float3 s = sin(rotate);
+    float3 c = cos(rotate);
+    
+    float4x4 mRotateX =
+    {
+        1, 0, 0, 0,
+        0, c.x, s.x, 0,
+        0, -s.x, c.x, 0,
+        0, 0, 0, 1
+    };
+    float4x4 mRotateY =
+    {
+        c.y, 0, -s.y, 0,
+        0, 1, 0, 0,
+        s.y, 0, c.y, 0,
+        0, 0, 0, 1
+    };
+    float4x4 mRotateZ =
+    {
+        c.z, s.z, 0, 0,
+        -s.z, c.z, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    };
+    float4x4 mRotate = mul(mRotateX, mul(mRotateY, mRotateZ));
+
+    // 平行移動行列
+    float4x4 mTranslate =
+    {
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        translate.x, translate.y, translate.z, 1
+    };
+
+    return mul(mScale, mul(mRotate, mTranslate));
+}
+
+[numthreads(1024, 1, 1)]
+void main(uint3 DTid : SV_DispatchThreadID)
+{
+    if (DTid.x >= gConfig.maxParticles)
+        return;
+    if (gParticles[DTid.x].isActive == 0)
+    {
+        // 非アクティブなら描画データを透明にするなどして隠す
+        gRenderData[DTid.x].color.a = 0;
+        return;
+    }
+
+    Particle p = gParticles[DTid.x];
+
+    // 1. 更新
+    p.currentTime += gConfig.deltaTime;
+    if (p.currentTime >= p.lifeTime)
+    {
+        p.isActive = 0;
+        gParticles[DTid.x] = p;
+        gRenderData[DTid.x].color.a = 0;
+        return;
+    }
+
+    float t = p.currentTime / p.lifeTime;
+    p.velocity += p.acceleration * gConfig.deltaTime;
+    p.position += p.velocity * gConfig.deltaTime;
+    p.rotate += p.angularVelocity * gConfig.deltaTime;
+
+    // 2. 演出パラメータ計算
+    float currentScale = lerp(p.startScale, p.endScale, t);
+    float4 currentColor = lerp(p.startColor, p.endColor, t);
+    // フェードアウトの余韻（C++のコードにあった logic）
+    currentColor.a *= (1.0f - t);
+
+    // 3. 行列生成
+    float4x4 world = MakeAffineMatrix(float3(currentScale, currentScale, currentScale), p.rotate, p.position);
+    
+    // 4. 描画バッファへ書き込み
+    gRenderData[DTid.x].World = world;
+    gRenderData[DTid.x].WVP = mul(world, gScene.viewProjection);
+    gRenderData[DTid.x].WorldInverseTranspose = transpose(world); // 簡易的にはworldで代用可
+    gRenderData[DTid.x].color = currentColor;
+
+    // 5. パーティクル状態の保存
+    gParticles[DTid.x] = p;
+}

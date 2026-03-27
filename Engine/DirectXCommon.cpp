@@ -204,6 +204,41 @@ Microsoft::WRL::ComPtr<ID3D12Resource>DirectXCommon::CreateBufferResource( size_
 	return buffer;
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUAVBufferResource(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags) {
+	// 1. ヒープの設定 (GPU専用のDefault Heap)
+	D3D12_HEAP_PROPERTIES heapProps{};
+	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+	// 2. リソースの設定
+	D3D12_RESOURCE_DESC resourceDesc{};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Width = sizeInBytes;
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	resourceDesc.Flags = flags; // 引数で渡されたフラグをセット
+
+	// 3. リソースの作成
+	// UAV用途の場合、初期状態は COMMON にしておき、使用直前に ResourceBarrier で遷移させるのが安全です
+	Microsoft::WRL::ComPtr<ID3D12Resource> buffer = nullptr;
+	HRESULT hr = device_->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_COMMON,
+		nullptr,
+		IID_PPV_ARGS(&buffer));
+
+	assert(SUCCEEDED(hr));
+
+	// デバッグ用に名前を付けておくと便利
+	buffer->SetName(L"UAVBufferResource");
+
+	return buffer;
+}
+
 Microsoft::WRL::ComPtr<ID3D12Resource>DirectXCommon::CreateTextureResource(const DirectX::TexMetadata& metadata) {
 
 	//metadataをもとにResourceの設定
@@ -945,6 +980,10 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 		pso.vsFilePath_ = L"resources/shaders/ModelParticle.VS.hlsl";
 		pso.psFilePath_ = L"resources/shaders/ModelParticle.PS.hlsl";
 		break;
+	case kComputeParticleUpdate:
+		pso.root_.InitializeForComputeParticle(); // UAV(u0)などを含むルートシグネチャ
+		pso.csFilePath_ = L"resources/shaders/ParticleUpdate.CS.hlsl";
+		break;
 	case kShadow:
 		pso.root_.InitalizeForShadow();
 		pso.vsFilePath_ = L"resources/shaders/Shadow.VS.hlsl";
@@ -971,136 +1010,151 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 
 	// 2. ルートシグネチャ生成
 	pso.root_.Create(device_);
+	// 3. コンパイルとPSO生成の分岐
+	if (pso.shaderType_ == kComputeParticleUpdate) {
+		// --- Compute Pipeline の生成 ---
+		pso.computeShaderBlob_ = CompileShader(pso.csFilePath_, L"cs_6_0");
+		assert(pso.computeShaderBlob_ != nullptr);
 
-	// 3. シェーダーコンパイル
-	pso.vertexShaderBlob_ = CompileShader(pso.vsFilePath_, L"vs_6_0");
-	assert(pso.vertexShaderBlob_ != nullptr);
+		pso.computeDesc_.pRootSignature = pso.root_.GetSignature().Get();
+		pso.computeDesc_.CS = {
+			pso.computeShaderBlob_->GetBufferPointer(),
+			pso.computeShaderBlob_->GetBufferSize()
+		};
+		pso.computeDesc_.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
-	pso.pixelShaderBlob_ = nullptr;
-	if (pso.shaderType_ != kShadow && !pso.psFilePath_.empty()) {
-		pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
-		assert(pso.pixelShaderBlob_ != nullptr);
-	}
-
-	// 4. グラフィックスパイプライン記述子の初期化
-	ZeroMemory(&pso.graphicsDesc_, sizeof(pso.graphicsDesc_));
-
-	// --- 旧 State クラスの処理をここに統合 ---
-
-	// [RasterizerState] の設定
-	pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-	pso.graphicsDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-
-	// [DepthStencilState] のデフォルト設定
-	pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
-	if (pso.shaderType_ == kModelParticle) {
-		// 深度テストは行うが、深度バッファへの書き込みは行わない
-		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		HRESULT hr = device_->CreateComputePipelineState(&pso.computeDesc_, IID_PPV_ARGS(&pso.computeState_));
+		assert(SUCCEEDED(hr));
 	} else {
-		// 通常のモデルは書き込む
-		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		pso.vertexShaderBlob_ = CompileShader(pso.vsFilePath_, L"vs_6_0");
+		assert(pso.vertexShaderBlob_ != nullptr);
+
+		pso.pixelShaderBlob_ = nullptr;
+		if (pso.shaderType_ != kShadow && !pso.psFilePath_.empty()) {
+			pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
+			assert(pso.pixelShaderBlob_ != nullptr);
+		}
+
+		// 4. グラフィックスパイプライン記述子の初期化
+		ZeroMemory(&pso.graphicsDesc_, sizeof(pso.graphicsDesc_));
+
+		// --- 旧 State クラスの処理をここに統合 ---
+
+		// [RasterizerState] の設定
+		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		pso.graphicsDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+
+		// [DepthStencilState] のデフォルト設定
+		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
+		if (pso.shaderType_ == kModelParticle) {
+			// 深度テストは行うが、深度バッファへの書き込みは行わない
+			pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		} else {
+			// 通常のモデルは書き込む
+			pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		}
+		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+		// [BlendState] の設定
+		pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle || pso.shaderType_ == kTrail) {
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		} else {
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
+		}
+
+		// --- 統合ここまで ---
+
+		// 5. 個別設定の上書き (Shadow / PostEffect / Normal)
+		pso.graphicsDesc_.pRootSignature = pso.root_.GetSignature().Get();
+		pso.graphicsDesc_.VS = { pso.vertexShaderBlob_->GetBufferPointer(), pso.vertexShaderBlob_->GetBufferSize() };
+		if (pso.pixelShaderBlob_) {
+			pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(), pso.pixelShaderBlob_->GetBufferSize() };
+		}
+
+		if (pso.shaderType_ == kShadow) {
+			pso.graphicsDesc_.NumRenderTargets = 0;
+			pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			// Shadow用に比較関数を調整（必要に応じて）
+			pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+			//pso.inputDesc_.Initialize();
+			//pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
+		} else if (pso.shaderType_ == kPostEffect) {
+			pso.graphicsDesc_.NumRenderTargets = 1;
+			pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
+			pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
+			pso.graphicsDesc_.InputLayout = { nullptr, 0 };
+		} else if (pso.shaderType_ == kTrail) {
+			pso.graphicsDesc_.NumRenderTargets = 1;
+			pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+			// ★ 軌跡用の特殊設定
+			pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // 両面描画
+			pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 深度は塗らない
+
+			// 0: 座標 (POSITION)
+			pso.elementDescs_[0].SemanticName = "POSITION";
+			pso.elementDescs_[0].SemanticIndex = 0;
+			pso.elementDescs_[0].Format = DXGI_FORMAT_R32G32B32_FLOAT; // Vector3
+			pso.elementDescs_[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+			// 1: 頂点カラー (COLOR) ★これが重要！
+			pso.elementDescs_[1].SemanticName = "COLOR";
+			pso.elementDescs_[1].SemanticIndex = 0;
+			pso.elementDescs_[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // Vector4 (RGBA)
+			pso.elementDescs_[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+			// 2: UV座標 (TEXCOORD)
+			pso.elementDescs_[2].SemanticName = "TEXCOORD";
+			pso.elementDescs_[2].SemanticIndex = 0;
+			pso.elementDescs_[2].Format = DXGI_FORMAT_R32G32_FLOAT; // Vector2
+			pso.elementDescs_[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+			pso.layout_.pInputElementDescs = pso.elementDescs_;
+			pso.layout_.NumElements = 3; // 座標、色、UV の 3つ
+
+			pso.graphicsDesc_.InputLayout = pso.layout_;
+		} else {
+			pso.graphicsDesc_.NumRenderTargets = 1;
+			pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+			pso.elementDescs_[0].SemanticName = "POSITION";
+			pso.elementDescs_[0].SemanticIndex = 0;
+			pso.elementDescs_[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			pso.elementDescs_[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+			pso.elementDescs_[1].SemanticName = "TEXCOORD";
+			pso.elementDescs_[1].SemanticIndex = 0;
+			pso.elementDescs_[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+			pso.elementDescs_[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+			pso.elementDescs_[2].SemanticName = "NORMAL";
+			pso.elementDescs_[2].SemanticIndex = 0;
+			pso.elementDescs_[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+			pso.elementDescs_[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+			pso.layout_.pInputElementDescs = pso.elementDescs_;
+			pso.layout_.NumElements = _countof(pso.elementDescs_);
+
+			pso.graphicsDesc_.InputLayout = pso.layout_;
+		}
+
+		// 6. 残りの共通設定
+		pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		pso.graphicsDesc_.SampleDesc.Count = 1;
+		pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+		// 7. PSO生成
+		HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_, IID_PPV_ARGS(&pso.graphicsState_));
+		assert(SUCCEEDED(hr));
 	}
-	pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-
-	// [BlendState] の設定
-	pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle || pso.shaderType_ == kTrail) {
-		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-	} else {
-		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
-	}
-
-	// --- 統合ここまで ---
-
-	// 5. 個別設定の上書き (Shadow / PostEffect / Normal)
-	pso.graphicsDesc_.pRootSignature = pso.root_.GetSignature().Get();
-	pso.graphicsDesc_.VS = { pso.vertexShaderBlob_->GetBufferPointer(), pso.vertexShaderBlob_->GetBufferSize() };
-	if (pso.pixelShaderBlob_) {
-		pso.graphicsDesc_.PS = { pso.pixelShaderBlob_->GetBufferPointer(), pso.pixelShaderBlob_->GetBufferSize() };
-	}
-
-	if (pso.shaderType_ == kShadow) {
-		pso.graphicsDesc_.NumRenderTargets = 0;
-		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		// Shadow用に比較関数を調整（必要に応じて）
-		pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-		//pso.inputDesc_.Initialize();
-		//pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
-	} else if (pso.shaderType_ == kPostEffect) {
-		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
-		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
-		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
-	} else if (pso.shaderType_ == kTrail) {
-		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-		// ★ 軌跡用の特殊設定
-		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // 両面描画
-		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 深度は塗らない
-
-		// 0: 座標 (POSITION)
-		pso.elementDescs_[0].SemanticName = "POSITION";
-		pso.elementDescs_[0].SemanticIndex = 0;
-		pso.elementDescs_[0].Format = DXGI_FORMAT_R32G32B32_FLOAT; // Vector3
-		pso.elementDescs_[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-
-		// 1: 頂点カラー (COLOR) ★これが重要！
-		pso.elementDescs_[1].SemanticName = "COLOR";
-		pso.elementDescs_[1].SemanticIndex = 0;
-		pso.elementDescs_[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // Vector4 (RGBA)
-		pso.elementDescs_[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-
-		// 2: UV座標 (TEXCOORD)
-		pso.elementDescs_[2].SemanticName = "TEXCOORD";
-		pso.elementDescs_[2].SemanticIndex = 0;
-		pso.elementDescs_[2].Format = DXGI_FORMAT_R32G32_FLOAT; // Vector2
-		pso.elementDescs_[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-
-		pso.layout_.pInputElementDescs = pso.elementDescs_;
-		pso.layout_.NumElements = 3; // 座標、色、UV の 3つ
-
-		pso.graphicsDesc_.InputLayout = pso.layout_;
-	} else {
-		pso.graphicsDesc_.NumRenderTargets = 1;
-		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-		pso.elementDescs_[0].SemanticName = "POSITION";
-		pso.elementDescs_[0].SemanticIndex = 0;
-		pso.elementDescs_[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		pso.elementDescs_[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-		pso.elementDescs_[1].SemanticName = "TEXCOORD";
-		pso.elementDescs_[1].SemanticIndex = 0;
-		pso.elementDescs_[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		pso.elementDescs_[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-		pso.elementDescs_[2].SemanticName = "NORMAL";
-		pso.elementDescs_[2].SemanticIndex = 0;
-		pso.elementDescs_[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
-		pso.elementDescs_[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-
-		pso.layout_.pInputElementDescs = pso.elementDescs_;
-		pso.layout_.NumElements = _countof(pso.elementDescs_);
-
-		pso.graphicsDesc_.InputLayout = pso.layout_;
-	}
-
-	// 6. 残りの共通設定
-	pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	pso.graphicsDesc_.SampleDesc.Count = 1;
-	pso.graphicsDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-	// 7. PSO生成
-	HRESULT hr = device_->CreateGraphicsPipelineState(&pso.graphicsDesc_, IID_PPV_ARGS(&pso.graphicsState_));
-	assert(SUCCEEDED(hr));
 }
 
 void DirectXCommon::CreateShader()
@@ -1120,6 +1174,8 @@ void DirectXCommon::CreateShader()
 	psoModelParticle_.shaderType_ = kModelParticle;
 	trailPSO.shaderType_ = kTrail;
 
+	computeParticlePSO.shaderType_ = kComputeParticleUpdate;
+
 	CreateShaderCommon(bloomPSO);
 	CreateShaderCommon(blurHPSO);
 	CreateShaderCommon(blurVPSO);
@@ -1127,6 +1183,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(downsamplePSO);
 	CreateShaderCommon(psoModelParticle_);
 	CreateShaderCommon(trailPSO);
+	CreateShaderCommon(computeParticlePSO);
 }
 
 void DirectXCommon::ExecuteCommandListAndWait()
@@ -1195,4 +1252,8 @@ void DirectXCommon::Release() {
 	psoModelParticle_.pixelShaderBlob_->Release();
 	psoModelParticle_.vertexShaderBlob_->Release();
 
+	computeParticlePSO.root_.GetSignatureBlob()->Release();
+	if (computeParticlePSO.root_.GetErrorBlob()) {
+		computeParticlePSO.root_.GetErrorBlob()->Release();
+	}
 }

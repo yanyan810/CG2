@@ -15,6 +15,7 @@
 
 enum ShaderType {
 	kModelParticle,
+	kComputeParticleUpdate, // 追加：パーティクル更新用
 	kPostEffect,
 	kShadow,
 	kTrail,
@@ -47,8 +48,15 @@ public:
 		PostEffectType postEffectType_;
 		D3D12_INPUT_ELEMENT_DESC elementDescs_[3] = {};
 		D3D12_INPUT_LAYOUT_DESC layout_{};
+
+		// --- Compute Shader 用に追加 ---
+		D3D12_COMPUTE_PIPELINE_STATE_DESC computeDesc_{};
+		Microsoft::WRL::ComPtr<ID3D12PipelineState> computeState_ = nullptr;
+		Microsoft::WRL::ComPtr<IDxcBlob> computeShaderBlob_ = nullptr;
+		std::wstring csFilePath_;
 	};
 
+	PSO& GetPSOComputeParticle() { return computeParticlePSO; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
 	PSO& GetPSOTrail() { return trailPSO; }
 
@@ -123,6 +131,7 @@ public:
 		const wchar_t* profile);
 
 	Microsoft::WRL::ComPtr<ID3D12Resource>CreateBufferResource(size_t sizeInBytes);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateUAVBufferResource(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags);
 
 	Microsoft::WRL::ComPtr<ID3D12Resource>CreateTextureResource(const DirectX::TexMetadata& metadata);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResourceRenderTexture(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, const D3D12_CLEAR_VALUE* clearValue);
@@ -253,17 +262,14 @@ private:
 	// 現在のFPS
 	float fps_ = 0.0f;
 
-	//PSO objectPSO_None;
-	//PSO objectPSO_Alpha;
-	//PSO psoParticle_;
 	PSO psoModelParticle_;
 	PSO bloomPSO;
 	PSO downsamplePSO;
 	PSO blurHPSO;
 	PSO blurVPSO;
 	PSO conpositePSO;
-	//PSO shadowPSO;
 	PSO trailPSO;
+	PSO computeParticlePSO;
 	ShaderType shaderType_;
 
 	void CommandListExecuteAndReset();
