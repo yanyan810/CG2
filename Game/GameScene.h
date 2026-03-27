@@ -11,6 +11,9 @@
 #include "StringUtility.h"
 #include "FieldUi.h"
 
+#include "ModelParticleManager.h"
+
+#include "TrailManager.h"
 
 class GameApp;
 
@@ -77,6 +80,12 @@ private:
 
     std::unique_ptr<TextSprite> playerHpText_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
+
+    ParticleEmitterConfig attackEffectConfig_;
+
+    ParticleEmitterConfig effectConfig_;
+
+    std::unique_ptr<TrailManager> trailManager_;
 
     std::unique_ptr<Sprite> powerBoostBg_;
     std::unique_ptr<TextSprite> powerBoostText_;
