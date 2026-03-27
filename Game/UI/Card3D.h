@@ -49,6 +49,8 @@ public:
     Vector3 GetModelFixRot() const { return modelFixRot_; }
     static void DrawAdjustImGui();
 
+    void SetTargetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale, bool instant = false);
+
 private:
 
     std::unique_ptr<Object3d> frame_;
@@ -63,6 +65,10 @@ private:
     Vector3 pos_{ 0.0f, 0.0f, 0.0f };
     Vector3 rot_{ 0.0f, 0.0f, 0.0f };
     Vector3 scale_{ 1.0f, 1.0f, 1.0f };
+
+    Vector3 targetPos_{ 0.0f, 0.0f, 0.0f };
+    Vector3 targetRot_{ 0.0f, 0.0f, 0.0f };
+    Vector3 targetScale_{ 1.0f, 1.0f, 1.0f };
 
     Vector3 modelFixRot_{ 0.0f, 0.0f, 0.0f };
     Vector4 frameColor_{ 1.0f, 1.0f, 1.0f, 1.0f };

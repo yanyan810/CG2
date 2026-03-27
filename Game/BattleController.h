@@ -37,7 +37,8 @@ public:
     {
         None,
         WaitingActivateChoice, // 発動する/しない
-        WaitingEffectChoice    // 発動すると決めた後、どの効果か選ぶ
+        WaitingEffectChoice,   // 発動すると決めた後、どの効果か選ぶ
+        ViewingBoardFromPokerUi // 場を見る専用
     };
 
     struct PokerBonus {
@@ -50,10 +51,13 @@ public:
         None = 0,
         ActivateYes,
         ActivateNo,
+        ActivateViewBoard,   
         EffectAtkUp,
         EffectDraw,
         EffectDamage,
         EffectBack,
+        EffectViewBoard,     
+        ReturnFromBoard,     
     };
 
     void Initialize(GameApp& app, Camera* camera);
@@ -80,12 +84,18 @@ public:
     std::wstring GetEnergyText() const;
     std::wstring GetPlayerHpTexts() const;
     std::vector<std::wstring> GetEnemyHpTexts() const;
+    std::wstring GetPlayerPowerBoostText()const;
+    std::wstring GetPlayerBlockText()const;
+
     //マウス選択関連
     int GetPokerMouseChoiceIndex() const;
     bool IsWaitingActivateChoice() const;
     bool IsWaitingEffectChoice() const;
+    bool IsViewingBoardFromPokerUi() const;
 
     bool IsAllEnemiesDead() const;
+
+    
 
 #ifdef USE_IMGUI
     void DrawImGui();
@@ -123,6 +133,20 @@ public:
     //先読み関数
     void Preload(GameApp& app);
 
+	//ポーカーのサブ効果のUI
+    bool IsPokerQuickPreviewVisible() const { return pokerQuickPreviewVisible_; }
+    std::wstring GetPokerQuickPreviewText() const { return GetPokerEffectPreviewText(); }
+    void SetPokerQuickPreviewVisible(bool visible);
+
+    CardInputState GetNowCardInputState()const { return cardState_; }
+ 
+    std::wstring GetPokerEffectPreviewText() const;
+
+    std::vector<std::wstring> CollectSubEffectPreviewLines_(
+        SubEffectTrigger trigger,
+        PokerHandRank rank
+    ) const;
+
     void Finalize() {
         fieldViews_.clear();
         discardView_.reset();
@@ -146,6 +170,15 @@ public:
         spriteCom_ = nullptr;
     }
 
+    bool IsPlayerTargeting() const {
+        return cardState_ == CardInputState::ChoosingEnemyTarget;
+          /*  cardState_ == CardInputState::Dragging ||
+            cardState_ == CardInputState::Preview;*/
+    }
+
+    bool IsPlayerTurn() const { return turn_ == TurnState::Player; }
+    bool IsEndTurnButtonHovered() const { return endTurnButtonHovered_; }
+
 private:
     enum class TurnState { Player, Enemy };
     TurnState turn_ = TurnState::Player;
@@ -165,12 +198,9 @@ private:
     std::vector<std::unique_ptr<Card3D>> fieldViews_;
     std::unique_ptr<Card3D> discardView_;
 
-	std::unique_ptr<FieldUi> fieldUi_;
-
     int energyMax_ = 10;
     int energy_ = 10;
 
- 
     float enemyWait_ = 0.0f;
 
     CardInputState cardState_ = CardInputState::Idle;
@@ -178,12 +208,14 @@ private:
     int selectedIndex_ = -1;
     CardInstance pendingCard_;
     bool hasPendingCard_ = false;
+    std::unique_ptr<Card3D> pendingCardView_;
 
     POINT dragStartMouse_{};
     float dragDx_ = 0.0f;
     float dragDy_ = 0.0f;
 
     PokerChoiceState pokerChoiceState_ = PokerChoiceState::None;
+    PokerChoiceState pokerReturnState_ = PokerChoiceState::None;
     PokerHandResult currentPoker_;
 
     //キー用
@@ -195,6 +227,9 @@ private:
     bool prevEnter_ = false;
     bool prevL_ = false;
     bool prevR_ = false;
+
+	//ポーカー選択UI用
+    bool pokerChoiceJustOpened_ = false;
 
     int nextTurnAtkUp_ = 0;
     int currentEnemyIndex_ = 0;
@@ -212,6 +247,8 @@ private:
     int prevFieldReplaceHoverIndex_ = -1;
     bool fieldLayoutDirty_ = true;
 
+    //エンドボタン用
+    bool endTurnButtonHovered_ = false;
 
     std::unique_ptr<Object3d> costLabel_;
     std::vector<std::unique_ptr<Object3d>> costDigitModels_;
@@ -242,6 +279,8 @@ private:
 
     //デルタタイム
     float deltaTime_ = 0.0f;
+
+    bool pokerQuickPreviewVisible_ = false;
 
 private:
 

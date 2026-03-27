@@ -2,6 +2,11 @@
 #include "GameApp.h"
 #include "Input.h"
 #include "ModelParticleManager.h"
+#include <random>
+#include <filesystem>
+#include <algorithm>
+
+namespace fs = std::filesystem;
 
 static std::wstring Utf8ToWString(const std::string& s)
 {
@@ -17,11 +22,22 @@ void GameScene::OnEnter(GameApp& app) {
 	// 1. カメラの初期化と設定
 	// --------------------------------------------------
 	camera_ = std::make_unique<Camera>();
-
-	// ★カメラを原点(0, 0, 0)に配置し、少しだけ見下ろす角度に
-	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f }); // 高さを4.0fにして見下ろす
-	camera_->SetRotate({ 0.15f, 0.0f, 0.0f });     // 軽く見下ろす角度
+	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+	camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
 	app.ObjCom()->SetDefaultCamera(camera_.get());
+
+	animCamera_ = std::make_unique<Camera>();
+	animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+	animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+
+	cameraAnim_ = std::make_unique<CameraAnimator>();
+	cameraAnim_->Initialize(animCamera_.get(), app.GetInput());
+
+	ReloadCameraFileList_();
+
+	if (!cameraFiles_.empty()) {
+		ChangeRandomCamera();
+	}
 
 	// --------------------------------------------------
 	// 2. 背景（天球）の初期化
@@ -85,36 +101,11 @@ void GameScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
-	//// ターン数描画関連
-	//turnText_ = std::make_unique<TextSprite>();
-	//turnText_->Initialize(app.SpriteCom(), app.Dx());
-	//turnText_->SetSize({ 1.0f,1.0f,1.0f });
-	//turnText_->SetPosition({ 500.0f, 20.0f });
-	//turnTextBg_ = std::make_unique<Sprite>();
-	//turnTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	//turnTextBg_->SetPosition({ 490.f,25.f });
-	//turnTextBg_->SetScale({ 250.f,60.f,1.f });
-	//turnTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
-
-	//// コスト描画関連
-	//position_ = { 90.f,420.f };
-	//scale_ = { 900.f,180.f,1.f };
-
-	//costText_ = std::make_unique<TextSprite>();
-	//costText_->Initialize(app.SpriteCom(), app.Dx());
-	//costText_->SetSize({ 1.0f,1.0f,1.0f });
-	//costText_->SetPosition({ 90.0f, 400.0f });
-	//costTextBg_ = std::make_unique<Sprite>();
-	//costTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	//costTextBg_->SetPosition({ 75.f,405.f });
-	//costTextBg_->SetScale({ 170.f,55.f,1.f });
-	//costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
-
 	// プレイヤーHP数字
 	playerHpText_ = std::make_unique<TextSprite>();
 	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
 	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
-	playerHpText_->SetPosition({ 140.0f, 12.5f});
+	playerHpText_->SetPosition({ 140.0f, 12.5f });
 
 	// 敵HP数字
 	for (int i = 0; i < 3; i++) {
@@ -124,6 +115,28 @@ void GameScene::OnEnter(GameApp& app) {
 		text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
 		enemyHpTexts_.push_back(std::move(text));
 	}
+
+	// パワーブースト
+	powerBoostBg_ = std::make_unique<Sprite>();
+	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	powerBoostBg_->SetPosition({ 95.0f, 60.0f });
+	powerBoostBg_->SetScale({ 32.0f, 32.0f, 1.0f });
+	powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+	powerBoostText_ = std::make_unique<TextSprite>();
+	powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
+	powerBoostText_->SetSize({ 1.f,1.f,0.5f });
+	powerBoostText_->SetPosition({ 88.f, 40.f });
+
+	// ブロック
+	blockBg_ = std::make_unique<Sprite>();
+	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	blockBg_->SetPosition({ 145.0f, 60.0f });
+	blockBg_->SetScale({ 32.0f, 32.0f, 1.0f });
+	blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
+	blockText_ = std::make_unique<TextSprite>();
+	blockText_->Initialize(app.SpriteCom(), app.Dx());
+	blockText_->SetSize({ 1.f,1.f,0.5f });
+	blockText_->SetPosition({ 138.f, 40.f });
 
 	TextureManager::GetInstance()->LoadTexture("resources/gradation.png");
 
@@ -150,16 +163,129 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead()||!player_->GetIsAlive()) {
+	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive()) {
 		RequestChangeScene_("Title");
 	}
 
 	Input* input = app.GetInput();
 	if (!input) return;
 
-	
+	if (cameraAnim_ && cameraAnim_->IsEditing()) {
+		cameraAnim_->Update(dt); // カメラの操作だけは受け付ける
+		animCamera_->Update();   // カメラ行列更新
 
-	camera_->Update();
+		if (skyDome_) {
+			skyDome_->SetCamera(animCamera_.get());
+		}
+		if (player_) {
+			player_->SetCamera(animCamera_.get());
+			player_->Update(0.0f);
+		}
+
+		enemyMgr_.UpdateCamera(animCamera_.get());
+		enemyMgr_.Update(0.0f);
+
+		return;
+	}
+
+	//if (battle_.IsPlayerTargeting()) {
+	//	// カードを触っている時はアニメーションの時間を止めて初期位置に固定する
+	//	animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+	//	animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+	//} else {
+	//	// 触っていない時は、今まで通りアニメーションを再生する
+	//	if (cameraAnim_) {
+	//		if (cameraAnim_->Update(dt)) {
+	//			ChangeRandomCamera();
+	//		}
+	//	}
+	//}
+
+	//bool isTargeting = battle_.IsPlayerTargeting();
+
+	//// 割合を計算（0.2秒かけて 0.0 と 1.0 の間を移動する）
+	//if (isTargeting) {
+	//	cameraBlend_ += dt * 5.0f;
+	//	if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
+	//} else {
+	//	cameraBlend_ -= dt * 5.0f;
+	//	if (cameraBlend_ < 0.0f) cameraBlend_ = 0.0f;
+	//}
+
+	//if (cameraAnim_) {
+	//	if (isTargeting) {
+	//		// ターゲット中はアニメの時間を止める（現在地をキープ）
+	//		cameraAnim_->Update(0.0f);
+	//	} else {
+	//		// ターゲット解除後はアニメを再開する
+	//		if (cameraAnim_->Update(dt)) {
+	//			ChangeRandomCamera();
+	//		}
+	//	}
+	//}
+
+	bool isTargeting = battle_.IsPlayerTargeting();
+
+	// 割合を計算
+	if (isTargeting) {
+		cameraBlend_ += dt * 5.0f;
+		if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
+	} else {
+		cameraBlend_ -= dt * 5.0f;
+		if (cameraBlend_ < 0.0f) cameraBlend_ = 0.0f;
+	}
+
+	if (cameraAnim_) {
+		bool finished = false;
+
+		if (isTargeting) {
+			// ターゲット中は時間停止
+			finished = cameraAnim_->Update(0.0f);
+		} else {
+			finished = cameraAnim_->Update(dt);
+		}
+
+		if (finished) {
+			if (randomCameraEnabled_ && !sameCameraLoopEnabled_) {
+				ChangeRandomCamera();
+			}
+		}
+	}
+
+	// 割合が 0.0 より大きいなら、アニメの座標と固定座標を混ぜる（Lerp）
+	if (cameraBlend_ > 0.0f) {
+		Vector3 animPos = animCamera_->GetTranslate();
+		Vector3 animRot = animCamera_->GetRotate();
+
+		Vector3 defaultPos = { 0.0f, 4.0f, -40.0f };
+		Vector3 defaultRot = { 0.15f, 0.0f, 0.0f };
+
+		float t = cameraBlend_;
+		float easeT = t * t * (3.0f - 2.0f * t);
+
+		// アニメの場所(0.0) から 固定位置(1.0) へブレンド
+		Vector3 blendedPos = {
+			animPos.x + (defaultPos.x - animPos.x) * easeT,
+			animPos.y + (defaultPos.y - animPos.y) * easeT,
+			animPos.z + (defaultPos.z - animPos.z) * easeT
+		};
+		Vector3 blendedRot = {
+			animRot.x + (defaultRot.x - animRot.x) * easeT,
+			animRot.y + (defaultRot.y - animRot.y) * easeT,
+			animRot.z + (defaultRot.z - animRot.z) * easeT
+		};
+
+		// 混ざったヌルッとした座標をカメラにセット！
+		animCamera_->SetTranslate(blendedPos);
+		animCamera_->SetRotate(blendedRot);
+	}
+
+	if (camera_) {
+		camera_->Update();     // 固定カメラの更新
+	}
+	if (animCamera_) {
+		animCamera_->Update(); // 動くカメラの更新
+	}
 
 	// ESCキーでタイトルへ戻る
 	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
@@ -179,7 +305,22 @@ void GameScene::Update(GameApp& app, float dt) {
 	enemyMgr_.Update(dt);
 	enemyMgr_.SetLighting(light_);
 
-	battle_.Update(app, *fieldUi_,dt);
+	// 天球（背景）に動くカメラをセット
+	if (skyDome_) {
+		skyDome_->SetCamera(animCamera_.get());
+	}
+
+	// プレイヤーに動くカメラをセット
+	if (player_) {
+		player_->SetCamera(animCamera_.get());
+	}
+
+	// すべての敵に動くカメラをセット
+	for (auto& enemy : enemyMgr_.GetEnemies()) {
+		enemy.SetCamera(animCamera_.get());
+	}
+
+	battle_.Update(app, *fieldUi_, dt);
 
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
@@ -213,14 +354,20 @@ void GameScene::Update(GameApp& app, float dt) {
 		fieldUi_->Update(app, battle_);
 	}
 
-
-
 	if (costText_) {
 		costText_->SetText(battle_.GetEnergyText());
 	}
 
 	if (playerHpText_) {
 		playerHpText_->SetText(battle_.GetPlayerHpTexts());
+	}
+
+	if (powerBoostText_) {
+		powerBoostText_->SetText(battle_.GetPlayerPowerBoostText());
+	}
+
+	if (blockText_) {
+		blockText_->SetText(battle_.GetPlayerBlockText());
 	}
 
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
@@ -231,7 +378,7 @@ void GameScene::Update(GameApp& app, float dt) {
 
 			enemyHpTexts_[i]->SetPosition({ 1025.0f, 10.0f + (i * 30.0f) });
 		} else {
-			
+
 			enemyHpTexts_[i]->SetText(L"");
 		}
 	}
@@ -255,8 +402,8 @@ void GameScene::Update(GameApp& app, float dt) {
 	trailManager_->Update(worldTip, worldBase);
 
 	//ModelParticleManager::GetInstance()->LoadFromJson("sword_particle.json", effectConfig_);
-	
-	// Update内
+	//
+	//// Update内
 	//for (int i = 0; i < 3; ++i) {
 	//	effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f))) + Vector3(0, 0, 0); // 位置だけ更新
 	//	ModelParticleManager::GetInstance()->Emit(
@@ -270,12 +417,13 @@ void GameScene::Update(GameApp& app, float dt) {
 
 
 void GameScene::Draw3D(GameApp& app) {
+	app.Dx()->SetBackBuffer();   // RTV + DSV を再バインド
+	app.Dx()->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	battle_.Draw3D(app);
-
 	enemyMgr_.Draw();
-
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -301,12 +449,25 @@ void GameScene::Draw2D(GameApp& app) {
 	battle_.Draw2D(app);
 
 	if (fieldUi_) {
-		fieldUi_->Draw(app);
+		fieldUi_->Draw(app,battle_);
 	}
 
 	if (playerHpText_) {
 		playerHpText_->Update(view, proj);
 		playerHpText_->Draw();
+	}
+
+	if (powerBoostText_) {
+		powerBoostText_->Update(view, proj);
+		powerBoostText_->Draw();
+		powerBoostBg_->Update(view, proj);
+		powerBoostBg_->Draw();
+	}
+	if (blockText_) {
+		blockText_->Update(view, proj);
+		blockText_->Draw();
+		blockBg_->Update(view, proj);
+		blockBg_->Draw();
 	}
 
 	for (auto& text : enemyHpTexts_) {
@@ -326,16 +487,54 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	//playerHpText_->SetPosition(position_);
 
+	if (cameraAnim_) {
+		cameraAnim_->DrawImGui();
+
+		ImGui::Separator();
+		ImGui::Text("=== Camera File Browser ===");
+
+		if (ImGui::Button("Reload Camera Files")) {
+			ReloadCameraFileList_();
+		}
+
+		ImGui::Checkbox("Random Camera Change", &randomCameraEnabled_);
+		ImGui::Checkbox("Same Camera Loop", &sameCameraLoopEnabled_);
+
+		// 両方ONは分かりづらいので排他にする
+		if (sameCameraLoopEnabled_) {
+			randomCameraEnabled_ = false;
+		}
+
+		cameraAnim_->SetLoop(sameCameraLoopEnabled_);
+
+		ImGui::Text("Camera Files: %d", static_cast<int>(cameraFiles_.size()));
+		ImGui::Text("Current Index: %d", currentCameraIndex_);
+
+		for (int i = 0; i < static_cast<int>(cameraFiles_.size()); ++i) {
+			std::string label = fs::path(cameraFiles_[i]).filename().string();
+			bool selected = (i == currentCameraIndex_);
+
+			if (ImGui::Selectable(label.c_str(), selected)) {
+				LoadCameraByIndex_(i);
+			}
+		}
+
+		if (ImGui::Button("Play Random Camera")) {
+			ChangeRandomCamera();
+		}
+	}
+
 	ImGui::End();
 
 	ModelParticleManager::GetInstance()->UpdateImGui(attackEffectConfig_);
 
 	if (fieldUi_) {
+		ImGui::Begin("FieldUi Debug");
 		fieldUi_->DrawImGui();
+		ImGui::End();
 	}
 
-
-#endif
+  #endif
 }
 
 void GameScene::DrawSkydome(GameApp& app)
@@ -354,6 +553,8 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	app.ObjCom()->SetGraphicsPipelineState();
 
 
+	ModelParticleManager::GetInstance()->Draw();
+
 	//ModelParticleManager::GetInstance()->Draw();
 	//
 	//Matrix4x4 vp = camera_->GetViewProjectionMatrix();
@@ -363,4 +564,94 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 void GameScene::DrawPostEffect2D(GameApp& app)
 {
 
+}
+
+//============================
+//カメラアニメーション
+//============================
+
+void GameScene::ChangeRandomCamera() {
+	if (!cameraAnim_) return;
+
+	if (cameraFiles_.empty()) {
+		ReloadCameraFileList_();
+		if (cameraFiles_.empty()) {
+			OutputDebugStringA(">>> No camera json files found.\n");
+			return;
+		}
+	}
+
+	static std::random_device rd;
+	static std::mt19937 gen(rd());
+	std::uniform_int_distribution<int> dist(0, static_cast<int>(cameraFiles_.size()) - 1);
+
+	int randomIndex = dist(gen);
+
+	// 1個しかないならそのまま
+	// 複数あるなら同じもの連続を少し避ける
+	if (cameraFiles_.size() > 1 && randomIndex == currentCameraIndex_) {
+		randomIndex = (randomIndex + 1) % static_cast<int>(cameraFiles_.size());
+	}
+
+	LoadCameraByIndex_(randomIndex);
+}
+
+void GameScene::ReloadCameraFileList_() {
+	cameraFiles_.clear();
+
+	const fs::path folder = "resources/camera";
+
+	if (!fs::exists(folder) || !fs::is_directory(folder)) {
+		OutputDebugStringA(">>> Camera folder not found: resources/camera\n");
+		return;
+	}
+
+	for (const auto& entry : fs::directory_iterator(folder)) {
+		if (!entry.is_regular_file()) {
+			continue;
+		}
+
+		if (entry.path().extension() != ".json") {
+			continue;
+		}
+
+		cameraFiles_.push_back(entry.path().string());
+	}
+
+	std::sort(cameraFiles_.begin(), cameraFiles_.end());
+
+	std::string msg = ">>> Camera files found: " + std::to_string(cameraFiles_.size()) + "\n";
+	OutputDebugStringA(msg.c_str());
+}
+
+bool GameScene::LoadCameraByPath_(const std::string& path) {
+	if (!cameraAnim_) {
+		return false;
+	}
+
+	if (!cameraAnim_->LoadFromJson(path)) {
+		std::string msg = ">>> Failed to load camera: " + path + "\n";
+		OutputDebugStringA(msg.c_str());
+		return false;
+	}
+
+	auto it = std::find(cameraFiles_.begin(), cameraFiles_.end(), path);
+	if (it != cameraFiles_.end()) {
+		currentCameraIndex_ = static_cast<int>(std::distance(cameraFiles_.begin(), it));
+	}
+
+	// ここで再生モードを反映
+	cameraAnim_->SetLoop(sameCameraLoopEnabled_);
+	cameraAnim_->SetPlaying(true);
+
+	std::string msg = ">>> Camera Loaded: " + path + "\n";
+	OutputDebugStringA(msg.c_str());
+	return true;
+}
+
+bool GameScene::LoadCameraByIndex_(int index) {
+	if (index < 0 || index >= static_cast<int>(cameraFiles_.size())) {
+		return false;
+	}
+	return LoadCameraByPath_(cameraFiles_[index]);
 }

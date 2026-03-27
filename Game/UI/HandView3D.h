@@ -31,10 +31,18 @@ public:
     void SetDrag(int idx, float dxPx, float dyPx, bool active);
     void SetPreviewIndex(int idx) { previewIndex_ = idx; layoutDirty_ = true; }
 
+    void SetFocusIndex(int index) { focusIndex_ = index; }
+
+    int GetHoverIndex() const { return hoverIndex_; }
+
 #ifdef USE_IMGUI
     void DrawImGui();
 #endif
 
+    std::unique_ptr<Card3D> ExtractCardAt(int index);
+    void MoveToField(std::unique_ptr<Card3D> card, const Vector3& targetPos);
+    void MoveFieldToDiscard(std::unique_ptr<Card3D> card);
+    void AddDiscardingCard(std::unique_ptr<Card3D> card);
 private:
     void LayoutFan_();
 
@@ -46,6 +54,8 @@ private:
     std::vector<std::unique_ptr<Card3D>> cards_;
     std::vector<std::unique_ptr<Card3D>> cardPool_;
     std::vector<CardInstance> handCards_;
+
+    std::vector<std::unique_ptr<Card3D>> discardingCards_;
 
     std::vector<Vector3> basePos_;
     std::vector<Vector3> baseRot_;
@@ -63,4 +73,6 @@ private:
     int previewIndex_ = -1;
 
     bool layoutDirty_ = true;
+
+    int focusIndex_ = -1;
 };

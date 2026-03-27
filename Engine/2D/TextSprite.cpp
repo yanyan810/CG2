@@ -88,10 +88,63 @@ void TextSprite::RebuildTexture_()
 
     const std::wstring& drawText = text_;
 
-    // --- GDI で文字を描画 ---
-    const int texW = 1024;
-    const int texH = 256;
+    // -----------------------------
+    // 1) まずフォントを作る
+    // -----------------------------
+    HFONT hFont = CreateFontW(
+        28, 0, 0, 0,
+        FW_BOLD,
+        FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        ANTIALIASED_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE,
+        L"Yu Gothic UI"
+    );
+    if (!hFont) {
+        return;
+    }
 
+    // -----------------------------
+    // 2) 計測用DCで必要サイズを求める
+    // -----------------------------
+    const int margin = 16;
+    const int minTexW = 1024;
+    const int maxTexW = 1400;
+    const int minTexH = 256;
+    const int maxTexH = 2048;
+
+    int texW = 1200; // とりあえず見やすい幅
+    texW = (std::max)(minTexW, (std::min)(texW, maxTexW));
+
+    HDC measureDC = CreateCompatibleDC(nullptr);
+    if (!measureDC) {
+        DeleteObject(hFont);
+        return;
+    }
+
+    HGDIOBJ oldMeasureFont = SelectObject(measureDC, hFont);
+
+    RECT calcRc{ margin, margin, texW - margin, 0 };
+    DrawTextW(
+        measureDC,
+        drawText.c_str(),
+        -1,
+        &calcRc,
+        DT_LEFT | DT_TOP | DT_WORDBREAK | DT_CALCRECT
+    );
+
+    SelectObject(measureDC, oldMeasureFont);
+    DeleteDC(measureDC);
+
+    int neededTextH = calcRc.bottom - calcRc.top;
+    int texH = neededTextH + margin * 2;
+    texH = (std::max)(minTexH, (std::min)(texH, maxTexH));
+
+    // -----------------------------
+    // 3) 実描画用ビットマップ作成
+    // -----------------------------
     BITMAPINFO bmi{};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmi.bmiHeader.biWidth = texW;
@@ -103,41 +156,37 @@ void TextSprite::RebuildTexture_()
     void* pixels = nullptr;
     HDC hdc = CreateCompatibleDC(nullptr);
     if (!hdc) {
+        DeleteObject(hFont);
         return;
     }
 
     HBITMAP hBmp = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &pixels, nullptr, 0);
     if (!hBmp || !pixels) {
         DeleteDC(hdc);
+        DeleteObject(hFont);
         return;
     }
 
     HGDIOBJ oldBmp = SelectObject(hdc, hBmp);
+    HGDIOBJ oldFont = SelectObject(hdc, hFont);
 
-    // まず完全透明で初期化
     std::memset(pixels, 0, texW * texH * 4);
 
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, RGB(255, 255, 255));
 
-    HFONT hFont = CreateFontW(
-        36, 0, 0, 0,
-        FW_BOLD,
-        FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS,
-        CLIP_DEFAULT_PRECIS,
-        ANTIALIASED_QUALITY,
-        DEFAULT_PITCH | FF_DONTCARE,
-        L"Yu Gothic UI"
+    RECT textRc{ margin, margin, texW - margin, texH - margin };
+    DrawTextW(
+        hdc,
+        drawText.c_str(),
+        -1,
+        &textRc,
+        DT_LEFT | DT_TOP | DT_WORDBREAK
     );
-    HGDIOBJ oldFont = SelectObject(hdc, hFont);
 
-    RECT textRc{ 16, 16, texW - 16, texH - 16 };
-    DrawTextW(hdc, drawText.c_str(), -1, &textRc, DT_LEFT | DT_TOP | DT_WORDBREAK);
-
-    // --- GDI の描画結果を「白文字 + alpha」に変換 ---
-    // 背景は alpha 0、文字部分だけ alpha を立てる
+    // -----------------------------
+    // 4) 白文字 + alpha 化
+    // -----------------------------
     uint8_t* p = reinterpret_cast<uint8_t*>(pixels);
     for (int i = 0; i < texW * texH; ++i) {
         uint8_t& b = p[i * 4 + 0];
@@ -156,15 +205,16 @@ void TextSprite::RebuildTexture_()
     std::vector<uint8_t> pixelCopy(texW * texH * 4);
     std::memcpy(pixelCopy.data(), pixels, pixelCopy.size());
 
-    // GDI リソース解放
+    // GDI解放
     SelectObject(hdc, oldFont);
-    DeleteObject(hFont);
-
     SelectObject(hdc, oldBmp);
     DeleteObject(hBmp);
     DeleteDC(hdc);
+    DeleteObject(hFont);
 
-    // --- DirectXTex で PNG メモリ化 ---
+    // -----------------------------
+    // 5) PNGメモリ化してテクスチャ登録
+    // -----------------------------
     DirectX::Image image{};
     image.width = texW;
     image.height = texH;
@@ -197,12 +247,6 @@ void TextSprite::RebuildTexture_()
         static_cast<const uint8_t*>(pngBlob.GetBufferPointer()),
         pngBlob.GetBufferSize()
     );
-
-    if (TextureManager::GetInstance()->HasTexture(textureKey_)) {
-        OutputDebugStringA(("[TextSprite] register success: " + textureKey_ + "\n").c_str());
-    } else {
-        OutputDebugStringA(("[TextSprite] register failed: " + textureKey_ + "\n").c_str());
-    }
 
     if (sprite_) {
         sprite_->SetTextureFilePath(textureKey_);

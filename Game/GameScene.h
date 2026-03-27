@@ -2,6 +2,7 @@
 #include "IScene.h"
 #include <memory>
 #include "Camera.h"
+#include "CameraAnimator.h"
 #include "Object3d.h"
 #include "Enemy.h"
 #include "Player.h"
@@ -33,9 +34,23 @@ public:
     void DrawPostEffect3D(GameApp& app) override;
     void DrawPostEffect2D(GameApp& app) override;
 
+    void ChangeRandomCamera();
+
+private:
+
+    
+	// カメラアニメーション関連の関数
+    void ReloadCameraFileList_();
+    bool LoadCameraByIndex_(int index);
+    bool LoadCameraByPath_(const std::string& path);
+
 private:
     std::unique_ptr<Camera> camera_;
+    std::unique_ptr<Camera> animCamera_;
+    std::unique_ptr<CameraAnimator> cameraAnim_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球
+
+    float cameraBlend_ = 0.0f;
 
     std::unique_ptr<Player> player_;
     EnemyManager enemyMgr_;
@@ -71,5 +86,16 @@ private:
     ParticleEmitterConfig effectConfig_;
 
     std::unique_ptr<TrailManager> trailManager_;
+
+    std::unique_ptr<Sprite> powerBoostBg_;
+    std::unique_ptr<TextSprite> powerBoostText_;
+    std::unique_ptr<Sprite> blockBg_;
+    std::unique_ptr<TextSprite> blockText_;
+
+    //カメラアニメ
+    std::vector<std::string> cameraFiles_;
+    int currentCameraIndex_ = -1;
+    bool randomCameraEnabled_ = true;   // true: ランダム切替
+    bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
 };
