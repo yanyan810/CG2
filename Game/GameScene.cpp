@@ -552,9 +552,6 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-
-	ModelParticleManager::GetInstance()->Draw();
-
 	//ModelParticleManager::GetInstance()->Draw();
 	//
 	//Matrix4x4 vp = camera_->GetViewProjectionMatrix();
