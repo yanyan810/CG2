@@ -35,54 +35,6 @@ struct ParticleEmitterConfig {
 	Vector4 startColor = { 1, 1, 1, 1 };
 	Vector4 endColor = { 1, 1, 1, 0 };
 
-	// 炎：下から上へ昇りながら小さくなって消える
-	static ParticleEmitterConfig CreateFire(const Vector3& pos) {
-		ParticleEmitterConfig config;
-		config.position = pos;
-		config.speedMin = 0.8f;
-		config.speedMax = 1.5f;
-		config.gravity = { 0.0f, 1.5f, 0.0f }; // 強い上昇気流
-		config.lifeTimeMin = 0.4f;
-		config.lifeTimeMax = 0.7f;
-		config.startScale = 1.2f;
-		config.endScale = 0.2f;
-		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
-		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
-		return config;
-	}
-
-	// 水：放物線を描いて飛び散り、少し小さくなる
-	static ParticleEmitterConfig CreateWater(const Vector3& pos) {
-		ParticleEmitterConfig config;
-		config.position = pos;
-		config.speedMin = 2.0f;
-		config.speedMax = 4.0f;
-		config.gravity = { 0.0f, -9.8f, 0.0f }; // 重力で落下
-		config.lifeTimeMin = 0.8f;
-		config.lifeTimeMax = 1.2f;
-		config.startScale = 0.5f;
-		config.endScale = 0.3f;
-		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
-		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
-		return config;
-	}
-
-	// 氷：キラキラと回転しながら停滞し、ゆっくり消える
-	static ParticleEmitterConfig CreateIce(const Vector3& pos) {
-		ParticleEmitterConfig config;
-		config.position = pos;
-		config.speedMin = 0.2f;
-		config.speedMax = 0.5f;
-		config.gravity = { 0.0f, -0.1f, 0.0f }; // ほとんど落ちない
-		config.lifeTimeMin = 1.5f;
-		config.lifeTimeMax = 2.5f;
-		config.startScale = 0.0f; // 出現時は0
-		config.endScale = 0.8f;   // 徐々に広がる
-		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
-		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
-		return config;
-	}
-
 	// JSONオブジェクトに変換する
 	nlohmann::json ToJson() const {
 		return nlohmann::json{
@@ -120,6 +72,17 @@ struct ParticleEmitterConfig {
 
 class ModelParticleManager {
 public:
+	struct ParticleGPU {
+		Vector3 position;    float currentTime;      // 16 bytes
+		Vector3 velocity;    float lifeTime;         // 16 bytes
+		Vector3 acceleration; float startScale;       // 16 bytes
+		Vector4 startColor;                          // 16 bytes
+		Vector4 endColor;                            // 16 bytes
+		float   endScale;    uint32_t isActive;
+		Vector2 padding0;                            // 16 bytes (isActiveの後は8バイト余る)
+		Vector3 rotate;      float padding1;         // 16 bytes
+		Vector3 angularVelocity; float padding2;     // 16 bytes
+	};
 
 	struct Particle {
 		Transform transform;
@@ -173,14 +136,25 @@ public:
 		float padding; // 16byte アラインメント用（重要）
 	};
 
+	struct GlobalConfig
+	{
+		float deltaTime;
+		uint32_t maxParticles;
+	};
+
+	struct SceneConfig
+	{
+		Matrix4x4 viewProjection;
+	};
+	
 	// シングルトン
 	static ModelParticleManager* GetInstance();
 
 	// パーティクルの最大数
-	static const uint32_t kMaxInstance = 10000;
+	static const uint32_t kMaxInstance = 1000000;
 
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
-	void Update(float deltaTime, Camera* camera);
+	void Dispatch(float deltaTime, Camera* camera);
 	void Draw();
 
 	// パーティクル発生
@@ -193,6 +167,7 @@ public:
 	void SaveToJson(const std::string& path, const ParticleEmitterConfig& config);
 
 	void LoadFromJson(const std::string& path, ParticleEmitterConfig& config);
+	void EmitBatch(const std::vector<Particle>& particles);
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;
@@ -200,7 +175,6 @@ private:
 
 	// インスタンシング用リソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
-	ModelParticleTransformationMatrix* instancingData_ = nullptr;
 	uint32_t srvIndex_; // SrvManagerで割り当てられたインデックス
 
 	// 使用するモデル（plane.objなど）
@@ -220,4 +194,16 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
 	CameraData* cameraData_ = nullptr;
+	
+	Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_; // 物理計算用 (UAV)
+	uint32_t uavIndexParticles_; // UAV(u0)用インデックス
+	uint32_t uavIndexRenderData_; // UAV(u1)用インデックス
+	
+	Microsoft::WRL::ComPtr<ID3D12Resource> computeConfigResource_;
+	GlobalConfig* computeConfigData_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> computeSceneResource_;
+	SceneConfig* computeSceneData_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> emitStagingResource_;
+
+	uint32_t freeIndex_ = 0;
 };

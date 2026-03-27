@@ -185,6 +185,34 @@ void Root::InitalizeForTrail()
 	);
 }
 
+void Root::InitializeForComputeParticle() {
+	// UAV用のレンジを個別に用意（u0用とu1用）
+	CD3DX12_DESCRIPTOR_RANGE1 rangeU0;
+	rangeU0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0); // u0
+
+	CD3DX12_DESCRIPTOR_RANGE1 rangeU1;
+	rangeU1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1); // u1
+
+	// パラメータを4つに設定
+	CD3DX12_ROOT_PARAMETER1 rootParameters[4];
+	rootParameters[0].InitAsConstantBufferView(0);          // Index 0: b0 (GlobalConfig)
+	rootParameters[1].InitAsConstantBufferView(1);          // Index 1: b1 (SceneConfig)
+	rootParameters[2].InitAsDescriptorTable(1, &rangeU0);   // Index 2: u0 (Particles)
+	rootParameters[3].InitAsDescriptorTable(1, &rangeU1);   // Index 3: u1 (RenderData)
+
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
+	rootSigDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+
+	// 3. シリアライズ (D3DX12ヘルパーを使う場合)
+	HRESULT hr = D3DX12SerializeVersionedRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1_1, &signatureBlob_, &errorBlob_);
+	if (FAILED(hr)) {
+		if (errorBlob_) {
+			OutputDebugStringA((char*)errorBlob_->GetBufferPointer());
+		}
+		assert(false);
+	}
+}
+
 void Root::Create(Microsoft::WRL::ComPtr<ID3D12Device>& device)
 {
 
