@@ -400,8 +400,8 @@ void GameScene::Draw3D(GameApp& app) {
 		highlightFilter_->Draw();
 	}
 
-	enemyMgr_.Draw();
 	battle_.Draw3D(app);
+	enemyMgr_.Draw();
 }
 
 void GameScene::Draw2D(GameApp& app) {
