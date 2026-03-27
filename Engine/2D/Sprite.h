@@ -68,6 +68,8 @@ public:
 	void SetFlipY(const bool flipY) { this->isFlipY_ = flipY; }
 	void SetTextureTopLeft(const Vector2& ttl) { this->textureTopLeft_ = ttl; }
 	void SetTextureCutSize(const Vector2& tcs) { this->textureCutSize_ = tcs; }
+	void SetAnchorPointKeepingVisual(const Vector2& ap);
+	Vector2 GetTopLeftPosition() const;
 
 	//テクスチャサイズをイメージに合わせる
 	void AdjustTextureSize();

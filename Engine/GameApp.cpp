@@ -208,10 +208,19 @@ void GameApp::Draw() {
 void GameApp::WarmupAssets_() {
     OutputDebugStringA("[Warmup] START\n");
 
-    // もしテクスチャも初回で刺さるならここで
+    //テクスチャ初回読み込み
     TextureManager::GetInstance()->LoadTexture("resources/shadow/shadow.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/activatingEffect.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/activation.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/back.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/backChooseActive.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/chooseActive.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/doActivation.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/effectsList.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/noActivation.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/showField.png");
 
-    // モデル（ModelManager がキャッシュする前提）
+    // モデル初回読み込み
     ModelManager::GetInstance()->LoadModel("human/walk.gltf");
     ModelManager::GetInstance()->LoadModel("human/sneakWalk.gltf");
     //ModelManager::GetInstance()->LoadModel("gltf/walk.glb");
@@ -227,5 +236,7 @@ void GameApp::WarmupAssets_() {
     ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
     ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
     
+
+
     OutputDebugStringA("[Warmup] END\n");
 }
