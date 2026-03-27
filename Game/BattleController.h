@@ -291,6 +291,8 @@ private:
 
     std::unique_ptr<Sprite> playerHpPredict_;
 
+    std::unique_ptr<Sprite> playerBlockPredict_;
+
     std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
     std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
 

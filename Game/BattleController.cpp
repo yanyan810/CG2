@@ -572,6 +572,10 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	playerHpPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpPredict_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
 
+	playerBlockPredict_ = std::make_unique<Sprite>();
+	playerBlockPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
+	playerBlockPredict_->SetColor({ 0.0f, 0.0f, 1.0f, 1.f });
+
 	enemyHpBgs_.clear();
 	enemyHpFgs_.clear();
 	enemyIntentIcons_.clear();
@@ -607,6 +611,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
 	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
+	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
 
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
@@ -2099,6 +2104,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
 	UpdateHpGauges();
 	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
+	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
@@ -2146,6 +2152,7 @@ void BattleController::Draw2D(GameApp& app)
 
 	if (playerHpBg_) playerHpBg_->Draw();
 	if (playerHpPredict_)playerHpPredict_->Draw();
+	if (playerBlockPredict_ && player_->GetBlock() > 0)playerBlockPredict_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
 
 	for (auto& bg : enemyHpBgs_) {
@@ -2580,8 +2587,7 @@ int BattleController::CalcTotalIncomingDamage() const {
 	for (auto& enemy : enemyMgr_->GetEnemies()) {
 		if (enemy.IsAlive()) {
 			// 敵が次のターンに行う攻撃力を取得（シールド等があればここで減算処理）
-			total += enemy.GetIncomingDamage();
-			total -= player_->GetBlock();
+			total += enemy.GetIncomingDamage() - player_->GetBlock();
 		}
 	}
 	return total;
@@ -2599,7 +2605,13 @@ void BattleController::UpdateHpGauges() {
 	// 予測ダメージ後のHPバー（ここがミソ）
 	// 現在のHPからダメージを引いた残量を計算（0以下にならないよう clamp）
 	float predictedHP = std::max(0.0f, currentHP - incomingDamage);
+	if (predictedHP >= currentHP) {
+		predictedHP = currentHP;
+	}
 	float predictedRatio = predictedHP / maxHP;
+
+	int currentBlock = player_->GetBlock();
+	float predictedRatioBlock = float(currentBlock) / maxHP;
 
 	// 赤いバー（playerHpPredict_）は「現在のHPバーと同じ位置」に置きつつ、
 	// 長さは「現在のHP」のままにする。
@@ -2611,4 +2623,10 @@ void BattleController::UpdateHpGauges() {
 	}
 	playerHpPredict_->SetScale({ 250.0f * currentRatio, 18.0f, 1.0f });
 	playerHpPredict_->SetPosition(playerHpFg_->GetPosition());
+
+	float offset = 5.f;
+
+	playerBlockPredict_->SetScale({ 250.0f * predictedRatioBlock + offset,18.0f + (offset * 2.f), 1.0f });
+	playerBlockPredict_->SetPosition({ 80.f - offset,40.f - offset });
+
 }
