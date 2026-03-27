@@ -289,10 +289,14 @@ private:
     std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
     std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
 
+    std::unique_ptr<Sprite> playerHpPredict_;
+
     std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
     std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
 
     std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
+
+    std::unique_ptr<Sprite> highlightFilter_;
 
     void StartPlayerTurn_();
     void DrawUntilFive_();
@@ -336,4 +340,7 @@ private:
 
     void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 
+    int CalcTotalIncomingDamage() const;
+
+    void UpdateHpGauges();
 };
