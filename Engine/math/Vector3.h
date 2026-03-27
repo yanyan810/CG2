@@ -50,6 +50,7 @@ struct Vector3 {
         x *= scalar; y *= scalar; z *= scalar;
         return *this;
     }
+
 };
 
 struct Transform {
@@ -65,6 +66,10 @@ struct Vector4 {
     float z;
     float w;
 };
+
+// 単項演算子
+inline Vector3 operator-(const Vector3& v) { return { -v.x, -v.y, -v.z }; }
+inline Vector3 operator+(const Vector3& v) { return v; }
 
 // Vector4
 inline Vector4 operator+(const Vector4& v1, const Vector4& v2) { return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w }; }

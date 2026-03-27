@@ -961,6 +961,11 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
 		}
 		break;
+	case kTrail:
+		pso.root_.InitalizeForTrail(); // 上で作った関数
+		pso.vsFilePath_ = L"resources/shaders/Trail.VS.hlsl";
+		pso.psFilePath_ = L"resources/shaders/Trail.PS.hlsl";
+		break;
 	default: assert(false); break;
 	}
 
@@ -999,7 +1004,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 
 	// [BlendState] の設定
 	pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle) {
+	if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle || pso.shaderType_ == kTrail) {
 		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
 		pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -1033,6 +1038,37 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_UNKNOWN;
 		pso.graphicsDesc_.DepthStencilState.DepthEnable = FALSE;
 		pso.graphicsDesc_.InputLayout = { nullptr, 0 };
+	} else if (pso.shaderType_ == kTrail) {
+		pso.graphicsDesc_.NumRenderTargets = 1;
+		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		// ★ 軌跡用の特殊設定
+		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // 両面描画
+		pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 深度は塗らない
+
+		// 0: 座標 (POSITION)
+		pso.elementDescs_[0].SemanticName = "POSITION";
+		pso.elementDescs_[0].SemanticIndex = 0;
+		pso.elementDescs_[0].Format = DXGI_FORMAT_R32G32B32_FLOAT; // Vector3
+		pso.elementDescs_[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+		// 1: 頂点カラー (COLOR) ★これが重要！
+		pso.elementDescs_[1].SemanticName = "COLOR";
+		pso.elementDescs_[1].SemanticIndex = 0;
+		pso.elementDescs_[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // Vector4 (RGBA)
+		pso.elementDescs_[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+		// 2: UV座標 (TEXCOORD)
+		pso.elementDescs_[2].SemanticName = "TEXCOORD";
+		pso.elementDescs_[2].SemanticIndex = 0;
+		pso.elementDescs_[2].Format = DXGI_FORMAT_R32G32_FLOAT; // Vector2
+		pso.elementDescs_[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+		pso.layout_.pInputElementDescs = pso.elementDescs_;
+		pso.layout_.NumElements = 3; // 座標、色、UV の 3つ
+
+		pso.graphicsDesc_.InputLayout = pso.layout_;
 	} else {
 		pso.graphicsDesc_.NumRenderTargets = 1;
 		pso.graphicsDesc_.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -1082,6 +1118,7 @@ void DirectXCommon::CreateShader()
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
 	psoModelParticle_.shaderType_ = kModelParticle;
+	trailPSO.shaderType_ = kTrail;
 
 	CreateShaderCommon(bloomPSO);
 	CreateShaderCommon(blurHPSO);
@@ -1089,6 +1126,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(conpositePSO);
 	CreateShaderCommon(downsamplePSO);
 	CreateShaderCommon(psoModelParticle_);
+	CreateShaderCommon(trailPSO);
 }
 
 void DirectXCommon::ExecuteCommandListAndWait()

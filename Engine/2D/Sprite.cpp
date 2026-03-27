@@ -111,6 +111,23 @@ void Sprite::Update(const Matrix4x4& view, const Matrix4x4& proj) {
     transformData_->WVP = wvp;
 }
 
+Vector2 Sprite::GetTopLeftPosition() const {
+    return {
+        position_.x - anchorPoint.x * size_.x * scale_.x,
+        position_.y - anchorPoint.y * size_.y * scale_.y
+    };
+}
+
+void Sprite::SetAnchorPointKeepingVisual(const Vector2& ap) {
+    Vector2 topLeft = GetTopLeftPosition();
+
+    anchorPoint = ap;
+
+    position_ = {
+        topLeft.x + anchorPoint.x * size_.x * scale_.x,
+        topLeft.y + anchorPoint.y * size_.y * scale_.y
+    };
+}
 
 
 void Sprite::Draw() {

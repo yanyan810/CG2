@@ -41,11 +41,10 @@ public:
 
 	const PokerEffectChoiceLayout& GetPokerEffectChoiceLayout() const { return pokerEffectLayout_; }
 
-	void UpdateDebugPokerEffectPreview(int hoverIndex = -1);
-
     const FieldUiLayout& GetFieldUiLayout() const { return layout_; }
 
 private:
+	void ApplyPokerOptionImageLayout_(const BattleController& battle);
 	void ApplyFieldUiLayout_();
 	void SetTextScale_(TextSprite* text, float s);
 
@@ -63,12 +62,14 @@ private:
 	std::unique_ptr<TextSprite> pokerPreviewText_;
 	std::unique_ptr<TextSprite> turnText_;
 	std::unique_ptr<TextSprite> costText_;
-	std::unique_ptr<TextSprite> pokerTitleText_;
-	std::unique_ptr<TextSprite> pokerOptionTexts_[5];
-	std::unique_ptr<TextSprite> pokerInfoButtonText_;
-	std::unique_ptr<TextSprite> pokerPreviewTitleText_;
+
 	std::unique_ptr<TextSprite> clickChoiceText_;
 	std::unique_ptr<TextSprite> endTurnButtonText_;
+
+	std::unique_ptr<Sprite> pokerTitleImage_;
+	std::array<std::unique_ptr<Sprite>, 5> pokerOptionImageSprites_;
+	std::unique_ptr<Sprite> pokerInfoButtonImage_;
+	std::unique_ptr<Sprite> pokerPreviewTitleImage_;
 
 	//ui用の背景スプライト
     std::unique_ptr<Sprite>     turnTextBg_;
@@ -113,10 +114,7 @@ private:
 	std::string layoutPath_ = "resources/ui/field_ui_layout.json";
 
 	// ポーカーUI文字キャッシュ
-	BattleController::PokerHandRank cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
-
-	void BuildStaticPokerUiTexts_();
-	void UpdateDynamicPokerBonusTexts_(const BattleController& battle);
+	//BattleController::PokerHandRank cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
 
 private:
 	static std::wstring Utf8ToWString_(const std::string& s);
