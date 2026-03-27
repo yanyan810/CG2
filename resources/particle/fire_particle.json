@@ -1,0 +1,25 @@
+{
+    "endColor": [
+        0.0,
+        1.0,
+        0.0,
+        1.0
+    ],
+    "endScale": 0.0,
+    "gravity": [
+        0.0,
+        1.5,
+        0.0
+    ],
+    "lifeTimeMax": 3.0,
+    "lifeTimeMin": 2.0,
+    "speedMax": 1.0,
+    "speedMin": 0.0,
+    "startColor": [
+        1.0,
+        0.0,
+        0.0,
+        1.0
+    ],
+    "startScale": 1.0
+}

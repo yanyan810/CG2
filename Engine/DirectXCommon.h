@@ -17,6 +17,7 @@ enum ShaderType {
 	kModelParticle,
 	kPostEffect,
 	kShadow,
+	kTrail,
 };
 
 enum PostEffectType {
@@ -49,6 +50,7 @@ public:
 	};
 
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
+	PSO& GetPSOTrail() { return trailPSO; }
 
 	PSO& GetPSOEffect(PostEffectType effect) {
 		switch (effect)
@@ -261,6 +263,7 @@ private:
 	PSO blurVPSO;
 	PSO conpositePSO;
 	//PSO shadowPSO;
+	PSO trailPSO;
 	ShaderType shaderType_;
 
 	void CommandListExecuteAndReset();

@@ -154,7 +154,7 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
 
     // 色（ベースカラーに対してランダムな揺らぎを与える）
     Vector4 colorVariation = Rand(Vector4(-0.1f, -0.1f, -0.1f, 0.0f), Vector4(0.1f, 0.1f, 0.1f, 0.0f));
-    particle.color = config.baseColor + colorVariation;
+    particle.color = config.startColor + colorVariation;
 
     // 寿命とスケール設定
     particle.lifeTime = Rand(config.lifeTimeMin, config.lifeTimeMax);
@@ -254,4 +254,54 @@ void ModelParticleManager::Draw() {
 
     // 3. 描画実行
 	commandList->DrawInstanced(static_cast<UINT>(model_->GetModelData().meshes[0].vertices.size()), static_cast<UINT>(particles_.size()), 0, 0); // 頂点数は3（plane.objの三角形1枚分）、インスタンス数はパーティクルの数
+}
+
+void ModelParticleManager::UpdateImGui(ParticleEmitterConfig& editingConfig) {
+    ImGui::Begin("Particle Editor");
+
+    // プレビュー用の設定
+    ImGui::Text("Base Settings");
+    ImGui::ColorEdit4("StartColor", &editingConfig.startColor.x);
+    ImGui::ColorEdit4("EndColor", &editingConfig.endColor.x);
+    ImGui::DragFloat("Speed Min", &editingConfig.speedMin, 0.01f);
+    ImGui::DragFloat("Speed Max", &editingConfig.speedMax, 0.01f);
+    ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
+
+    ImGui::Separator();
+
+    ImGui::Text("Scale Easing");
+    ImGui::DragFloat("Start Scale", &editingConfig.startScale, 0.01f);
+    ImGui::DragFloat("End Scale", &editingConfig.endScale, 0.01f);
+
+    static char filename[64] = "fire_particle.json";
+    ImGui::InputText("Save Filename", filename, IM_ARRAYSIZE(filename));
+
+    if (ImGui::Button("Save to JSON")) {
+        SaveToJson(filename, editingConfig);
+    }
+
+    if (ImGui::Button("Load from JSON")) {
+        LoadFromJson(filename, editingConfig);
+    }
+
+    ImGui::End();
+}
+
+void ModelParticleManager::SaveToJson(const std::string& path, const ParticleEmitterConfig& config)
+{
+    std::ofstream file("resources/particle/" + path);
+    if (file.is_open()) {
+        nlohmann::json j = config.ToJson();
+        file << std::setw(4) << j << std::endl; // 見やすく整形して保存
+    }
+}
+
+void ModelParticleManager::LoadFromJson(const std::string& path, ParticleEmitterConfig& config)
+{
+    std::ifstream file("resources/particle/" + path);
+    if (file.is_open()) {
+        nlohmann::json j;
+        file >> j;
+        config.FromJson(j);
+    }
 }

@@ -6,6 +6,9 @@
 #include "ModelManager.h"
 #include "Camera.h"
 #include "DebugCamera.h"
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <iomanip>
 
 extern std::mt19937 rng;
 
@@ -19,7 +22,6 @@ Vector4 Lerp(const Vector4& start, const Vector4& end, float t);
 
 struct ParticleEmitterConfig {
 	Vector3 position = { 0, 0, 0 };
-	Vector4 baseColor = { 1, 1, 1, 1 };
 	float speedMin = 0.0f;
 	float speedMax = 1.0f;
 	float lifeTimeMin = 2.0f;
@@ -37,7 +39,6 @@ struct ParticleEmitterConfig {
 	static ParticleEmitterConfig CreateFire(const Vector3& pos) {
 		ParticleEmitterConfig config;
 		config.position = pos;
-		config.baseColor = { 1.0f, 0.4f, 0.1f, 1.0f }; // 鮮やかなオレンジ
 		config.speedMin = 0.8f;
 		config.speedMax = 1.5f;
 		config.gravity = { 0.0f, 1.5f, 0.0f }; // 強い上昇気流
@@ -54,7 +55,6 @@ struct ParticleEmitterConfig {
 	static ParticleEmitterConfig CreateWater(const Vector3& pos) {
 		ParticleEmitterConfig config;
 		config.position = pos;
-		config.baseColor = { 0.2f, 0.6f, 1.0f, 0.7f };
 		config.speedMin = 2.0f;
 		config.speedMax = 4.0f;
 		config.gravity = { 0.0f, -9.8f, 0.0f }; // 重力で落下
@@ -62,6 +62,8 @@ struct ParticleEmitterConfig {
 		config.lifeTimeMax = 1.2f;
 		config.startScale = 0.5f;
 		config.endScale = 0.3f;
+		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
+		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
 		return config;
 	}
 
@@ -69,7 +71,6 @@ struct ParticleEmitterConfig {
 	static ParticleEmitterConfig CreateIce(const Vector3& pos) {
 		ParticleEmitterConfig config;
 		config.position = pos;
-		config.baseColor = { 0.7f, 0.9f, 1.0f, 1.0f }; // 薄い水色
 		config.speedMin = 0.2f;
 		config.speedMax = 0.5f;
 		config.gravity = { 0.0f, -0.1f, 0.0f }; // ほとんど落ちない
@@ -77,7 +78,43 @@ struct ParticleEmitterConfig {
 		config.lifeTimeMax = 2.5f;
 		config.startScale = 0.0f; // 出現時は0
 		config.endScale = 0.8f;   // 徐々に広がる
+		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
+		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
 		return config;
+	}
+
+	// JSONオブジェクトに変換する
+	nlohmann::json ToJson() const {
+		return nlohmann::json{
+			{"startColor", {startColor.x, startColor.y, startColor.z, startColor.w}},
+			{"endColor", {endColor.x, endColor.y, endColor.z, endColor.w}},
+			{"speedMin", speedMin},
+			{"speedMax", speedMax},
+			{"lifeTimeMin", lifeTimeMin},
+			{"lifeTimeMax", lifeTimeMax},
+			{"gravity", {gravity.x, gravity.y, gravity.z}},
+			{"startScale", startScale},
+			{"endScale", endScale}
+		};
+	}
+
+	// JSONオブジェクトから読み込む
+	void FromJson(const nlohmann::json& j) {
+		if (j.contains("startColor")) {
+			startColor = { j["startColor"][0], j["startColor"][1], j["startColor"][2], j["startColor"][3] };
+		}
+		if (j.contains("endColor")) {
+			endColor = { j["endColor"][0], j["endColor"][1], j["endColor"][2], j["endColor"][3] };
+		}
+		speedMin = j.value("speedMin", speedMin);
+		speedMax = j.value("speedMax", speedMax);
+		lifeTimeMin = j.value("lifeTimeMin", lifeTimeMin);
+		lifeTimeMax = j.value("lifeTimeMax", lifeTimeMax);
+		if (j.contains("gravity")) {
+			gravity = { j["gravity"][0], j["gravity"][1], j["gravity"][2] };
+		}
+		startScale = j.value("startScale", startScale);
+		endScale = j.value("endScale", endScale);
 	}
 };
 
@@ -150,6 +187,12 @@ public:
 	void Emit(const Particle& particle);
 
 	Particle MakeParticle(const ParticleEmitterConfig& config);
+
+	void UpdateImGui(ParticleEmitterConfig& editingConfig);
+	
+	void SaveToJson(const std::string& path, const ParticleEmitterConfig& config);
+
+	void LoadFromJson(const std::string& path, ParticleEmitterConfig& config);
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;

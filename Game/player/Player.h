@@ -3,6 +3,7 @@
 #include "Vector3.h"
 #include "AABB.h"
 #include "Object3d.h"
+#include "ModelParticleManager.h"
 
 class Object3dCommon;
 class DirectXCommon;
@@ -94,4 +95,6 @@ private:
 	float flashTimer_ = 0.0f;
 
 	bool isAlive_ = true;
+
+	ParticleEmitterConfig attackEffectConfig_;
 };
