@@ -191,7 +191,7 @@ public:
 
 	Matrix4x4 GetJointWorldMatrix(const std::string& jointName) const;
 
-
+	Camera* GetCamera() const { return camera_; }
 private:
 
 	DirectXCommon* dx_ = nullptr;
@@ -252,6 +252,23 @@ public:
 	void SetDebugDrawBones(bool enable) { debugDrawBones_ = enable; }
 	void SetBoneMarkerModel(const std::string& path) { boneMarkerModel_ = path; }
 
+	// ===========
+	// アニメーションエディタ用変数
+	// ===========
+	struct BoneOffset {
+		Vector3 translate{ 0.0f, 0.0f, 0.0f };
+		Vector3 rotate{ 0.0f, 0.0f, 0.0f }; // 度数法 (Degree)
+		Vector3 scale{ 1.0f, 1.0f, 1.0f };
+	};
+
+	// ボーン名をキーにして、移動・回転・スケールのオフセットを保存する
+	std::map<std::string, BoneOffset> boneOffsets_;
+
+	Model::Skeleton* GetSkeleton() { return &poseSkeleton_; }
+
+	Matrix4x4 GetWorldMatrix() const {
+		return Matrix4x4::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+	}
 private:
 
 	// Object3d.h （private でOK）

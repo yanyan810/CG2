@@ -135,43 +135,79 @@ void Object3d::Update(float dt)
 	Matrix4x4 worldMatrixModel = Matrix4x4::MakeAffineMatrix(
 		transform.scale, transform.rotate, transform.translate);
 
-	// =========================================================
-	// ★Skinned：アニメ再生の有無に関わらず poseSkeleton_ を用意し、
-	//           最終的に palette を毎フレ更新する
-	// =========================================================
 	if (model_ && model_->HasSkinning())
 	{
-		// (A) 初回：bind pose を用意（アニメ0本でも描けるようにする）
+		// (A) 初回：bind pose を用意
 		if (!poseReady_) {
 			poseSkeleton_ = model_->GetSkeleton();
 			poseReady_ = true;
-
-			// bind pose の skeletonSpace を計算
-			Model::UpdateSkeleton(poseSkeleton_);
 		}
 
-		// (B) アニメ再生中なら Skeleton に適用
+		// ★まずはアニメーションを適用する
 		if (isPlayAnimation_)
 		{
 			const auto& anims = model_->GetAnimations();
 			if (!anims.empty())
 			{
 				const Animation* anim = nullptr;
-
 				if (!playingAnimName_.empty()) {
 					auto itA = anims.find(playingAnimName_);
 					if (itA != anims.end()) { anim = &itA->second; }
 				}
 				if (!anim) { anim = &anims.begin()->second; }
 
-				// time更新
 				animationTime_ += dt;
 				const float duration = std::max(anim->duration, 0.0001f);
 				if (loop_) { animationTime_ = std::fmod(animationTime_, duration); } else { animationTime_ = std::min(animationTime_, duration); }
 
-				// Skeletonへ適用 → skeletonSpace更新
 				ApplyAnimation(poseSkeleton_, *anim, animationTime_);
-				Model::UpdateSkeleton(poseSkeleton_);
+			}
+		} else
+		{
+			poseSkeleton_ = model_->GetSkeleton();
+		}
+
+		// =========================================================
+		// 1. まず標準の更新を終わらせる（ここで内部的にlocalMatrixが上書きされてもOK）
+		// =========================================================
+		Model::UpdateSkeleton(poseSkeleton_);
+
+		// =========================================================
+		// 2. その直後に、エディタの角度を上書きしつつ、自分で全身の座標を再計算する！
+		// =========================================================
+		// =========================================================
+		// 2. その直後に、エディタの角度を上書きしつつ、自分で全身の座標を再計算する！
+		// =========================================================
+		for (size_t i = 0; i < poseSkeleton_.joints.size(); ++i) {
+			auto& joint = poseSkeleton_.joints[i];
+
+			if (boneOffsets_.find(joint.name) != boneOffsets_.end()) {
+				BoneOffset& offset = boneOffsets_[joint.name];
+
+				float radX = offset.rotate.x * (3.14159f / 180.0f);
+				float radY = offset.rotate.y * (3.14159f / 180.0f);
+				float radZ = offset.rotate.z * (3.14159f / 180.0f);
+
+				// 行列を作成
+				Matrix4x4 offsetMat = Matrix4x4::RotateXYZ(radX, radY, radZ);
+				offsetMat.m[0][0] *= offset.scale.x; offsetMat.m[0][1] *= offset.scale.x; offsetMat.m[0][2] *= offset.scale.x;
+				offsetMat.m[1][0] *= offset.scale.y; offsetMat.m[1][1] *= offset.scale.y; offsetMat.m[1][2] *= offset.scale.y;
+				offsetMat.m[2][0] *= offset.scale.z; offsetMat.m[2][1] *= offset.scale.z; offsetMat.m[2][2] *= offset.scale.z;
+				offsetMat.m[3][0] = offset.translate.x;
+				offsetMat.m[3][1] = offset.translate.y;
+				offsetMat.m[3][2] = offset.translate.z;
+
+				// ★修正：Multiply で掛けるのではなく、そのまま offsetMat で上書きする！
+				joint.localMatrix = offsetMat;
+			
+			}
+
+			// ★自分で親の行列と掛け合わせて、skeletonSpaceMatrix（全身のワールド座標）を更新する！
+			if (joint.parent.has_value() && joint.parent.value() >= 0) {
+				int32_t pIdx = joint.parent.value();
+				joint.skeletonSpaceMatrix = Matrix4x4::Multiply(joint.localMatrix, poseSkeleton_.joints[pIdx].skeletonSpaceMatrix);
+			} else {
+				joint.skeletonSpaceMatrix = joint.localMatrix;
 			}
 		}
 
