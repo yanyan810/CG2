@@ -65,6 +65,12 @@ public:
 	// 2D UI用の正射影行列を作る関数
 	static Matrix4x4 MakeOrthographicMatrix(float width, float height);
 
+	// ImGuizmo用に追加：行列とfloat配列[16]の相互変換
+	void ToFloat16(float* out) const;
+	static Matrix4x4 FromFloat16(const float* in);
+
+	// 行列を「移動」「回転(Degree)」「スケール」に分解する関数
+	void Decompose(Vector3& translation, Vector3& rotation, Vector3& scale) const;
 	// クォータニオンの構造体がない場合、簡易版
 	struct Quat { float x, y, z, w; };
 

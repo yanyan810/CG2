@@ -128,6 +128,11 @@ public:
 	};
 	static_assert(sizeof(Material) % 16 == 0, "Material must be 16-byte aligned");
 
+
+	// カスタムアニメーションを外部から追加する関数
+	void AddAnimation(const std::string& name, const Animation& anim) {
+		modelData_.animations[name] = anim;
+	}
 public:
 
 	void Initialize(ModelCommon* modelCommon,

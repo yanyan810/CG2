@@ -548,6 +548,9 @@ void GameScene::DrawImGui(GameApp& app) {
 		if (ImGui::Button("Play Random Camera")) {
 			ChangeRandomCamera();
 		}
+		if (player_) {
+			player_->DrawAnimationEditorImGui();
+		}
 	}
 
 	ImGui::End();

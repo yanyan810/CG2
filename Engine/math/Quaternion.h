@@ -16,6 +16,36 @@ struct QuaternionTransform
     Vector3 translate{ 0.0f, 0.0f, 0.0f };
 };
 
+// 回転行列からクォータニオンを抽出する関数
+static inline Quaternion MatrixToQuaternion(const Matrix4x4& m) {
+    Quaternion q;
+    float trace = m.m[0][0] + m.m[1][1] + m.m[2][2];
+    if (trace > 0.0f) {
+        float s = 0.5f / std::sqrt(trace + 1.0f);
+        q.w = 0.25f / s;
+        q.x = (m.m[1][2] - m.m[2][1]) * s;
+        q.y = (m.m[2][0] - m.m[0][2]) * s;
+        q.z = (m.m[0][1] - m.m[1][0]) * s;
+    } else {
+        if (m.m[0][0] > m.m[1][1] && m.m[0][0] > m.m[2][2]) {
+            float s = 2.0f * std::sqrt(1.0f + m.m[0][0] - m.m[1][1] - m.m[2][2]);
+            q.w = (m.m[1][2] - m.m[2][1]) / s;  q.x = 0.25f * s;
+            q.y = (m.m[0][1] + m.m[1][0]) / s;  q.z = (m.m[2][0] + m.m[0][2]) / s;
+        } else if (m.m[1][1] > m.m[2][2]) {
+            float s = 2.0f * std::sqrt(1.0f + m.m[1][1] - m.m[0][0] - m.m[2][2]);
+            q.w = (m.m[2][0] - m.m[0][2]) / s;  q.x = (m.m[0][1] + m.m[1][0]) / s;
+            q.y = 0.25f * s;                    q.z = (m.m[1][2] + m.m[2][1]) / s;
+        } else {
+            float s = 2.0f * std::sqrt(1.0f + m.m[2][2] - m.m[0][0] - m.m[1][1]);
+            q.w = (m.m[0][1] - m.m[1][0]) / s;  q.x = (m.m[2][0] + m.m[0][2]) / s;
+            q.y = (m.m[1][2] + m.m[2][1]) / s;  q.z = 0.25f * s;
+        }
+    }
+    float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+    if (len > 0.0001f) { q.x /= len; q.y /= len; q.z /= len; q.w /= len; } else { q = { 0.0f, 0.0f, 0.0f, 1.0f }; }
+    return q;
+}
+
 static inline float Dot(const Quaternion& a, const Quaternion& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
