@@ -46,6 +46,40 @@ void DeckEditScene::OnExit(GameApp& app) {
 }
 
 void DeckEditScene::Update(GameApp& app, float dt) {
+    Input* input = app.GetInput();
+
+    // 3Dモデルのアニメーション更新
+    for (auto& card : cardModels_) {
+        card->Update(dt);
+    }
+
+    // --- クリック判定 ---
+    bool leftClick = input->IsMouseTrigger(0);  // 左クリック
+    bool rightClick = input->IsMouseTrigger(1); // 右クリック
+
+    if (leftClick || rightClick) {
+        int idx = PickCardIndex(app);
+        if (idx != -1) {
+            // cardModels_ の並び順が CardDatabase の ID と対応している前提
+            // (RebuildCardModels で 1~20 まで回している場合)
+            int cardId = idx + 1;
+            int currentCount = editingDeck_[cardId];
+
+            if (leftClick) {
+                // 追加 (最大4枚、合計40枚制限)
+                if (currentCount < 4 && totalCount_ < 40) {
+                    editingDeck_[cardId]++;
+                }
+            } else if (rightClick) {
+                // 削除
+                if (currentCount > 0) {
+                    editingDeck_[cardId]--;
+                }
+            }
+            RecalculateTotal();
+        }
+    }
+
     for (auto& card : cardModels_) {
         // 必要に応じて少し回転させるなど
         // Vector3 rot = card->GetWorldPos(); // 実際は回転プロパティが必要
@@ -171,4 +205,38 @@ void DeckEditScene::RebuildCardModels(GameApp& app) {
         cardModels_.push_back(std::move(card));
         index++;
     }
+}
+
+bool WorldToScreen(const Vector3& w, const Matrix4x4& viewProj, float sw, float sh, Vector2& out) {
+    Vector4 clip = {
+        w.x * viewProj.m[0][0] + w.y * viewProj.m[1][0] + w.z * viewProj.m[2][0] + viewProj.m[3][0],
+        w.x * viewProj.m[0][1] + w.y * viewProj.m[1][1] + w.z * viewProj.m[2][1] + viewProj.m[3][1],
+        w.x * viewProj.m[0][2] + w.y * viewProj.m[1][2] + w.z * viewProj.m[2][2] + viewProj.m[3][2],
+        w.x * viewProj.m[0][3] + w.y * viewProj.m[1][3] + w.z * viewProj.m[2][3] + viewProj.m[3][3]
+    };
+    if (clip.w <= 0.0001f) return false;
+    out.x = ((clip.x / clip.w) * 0.5f + 0.5f) * sw;
+    out.y = (-(clip.y / clip.w) * 0.5f + 0.5f) * sh;
+    return true;
+}
+
+int DeckEditScene::PickCardIndex(GameApp& app) {
+    auto mousePos = app.GetInput()->GetMousePosition();
+    Matrix4x4 viewProj = camera_->GetViewMatrix() * camera_->GetProjectionMatrix();
+
+    float sw = 1280.0f; // WinAppなどの定数があればそれを使用
+    float sh = 720.0f;
+
+    for (int i = 0; i < (int)cardModels_.size(); ++i) {
+        Vector2 screenPos;
+        if (WorldToScreen(cardModels_[i]->GetWorldPos(), viewProj, sw, sh, screenPos)) {
+            // カードの当たり判定サイズ（画面上のピクセル範囲）を調整
+            float dx = std::abs(screenPos.x - (float)mousePos.x);
+            float dy = std::abs(screenPos.y - (float)mousePos.y);
+            if (dx < 40.0f && dy < 60.0f) { // 判定の広さ
+                return i;
+            }
+        }
+    }
+    return -1;
 }

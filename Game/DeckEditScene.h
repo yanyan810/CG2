@@ -41,4 +41,7 @@ private:
     void RebuildCardModels(GameApp& app); // モデルを再生成する関数
     // 内部計算用
     void RecalculateTotal();
+
+    // どのインデックスがクリックされたか
+    int PickCardIndex(GameApp& app);
 };
