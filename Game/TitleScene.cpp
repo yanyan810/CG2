@@ -197,6 +197,9 @@ void TitleScene::DrawImGui(GameApp& app) {
 	if (fieldUi_) {
 		fieldUi_->DrawImGui();
 	}
+
+	//battle_.DrawImGui();
+
 #else
 	(void)app;
 #endif

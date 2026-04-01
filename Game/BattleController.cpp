@@ -636,6 +636,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	pendingCard_ = {};
 	currentEnemyIndex_ = 0;
 	nextTurnAtkUp_ = 0;
+	currentTurnAtkUp_ = 0;
 
 	energy_ = energyMax_;
 
@@ -694,7 +695,7 @@ void BattleController::DrawCards_(int count)
 	//	handView_.Rebuild(hand_);
 }
 
-void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex)
+void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex, bool applyAttackBuff)
 {
 	for (const auto& effect : effects) {
 		if (effect.type == "Draw") {
@@ -705,7 +706,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
-						int totalDamage = CalcFinalAttackDamage_(effect.value);
+						int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
 						ApplyDamageToEnemy_(e, totalDamage);
 						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
 					}
@@ -713,66 +714,72 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				{
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (!e.IsAlive()) continue;
-						int totalDamage = CalcFinalAttackDamage_(effect.value);
+						int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
 						ApplyDamageToEnemy_(e, totalDamage);
 						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
 						break;
 					}
 				}
 
-				nextTurnAtkUp_ = 0;
+			/*	if (applyAttackBuff) {
+					nextTurnAtkUp_ = 0;
+				}*/
 			}
 
 		} else if (effect.type == "DamageCrescent") {
 			if (enemyMgr_) {
-				// 奇数ターンなら+3ダメージの計算
 				int baseVal = effect.value;
 				if (playerTurnCount_ % 2 != 0) {
 					baseVal += 3;
 				}
 
+				int finalDamage = applyAttackBuff ? CalcFinalAttackDamage_(baseVal) : std::max(0, baseVal);
+
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
-						int totalDamage = CalcFinalAttackDamage_(baseVal);
-						ApplyDamageToEnemy_(e, totalDamage);
-						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						ApplyDamageToEnemy_(e, finalDamage);
+						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), finalDamage, false);
 					}
 				} else {
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (!e.IsAlive()) continue;
-						int totalDamage = CalcFinalAttackDamage_(baseVal);
-						ApplyDamageToEnemy_(e, totalDamage);
-						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						ApplyDamageToEnemy_(e, finalDamage);
+						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), finalDamage, false);
 						break;
 					}
 				}
-				nextTurnAtkUp_ = 0;
+
+			/*	if (applyAttackBuff) {
+					nextTurnAtkUp_ = 0;
+				}*/
 			}
 
 		} else if (effect.type == "DamageByBlock") {
 			if (enemyMgr_) {
-				// ブロック数 × 倍率 の計算
 				int baseVal = (player_ ? player_->GetBlock() : 0) * effect.value;
+				int finalDamage = applyAttackBuff ? CalcFinalAttackDamage_(baseVal) : std::max(0, baseVal);
 
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
-						int totalDamage = CalcFinalAttackDamage_(baseVal);
-						ApplyDamageToEnemy_(e, totalDamage);
-						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						ApplyDamageToEnemy_(e, finalDamage);
+						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), finalDamage, false);
 					}
 				} else {
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (!e.IsAlive()) continue;
-						int totalDamage = CalcFinalAttackDamage_(baseVal);
-						ApplyDamageToEnemy_(e, totalDamage);
-						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
+						ApplyDamageToEnemy_(e, finalDamage);
+						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), finalDamage, false);
 						break;
 					}
 				}
-				nextTurnAtkUp_ = 0;
+
+			/*	if (applyAttackBuff) {
+					nextTurnAtkUp_ = 0;
+				}*/
 			}
+
 		} else if (effect.type == "Block") {
 			if (player_) {
 				player_->AddBlock(effect.value);
@@ -780,7 +787,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "DamageAll") {
 			if (enemyMgr_ && player_) {
-				int totalDamage = CalcFinalAttackDamage_(effect.value);
+				int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
 
 				player_->PlayAttackAnim(player_->GetPos());
 
@@ -801,7 +808,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					player_->Heal(player_->GetVampireHeal() * hitCount);
 				}
 
-				nextTurnAtkUp_ = 0;
+				//if (applyAttackBuff) {
+				//	nextTurnAtkUp_ = 0;
+				//}
 			}
 
 		} else if (effect.type == "PowerBoost") {
@@ -858,7 +867,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 void BattleController::ApplyCardEffects_(const CardDef& def, int targetIndex)
 {
-	ApplyEffectsList_(def.effects, targetIndex);
+	ApplyEffectsList_(def.effects, targetIndex, true);
 }
 
 BattleController::PokerHandRank BattleController::ParsePokerRankString_(const std::string& s) const
@@ -925,6 +934,9 @@ bool BattleController::DoesSubEffectConditionMatch_(const CardSubEffectDef& sub,
 
 void BattleController::StartPlayerTurn_()
 {
+	currentTurnAtkUp_ = nextTurnAtkUp_;
+	nextTurnAtkUp_ = 0;
+
 	if (player_) {
 		player_->ResetBlock();
 		player_->ResetVampireHeal();
@@ -1306,7 +1318,7 @@ void BattleController::TriggerSubEffectsForField_(SubEffectTrigger trigger, Poke
 			if (sub.trigger != trigger) continue;
 			if (!DoesSubEffectConditionMatch_(sub, rank)) continue;
 
-			ApplyEffectsList_(sub.effects);
+			ApplyEffectsList_(sub.effects, -1, false);
 		}
 	}
 }
@@ -1324,7 +1336,7 @@ void BattleController::TriggerSubEffectsForCard_(
 		if (sub.trigger != trigger) continue;
 		if (!DoesSubEffectConditionMatch_(sub, rank)) continue;
 
-		ApplyEffectsList_(sub.effects);
+		ApplyEffectsList_(sub.effects, -1, false);
 	}
 }
 
@@ -1692,8 +1704,6 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			}
 		}
 
-		// ここを追加
-
 		handView_.Update(dt);
 		RefreshAllFieldCardTransforms_(dt);
 		fieldLayoutDirty_ = false;
@@ -1882,7 +1892,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
 							if (needsTarget) {
-								int buff = nextTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
+								int buff = currentTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
 								pendingDamage_ = dmgVal + (buff * hitCount);
 
 								isPokerDamageTargeting_ = false;                 // 手札カード由来
@@ -2027,7 +2037,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 					if (hoverIndex >= 0) {
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
-						nextTurnAtkUp_ = 0;
+						//nextTurnAtkUp_ = 0;
 						if (isPokerDamageTargeting_) {
 							ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
 							// 選んだ敵に向かって突進＆ダメージ！
@@ -2419,10 +2429,50 @@ void BattleController::DrawImGui()
 	}
 	ImGui::Separator();
 
-	ImGui::Text("Player Hp: %d", player_->GetHP());
-	ImGui::Text("Enemy  Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
-	ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
-	ImGui::Text("Player Power: %d (NextTurnAtkUp: %d)", player_->GetBoostedPower(), nextTurnAtkUp_);
+	if (player_) {
+		ImGui::Text("Player Hp: %d", player_->GetHP());
+		ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
+		ImGui::Text("Player Power: %d (CurrentTurnAtkUp: %d / NextTurnAtkUp: %d)",
+			player_->GetBoostedPower(),
+			currentTurnAtkUp_,
+			nextTurnAtkUp_);
+	} else {
+		ImGui::Text("Player: null");
+		ImGui::Text("Player Power: preview mode (CurrentTurnAtkUp: %d / NextTurnAtkUp: %d)",
+			currentTurnAtkUp_,
+			nextTurnAtkUp_);
+	}
+
+	if (enemyMgr_ && !enemyMgr_->GetEnemies().empty()) {
+		ImGui::Text("Enemy Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
+	} else {
+		ImGui::Text("Enemy: null");
+	}
+
+	ImGui::Separator();
+	ImGui::Text("Attack Debug");
+
+	ImGui::Checkbox("Use Debug Preview Buff", &useDebugPreviewBuff_);
+
+	if (player_) {
+		ImGui::Text("Runtime Player Connected");
+
+		int previewPower = player_->GetBoostedPower();
+		if (ImGui::DragInt("Player PowerBoost", &previewPower, 1.0f, -999, 999)) {
+			player_->ResetPowerBoost();
+			if (previewPower > 0) {
+				player_->PowerBoost(previewPower);
+			}
+		}
+
+		ImGui::DragInt("CurrentTurnAtkUp", &currentTurnAtkUp_, 1.0f, -999, 999);
+		ImGui::DragInt("NextTurnAtkUp", &nextTurnAtkUp_, 1.0f, -999, 999);
+	} else {
+		ImGui::Text("Preview Only (No Player Connected)");
+		ImGui::DragInt("Debug PowerBoost", &debugPreviewPowerBoost_, 1.0f, -999, 999);
+		ImGui::DragInt("Debug CurrentTurnAtkUp", &debugPreviewCurrentTurnAtkUp_, 1.0f, -999, 999);
+		ImGui::DragInt("Debug NextTurnAtkUp", &debugPreviewNextTurnAtkUp_, 1.0f, -999, 999);
+	}
 
 }
 #endif
@@ -2433,15 +2483,63 @@ int BattleController::CalcFinalAttackDamage_(int baseDamage) const
 
 	if (player_) {
 		total += player_->GetBoostedPower();
+	} else if (useDebugPreviewBuff_) {
+		total += debugPreviewPowerBoost_;
 	}
 
-	total += nextTurnAtkUp_;
+	if (player_) {
+		total += currentTurnAtkUp_;
+	} else if (useDebugPreviewBuff_) {
+		total += debugPreviewCurrentTurnAtkUp_;
+	} else {
+		total += currentTurnAtkUp_;
+	}
 
 	if (total < 0) {
 		total = 0;
 	}
 
 	return total;
+}
+
+int BattleController::GetDisplayEffectValue(const CardEffectDef& effect, bool applyAttackBuff) const
+{
+	if (!applyAttackBuff) {
+		if (effect.type == "DamageCrescent") {
+			int value = effect.value;
+			if (playerTurnCount_ % 2 != 0) {
+				value += 3;
+			}
+			return value;
+		}
+		if (effect.type == "DamageByBlock") {
+			return (player_ ? player_->GetBlock() : 0) * effect.value;
+		}
+		return effect.value;
+	}
+
+	if (effect.type == "Damage") {
+		return CalcFinalAttackDamage_(effect.value);
+	}
+
+	if (effect.type == "DamageAll") {
+		return CalcFinalAttackDamage_(effect.value);
+	}
+
+	if (effect.type == "DamageCrescent") {
+		int value = effect.value;
+		if (playerTurnCount_ % 2 != 0) {
+			value += 3;
+		}
+		return CalcFinalAttackDamage_(value);
+	}
+
+	if (effect.type == "DamageByBlock") {
+		int value = (player_ ? player_->GetBlock() : 0) * effect.value;
+		return CalcFinalAttackDamage_(value);
+	}
+
+	return effect.value;
 }
 
 void BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)

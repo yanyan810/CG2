@@ -89,7 +89,7 @@ private:
 	void DrawPreviewCardImageDesc_(const Matrix4x4& view, const Matrix4x4& proj);
 
 	//デバッグ用
-	void UpdatePreviewCardImageDescFromDef_(const CardDef* def);
+	void UpdatePreviewCardImageDescFromDef_(const CardDef* def, const BattleController* battle = nullptr);
 
 private:
 
