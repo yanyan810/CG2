@@ -153,6 +153,14 @@ void GameScene::OnEnter(GameApp& app) {
 	highlightFilter_->SetPosition({ 0.0f, 0.0f });
 	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
 	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+
+	particleManager_ = ModelParticleManager::GetInstance();
+	particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
+	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
+	// 編集用変数に初期値をコピーしておく
+	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
+
+	//AudioManager::GetInstance()->PlayBGM("toumei");
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -391,44 +399,32 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 	}
 
-	// 1. 剣をぶん回すアニメーション（テスト用）
-	static float timer = 0.0f;
-	timer += 0.05f;
-
-	// 2. ワールド行列から先端と根元の座標を計算
-	// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
-	Matrix4x4 worldMat = Matrix4x4::MakeScaleMatrix({ 1.0f, 1.0f, 1.0f }) * Matrix4x4::RotateXYZ(0.0f, 0.0, timer) * Matrix4x4::Translation(player_->GetPos());
-
-	Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
-	Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
-
-	// ローカル座標をワールド座標へ変換
-	Vector3 worldBase = trailManager_->Transform(localBase, worldMat);
-	Vector3 worldTip = trailManager_->Transform(localTip, worldMat);
-
-	// 3. 軌跡を更新！
-	trailManager_->Update(worldTip, worldBase);
-
-	//ModelParticleManager::GetInstance()->LoadFromJson("sword_particle.json", effectConfig_);
+	//// 1. 剣をぶん回すアニメーション（テスト用）
+	//static float timer = 0.0f;
+	//timer += 0.05f;
 	//
-	//// 1. 今回発生させるパーティクルを格納するリストを作成
-	//std::vector<ModelParticleManager::Particle> particlesToEmit;
-	//particlesToEmit.reserve(1000); // メモリ確保を1回で済ませる
+	//// 2. ワールド行列から先端と根元の座標を計算
+	//// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
+	//Matrix4x4 worldMat = Matrix4x4::MakeScaleMatrix({ 1.0f, 1.0f, 1.0f }) * Matrix4x4::RotateXYZ(0.0f, 0.0, timer) * Matrix4x4::Translation(player_->GetPos());
 	//
-	//for (int i = 0; i < 1000; ++i) {
-	//	// 位置の更新（既存のロジック）
-	//	effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f)));
+	//Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
+	//Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
 	//
-	//	// パーティクルデータを作成してリストに追加
-	//	particlesToEmit.push_back(ModelParticleManager::GetInstance()->MakeParticle(effectConfig_));
-	//}
+	//// ローカル座標をワールド座標へ変換
+	//Vector3 worldBase = trailManager_->Transform(localBase, worldMat);
+	//Vector3 worldTip = trailManager_->Transform(localTip, worldMat);
 	//
-	//// 2. まとめて Emit！
-	//ModelParticleManager::GetInstance()->EmitBatch(particlesToEmit);
+	//// 3. 軌跡を更新！
+	//trailManager_->Update(worldTip, worldBase, trailConfig_);
+	//
+	//// 剣の軌跡上に火花を出す
+	//Vector3 swordMid = (worldTip + worldBase) * 0.5f;
+	//particleManager_->Emit("sword_trail", swordMid, 1);
 
-	// 3. GPUで計算開始
-	ModelParticleManager::GetInstance()->Dispatch(1.0f / 60.0f, camera_.get());
+	particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
+	// 最後に1回だけDispatch
+	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
 }
 
 
@@ -555,13 +551,26 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	ImGui::End();
 
-	ModelParticleManager::GetInstance()->UpdateImGui(attackEffectConfig_);
+	// 例えば "player_fire" を編集したい場合
+	static std::string targetEffect = "player_fire";
+
+	// コンボボックスで編集対象を切り替えられるようにすると更に便利
+	if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
+		if (ImGui::Selectable("player_fire")) targetEffect = "player_fire";
+		if (ImGui::Selectable("sword_trail")) targetEffect = "sword_trail";
+		ImGui::EndCombo();
+	}
+	
+	// マネージャーから指定したエフェクトの設定を編集・反映
+	particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
 
 	if (fieldUi_) {
 		ImGui::Begin("FieldUi Debug");
 		fieldUi_->DrawImGui();
 		ImGui::End();
 	}
+
+	AudioManager::GetInstance()->UpdateImGui();
 
   #endif
 }
@@ -579,8 +588,8 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	//ModelParticleManager::GetInstance()->Draw();
-	//
+	particleManager_->Draw();
+	
 	//Matrix4x4 vp = camera_->GetViewProjectionMatrix();
 	//trailManager_->Draw(vp);
 }

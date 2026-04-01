@@ -28,7 +28,51 @@ std::wstring FieldUi::Utf8ToWString_(const std::string& s)
 	return Utf8ToWStringLocal(s);
 }
 
+void FieldUi::AddPreviewImageCommand_(
+	const std::string& texturePath,
+	float x, float y,
+	float sx, float sy,
+	Vector4 color)
+{
+	if (texturePath.empty() || !app_) {
+		return;
+	}
 
+	PreviewImageCommand cmd;
+	cmd.texturePath = texturePath;
+	cmd.position = { x, y };
+	cmd.scale = { sx, sy, 1.0f };
+	cmd.color = color;
+
+	cmd.sprite = std::make_unique<Sprite>();
+	cmd.sprite->Initialize(app_->SpriteCom(), app_->Dx(), texturePath);
+	cmd.sprite->SetAnchorPointKeepingVisual({ 0.0f, 0.0f });
+
+	previewImageCommands_.push_back(std::move(cmd));
+}
+
+void FieldUi::AddPreviewNumberCommands_(
+	int value,
+	float x, float y,
+	float scale,
+	float spacing)
+{
+	std::string text = std::to_string(std::max(0, value));
+	for (int i = 0; i < static_cast<int>(text.size()); ++i) {
+		std::string path = "resources/ui/num/";
+		path += text[i];
+		path += ".png";
+
+		AddPreviewImageCommand_(
+			path,
+			x + spacing * i,
+			y,
+			scale,
+			scale,
+			{ 1.0f,1.0f,1.0f,1.0f }
+		);
+	}
+}
 
 void FieldUi::SetTextScale_(TextSprite* text, float s)
 {
@@ -205,6 +249,21 @@ void FieldUi::ApplyFieldUiLayout_()
 		SetTextScale_(endTurnButtonText_.get(), layout_.endTurnText.scale);
 	}
 
+	if (deckLabelImage_) {
+		deckLabelImage_->SetPosition({ layout_.deckLabelImage.x, layout_.deckLabelImage.y });
+		deckLabelImage_->SetScale({ layout_.deckLabelImage.scale, layout_.deckLabelImage.scale, 1.0f });
+	}
+
+	if (discardLabelImage_) {
+		discardLabelImage_->SetPosition({ layout_.discardLabelImage.x, layout_.discardLabelImage.y });
+		discardLabelImage_->SetScale({ layout_.discardLabelImage.scale, layout_.discardLabelImage.scale, 1.0f });
+	}
+
+	if (handLabelImage_) {
+		handLabelImage_->SetPosition({ layout_.handLabelImage.x, layout_.handLabelImage.y });
+		handLabelImage_->SetScale({ layout_.handLabelImage.scale, layout_.handLabelImage.scale, 1.0f });
+	}
+
 	for (auto& [id, sprite] : cardDescSpriteCache_) {
 		if (!sprite) continue;
 		sprite->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
@@ -230,8 +289,481 @@ TextSprite* FieldUi::GetOrCreateCardDescSprite_(GameApp& app, const CardDef& def
 	return raw;
 }
 
+void FieldUi::UpdateNumberSprites_(
+	std::array<std::unique_ptr<Sprite>, kMaxUiDigits>& digits,
+	int value, float x, float y, float scale, float spacing)
+{
+	std::string text = std::to_string(std::max(0, value));
+
+	for (auto& s : digits) {
+		if (s) {
+			s->SetColor({ 1.f, 1.f, 1.f, 0.f });
+		}
+	}
+
+	const int count = static_cast<int>(text.size());
+	for (int i = 0; i < count && i < kMaxUiDigits; ++i) {
+		char c = text[i];
+		std::string path = "resources/ui/num/";
+		path += c;
+		path += ".png";
+
+		auto& spr = digits[i];
+		if (!spr) { continue; }
+
+		spr->SetTextureFilePath(path);
+		spr->SetPosition({ x + spacing * i, y });
+		spr->SetScale({ scale, scale, 1.0f });
+		spr->SetColor({ 1.f, 1.f, 1.f, 1.f });
+	}
+}
+
+void FieldUi::UpdatePokerEffectValueSprites_(const BattleController& battle)
+{
+	if (!battle.IsWaitingEffectChoice()) {
+		for (auto& option : pokerEffectValueDigits_) {
+			for (auto& d : option) {
+				if (d) d->SetColor({ 1.f,1.f,1.f,0.f });
+			}
+		}
+		return;
+	}
+
+	const BattleController::PokerBonus bonus = battle.GetCurrentPokerBonusForUi();
+
+	// 画像の並びに合わせる
+	// effect[0] = draw
+	// effect[1] = damage
+	// effect[2] = atkUp
+	int effect1Value = bonus.drawCount;
+	int effect2Value = bonus.damage;
+	int effect3Value = bonus.atkUp;
+
+	UpdateNumberSprites_(pokerEffectValueDigits_[0], effect1Value,
+		pokerEffectLayout_.effectImages[0].x + numberLayout_.effectValue[0].offsetX,
+		pokerEffectLayout_.effectImages[0].y + numberLayout_.effectValue[0].offsetY,
+		numberLayout_.effectValue[0].scale,
+		numberLayout_.effectValue[0].spacing);
+
+	UpdateNumberSprites_(pokerEffectValueDigits_[1], effect2Value,
+		pokerEffectLayout_.effectImages[1].x + numberLayout_.effectValue[1].offsetX,
+		pokerEffectLayout_.effectImages[1].y + numberLayout_.effectValue[1].offsetY,
+		numberLayout_.effectValue[1].scale,
+		numberLayout_.effectValue[1].spacing);
+
+	UpdateNumberSprites_(pokerEffectValueDigits_[2], effect3Value,
+		pokerEffectLayout_.effectImages[2].x + numberLayout_.effectValue[2].offsetX,
+		pokerEffectLayout_.effectImages[2].y + numberLayout_.effectValue[2].offsetY,
+		numberLayout_.effectValue[2].scale,
+		numberLayout_.effectValue[2].spacing);
+
+}
+
+std::string FieldUi::GetTriggerImagePath_(SubEffectTrigger trigger) const
+{
+	switch (trigger) {
+	case SubEffectTrigger::OnTurnStartWithPoker:
+		return "resources/ui/text/startTurn.png";
+	case SubEffectTrigger::OnPokerSkillActivated:
+		return "resources/ui/text/specialEffectsActivat.png";
+	case SubEffectTrigger::OnPlayToField:
+		return "resources/ui/text/playerField.png";
+	default:
+		return "";
+	}
+}
+
+std::string FieldUi::GetRankImagePath_(BattleController::PokerHandRank rank) const
+{
+	switch (rank) {
+	case BattleController::PokerHandRank::OnePair:            return "resources/ui/text/onePair.png";
+	case BattleController::PokerHandRank::TwoPair:            return "resources/ui/text/twoPair.png";
+	case BattleController::PokerHandRank::ThreeOfAKind:       return "resources/ui/text/threeCard.png";
+	case BattleController::PokerHandRank::Straight:           return "resources/ui/text/straightType.png";
+	case BattleController::PokerHandRank::Flush:              return "resources/ui/text/flashType.png";
+	case BattleController::PokerHandRank::FullHouse:          return "resources/ui/text/fullHouse.png";
+	case BattleController::PokerHandRank::FourOfAKind:        return "resources/ui/text/fourCard.png";
+	case BattleController::PokerHandRank::StraightFlush:      return "resources/ui/text/straightFlash.png";
+	case BattleController::PokerHandRank::RoyalStraightFlush: return "resources/ui/text/RoyalStraightFlush.png";
+	default: return "";
+	}
+}
+
+std::string FieldUi::GetConditionSuffixImagePath_(const CardSubEffectDef& sub) const
+{
+	switch (sub.condition.type) {
+	case SubEffectConditionType::ExactRank:
+	case SubEffectConditionType::RankFamily:
+		return "resources/ui/text/inTheCase.png";
+
+	case SubEffectConditionType::AtLeastRank:
+		return "resources/ui/text/inTheAboveCases.png";
+
+	default:
+		return "";
+	}
+}
+
+std::string FieldUi::GetEffectTypeImagePath_(const CardEffectDef& effect) const
+{
+	if (effect.type == "Damage" || effect.type == "DamageAll" || effect.type == "SelfDamage") {
+		return "resources/ui/text/damage.png";
+	}
+	if (effect.type == "Draw") return "resources/ui/text/draw.png";
+	if (effect.type == "Heal") return "resources/ui/text/heal.png";
+	if (effect.type == "Block") return "resources/ui/text/block.png";
+	if (effect.type == "NextTurnAtkUp") return "resources/ui/text/nextTurnATKUP.png";
+	if (effect.type == "PowerBoost")   return "resources/ui/text/power.png";
+	if (effect.type == "EnergyCharge") return "resources/ui/text/cost.png";
+	if (effect.type == "DamageByBlock") return "resources/ui/text/damage.png";
+
+	return "";
+}
+
+std::string FieldUi::GetEffectTargetImagePath_(const CardEffectDef& effect) const
+{
+	//対象あり
+	if (effect.type == "Damage")       return "resources/ui/text/enemySingle.png";
+	if (effect.type == "DamageAll")    return "resources/ui/text/enemyAll.png";
+	if (effect.type == "SelfDamage")   return "resources/ui/text/self.png";
+	if (effect.type == "Heal")         return "resources/ui/text/self.png";
+	if (effect.type == "Block")        return "resources/ui/text/self.png";
+	if (effect.type == "DamageByBlock") return "resources/ui/text/enemySingle.png";
+
+	//対象なし
+	if (effect.type == "Draw")         return "";
+	if (effect.type == "NextTurnAtkUp")return "";
+	if (effect.type == "PowerBoost")   return "";
+	if (effect.type == "EnergyCharge") return "";
+
+	return "";
+}
+
+std::string FieldUi::GetEffectParticleImagePath_(const CardEffectDef& effect) const
+{
+	// 対象あり
+	if (effect.type == "SelfDamage")   return "resources/ui/text/ha.png";
+	if (effect.type == "DamageByBlock") return "resources/ui/text/ni.png";
+
+
+	// 対象なし
+	if (effect.type == "Draw")         return "";
+	if (effect.type == "NextTurnAtkUp")return "";
+	if (effect.type == "PowerBoost")   return "";
+	if (effect.type == "EnergyCharge") return "";
+
+	return "resources/ui/text/ni.png";
+}
+
+void FieldUi::HidePreviewCardImageDesc_()
+{
+	previewImageCommands_.clear();
+}
+
+void FieldUi::UpdatePreviewCardImageDesc_(const BattleController& battle)
+{
+	UpdatePreviewCardImageDescFromDef_(battle.GetPreviewCardDef());
+}
+
+void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
+{
+	previewImageCommands_.clear();
+
+	if (!def) {
+		return;
+	}
+
+	const float baseX = layout_.cardDescText.x;
+	const float baseY = layout_.cardDescText.y;
+	const auto& custom = GetCardDescCustomLayout_(def->id);
+	const auto& img = layout_.cardDescImage;
+
+	// =========================
+	// 基本効果タイトル
+	// =========================
+	AddPreviewImageCommand_(
+		"resources/ui/text/basicEffect.png",
+		baseX + custom.titleBasicEffect.x,
+		baseY + custom.titleBasicEffect.y,
+		custom.titleBasicEffect.scale,
+		custom.titleBasicEffect.scale
+	);
+
+	const int baseEffectCount = (std::min)(static_cast<int>(def->effects.size()), 3);
+	for (int i = 0; i < baseEffectCount; ++i) {
+		const auto& effect = def->effects[i];
+		const auto& row = custom.baseRows[i];
+
+		const std::string targetPath = GetEffectTargetImagePath_(effect);
+		const std::string particlePath = GetEffectParticleImagePath_(effect);
+		const std::string effectPath = GetEffectTypeImagePath_(effect);
+
+		float cursorX = baseX + row.target.x;
+
+		const float gap = 10.0f;
+		const float targetAdvance = 170.0f;
+		const float particleAdvance = 45.0f;
+		const float effectTypeAdvance = 185.0f;
+		const float numberYOffset = -18.0f;
+
+
+		float extraValueOffsetX = 0.0f;
+		if (effect.type == "Draw") {
+			extraValueOffsetX = 55.0f;
+		}
+		if (effect.type == "NextTurnAtkUp") {
+			extraValueOffsetX = 55.0f;
+		}
+		if (effect.type == "PowerBoost") {
+			extraValueOffsetX = 55.0f;
+		}
+		if (effect.type == "EnergyCharge") {
+			extraValueOffsetX = 55.0f;
+		}
+
+		// target
+		if (!targetPath.empty()) {
+			AddPreviewImageCommand_(
+				targetPath,
+				cursorX,
+				baseY + row.target.y,
+				row.target.scale,
+				row.target.scale
+			);
+			cursorX += targetAdvance;
+			cursorX += gap;
+		}
+
+		// particle
+		if (!particlePath.empty()) {
+			AddPreviewImageCommand_(
+				particlePath,
+				cursorX + row.particle.x,
+				baseY + row.particle.y,
+				row.particle.scale,
+				row.particle.scale
+			);
+			cursorX += particleAdvance;
+			cursorX += gap;
+		}
+
+		// value
+		if (effect.type == "DamageByBlock") {
+			// DamageByBlock は value を使わず、
+			// effectType の前に専用画像を並べる
+
+			AddPreviewImageCommand_(
+				"resources/ui/text/blockCountBlue.png",
+				cursorX + row.special1.x,
+				baseY + row.special1.y,
+				row.special1.scale,
+				row.special1.scale
+			);
+
+			AddPreviewImageCommand_(
+				"resources/ui/text/x1.png",
+				cursorX + row.special2.x,
+				baseY + row.special2.y,
+				row.special2.scale,
+				row.special2.scale
+			);
+
+			cursorX += row.specialAdvance;
+			cursorX += gap;
+		} else {
+			// 通常の数字
+			AddPreviewNumberCommands_(
+				effect.value,
+				cursorX + row.value.x,
+				baseY + row.value.y + numberYOffset,
+				row.value.scale,
+				row.value.spacing
+			);
+
+			std::string valueText = std::to_string(std::max(0, effect.value));
+			if (!valueText.empty()) {
+				cursorX += row.value.spacing * static_cast<float>(valueText.size());
+				cursorX += gap;
+			}
+		}
+
+		// effectType
+		if (!effectPath.empty()) {
+			AddPreviewImageCommand_(
+				effectPath,
+				cursorX + row.effectType.x,
+				baseY + row.effectType.y,
+				row.effectType.scale,
+				row.effectType.scale
+			);
+			cursorX += effectTypeAdvance;
+			cursorX += gap;
+		}
+	}
+
+	// =========================
+	// 区切り線
+	// =========================
+	AddPreviewImageCommand_(
+		"resources/ui/white.png",
+		baseX + custom.separator.x,
+		baseY + custom.separator.y,
+		img.separatorWidth,
+		img.separatorHeight,
+		{ 1.0f,1.0f,1.0f,0.75f }
+	);
+
+	// =========================
+	// サブ効果
+	// 1個目→subBlocks[0]
+	// 2個目→subBlocks[1]
+	// 3個目→subBlocks[2]
+	// =========================
+	const int subEffectCount = (std::min)(static_cast<int>(def->subEffects.size()), 3);
+	for (int i = 0; i < subEffectCount; ++i) {
+		const auto& sub = def->subEffects[i];
+		const auto& block = custom.subBlocks[i];
+
+		// trigger
+		{
+			const std::string triggerPath = GetTriggerImagePath_(sub.trigger);
+			if (!triggerPath.empty()) {
+				AddPreviewImageCommand_(
+					triggerPath,
+					baseX + block.trigger.x,
+					baseY + block.trigger.y,
+					block.trigger.scale,
+					block.trigger.scale
+				);
+			}
+		}
+
+		// rank
+		{
+			std::string rankPath;
+
+			if (sub.condition.type == SubEffectConditionType::RankFamily) {
+				if (sub.condition.family == "PairFamily") {
+					rankPath = "resources/ui/text/pairType.png";
+				} else if (sub.condition.family == "StraightFamily") {
+					rankPath = "resources/ui/text/straightType.png";
+				} else if (sub.condition.family == "FlushFamily") {
+					rankPath = "resources/ui/text/flashType.png";
+				}
+			} else {
+				BattleController::PokerHandRank rank = BattleController::PokerHandRank::None;
+
+				if (sub.condition.rank == "OnePair") rank = BattleController::PokerHandRank::OnePair;
+				else if (sub.condition.rank == "TwoPair") rank = BattleController::PokerHandRank::TwoPair;
+				else if (sub.condition.rank == "ThreeOfAKind") rank = BattleController::PokerHandRank::ThreeOfAKind;
+				else if (sub.condition.rank == "Straight") rank = BattleController::PokerHandRank::Straight;
+				else if (sub.condition.rank == "Flush") rank = BattleController::PokerHandRank::Flush;
+				else if (sub.condition.rank == "FullHouse") rank = BattleController::PokerHandRank::FullHouse;
+				else if (sub.condition.rank == "FourOfAKind") rank = BattleController::PokerHandRank::FourOfAKind;
+				else if (sub.condition.rank == "StraightFlush") rank = BattleController::PokerHandRank::StraightFlush;
+				else if (sub.condition.rank == "RoyalStraightFlush") rank = BattleController::PokerHandRank::RoyalStraightFlush;
+
+				rankPath = GetRankImagePath_(rank);
+			}
+
+			if (!rankPath.empty()) {
+				AddPreviewImageCommand_(
+					rankPath,
+					baseX + block.rank.x,
+					baseY + block.rank.y,
+					block.rank.scale,
+					block.rank.scale
+				);
+			}
+		}
+
+		// suffix
+		{
+			const std::string suffixPath = GetConditionSuffixImagePath_(sub);
+			if (!suffixPath.empty()) {
+				AddPreviewImageCommand_(
+					suffixPath,
+					baseX + block.suffix.x,
+					baseY + block.suffix.y,
+					block.suffix.scale,
+					block.suffix.scale
+				);
+			}
+		}
+
+		// 効果本体（今は先頭1個だけ表示）
+		if (!sub.effects.empty()) {
+			const auto& effect = sub.effects[0];
+
+			const std::string targetPath = GetEffectTargetImagePath_(effect);
+			const std::string particlePath = GetEffectParticleImagePath_(effect);
+			const std::string effectPath = GetEffectTypeImagePath_(effect);
+
+			if (!targetPath.empty()) {
+				AddPreviewImageCommand_(
+					targetPath,
+					baseX + block.target.x,
+					baseY + block.target.y,
+					block.target.scale,
+					block.target.scale
+				);
+			}
+
+			if (!particlePath.empty()) {
+				AddPreviewImageCommand_(
+					particlePath,
+					baseX + block.particle.x,
+					baseY + block.particle.y,
+					block.particle.scale,
+					block.particle.scale
+				);
+			}
+
+			AddPreviewNumberCommands_(
+				effect.value,
+				baseX + block.value.x,
+				baseY + block.value.y,
+				block.value.scale,
+				block.value.spacing
+			);
+
+			if (!effectPath.empty()) {
+				AddPreviewImageCommand_(
+					effectPath,
+					baseX + block.effectType.x,
+					baseY + block.effectType.y,
+					block.effectType.scale,
+					block.effectType.scale
+				);
+			}
+		}
+	}
+}
+
+const UiCardDescCustomLayout& FieldUi::GetCardDescCustomLayout_(int cardId) const
+{
+	auto it = perCardDescCustomLayouts_.find(cardId);
+	if (it != perCardDescCustomLayouts_.end()) {
+		return it->second;
+	}
+	return layout_.cardDescCustom;
+}
+
+UiCardDescCustomLayout& FieldUi::GetOrCreateCardDescCustomLayout_(int cardId)
+{
+	auto it = perCardDescCustomLayouts_.find(cardId);
+	if (it != perCardDescCustomLayouts_.end()) {
+		return it->second;
+	}
+
+	perCardDescCustomLayouts_[cardId] = layout_.cardDescCustom;
+	return perCardDescCustomLayouts_[cardId];
+}
+
 void FieldUi::Initialize(GameApp& app)
 {
+	app_ = &app;
+
 	cardDescText_ = std::make_unique<TextSprite>();
 	cardDescText_->Initialize(app.SpriteCom(), app.Dx());
 
@@ -274,7 +806,7 @@ void FieldUi::Initialize(GameApp& app)
 		pokerOptionBgs_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 0.65f });
 		pokerOptionBgs_[i]->SetScale({ 380.0f, 130.0f, 1.0f });
 
-	
+
 	}
 
 	turnText_ = std::make_unique<TextSprite>();
@@ -357,14 +889,50 @@ void FieldUi::Initialize(GameApp& app)
 	pokerInfoButtonImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
 	pokerPreviewTitleImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
 
+	for (int i = 0; i < kMaxUiDigits; ++i) {
+		deckCountDigits_[i] = std::make_unique<Sprite>();
+		deckCountDigits_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
+		deckCountDigits_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+
+		discardCountDigits_[i] = std::make_unique<Sprite>();
+		discardCountDigits_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
+		discardCountDigits_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+
+		handCountDigits_[i] = std::make_unique<Sprite>();
+		handCountDigits_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
+		handCountDigits_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+	}
+
+	deckLabelImage_ = std::make_unique<Sprite>();
+	deckLabelImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/deck.png");
+	deckLabelImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+
+	discardLabelImage_ = std::make_unique<Sprite>();
+	discardLabelImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/discard.png");
+	discardLabelImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+
+	handLabelImage_ = std::make_unique<Sprite>();
+	handLabelImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/hand.png");
+	handLabelImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+
+	for (int opt = 0; opt < 3; ++opt) {
+		for (int i = 0; i < kMaxUiDigits; ++i) {
+			pokerEffectValueDigits_[opt][i] = std::make_unique<Sprite>();
+			pokerEffectValueDigits_[opt][i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
+			pokerEffectValueDigits_[opt][i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
+		}
+	}
+
 	//==================
 	// レイアウトの読み込みと適用
 	//==================
 	LoadPokerEffectChoiceLayout(pokerEffectLayoutPath_);
 	LoadFieldUiLayout(layoutPath_);
+	LoadCardShowUiLayout(cardShowLayoutPath_);
+	LoadUiNumberLayout(numberLayoutPath_);
 	ApplyFieldUiLayout_();
 
-//	cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
+	//	cachedPokerBonusRank_ = BattleController::PokerHandRank::None;
 }
 
 void FieldUi::Update(GameApp& app, const BattleController& battle)
@@ -396,11 +964,19 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 
 			pokerTitleImage_->SetTextureFilePath("resources/ui/text/chooseActive.png");
 
+			// 0: 戻る
 			pokerOptionImageSprites_[0]->SetTextureFilePath("resources/ui/text/back.png");
+
+			// 1～3: 効果選択
+			pokerOptionImageSprites_[1]->SetTextureFilePath("resources/ui/text/draw.png");
+			pokerOptionImageSprites_[2]->SetTextureFilePath("resources/ui/text/damage.png");
+			pokerOptionImageSprites_[3]->SetTextureFilePath("resources/ui/text/attakUp.png");
+
+			// 4: 場を見る
 			pokerOptionImageSprites_[4]->SetTextureFilePath("resources/ui/text/showField.png");
 		}
 
-	
+
 
 
 
@@ -459,11 +1035,18 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 				cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
 				cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
 
-				activeCardDescText_ = GetOrCreateCardDescSprite_(app, *def);
-				if (activeCardDescText_) {
-					activeCardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
-					SetTextScale_(activeCardDescText_, layout_.cardDescText.scale);
+				if (useImageCardDesc_) {
+					UpdatePreviewCardImageDesc_(battle);
+					newText.clear();
+				} else {
+					newText = battle.GetPreviewCardDetailText();
+					if (cardDescText_) {
+						cardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
+						SetTextScale_(cardDescText_.get(), layout_.cardDescText.scale);
+					}
 				}
+			} else {
+				HidePreviewCardImageDesc_();
 			}
 
 			ApplyPokerOptionImageLayout_(battle);
@@ -482,12 +1065,23 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 	}
 
 	if (newMode == DescMode::CardDesc) {
-		lastDescMode_ = newMode;
-		lastPreviewDefId_ = newPreviewDefId;
-		lastDescText_.clear();
+		const bool modeChanged = (newMode != lastDescMode_);
+		const bool defChanged = (newPreviewDefId != lastPreviewDefId_);
+		const bool textChanged = (newText != lastDescText_);
+
+		if (modeChanged || defChanged || textChanged) {
+			if (cardDescText_) {
+				cardDescText_->SetText(newText);
+			}
+			lastDescMode_ = newMode;
+			lastPreviewDefId_ = newPreviewDefId;
+			lastDescText_ = newText;
+		}
 	} else if (newMode == DescMode::None) {
 		if (lastDescMode_ != DescMode::None) {
-			cardDescText_->SetText(L"");
+			if (cardDescText_) {
+				cardDescText_->SetText(L"");
+			}
 			lastDescMode_ = DescMode::None;
 			lastPreviewDefId_ = -1;
 			lastDescText_.clear();
@@ -498,7 +1092,9 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		const bool textChanged = (newText != lastDescText_);
 
 		if (modeChanged || defChanged || textChanged) {
-			cardDescText_->SetText(newText);
+			if (cardDescText_) {
+				cardDescText_->SetText(newText);
+			}
 			lastDescMode_ = newMode;
 			lastPreviewDefId_ = newPreviewDefId;
 			lastDescText_ = newText;
@@ -531,10 +1127,28 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		}
 	}
 
-	deckCountText_->SetText(L"山札:" + std::to_wstring(battle.GetDeckCount()));
-	discardCountText_->SetText(L"墓地:" + std::to_wstring(battle.GetDiscardCount()));
-	handCountText_->SetText(L"手札:" + std::to_wstring(battle.GetHandCount()));
 	fieldCountText_->SetText(battle.GetCurrentPokerHandUiText());
+
+	//数字用レイアウト
+	UpdateNumberSprites_(deckCountDigits_, battle.GetDeckCount(),
+		numberLayout_.deckCount.x,
+		numberLayout_.deckCount.y,
+		numberLayout_.deckCount.scale,
+		numberLayout_.deckCount.spacing);
+
+	UpdateNumberSprites_(discardCountDigits_, battle.GetDiscardCount(),
+		numberLayout_.discardCount.x,
+		numberLayout_.discardCount.y,
+		numberLayout_.discardCount.scale,
+		numberLayout_.discardCount.spacing);
+
+	UpdateNumberSprites_(handCountDigits_, battle.GetHandCount(),
+		numberLayout_.handCount.x,
+		numberLayout_.handCount.y,
+		numberLayout_.handCount.scale,
+		numberLayout_.handCount.spacing);
+	UpdatePokerEffectValueSprites_(battle);
+
 
 	if (turnText_) {
 		turnText_->SetText(battle.GetTurnUiText());
@@ -569,6 +1183,47 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		break;
 	}
 
+
+	if (debugCardDescVisible_) {
+		showDescBg_ = true;
+		if (cardDescBg_) {
+			cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
+			cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
+		}
+		if (cardDescText_) {
+			cardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
+			SetTextScale_(cardDescText_.get(), layout_.cardDescText.scale);
+			cardDescText_->SetText(debugCardDescText_);
+		}
+	}
+
+
+	if (debugImageCardDescVisible_ && debugImageCardDescCard_) {
+		showDescBg_ = true;
+
+		if (cardDescBg_) {
+			cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
+			cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
+		}
+
+		UpdatePreviewCardImageDescFromDef_(debugImageCardDescCard_);
+	}
+
+}
+
+void FieldUi::DrawPreviewCardImageDesc_(const Matrix4x4& view, const Matrix4x4& proj)
+{
+	for (auto& cmd : previewImageCommands_) {
+		if (!cmd.sprite) {
+			continue;
+		}
+
+		cmd.sprite->SetPosition(cmd.position);
+		cmd.sprite->SetScale(cmd.scale);
+		cmd.sprite->SetColor(cmd.color);
+		cmd.sprite->Update(view, proj);
+		cmd.sprite->Draw();
+	}
 }
 
 void FieldUi::Draw(GameApp& app, const BattleController& battle)
@@ -759,6 +1414,17 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 			pokerOptionImageSprites_[i]->Draw();
 		}
 
+		if (pokerOptionCount_ == 5) {
+			for (int opt = 0; opt < 3; ++opt) {
+				for (auto& s : pokerEffectValueDigits_[opt]) {
+					if (s) {
+						s->Update(view, proj);
+						s->Draw();
+					}
+				}
+			}
+		}
+
 		if (showPokerOptions_) {
 			// 右上ボタン背景
 			if (cardDescBg_) {
@@ -899,7 +1565,10 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		clickChoiceBg_->Draw();
 	}
 
-	if (activeCardDescText_) {
+	if (useImageCardDesc_ &&
+		(battle.IsViewingBoardFromPokerUi() || debugImageCardDescVisible_)) {
+		DrawPreviewCardImageDesc_(view, proj);
+	} else if (activeCardDescText_) {
 		activeCardDescText_->Update(view, proj);
 		activeCardDescText_->Draw();
 	} else if (cardDescText_) {
@@ -907,21 +1576,32 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		cardDescText_->Draw();
 	}
 
-	if (deckCountText_) {
-		deckCountText_->Update(view, proj);
-		deckCountText_->Draw();
+	if (deckLabelImage_) {
+		deckLabelImage_->Update(view, proj);
+		deckLabelImage_->Draw();
 	}
-	if (discardCountText_) {
-		discardCountText_->Update(view, proj);
-		discardCountText_->Draw();
+	if (discardLabelImage_) {
+		discardLabelImage_->Update(view, proj);
+		discardLabelImage_->Draw();
 	}
-	if (handCountText_) {
-		handCountText_->Update(view, proj);
-		handCountText_->Draw();
+	if (handLabelImage_) {
+		handLabelImage_->Update(view, proj);
+		handLabelImage_->Draw();
 	}
+
 	if (fieldCountText_) {
 		fieldCountText_->Update(view, proj);
 		fieldCountText_->Draw();
+	}
+
+	for (auto& s : deckCountDigits_) {
+		if (s) { s->Update(view, proj); s->Draw(); }
+	}
+	for (auto& s : discardCountDigits_) {
+		if (s) { s->Update(view, proj); s->Draw(); }
+	}
+	for (auto& s : handCountDigits_) {
+		if (s) { s->Update(view, proj); s->Draw(); }
 	}
 
 	if (turnText_) {
@@ -1001,17 +1681,20 @@ void FieldUi::DrawImGui()
 	if (ImGui::TreeNode("FieldUiLayout")) {
 		bool changed = false;
 
-		changed |= ImGui::DragFloat4("cardDescBg", &layout_.cardDescBg.x, 1.0f);
-		changed |= ImGui::DragFloat3("cardDescText", &layout_.cardDescText.x, 1.0f);
-
 		changed |= ImGui::DragFloat4("deckBg", &layout_.deckBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("deckText", &layout_.deckText.x, 1.0f);
+		changed |= ImGui::DragFloat2("deckLabelPos", &layout_.deckLabelImage.x, 1.0f);
+		changed |= ImGui::DragFloat("deckLabelScale", &layout_.deckLabelImage.scale, 0.01f, 0.1f, 5.0f);
 
 		changed |= ImGui::DragFloat4("discardBg", &layout_.discardBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("discardText", &layout_.discardText.x, 1.0f);
+		changed |= ImGui::DragFloat2("discardLabelPos", &layout_.discardLabelImage.x, 1.0f);
+		changed |= ImGui::DragFloat("discardLabelScale", &layout_.discardLabelImage.scale, 0.01f, 0.1f, 5.0f);
 
 		changed |= ImGui::DragFloat4("handBg", &layout_.handBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("handText", &layout_.handText.x, 1.0f);
+		changed |= ImGui::DragFloat2("handLabelPos", &layout_.handLabelImage.x, 1.0f);
+		changed |= ImGui::DragFloat("handLabelScale", &layout_.handLabelImage.scale, 0.01f, 0.1f, 5.0f);
 
 		changed |= ImGui::DragFloat4("fieldBg", &layout_.fieldBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("fieldText", &layout_.fieldText.x, 1.0f);
@@ -1027,7 +1710,6 @@ void FieldUi::DrawImGui()
 
 		changed |= ImGui::DragFloat4("overlay", &layout_.overlay.x, 1.0f);
 
-		// Drag中に即反映
 		if (changed) {
 			ApplyFieldUiLayout_();
 		}
@@ -1044,8 +1726,225 @@ void FieldUi::DrawImGui()
 		ImGui::TreePop();
 	}
 
+	if (ImGui::TreeNode("CardShowUiLayout")) {
+		bool changed = false;
 
+		changed |= ImGui::DragFloat4("cardDescBg", &layout_.cardDescBg.x, 1.0f);
+		changed |= ImGui::DragFloat2("cardDescText Pos", &layout_.cardDescText.x, 1.0f);
+		changed |= ImGui::DragFloat("cardDescText Scale", &layout_.cardDescText.scale, 0.1f);
+
+		ImGui::Separator();
+		ImGui::Text("CardDescCustomLayout");
+
+		static bool editDefaultLayout = false;
+		ImGui::Checkbox("Edit Default Layout", &editDefaultLayout);
+
+		ImGui::BeginDisabled(editDefaultLayout);
+		ImGui::DragInt("Edit Card ID", &editCardId_, 1.0f, 1, 999);
+		ImGui::EndDisabled();
+
+		UiCardDescCustomLayout* editLayoutPtr = nullptr;
+
+		if (editDefaultLayout) {
+			editLayoutPtr = &layout_.cardDescCustom;
+			ImGui::Text("Editing : Default Layout");
+		} else {
+			editLayoutPtr = &GetOrCreateCardDescCustomLayout_(editCardId_);
+			ImGui::Text("Editing : Card ID = %d", editCardId_);
+
+			bool hasPerCard = perCardDescCustomLayouts_.find(editCardId_) != perCardDescCustomLayouts_.end();
+			ImGui::Text("Per Card Exists : %s", hasPerCard ? "Yes" : "No");
+
+			if (hasPerCard) {
+				if (ImGui::Button("Remove Per Card Layout")) {
+					perCardDescCustomLayouts_.erase(editCardId_);
+					editLayoutPtr = &GetOrCreateCardDescCustomLayout_(editCardId_);
+					changed = true;
+				}
+			} else {
+				ImGui::BeginDisabled();
+				ImGui::Button("Remove Per Card Layout");
+				ImGui::EndDisabled();
+			}
+		}
+
+		UiCardDescCustomLayout& editLayout = *editLayoutPtr;
+
+		ImGui::Separator();
+
+		ImGui::Text("titleBasicEffect");
+		changed |= ImGui::DragFloat2("titleBasicEffect Pos", &editLayout.titleBasicEffect.x, 1.0f);
+		changed |= ImGui::DragFloat("titleBasicEffect Scale", &editLayout.titleBasicEffect.scale, 0.01f, 0.1f, 10.0f);
+
+		ImGui::Text("separatorCustom");
+		changed |= ImGui::DragFloat2("separatorCustom Pos", &editLayout.separator.x, 1.0f);
+		changed |= ImGui::DragFloat("separatorCustom Scale", &editLayout.separator.scale, 0.01f, 0.1f, 10.0f);
+
+		for (int i = 0; i < 3; ++i) {
+			std::string label = "BaseRow" + std::to_string(i);
+			if (ImGui::TreeNode(label.c_str())) {
+				ImGui::Text("target");
+				changed |= ImGui::DragFloat2(("target Pos##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].target.x, 1.0f);
+				changed |= ImGui::DragFloat(("target Scale##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].target.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("particle");
+				changed |= ImGui::DragFloat2(("particle Pos##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].particle.x, 1.0f);
+				changed |= ImGui::DragFloat(("particle Scale##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].particle.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("effectType");
+				changed |= ImGui::DragFloat2(("effectType Pos##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].effectType.x, 1.0f);
+				changed |= ImGui::DragFloat(("effectType Scale##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].effectType.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("value");
+				changed |= ImGui::DragFloat2(("value Pos##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].value.x, 1.0f);
+				changed |= ImGui::DragFloat(("value Scale##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].value.scale, 0.01f, 0.01f, 10.0f);
+				changed |= ImGui::DragFloat(("value Spacing##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].value.spacing, 0.1f, 0.0f, 200.0f);
+
+				ImGui::Text("special1");
+				changed |= ImGui::DragFloat2(("special1 Pos##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].special1.x, 1.0f);
+				changed |= ImGui::DragFloat(("special1 Scale##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].special1.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("special2");
+				changed |= ImGui::DragFloat2(("special2 Pos##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].special2.x, 1.0f);
+				changed |= ImGui::DragFloat(("special2 Scale##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].special2.scale, 0.01f, 0.1f, 10.0f);
+
+				changed |= ImGui::DragFloat(("specialAdvance##base" + std::to_string(i)).c_str(),
+					&editLayout.baseRows[i].specialAdvance, 1.0f, 0.0f, 1000.0f);
+
+				ImGui::TreePop();
+			}
+		}
+
+		for (int i = 0; i < 3; ++i) {
+			std::string label = "SubBlock" + std::to_string(i);
+			if (ImGui::TreeNode(label.c_str())) {
+				ImGui::Text("trigger");
+				changed |= ImGui::DragFloat2(("trigger Pos##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].trigger.x, 1.0f);
+				changed |= ImGui::DragFloat(("trigger Scale##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].trigger.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("rank");
+				changed |= ImGui::DragFloat2(("rank Pos##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].rank.x, 1.0f);
+				changed |= ImGui::DragFloat(("rank Scale##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].rank.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("suffix");
+				changed |= ImGui::DragFloat2(("suffix Pos##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].suffix.x, 1.0f);
+				changed |= ImGui::DragFloat(("suffix Scale##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].suffix.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("target");
+				changed |= ImGui::DragFloat2(("target Pos##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].target.x, 1.0f);
+				changed |= ImGui::DragFloat(("target Scale##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].target.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("particle");
+				changed |= ImGui::DragFloat2(("particle Pos##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].particle.x, 1.0f);
+				changed |= ImGui::DragFloat(("particle Scale##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].particle.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("effectType");
+				changed |= ImGui::DragFloat2(("effectType Pos##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].effectType.x, 1.0f);
+				changed |= ImGui::DragFloat(("effectType Scale##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].effectType.scale, 0.01f, 0.1f, 10.0f);
+
+				ImGui::Text("value");
+				changed |= ImGui::DragFloat2(("value Pos##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].value.x, 1.0f);
+				changed |= ImGui::DragFloat(("value Scale##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].value.scale, 0.01f, 0.01f, 10.0f);
+				changed |= ImGui::DragFloat(("value Spacing##sub" + std::to_string(i)).c_str(),
+					&editLayout.subBlocks[i].value.spacing, 0.1f, 0.0f, 200.0f);
+
+				ImGui::TreePop();
+			}
+		}
+
+		if (changed) {
+			ApplyFieldUiLayout_();
+		}
+
+		if (ImGui::Button("Save CardShowUiLayout")) {
+			SaveCardShowUiLayout(cardShowLayoutPath_);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Load CardShowUiLayout")) {
+			LoadCardShowUiLayout(cardShowLayoutPath_);
+			ApplyFieldUiLayout_();
+		}
+
+		ImGui::TreePop();
+	}
+
+	if (ImGui::TreeNode("UiNumberLayout")) {
+		bool changed = false;
+
+		ImGui::Text("Deck Count");
+		changed |= ImGui::DragFloat2("Deck Pos", &numberLayout_.deckCount.x, 1.0f);
+		changed |= ImGui::DragFloat("Deck Scale", &numberLayout_.deckCount.scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Deck Spacing", &numberLayout_.deckCount.spacing, 1.0f, 0.0f, 200.0f);
+
+		ImGui::Separator();
+		ImGui::Text("Discard Count");
+		changed |= ImGui::DragFloat2("Discard Pos", &numberLayout_.discardCount.x, 1.0f);
+		changed |= ImGui::DragFloat("Discard Scale", &numberLayout_.discardCount.scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Discard Spacing", &numberLayout_.discardCount.spacing, 1.0f, 0.0f, 200.0f);
+
+		ImGui::Separator();
+		ImGui::Text("Hand Count");
+		changed |= ImGui::DragFloat2("Hand Pos", &numberLayout_.handCount.x, 1.0f);
+		changed |= ImGui::DragFloat("Hand Scale", &numberLayout_.handCount.scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Hand Spacing", &numberLayout_.handCount.spacing, 1.0f, 0.0f, 200.0f);
+
+		ImGui::Separator();
+		ImGui::Text("Effect1 Value");
+		changed |= ImGui::DragFloat2("Effect1 Offset", &numberLayout_.effectValue[0].offsetX, 1.0f);
+		changed |= ImGui::DragFloat("Effect1 Scale", &numberLayout_.effectValue[0].scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Effect1 Spacing", &numberLayout_.effectValue[0].spacing, 1.0f, 0.0f, 200.0f);
+
+		ImGui::Separator();
+		ImGui::Text("Effect2 Value");
+		changed |= ImGui::DragFloat2("Effect2 Offset", &numberLayout_.effectValue[1].offsetX, 1.0f);
+		changed |= ImGui::DragFloat("Effect2 Scale", &numberLayout_.effectValue[1].scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Effect2 Spacing", &numberLayout_.effectValue[1].spacing, 1.0f, 0.0f, 200.0f);
+
+		ImGui::Separator();
+		ImGui::Text("Effect3 Value");
+		changed |= ImGui::DragFloat2("Effect3 Offset", &numberLayout_.effectValue[2].offsetX, 1.0f);
+		changed |= ImGui::DragFloat("Effect3 Scale", &numberLayout_.effectValue[2].scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Effect3 Spacing", &numberLayout_.effectValue[2].spacing, 1.0f, 0.0f, 200.0f);
+
+		if (ImGui::Button("Save UiNumberLayout")) {
+			SaveUiNumberLayout(numberLayoutPath_);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Load UiNumberLayout")) {
+			LoadUiNumberLayout(numberLayoutPath_);
+		}
+
+		ImGui::TreePop();
+	}
 }
+
 #endif
 
 bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
@@ -1341,15 +2240,394 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 		layout_.costBg = { 75.0f, 405.0f, 170.0f, 55.0f };
 		layout_.costText = { 90.0f, 400.0f, 1.0f };
 
+		layout_.deckLabelImage = { 40.0f, 320.0f, 1.0f };
+		layout_.discardLabelImage = { 1120.0f, 350.0f, 1.0f };
+		layout_.handLabelImage = { 1020.0f, 640.0f, 1.0f };
+
 		layout_.overlay = { 0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight) };
+		
+		layout_.cardDescImage.baseEffectOffsetY = 0.0f;
+
+		layout_.cardDescImage.baseEffectTypeOffsetX = 0.0f;
+		layout_.cardDescImage.baseEffectTypeOffsetY = 0.0f;
+
+		layout_.cardDescImage.baseColonOffsetX = 170.0f;
+		layout_.cardDescImage.baseColonOffsetY = 0.0f;
+
+		layout_.cardDescImage.baseValueOffsetX = 210.0f;
+		layout_.cardDescImage.baseValueOffsetY = 0.0f;
+		layout_.cardDescImage.baseValueScale = 0.35f;
+		layout_.cardDescImage.baseValueSpacing = 28.0f;
+
+		layout_.cardDescImage.separatorOffsetX = 0.0f;
+		layout_.cardDescImage.separatorOffsetY = 0.0f;
+		layout_.cardDescImage.separatorWidth = 320.0f;
+		layout_.cardDescImage.separatorHeight = 2.0f;
+
+		layout_.cardDescImage.triggerOffsetX = 0.0f;
+		layout_.cardDescImage.triggerOffsetY = 112.0f;
+
+		layout_.cardDescImage.rankOffsetX = 0.0f;
+		layout_.cardDescImage.rankOffsetY = 0.0f;
+
+		layout_.cardDescImage.suffixOffsetX = 170.0f;
+		layout_.cardDescImage.suffixOffsetY = 0.0f;
+
+		layout_.cardDescImage.subEffectTypeOffsetX = 0.0f;
+		layout_.cardDescImage.subEffectTypeOffsetY = 0.0f;
+
+		layout_.cardDescImage.subColonOffsetX = 170.0f;
+		layout_.cardDescImage.subColonOffsetY = 0.0f;
+
+		layout_.cardDescImage.subValueOffsetX = 210.0f;
+		layout_.cardDescImage.subValueOffsetY = 0.0f;
+		layout_.cardDescImage.subValueScale = 0.35f;
+		layout_.cardDescImage.subValueSpacing = 28.0f;
+		
+		// =========================
+        // cardDescCustom default
+        // =========================
+ 		layout_.cardDescCustom.titleBasicEffect = { 0.0f, 0.0f, 1.0f };
+		layout_.cardDescCustom.separator = { 0.0f, 130.0f, 1.0f };
+
+		layout_.cardDescCustom.baseRows[0].target = { -150.0f, 42.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[0].particle = { -10.0f, 42.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[0].effectType = { 90.0f, 42.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[0].value = { 40.0f, 72.0f, 0.28f, 28.0f };
+
+		layout_.cardDescCustom.baseRows[1].target = { -150.0f, 112.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[1].particle = { -10.0f, 112.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[1].effectType = { 90.0f, 112.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[1].value = { 40.0f, 142.0f, 0.28f, 28.0f };
+
+		layout_.cardDescCustom.baseRows[2].target = { -150.0f, 182.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[2].particle = { -10.0f, 182.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[2].effectType = { 90.0f, 182.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[2].value = { 40.0f, 212.0f, 0.28f, 28.0f };
+		
+		layout_.cardDescCustom.baseRows[0].special1 = { 90.0f, 42.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[0].special2 = { 260.0f, 42.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[0].specialAdvance = 250.0f;
+
+		layout_.cardDescCustom.baseRows[1].special1 = { 90.0f, 112.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[1].special2 = { 260.0f, 112.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[1].specialAdvance = 250.0f;
+
+		layout_.cardDescCustom.baseRows[2].special1 = { 90.0f, 182.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[2].special2 = { 260.0f, 182.0f, 0.75f };
+		layout_.cardDescCustom.baseRows[2].specialAdvance = 250.0f;
+
+		layout_.cardDescCustom.subBlocks[0].trigger = { -140.0f, 250.0f, 0.74f };
+		layout_.cardDescCustom.subBlocks[0].rank = { -141.0f, 295.0f, 0.73f };
+		layout_.cardDescCustom.subBlocks[0].suffix = { 34.0f, 293.0f, 0.67f };
+		layout_.cardDescCustom.subBlocks[0].target = { -120.0f, 331.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[0].particle = { 15.0f, 331.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[0].effectType = { 110.0f, 331.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[0].value = { 40.0f, 363.0f, 0.23f, 28.0f };
+
+		layout_.cardDescCustom.subBlocks[1].trigger = { -140.0f, 410.0f, 0.74f };
+		layout_.cardDescCustom.subBlocks[1].rank = { -141.0f, 455.0f, 0.73f };
+		layout_.cardDescCustom.subBlocks[1].suffix = { 34.0f, 453.0f, 0.67f };
+		layout_.cardDescCustom.subBlocks[1].target = { -120.0f, 491.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[1].particle = { 15.0f, 491.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[1].effectType = { 110.0f, 491.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[1].value = { 40.0f, 523.0f, 0.23f, 28.0f };
+
+		layout_.cardDescCustom.subBlocks[2].trigger = { -140.0f, 570.0f, 0.74f };
+		layout_.cardDescCustom.subBlocks[2].rank = { -141.0f, 615.0f, 0.73f };
+		layout_.cardDescCustom.subBlocks[2].suffix = { 34.0f, 613.0f, 0.67f };
+		layout_.cardDescCustom.subBlocks[2].target = { -120.0f, 651.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[2].particle = { 15.0f, 651.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[2].effectType = { 110.0f, 651.0f, 0.75f };
+		layout_.cardDescCustom.subBlocks[2].value = { 40.0f, 683.0f, 0.23f, 28.0f };
+
 		return false;
 	}
 
 	json j;
 	try {
 		f >> j;
+	} catch (...) {
+		return false;
 	}
-	catch (...) {
+
+	auto readRect = [&](const char* key, UiRect& out) {
+		if (!j.contains(key)) return;
+		auto& v = j[key];
+		out.x = v.value("x", out.x);
+		out.y = v.value("y", out.y);
+		out.w = v.value("w", out.w);
+		out.h = v.value("h", out.h);
+		};
+
+	auto readCardDescImage = [&](const char* key, UiCardDescImageLayout& out) {
+		if (!j.contains(key)) return;
+		auto& v = j[key];
+
+		out.baseEffectOffsetY = v.value("baseEffectOffsetY", out.baseEffectOffsetY);
+
+		out.baseEffectTypeOffsetX = v.value("baseEffectTypeOffsetX", out.baseEffectTypeOffsetX);
+		out.baseEffectTypeOffsetY = v.value("baseEffectTypeOffsetY", out.baseEffectTypeOffsetY);
+
+		out.baseColonOffsetX = v.value("baseColonOffsetX", out.baseColonOffsetX);
+		out.baseColonOffsetY = v.value("baseColonOffsetY", out.baseColonOffsetY);
+
+		out.baseValueOffsetX = v.value("baseValueOffsetX", out.baseValueOffsetX);
+		out.baseValueOffsetY = v.value("baseValueOffsetY", out.baseValueOffsetY);
+		out.baseValueScale = v.value("baseValueScale", out.baseValueScale);
+		out.baseValueSpacing = v.value("baseValueSpacing", out.baseValueSpacing);
+
+		out.separatorOffsetX = v.value("separatorOffsetX", out.separatorOffsetX);
+		out.separatorOffsetY = v.value("separatorOffsetY", out.separatorOffsetY);
+		out.separatorWidth = v.value("separatorWidth", out.separatorWidth);
+		out.separatorHeight = v.value("separatorHeight", out.separatorHeight);
+
+		out.triggerOffsetX = v.value("triggerOffsetX", out.triggerOffsetX);
+		out.triggerOffsetY = v.value("triggerOffsetY", out.triggerOffsetY);
+
+		out.rankOffsetX = v.value("rankOffsetX", out.rankOffsetX);
+		out.rankOffsetY = v.value("rankOffsetY", out.rankOffsetY);
+
+		out.suffixOffsetX = v.value("suffixOffsetX", out.suffixOffsetX);
+		out.suffixOffsetY = v.value("suffixOffsetY", out.suffixOffsetY);
+
+		out.subEffectTypeOffsetX = v.value("subEffectTypeOffsetX", out.subEffectTypeOffsetX);
+		out.subEffectTypeOffsetY = v.value("subEffectTypeOffsetY", out.subEffectTypeOffsetY);
+
+		out.subColonOffsetX = v.value("subColonOffsetX", out.subColonOffsetX);
+		out.subColonOffsetY = v.value("subColonOffsetY", out.subColonOffsetY);
+
+		out.subValueOffsetX = v.value("subValueOffsetX", out.subValueOffsetX);
+		out.subValueOffsetY = v.value("subValueOffsetY", out.subValueOffsetY);
+		out.subValueScale = v.value("subValueScale", out.subValueScale);
+		out.subValueSpacing = v.value("subValueSpacing", out.subValueSpacing);
+
+		out.baseEffectOffsetX = v.value("baseEffectOffsetX", out.baseEffectOffsetX);
+		out.baseEffectOffsetY = v.value("baseEffectOffsetY", out.baseEffectOffsetY);
+		out.baseEffectScale = v.value("baseEffectScale", out.baseEffectScale);
+
+		out.baseEffectTypeScale = v.value("baseEffectTypeScale", out.baseEffectTypeScale);
+		out.baseColonScale = v.value("baseColonScale", out.baseColonScale);
+
+		out.triggerScale = v.value("triggerScale", out.triggerScale);
+		out.rankScale = v.value("rankScale", out.rankScale);
+		out.suffixScale = v.value("suffixScale", out.suffixScale);
+
+		out.subEffectTypeScale = v.value("subEffectTypeScale", out.subEffectTypeScale);
+		out.subColonScale = v.value("subColonScale", out.subColonScale);
+
+		};
+
+	auto readText = [&](const char* key, UiText& out) {
+		if (!j.contains(key)) return;
+		auto& v = j[key];
+		out.x = v.value("x", out.x);
+		out.y = v.value("y", out.y);
+		out.scale = v.value("scale", out.scale);
+		};
+
+	auto readImageItem = [&](const json& v, UiImageItem& out) {
+		out.x = v.value("x", out.x);
+		out.y = v.value("y", out.y);
+		out.scale = v.value("scale", out.scale);
+		};
+
+	auto readNumberItem = [&](const json& v, UiNumberItem& out) {
+		out.x = v.value("x", out.x);
+		out.y = v.value("y", out.y);
+		out.scale = v.value("scale", out.scale);
+		out.spacing = v.value("spacing", out.spacing);
+		};
+
+	auto readCardDescCustom = [&](const char* key, UiCardDescCustomLayout& out) {
+		if (!j.contains(key)) return;
+		auto& v = j[key];
+
+		if (v.contains("titleBasicEffect")) readImageItem(v["titleBasicEffect"], out.titleBasicEffect);
+		if (v.contains("separator"))       readImageItem(v["separator"], out.separator);
+
+		if (v.contains("baseRows") && v["baseRows"].is_array()) {
+			for (int i = 0; i < static_cast<int>(v["baseRows"].size()) && i < 3; ++i) {
+				auto& row = v["baseRows"][i];
+				if (row.contains("target"))    readImageItem(row["target"], out.baseRows[i].target);
+				if (row.contains("particle"))  readImageItem(row["particle"], out.baseRows[i].particle);
+				if (row.contains("effectType"))readImageItem(row["effectType"], out.baseRows[i].effectType);
+				if (row.contains("value"))     readNumberItem(row["value"], out.baseRows[i].value);
+				if (row.contains("special1")) readImageItem(row["special1"], out.baseRows[i].special1);
+				if (row.contains("special2")) readImageItem(row["special2"], out.baseRows[i].special2);
+				out.baseRows[i].specialAdvance = row.value("specialAdvance", out.baseRows[i].specialAdvance);
+			}
+		}
+
+		if (v.contains("subBlocks") && v["subBlocks"].is_array()) {
+			for (int i = 0; i < static_cast<int>(v["subBlocks"].size()) && i < 3; ++i) {
+				auto& block = v["subBlocks"][i];
+				if (block.contains("trigger"))    readImageItem(block["trigger"], out.subBlocks[i].trigger);
+				if (block.contains("rank"))       readImageItem(block["rank"], out.subBlocks[i].rank);
+				if (block.contains("suffix"))     readImageItem(block["suffix"], out.subBlocks[i].suffix);
+				if (block.contains("target"))    readImageItem(block["target"], out.subBlocks[i].target);
+				if (block.contains("particle"))  readImageItem(block["particle"], out.subBlocks[i].particle);
+				if (block.contains("effectType"))readImageItem(block["effectType"], out.subBlocks[i].effectType);
+				if (block.contains("value"))     readNumberItem(block["value"], out.subBlocks[i].value);
+			}
+		}
+		};
+
+	layout_.cardDescBg = { 20.0f, 600.0f, 900.0f, 120.0f };
+	layout_.cardDescText = { 40.0f, 620.0f, 1.0f };
+	layout_.deckBg = { 20.0f, 310.0f, 150.0f, 60.0f };
+	layout_.deckText = { 40.0f, 320.0f, 0.9f };
+	layout_.discardBg = { 1100.0f, 350.0f, 150.0f, 60.0f };
+	layout_.discardText = { 1120.0f, 350.0f, 0.9f };
+	layout_.handBg = { 1000.0f, 640.0f, 250.0f, 60.0f };
+	layout_.handText = { 1020.0f, 640.0f, 0.9f };
+	layout_.deckLabelImage = { 40.0f, 320.0f, 1.0f };
+	layout_.discardLabelImage = { 1120.0f, 350.0f, 1.0f };
+	layout_.handLabelImage = { 1020.0f, 640.0f, 1.0f };
+	layout_.fieldBg = { 540.0f, 250.0f, 250.0f, 60.0f };
+	layout_.fieldText = { 600.0f, 250.0f, 0.9f };
+	layout_.turnBg = { 490.0f, 25.0f, 250.0f, 60.0f };
+	layout_.turnText = { 500.0f, 20.0f, 1.0f };
+	layout_.costBg = { 75.0f, 405.0f, 170.0f, 55.0f };
+	layout_.costText = { 90.0f, 400.0f, 1.0f };
+	layout_.overlay = { 0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight) };
+	layout_.cardDescImage.baseEffectOffsetY = 0.0f;
+
+	layout_.cardDescImage.baseEffectTypeOffsetX = 0.0f;
+	layout_.cardDescImage.baseEffectTypeOffsetY = 0.0f;
+
+	layout_.cardDescImage.baseColonOffsetX = 170.0f;
+	layout_.cardDescImage.baseColonOffsetY = 0.0f;
+
+	layout_.cardDescImage.baseValueOffsetX = 210.0f;
+	layout_.cardDescImage.baseValueOffsetY = 0.0f;
+	layout_.cardDescImage.baseValueScale = 0.35f;
+	layout_.cardDescImage.baseValueSpacing = 28.0f;
+
+	layout_.cardDescImage.separatorOffsetY = 0.0f;
+	layout_.cardDescImage.separatorWidth = 320.0f;
+	layout_.cardDescImage.separatorHeight = 2.0f;
+
+	layout_.cardDescImage.triggerOffsetX = 0.0f;
+	layout_.cardDescImage.triggerOffsetY = 0.0f;
+
+	layout_.cardDescImage.rankOffsetX = 0.0f;
+	layout_.cardDescImage.rankOffsetY = 0.0f;
+
+	layout_.cardDescImage.suffixOffsetX = 170.0f;
+	layout_.cardDescImage.suffixOffsetY = 0.0f;
+
+	layout_.cardDescImage.subEffectTypeOffsetX = 0.0f;
+	layout_.cardDescImage.subEffectTypeOffsetY = 0.0f;
+
+	layout_.cardDescImage.subColonOffsetX = 170.0f;
+	layout_.cardDescImage.subColonOffsetY = 0.0f;
+
+	layout_.cardDescImage.subValueOffsetX = 210.0f;
+	layout_.cardDescImage.subValueOffsetY = 0.0f;
+	layout_.cardDescImage.subValueScale = 0.35f;
+	layout_.cardDescImage.subValueSpacing = 28.0f;
+
+	// =========================
+    // cardDescCustom default
+    // ========================= 
+	layout_.cardDescCustom.titleBasicEffect = { 0.0f, 0.0f, 1.0f };
+	layout_.cardDescCustom.separator = { 0.0f, 130.0f, 1.0f };
+
+	layout_.cardDescCustom.baseRows[0].target = { -150.0f, 42.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[0].particle = { -10.0f, 42.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[0].effectType = { 90.0f, 42.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[0].value = { 40.0f, 72.0f, 0.28f, 28.0f };
+	layout_.cardDescCustom.baseRows[0].special1 = { 90.0f, 42.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[0].special2 = { 260.0f, 42.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[0].specialAdvance = 250.0f;
+
+	layout_.cardDescCustom.baseRows[1].target = { -150.0f, 112.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[1].particle = { -10.0f, 112.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[1].effectType = { 90.0f, 112.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[1].value = { 40.0f, 142.0f, 0.28f, 28.0f };
+	layout_.cardDescCustom.baseRows[1].special1 = { 90.0f, 112.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[1].special2 = { 260.0f, 112.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[1].specialAdvance = 250.0f;
+
+	layout_.cardDescCustom.baseRows[2].target = { -150.0f, 182.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[2].particle = { -10.0f, 182.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[2].effectType = { 90.0f, 182.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[2].value = { 40.0f, 212.0f, 0.28f, 28.0f };
+	layout_.cardDescCustom.baseRows[2].special1 = { 90.0f, 182.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[2].special2 = { 260.0f, 182.0f, 0.75f };
+	layout_.cardDescCustom.baseRows[2].specialAdvance = 250.0f;
+
+	layout_.cardDescCustom.subBlocks[0].trigger = { -140.0f, 250.0f, 0.74f };
+	layout_.cardDescCustom.subBlocks[0].rank = { -141.0f, 295.0f, 0.73f };
+	layout_.cardDescCustom.subBlocks[0].suffix = { 34.0f, 293.0f, 0.67f };
+	layout_.cardDescCustom.subBlocks[0].target = { -120.0f, 331.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[0].particle = { 15.0f, 331.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[0].effectType = { 110.0f, 331.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[0].value = { 40.0f, 363.0f, 0.23f, 28.0f };
+
+	layout_.cardDescCustom.subBlocks[1].trigger = { -140.0f, 410.0f, 0.74f };
+	layout_.cardDescCustom.subBlocks[1].rank = { -141.0f, 455.0f, 0.73f };
+	layout_.cardDescCustom.subBlocks[1].suffix = { 34.0f, 453.0f, 0.67f };
+	layout_.cardDescCustom.subBlocks[1].target = { -120.0f, 491.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[1].particle = { 15.0f, 491.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[1].effectType = { 110.0f, 491.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[1].value = { 40.0f, 523.0f, 0.23f, 28.0f };
+
+	layout_.cardDescCustom.subBlocks[2].trigger = { -140.0f, 570.0f, 0.74f };
+	layout_.cardDescCustom.subBlocks[2].rank = { -141.0f, 615.0f, 0.73f };
+	layout_.cardDescCustom.subBlocks[2].suffix = { 34.0f, 613.0f, 0.67f };
+	layout_.cardDescCustom.subBlocks[2].target = { -120.0f, 651.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[2].particle = { 15.0f, 651.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[2].effectType = { 110.0f, 651.0f, 0.75f };
+	layout_.cardDescCustom.subBlocks[2].value = { 40.0f, 683.0f, 0.23f, 28.0f };
+
+	readRect("cardDescBg", layout_.cardDescBg);
+	readText("cardDescText", layout_.cardDescText);
+
+	readRect("deckBg", layout_.deckBg);
+	readText("deckText", layout_.deckText);
+	readText("deckLabelImage", layout_.deckLabelImage);
+
+	readRect("discardBg", layout_.discardBg);
+	readText("discardText", layout_.discardText);
+	readText("discardLabelImage", layout_.discardLabelImage);
+
+	readRect("handBg", layout_.handBg);
+	readText("handText", layout_.handText);
+	readText("handLabelImage", layout_.handLabelImage);
+
+	readRect("fieldBg", layout_.fieldBg);
+	readText("fieldText", layout_.fieldText);
+
+	readRect("turnBg", layout_.turnBg);
+	readText("turnText", layout_.turnText);
+
+	readRect("costBg", layout_.costBg);
+	readText("costText", layout_.costText);
+
+	readRect("endTurnBg", layout_.endTurnBg);
+	readText("endTurnText", layout_.endTurnText);
+
+	readRect("overlay", layout_.overlay);
+
+	readCardDescImage("cardDescImage", layout_.cardDescImage);
+
+	readCardDescCustom("cardDescCustom", layout_.cardDescCustom);
+
+	return true;
+}
+bool FieldUi::LoadCardShowUiLayout(const std::string& path)
+{
+	std::ifstream f(path);
+	if (!f.is_open()) {
+		return false;
+	}
+
+	json j;
+	try {
+		f >> j;
+	} catch (...) {
 		return false;
 	}
 
@@ -1370,48 +2648,140 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 		out.scale = v.value("scale", out.scale);
 		};
 
-	layout_.cardDescBg = { 20.0f, 600.0f, 900.0f, 120.0f };
-	layout_.cardDescText = { 40.0f, 620.0f, 1.0f };
-	layout_.deckBg = { 20.0f, 310.0f, 150.0f, 60.0f };
-	layout_.deckText = { 40.0f, 320.0f, 0.9f };
-	layout_.discardBg = { 1100.0f, 350.0f, 150.0f, 60.0f };
-	layout_.discardText = { 1120.0f, 350.0f, 0.9f };
-	layout_.handBg = { 1000.0f, 640.0f, 250.0f, 60.0f };
-	layout_.handText = { 1020.0f, 640.0f, 0.9f };
-	layout_.fieldBg = { 540.0f, 250.0f, 250.0f, 60.0f };
-	layout_.fieldText = { 600.0f, 250.0f, 0.9f };
-	layout_.turnBg = { 490.0f, 25.0f, 250.0f, 60.0f };
-	layout_.turnText = { 500.0f, 20.0f, 1.0f };
-	layout_.costBg = { 75.0f, 405.0f, 170.0f, 55.0f };
-	layout_.costText = { 90.0f, 400.0f, 1.0f };
-	layout_.overlay = { 0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight) };
+	auto readImageItem = [&](const json& v, UiImageItem& out) {
+		out.x = v.value("x", out.x);
+		out.y = v.value("y", out.y);
+		out.scale = v.value("scale", out.scale);
+		};
+
+	auto readNumberItem = [&](const json& v, UiNumberItem& out) {
+		out.x = v.value("x", out.x);
+		out.y = v.value("y", out.y);
+		out.scale = v.value("scale", out.scale);
+		out.spacing = v.value("spacing", out.spacing);
+		};
+
+	auto readCardDescCustomFromJson = [&](const json& v, UiCardDescCustomLayout& out) {
+		if (v.contains("titleBasicEffect")) readImageItem(v["titleBasicEffect"], out.titleBasicEffect);
+		if (v.contains("separator")) readImageItem(v["separator"], out.separator);
+
+		if (v.contains("baseRows") && v["baseRows"].is_array()) {
+			for (int i = 0; i < static_cast<int>(v["baseRows"].size()) && i < 3; ++i) {
+				auto& row = v["baseRows"][i];
+				if (row.contains("target")) readImageItem(row["target"], out.baseRows[i].target);
+				if (row.contains("particle")) readImageItem(row["particle"], out.baseRows[i].particle);
+				if (row.contains("effectType")) readImageItem(row["effectType"], out.baseRows[i].effectType);
+				if (row.contains("value")) readNumberItem(row["value"], out.baseRows[i].value);
+				if (row.contains("special1")) readImageItem(row["special1"], out.baseRows[i].special1);
+				if (row.contains("special2")) readImageItem(row["special2"], out.baseRows[i].special2);
+				out.baseRows[i].specialAdvance = row.value("specialAdvance", out.baseRows[i].specialAdvance);
+			}
+		}
+
+		if (v.contains("subBlocks") && v["subBlocks"].is_array()) {
+			for (int i = 0; i < static_cast<int>(v["subBlocks"].size()) && i < 3; ++i) {
+				auto& block = v["subBlocks"][i];
+				if (block.contains("trigger")) readImageItem(block["trigger"], out.subBlocks[i].trigger);
+				if (block.contains("rank")) readImageItem(block["rank"], out.subBlocks[i].rank);
+				if (block.contains("suffix")) readImageItem(block["suffix"], out.subBlocks[i].suffix);
+				if (block.contains("target")) readImageItem(block["target"], out.subBlocks[i].target);
+				if (block.contains("particle")) readImageItem(block["particle"], out.subBlocks[i].particle);
+				if (block.contains("effectType")) readImageItem(block["effectType"], out.subBlocks[i].effectType);
+				if (block.contains("value")) readNumberItem(block["value"], out.subBlocks[i].value);
+			}
+		}
+		};
 
 	readRect("cardDescBg", layout_.cardDescBg);
 	readText("cardDescText", layout_.cardDescText);
 
-	readRect("deckBg", layout_.deckBg);
-	readText("deckText", layout_.deckText);
+	if (j.contains("defaultCardDescCustom")) {
+		readCardDescCustomFromJson(j["defaultCardDescCustom"], layout_.cardDescCustom);
+	} else if (j.contains("cardDescCustom")) {
+		// 旧形式互換
+		readCardDescCustomFromJson(j["cardDescCustom"], layout_.cardDescCustom);
+	}
 
-	readRect("discardBg", layout_.discardBg);
-	readText("discardText", layout_.discardText);
+	perCardDescCustomLayouts_.clear();
+	if (j.contains("perCard") && j["perCard"].is_object()) {
+		for (auto it = j["perCard"].begin(); it != j["perCard"].end(); ++it) {
+			int cardId = std::stoi(it.key());
+			UiCardDescCustomLayout custom = layout_.cardDescCustom;
+			readCardDescCustomFromJson(it.value(), custom);
+			perCardDescCustomLayouts_[cardId] = custom;
+		}
+	}
 
-	readRect("handBg", layout_.handBg);
-	readText("handText", layout_.handText);
+	return true;
+}
 
-	readRect("fieldBg", layout_.fieldBg);
-	readText("fieldText", layout_.fieldText);
+bool FieldUi::SaveCardShowUiLayout(const std::string& path) const
+{
+	json j;
 
-	readRect("turnBg", layout_.turnBg);
-	readText("turnText", layout_.turnText);
+	auto writeRect = [&](const char* key, const UiRect& r) {
+		j[key]["x"] = r.x;
+		j[key]["y"] = r.y;
+		j[key]["w"] = r.w;
+		j[key]["h"] = r.h;
+		};
 
-	readRect("costBg", layout_.costBg);
-	readText("costText", layout_.costText);
+	auto writeText = [&](const char* key, const UiText& t) {
+		j[key]["x"] = t.x;
+		j[key]["y"] = t.y;
+		j[key]["scale"] = t.scale;
+		};
 
-	readRect("endTurnBg", layout_.endTurnBg);
-	readText("endTurnText", layout_.endTurnText);
+	auto writeImageItem = [&](json& dst, const UiImageItem& v) {
+		dst["x"] = v.x;
+		dst["y"] = v.y;
+		dst["scale"] = v.scale;
+		};
 
-	readRect("overlay", layout_.overlay);
+	auto writeNumberItem = [&](json& dst, const UiNumberItem& v) {
+		dst["x"] = v.x;
+		dst["y"] = v.y;
+		dst["scale"] = v.scale;
+		dst["spacing"] = v.spacing;
+		};
 
+	auto writeCardDescCustomToJson = [&](json& dst, const UiCardDescCustomLayout& v) {
+		writeImageItem(dst["titleBasicEffect"], v.titleBasicEffect);
+		writeImageItem(dst["separator"], v.separator);
+
+		for (int i = 0; i < 3; ++i) {
+			writeImageItem(dst["baseRows"][i]["target"], v.baseRows[i].target);
+			writeImageItem(dst["baseRows"][i]["particle"], v.baseRows[i].particle);
+			writeImageItem(dst["baseRows"][i]["effectType"], v.baseRows[i].effectType);
+			writeNumberItem(dst["baseRows"][i]["value"], v.baseRows[i].value);
+			writeImageItem(dst["baseRows"][i]["special1"], v.baseRows[i].special1);
+			writeImageItem(dst["baseRows"][i]["special2"], v.baseRows[i].special2);
+			dst["baseRows"][i]["specialAdvance"] = v.baseRows[i].specialAdvance;
+		}
+
+		for (int i = 0; i < 3; ++i) {
+			writeImageItem(dst["subBlocks"][i]["trigger"], v.subBlocks[i].trigger);
+			writeImageItem(dst["subBlocks"][i]["rank"], v.subBlocks[i].rank);
+			writeImageItem(dst["subBlocks"][i]["suffix"], v.subBlocks[i].suffix);
+			writeImageItem(dst["subBlocks"][i]["target"], v.subBlocks[i].target);
+			writeImageItem(dst["subBlocks"][i]["particle"], v.subBlocks[i].particle);
+			writeImageItem(dst["subBlocks"][i]["effectType"], v.subBlocks[i].effectType);
+			writeNumberItem(dst["subBlocks"][i]["value"], v.subBlocks[i].value);
+		}
+		};
+
+	writeRect("cardDescBg", layout_.cardDescBg);
+	writeText("cardDescText", layout_.cardDescText);
+
+	writeCardDescCustomToJson(j["defaultCardDescCustom"], layout_.cardDescCustom);
+
+	for (const auto& [cardId, layout] : perCardDescCustomLayouts_) {
+		writeCardDescCustomToJson(j["perCard"][std::to_string(cardId)], layout);
+	}
+
+	std::ofstream ofs(path);
+	if (!ofs.is_open()) return false;
+	ofs << j.dump(4);
 	return true;
 }
 
@@ -1437,12 +2807,15 @@ bool FieldUi::SaveFieldUiLayout(const std::string& path) const
 
 	writeRect("deckBg", layout_.deckBg);
 	writeText("deckText", layout_.deckText);
+	writeText("deckLabelImage", layout_.deckLabelImage);
 
 	writeRect("discardBg", layout_.discardBg);
 	writeText("discardText", layout_.discardText);
+	writeText("discardLabelImage", layout_.discardLabelImage);
 
 	writeRect("handBg", layout_.handBg);
 	writeText("handText", layout_.handText);
+	writeText("handLabelImage", layout_.handLabelImage);
 
 	writeRect("fieldBg", layout_.fieldBg);
 	writeText("fieldText", layout_.fieldText);
@@ -1456,7 +2829,106 @@ bool FieldUi::SaveFieldUiLayout(const std::string& path) const
 	writeRect("endTurnBg", layout_.endTurnBg);
 	writeText("endTurnText", layout_.endTurnText);
 
+	
+	auto writeCardDescImage = [&](const char* key, const UiCardDescImageLayout& v) {
+		j[key]["baseEffectOffsetY"] = v.baseEffectOffsetY;
+
+		j[key]["baseEffectTypeOffsetX"] = v.baseEffectTypeOffsetX;
+		j[key]["baseEffectTypeOffsetY"] = v.baseEffectTypeOffsetY;
+
+		j[key]["baseColonOffsetX"] = v.baseColonOffsetX;
+		j[key]["baseColonOffsetY"] = v.baseColonOffsetY;
+
+		j[key]["baseValueOffsetX"] = v.baseValueOffsetX;
+		j[key]["baseValueOffsetY"] = v.baseValueOffsetY;
+		j[key]["baseValueScale"] = v.baseValueScale;
+		j[key]["baseValueSpacing"] = v.baseValueSpacing;
+
+		j[key]["separatorOffsetX"] = v.separatorOffsetX;
+		j[key]["separatorOffsetY"] = v.separatorOffsetY;
+		j[key]["separatorWidth"] = v.separatorWidth;
+		j[key]["separatorHeight"] = v.separatorHeight;
+
+		j[key]["triggerOffsetX"] = v.triggerOffsetX;
+		j[key]["triggerOffsetY"] = v.triggerOffsetY;
+
+		j[key]["rankOffsetX"] = v.rankOffsetX;
+		j[key]["rankOffsetY"] = v.rankOffsetY;
+
+		j[key]["suffixOffsetX"] = v.suffixOffsetX;
+		j[key]["suffixOffsetY"] = v.suffixOffsetY;
+
+		j[key]["subEffectTypeOffsetX"] = v.subEffectTypeOffsetX;
+		j[key]["subEffectTypeOffsetY"] = v.subEffectTypeOffsetY;
+
+		j[key]["subColonOffsetX"] = v.subColonOffsetX;
+		j[key]["subColonOffsetY"] = v.subColonOffsetY;
+
+		j[key]["subValueOffsetX"] = v.subValueOffsetX;
+		j[key]["subValueOffsetY"] = v.subValueOffsetY;
+		j[key]["subValueScale"] = v.subValueScale;
+		j[key]["subValueSpacing"] = v.subValueSpacing;
+
+		j[key]["baseEffectOffsetX"] = v.baseEffectOffsetX;
+		j[key]["baseEffectOffsetY"] = v.baseEffectOffsetY;
+		j[key]["baseEffectScale"] = v.baseEffectScale;
+
+		j[key]["baseEffectTypeScale"] = v.baseEffectTypeScale;
+		j[key]["baseColonScale"] = v.baseColonScale;
+
+		j[key]["triggerScale"] = v.triggerScale;
+		j[key]["rankScale"] = v.rankScale;
+		j[key]["suffixScale"] = v.suffixScale;
+
+		j[key]["subEffectTypeScale"] = v.subEffectTypeScale;
+		j[key]["subColonScale"] = v.subColonScale;
+
+		};
+
+	auto writeImageItem = [&](json& dst, const UiImageItem& v) {
+		dst["x"] = v.x;
+		dst["y"] = v.y;
+		dst["scale"] = v.scale;
+		};
+
+	auto writeNumberItem = [&](json& dst, const UiNumberItem& v) {
+		dst["x"] = v.x;
+		dst["y"] = v.y;
+		dst["scale"] = v.scale;
+		dst["spacing"] = v.spacing;
+		};
+
+	auto writeCardDescCustom = [&](const char* key, const UiCardDescCustomLayout& v) {
+		writeImageItem(j[key]["titleBasicEffect"], v.titleBasicEffect);
+		writeImageItem(j[key]["separator"], v.separator);
+
+		for (int i = 0; i < 3; ++i) {
+			writeImageItem(j[key]["baseRows"][i]["target"], v.baseRows[i].target);
+			writeImageItem(j[key]["baseRows"][i]["particle"], v.baseRows[i].particle);
+			writeImageItem(j[key]["baseRows"][i]["effectType"], v.baseRows[i].effectType);
+			writeNumberItem(j[key]["baseRows"][i]["value"], v.baseRows[i].value);
+			writeImageItem(j[key]["baseRows"][i]["special1"], v.baseRows[i].special1);
+			writeImageItem(j[key]["baseRows"][i]["special2"], v.baseRows[i].special2);
+			j[key]["baseRows"][i]["specialAdvance"] = v.baseRows[i].specialAdvance;
+		}
+
+		for (int i = 0; i < 3; ++i) {
+			writeImageItem(j[key]["subBlocks"][i]["trigger"], v.subBlocks[i].trigger);
+			writeImageItem(j[key]["subBlocks"][i]["rank"], v.subBlocks[i].rank);
+			writeImageItem(j[key]["subBlocks"][i]["suffix"], v.subBlocks[i].suffix);
+			writeImageItem(j[key]["subBlocks"][i]["target"], v.subBlocks[i].target);
+			writeImageItem(j[key]["subBlocks"][i]["particle"], v.subBlocks[i].particle);
+			writeImageItem(j[key]["subBlocks"][i]["effectType"], v.subBlocks[i].effectType);
+			writeNumberItem(j[key]["subBlocks"][i]["value"], v.subBlocks[i].value);
+		}
+		};
+	
+
 	writeRect("overlay", layout_.overlay);
+
+	writeCardDescImage("cardDescImage", layout_.cardDescImage);
+
+	writeCardDescCustom("cardDescCustom", layout_.cardDescCustom);
 
 	std::ofstream ofs(path);
 	if (!ofs.is_open()) {
@@ -1464,5 +2936,91 @@ bool FieldUi::SaveFieldUiLayout(const std::string& path) const
 	}
 
 	ofs << j.dump(4);
+	return true;
+}
+
+
+bool FieldUi::SaveUiNumberLayout(const std::string& path) const
+{
+	json j;
+
+	auto writeNumber = [&](const char* key, const UiNumber& n) {
+		j[key]["x"] = n.x;
+		j[key]["y"] = n.y;
+		j[key]["scale"] = n.scale;
+		j[key]["spacing"] = n.spacing;
+		};
+
+	auto writeRelative = [&](const char* key, const UiNumberRelative& n) {
+		j[key]["offsetX"] = n.offsetX;
+		j[key]["offsetY"] = n.offsetY;
+		j[key]["scale"] = n.scale;
+		j[key]["spacing"] = n.spacing;
+		};
+
+	writeNumber("deckCount", numberLayout_.deckCount);
+	writeNumber("discardCount", numberLayout_.discardCount);
+	writeNumber("handCount", numberLayout_.handCount);
+
+	writeRelative("effect1", numberLayout_.effectValue[0]);
+	writeRelative("effect2", numberLayout_.effectValue[1]);
+	writeRelative("effect3", numberLayout_.effectValue[2]);
+
+	
+	std::ofstream ofs(path);
+	if (!ofs.is_open()) return false;
+	ofs << j.dump(4);
+
+
+
+	return true;
+}
+
+bool FieldUi::LoadUiNumberLayout(const std::string& path)
+{
+	numberLayout_.deckCount = { 120.0f, 340.0f, 0.45f, 34.0f };
+	numberLayout_.discardCount = { 1200.0f, 370.0f, 0.45f, 34.0f };
+	numberLayout_.handCount = { 1120.0f, 660.0f, 0.45f, 34.0f };
+
+	numberLayout_.effectValue[0] = { 150.0f, 0.0f, 0.35f, 28.0f };
+	numberLayout_.effectValue[1] = { 170.0f, 0.0f, 0.35f, 28.0f };
+	numberLayout_.effectValue[2] = { 170.0f, 0.0f, 0.35f, 28.0f };
+
+	std::ifstream ifs(path);
+	if (!ifs.is_open()) return false;
+
+	json j;
+	try {
+		ifs >> j;
+	} catch (...) {
+		return false;
+	}
+
+	auto readNumber = [&](const char* key, UiNumber& n) {
+		if (!j.contains(key)) return;
+		auto& v = j[key];
+		n.x = v.value("x", n.x);
+		n.y = v.value("y", n.y);
+		n.scale = v.value("scale", n.scale);
+		n.spacing = v.value("spacing", n.spacing);
+		};
+
+	auto readRelative = [&](const char* key, UiNumberRelative& n) {
+		if (!j.contains(key)) return;
+		auto& v = j[key];
+		n.offsetX = v.value("offsetX", n.offsetX);
+		n.offsetY = v.value("offsetY", n.offsetY);
+		n.scale = v.value("scale", n.scale);
+		n.spacing = v.value("spacing", n.spacing);
+		};
+
+	readNumber("deckCount", numberLayout_.deckCount);
+	readNumber("discardCount", numberLayout_.discardCount);
+	readNumber("handCount", numberLayout_.handCount);
+
+	readRelative("effect1", numberLayout_.effectValue[0]);
+	readRelative("effect2", numberLayout_.effectValue[1]);
+	readRelative("effect3", numberLayout_.effectValue[2]);
+
 	return true;
 }

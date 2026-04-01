@@ -229,6 +229,10 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Game\DeckEditScene.cpp">
+    <ClCompile Include="Engine\Audio.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\AudioManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -504,6 +508,10 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Game\DeckEditScene.h">
+    <ClInclude Include="Engine\Audio.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\AudioManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

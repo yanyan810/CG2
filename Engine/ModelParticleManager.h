@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include <list>
 #include "DirectXCommon.h"
 #include "SrvManager.h"
 #include "ModelManager.h"
@@ -9,6 +8,7 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iomanip>
+#include <map>
 
 extern std::mt19937 rng;
 
@@ -158,52 +158,60 @@ public:
 	void Draw();
 
 	// パーティクル発生
-	void Emit(const Particle& particle);
+	void EmitBatch(const std::vector<Particle>& particles);
 
 	Particle MakeParticle(const ParticleEmitterConfig& config);
 
-	void UpdateImGui(ParticleEmitterConfig& editingConfig);
-	
+	void UpdateImGui(const std::string& effectName, ParticleEmitterConfig& editingConfig);
 	void SaveToJson(const std::string& path, const ParticleEmitterConfig& config);
-
 	void LoadFromJson(const std::string& path, ParticleEmitterConfig& config);
-	void EmitBatch(const std::vector<Particle>& particles);
+	
+	// --- 追加：エフェクトの事前登録 ---
+	// これを呼ぶとJSONを読み込んで、名前（"fire"など）と紐づけて保存する
+	void RegisterEffect(const std::string& effectName, const std::string& jsonPath);
 
+	// --- 変更：名前指定でパーティクルを発生させる ---
+	void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
 private:
+	// エフェクト設定を名前で引けるようにする
+	std::map<std::string, ParticleEmitterConfig> effectLibrary_;
+
 	DirectXCommon* dxCommon_ = nullptr;
 	SrvManager* srvManager_ = nullptr;
 
-	// インスタンシング用リソース
+	// リソース類
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
-	uint32_t srvIndex_; // SrvManagerで割り当てられたインデックス
+	uint32_t srvIndex_;
 
-	// 使用するモデル（plane.objなど）
 	Model* model_ = nullptr;
 
-	// パーティクルリスト
-	std::list<Particle> particles_;
-
+	// 定数バッファ関連
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Material* materialData_ = nullptr;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource;
-	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
-
-	TransformationMatrix* transformationMatrixData;
-	DirectionalLight* directionalLightData;
-
+	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
 	CameraData* cameraData_ = nullptr;
-	
-	Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_; // 物理計算用 (UAV)
-	uint32_t uavIndexParticles_; // UAV(u0)用インデックス
-	uint32_t uavIndexRenderData_; // UAV(u1)用インデックス
-	
+
+	// GPU計算用 (UAV)
+	Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_;
+	uint32_t uavIndexParticles_;
+	uint32_t uavIndexRenderData_;
+
+	// Compute関連
 	Microsoft::WRL::ComPtr<ID3D12Resource> computeConfigResource_;
 	GlobalConfig* computeConfigData_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> computeSceneResource_;
 	SceneConfig* computeSceneData_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> emitStagingResource_;
 
+	// 間接描画用
+	Microsoft::WRL::ComPtr<ID3D12CommandSignature> commandSignature_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsResource_;
+	uint32_t uavIndexAliveIndices_;
+	uint32_t uavIndexDrawArgs_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> aliveIndicesResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> resetResource_;
+
 	uint32_t freeIndex_ = 0;
+	
 };

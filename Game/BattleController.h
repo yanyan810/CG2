@@ -142,6 +142,8 @@ public:
  
     std::wstring GetPokerEffectPreviewText() const;
 
+    std::wstring GetPreviewCardDetailText() const;
+
     std::vector<std::wstring> CollectSubEffectPreviewLines_(
         SubEffectTrigger trigger,
         PokerHandRank rank
@@ -178,6 +180,8 @@ public:
 
     bool IsPlayerTurn() const { return turn_ == TurnState::Player; }
     bool IsEndTurnButtonHovered() const { return endTurnButtonHovered_; }
+
+    const CardDef* FindCardDef(int id) const;
 
 private:
     enum class TurnState { Player, Enemy };
@@ -341,8 +345,14 @@ private:
     void ApplyDamageToEnemy_(Enemy& enemy, int damage);
 
     void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
+  
+    std::wstring GetSubEffectTriggerText_(SubEffectTrigger trigger) const;
+    std::wstring GetSubEffectConditionText_(const CardSubEffectDef& sub) const;
+    std::wstring GetEffectValueText_(const CardEffectDef& effect) const;
+    std::wstring GetBaseEffectSummaryText_(const CardDef& def) const;
 
     int CalcTotalIncomingDamage() const;
 
     void UpdateHpGauges();
+
 };

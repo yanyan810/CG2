@@ -20,6 +20,54 @@ struct UiText {
     float scale;
 };
 
+struct UiCardDescImageLayout {
+    float baseEffectOffsetX = 0.0f;
+    float baseEffectOffsetY = 0.0f;
+    float baseEffectScale = 1.0f;
+
+    float baseEffectTypeOffsetX = 0.0f;
+    float baseEffectTypeOffsetY = 42.0f;
+    float baseEffectTypeScale = 1.0f;
+
+    float baseColonOffsetX = 170.0f;
+    float baseColonOffsetY = 42.0f;
+    float baseColonScale = 1.0f;
+
+    float baseValueOffsetX = 210.0f;
+    float baseValueOffsetY = 42.0f;
+    float baseValueScale = 0.35f;
+    float baseValueSpacing = 28.0f;
+
+    float separatorOffsetX = 0.0f;
+    float separatorOffsetY = 92.0f;
+    float separatorWidth = 320.0f;
+    float separatorHeight = 2.0f;
+
+    float triggerOffsetX = 0.0f;
+    float triggerOffsetY = 0.0f;
+    float triggerScale = 1.0f;
+
+    float rankOffsetX = 0.0f;
+    float rankOffsetY = 154.0f;
+    float rankScale = 1.0f;
+
+    float suffixOffsetX = 170.0f;
+    float suffixOffsetY = 154.0f;
+    float suffixScale = 1.0f;
+
+    float subEffectTypeOffsetX = 0.0f;
+    float subEffectTypeOffsetY = 196.0f;
+    float subEffectTypeScale = 1.0f;
+
+    float subColonOffsetX = 170.0f;
+    float subColonOffsetY = 196.0f;
+    float subColonScale = 1.0f;
+
+    float subValueOffsetX = 210.0f;
+    float subValueOffsetY = 196.0f;
+    float subValueScale = 0.35f;
+    float subValueSpacing = 28.0f;
+};
 
 struct PokerEffectChoiceLayout {
     // タイトル画像
@@ -55,8 +103,49 @@ struct PokerEffectChoiceLayout {
     UiText previewPanelText;
 };
 
-struct FieldUiLayout {
+struct UiImageItem {
+    float x = 0.0f;
+    float y = 0.0f;
+    float scale = 1.0f;
+};
 
+struct UiNumberItem {
+    float x = 0.0f;
+    float y = 0.0f;
+    float scale = 1.0f;
+    float spacing = 28.0f;
+};
+
+struct UiCardDescBaseRowLayout {
+    UiImageItem target;
+    UiImageItem particle;   // に / は
+    UiImageItem effectType;
+    UiNumberItem value;
+
+    UiImageItem special1;   // blockCountBlue
+    UiImageItem special2;   // x1
+    float specialAdvance = 250.0f;
+};
+
+struct UiCardDescSubBlockLayout {
+    UiImageItem trigger;
+    UiImageItem rank;
+    UiImageItem suffix;
+
+    UiImageItem target;
+    UiImageItem particle;   // に / は
+    UiImageItem effectType;
+    UiNumberItem value;
+};
+
+struct UiCardDescCustomLayout {
+    UiImageItem titleBasicEffect;
+    UiImageItem separator;
+    UiCardDescBaseRowLayout baseRows[3];
+    UiCardDescSubBlockLayout subBlocks[3];
+};
+
+struct FieldUiLayout {
     UiRect cardDescBg;
     UiText cardDescText;
 
@@ -81,7 +170,36 @@ struct FieldUiLayout {
     UiRect endTurnBg;
     UiText endTurnText;
 
+    UiText deckLabelImage;
+    UiText discardLabelImage;
+    UiText handLabelImage;
+
     UiRect overlay;
+
+    UiCardDescImageLayout cardDescImage;      // 既存
+    UiCardDescCustomLayout cardDescCustom;    // 追加
+};
+
+struct UiNumber {
+    float x = 0.0f;
+    float y = 0.0f;
+    float scale = 1.0f;
+    float spacing = 32.0f;
+};
+
+struct UiNumberRelative {
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+    float scale = 1.0f;
+    float spacing = 32.0f;
+};
+
+struct UiNumberLayout {
+    UiNumber deckCount;
+    UiNumber discardCount;
+    UiNumber handCount;
+
+    UiNumberRelative effectValue[3];
 };
 
 inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()

@@ -179,6 +179,9 @@ public:
 
 	void ExecuteCommandListAndWait();
 
+	ID3D12CommandQueue* GetCommandQueue() const { return commandQueue.Get(); }
+	ID3D12CommandAllocator* GetCommandAllocator() const { return commandAllocator.Get(); }
+
 private:
 
 	void DeviceInitialize();
