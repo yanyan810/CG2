@@ -88,15 +88,6 @@ void Player::Update(float dt) {
     body_.min = { pos_.x - 1.0f, pos_.y, pos_.z - 1.0f };
     body_.max = { pos_.x + 1.0f, pos_.y + 2.0f, pos_.z + 1.0f };
     
-    //ModelParticleManager::GetInstance()->LoadFromJson("fire_particle.json", attackEffectConfig_);
-    //
-    //// Update内
-    //attackEffectConfig_.position = pos_ + Vector3(0, 1.0f, 0); // 位置だけ更新
-    //for (int i = 0; i < 2; ++i) {
-    //    ModelParticleManager::GetInstance()->Emit(
-    //        ModelParticleManager::GetInstance()->MakeParticle(attackEffectConfig_)
-    //    );
-    //}
 }
 
 void Player::Draw() {

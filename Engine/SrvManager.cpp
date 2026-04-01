@@ -122,3 +122,28 @@ void SrvManager::CreateUAVforStructuredBuffer(uint32_t uavIndex, ID3D12Resource*
         GetCPUDescriptionHandle(uavIndex)
     );
 }
+
+void SrvManager::CreateUAVforRawBuffer(uint32_t uavIndex, ID3D12Resource* pResource)
+{
+    assert(uavIndex < kMaxSRVCount);
+    assert(pResource);
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+    // RawBuffer (ByteAddressBuffer) の場合は R32_TYPELESS を指定する決まり
+    uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.FirstElement = 0;
+    // バッファ全体のバイト数を 4（32bit）で割った数を要素数とする
+    uavDesc.Buffer.NumElements = static_cast<UINT>(pResource->GetDesc().Width / 4);
+    uavDesc.Buffer.StructureByteStride = 0; // StructuredBuffer ではないので 0
+    uavDesc.Buffer.CounterOffsetInBytes = 0;
+    // RawBuffer として扱うためのフラグ
+    uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+
+    dxCommon_->GetDevice()->CreateUnorderedAccessView(
+        pResource,
+        nullptr,
+        &uavDesc,
+        GetCPUDescriptionHandle(uavIndex)
+    );
+}

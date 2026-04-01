@@ -27,6 +27,8 @@ public:
 
     void CreateUAVforStructuredBuffer(uint32_t uavIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
 
+    void CreateUAVforRawBuffer(uint32_t uavIndex, ID3D12Resource* pResource);
+
 private:
     DirectXCommon* dxCommon_ = nullptr;
 
