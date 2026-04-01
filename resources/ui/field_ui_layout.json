@@ -1,80 +1,302 @@
 {
     "cardDescBg": {
-        "h": 120.0,
-        "w": 900.0,
-        "x": 93.0,
-        "y": 600.0
+        "h": 491.0,
+        "w": 458.0,
+        "x": 67.0,
+        "y": 82.0
+    },
+    "cardDescCustom": {
+        "baseRows": [
+            {
+                "colon": {
+                    "scale": 0.38999998569488525,
+                    "x": 10.0,
+                    "y": 17.0
+                },
+                "effectType": {
+                    "scale": 0.75,
+                    "x": -106.0,
+                    "y": 44.0
+                },
+                "value": {
+                    "scale": 0.2800000011920929,
+                    "spacing": 28.0,
+                    "x": 32.0,
+                    "y": 72.0
+                }
+            },
+            {
+                "colon": {
+                    "scale": 1.0,
+                    "x": 21.0,
+                    "y": 84.0
+                },
+                "effectType": {
+                    "scale": 1.0,
+                    "x": 11.0,
+                    "y": 5.0
+                },
+                "value": {
+                    "scale": 0.3499999940395355,
+                    "spacing": 28.0,
+                    "x": 7.0,
+                    "y": 84.0
+                }
+            },
+            {
+                "colon": {
+                    "scale": 1.0,
+                    "x": 170.0,
+                    "y": 126.0
+                },
+                "effectType": {
+                    "scale": 1.0,
+                    "x": 128.0,
+                    "y": 126.0
+                },
+                "value": {
+                    "scale": 0.3499999940395355,
+                    "spacing": 28.0,
+                    "x": 210.0,
+                    "y": 126.0
+                }
+            }
+        ],
+        "separator": {
+            "scale": 1.0,
+            "x": 17.0,
+            "y": 118.0
+        },
+        "subBlocks": [
+            {
+                "colon": {
+                    "scale": 0.5199999809265137,
+                    "x": 184.0,
+                    "y": 196.0
+                },
+                "effectType": {
+                    "scale": 0.75,
+                    "x": -93.0,
+                    "y": 235.0
+                },
+                "rank": {
+                    "scale": 0.7300000190734863,
+                    "x": -141.0,
+                    "y": 182.0
+                },
+                "suffix": {
+                    "scale": 0.6700000166893005,
+                    "x": 34.0,
+                    "y": 183.0
+                },
+                "trigger": {
+                    "scale": 0.7400000095367432,
+                    "x": -139.0,
+                    "y": 125.0
+                },
+                "value": {
+                    "scale": 0.23000000417232513,
+                    "spacing": 28.0,
+                    "x": 5.0,
+                    "y": 265.0
+                }
+            },
+            {
+                "colon": {
+                    "scale": 1.0,
+                    "x": 222.0,
+                    "y": 424.0
+                },
+                "effectType": {
+                    "scale": 1.0,
+                    "x": 172.0,
+                    "y": 424.0
+                },
+                "rank": {
+                    "scale": 1.0,
+                    "x": 139.0,
+                    "y": 382.0
+                },
+                "suffix": {
+                    "scale": 1.0,
+                    "x": 298.0,
+                    "y": 382.0
+                },
+                "trigger": {
+                    "scale": 1.0,
+                    "x": 13.0,
+                    "y": 340.0
+                },
+                "value": {
+                    "scale": 0.3499999940395355,
+                    "spacing": 28.0,
+                    "x": 338.0,
+                    "y": 424.0
+                }
+            },
+            {
+                "colon": {
+                    "scale": 1.0,
+                    "x": 144.0,
+                    "y": 584.0
+                },
+                "effectType": {
+                    "scale": 1.0,
+                    "x": 23.0,
+                    "y": 584.0
+                },
+                "rank": {
+                    "scale": 1.0,
+                    "x": -24.0,
+                    "y": 542.0
+                },
+                "suffix": {
+                    "scale": 1.0,
+                    "x": 139.0,
+                    "y": 542.0
+                },
+                "trigger": {
+                    "scale": 1.0,
+                    "x": 30.0,
+                    "y": 500.0
+                },
+                "value": {
+                    "scale": 0.3499999940395355,
+                    "spacing": 28.0,
+                    "x": 267.0,
+                    "y": 584.0
+                }
+            }
+        ],
+        "titleBasicEffect": {
+            "scale": 0.6700000166893005,
+            "x": -152.0,
+            "y": -1.0
+        }
+    },
+    "cardDescImage": {
+        "baseColonOffsetX": 170.0,
+        "baseColonOffsetY": 0.0,
+        "baseColonScale": 1.0,
+        "baseEffectOffsetX": 0.0,
+        "baseEffectOffsetY": 0.0,
+        "baseEffectScale": 1.0,
+        "baseEffectTypeOffsetX": 0.0,
+        "baseEffectTypeOffsetY": 0.0,
+        "baseEffectTypeScale": 1.0,
+        "baseValueOffsetX": 210.0,
+        "baseValueOffsetY": 0.0,
+        "baseValueScale": 0.3499999940395355,
+        "baseValueSpacing": 28.0,
+        "rankOffsetX": 0.0,
+        "rankOffsetY": 0.0,
+        "rankScale": 1.0,
+        "separatorHeight": 2.0,
+        "separatorOffsetX": 0.0,
+        "separatorOffsetY": 0.0,
+        "separatorWidth": 320.0,
+        "subColonOffsetX": 170.0,
+        "subColonOffsetY": 0.0,
+        "subColonScale": 1.0,
+        "subEffectTypeOffsetX": 0.0,
+        "subEffectTypeOffsetY": 0.0,
+        "subEffectTypeScale": 1.0,
+        "subValueOffsetX": 210.0,
+        "subValueOffsetY": 0.0,
+        "subValueScale": 0.3499999940395355,
+        "subValueSpacing": 28.0,
+        "suffixOffsetX": 170.0,
+        "suffixOffsetY": 0.0,
+        "suffixScale": 1.0,
+        "triggerOffsetX": 0.0,
+        "triggerOffsetY": 112.0,
+        "triggerScale": 1.0
     },
     "cardDescText": {
-        "scale": 1.0,
-        "x": 96.0,
-        "y": 620.0
+        "scale": 1.2999999523162842,
+        "x": 84.30000305175781,
+        "y": 89.0
     },
     "costBg": {
         "h": 55.0,
         "w": 170.0,
-        "x": 27.0,
+        "x": 75.0,
         "y": 405.0
     },
     "costText": {
         "scale": 1.0,
-        "x": 57.0,
-        "y": 399.0
+        "x": 90.0,
+        "y": 400.0
     },
     "deckBg": {
-        "h": 50.0,
+        "h": 60.0,
         "w": 0.0,
-        "x": 254.0,
-        "y": 300.0
+        "x": 20.0,
+        "y": 310.0
+    },
+    "deckLabelImage": {
+        "scale": 0.7300000190734863,
+        "x": 1150.0,
+        "y": 670.0
     },
     "deckText": {
-        "scale": 1.0,
-        "x": 1104.0,
-        "y": 645.0
+        "scale": 0.8999999761581421,
+        "x": 40.0,
+        "y": 320.0
     },
     "discardBg": {
-        "h": 50.0,
-        "w": 120.0,
-        "x": 1114.0,
-        "y": 360.0
+        "h": 60.0,
+        "w": 134.0,
+        "x": 1100.0,
+        "y": 350.0
+    },
+    "discardLabelImage": {
+        "scale": 0.7400000095367432,
+        "x": 1151.0,
+        "y": 379.0
     },
     "discardText": {
-        "scale": 1.0,
-        "x": 1124.0,
-        "y": 353.0
+        "scale": 0.8999999761581421,
+        "x": 1154.0,
+        "y": 350.0
     },
     "endTurnBg": {
-        "h": 90.0,
-        "w": 90.0,
-        "x": 1123.0,
-        "y": 264.0
+        "h": 65.0,
+        "w": 65.0,
+        "x": 1134.0,
+        "y": 246.0
     },
     "endTurnText": {
         "scale": 1.0,
-        "x": 1135.0,
-        "y": 266.0
+        "x": 1133.0,
+        "y": 233.0
     },
     "fieldBg": {
-        "h": 50.0,
+        "h": 60.0,
         "w": 250.0,
-        "x": 490.0,
-        "y": 243.0
+        "x": 540.0,
+        "y": 250.0
     },
     "fieldText": {
-        "scale": 1.0,
-        "x": 488.0,
-        "y": 235.0
+        "scale": 0.8999999761581421,
+        "x": 600.0,
+        "y": 250.0
     },
     "handBg": {
-        "h": 50.0,
-        "w": 231.0,
-        "x": 1003.0,
-        "y": 651.0
+        "h": 60.0,
+        "w": 306.0,
+        "x": 954.0,
+        "y": 639.0
+    },
+    "handLabelImage": {
+        "scale": 0.7400000095367432,
+        "x": 1032.0,
+        "y": 669.0
     },
     "handText": {
-        "scale": 1.0,
-        "x": 1019.0,
-        "y": 645.0
+        "scale": 0.8999999761581421,
+        "x": 1020.0,
+        "y": 640.0
     },
     "overlay": {
         "h": 720.0,
@@ -85,12 +307,12 @@
     "turnBg": {
         "h": 60.0,
         "w": 250.0,
-        "x": 490.0,
+        "x": 497.0,
         "y": 25.0
     },
     "turnText": {
         "scale": 1.0,
         "x": 500.0,
-        "y": 23.0
+        "y": 20.0
     }
 }

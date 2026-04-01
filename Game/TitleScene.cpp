@@ -57,6 +57,9 @@ void TitleScene::OnEnter(GameApp& app) {
 	//カード慣例を先に読む
 	battle_.Preload(app);
 
+	fieldUi_ = std::make_unique<FieldUi>();
+	fieldUi_->Initialize(app);
+
 	//AudioManager::GetInstance()->PlayBGM("machi");
 
 }
@@ -117,6 +120,13 @@ void TitleScene::Update(GameApp& app, float dt) {
 	//3D更新
 	skyDome_->Update(dt);
 
+	if (fieldUi_) {
+		const CardDef* debugDef = battle_.FindCardDef(debugCardId_);
+		fieldUi_->SetDebugImageCardDescVisible(showDebugCardDesc_);
+		fieldUi_->SetDebugImageCardDescCard(debugDef);
+		fieldUi_->Update(app, battle_);
+	}
+
 }
 
 //------------------------------------------------------------
@@ -157,6 +167,11 @@ void TitleScene::Draw2D(GameApp& app) {
 		pressStart_->Draw();
 	}
 
+	//デバッグ用
+	if (fieldUi_) {
+		fieldUi_->Draw(app, battle_);
+	}
+
 	//--------------------------------------------------------
 	// 円形マスク描画
 	//--------------------------------------------------------
@@ -165,7 +180,6 @@ void TitleScene::Draw2D(GameApp& app) {
 
 //------------------------------------------------------------
 // ImGui描画
-// 今回は使わないので空
 //------------------------------------------------------------
 void TitleScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
@@ -175,7 +189,16 @@ void TitleScene::DrawImGui(GameApp& app) {
 	ImGui::Text("ESC   : Quit");
 	ImGui::SliderFloat("Circle", &circle_, 0.0f, 1.0f);
 	ImGui::SliderFloat("Softness", &softness_, 0.0f, 1.0f);
+
+	ImGui::Separator();
+	ImGui::Checkbox("Show Debug Card Desc", &showDebugCardDesc_);
+	ImGui::DragInt("Debug Card ID", &debugCardId_, 1.0f, 1, 999);
+
 	ImGui::End();
+
+	if (fieldUi_) {
+		fieldUi_->DrawImGui();
+	}
 #else
 	(void)app;
 #endif

@@ -453,6 +453,11 @@ std::array<bool, 5> BattleController::GetPokerHighlightMask_() const
 	return mask;
 }
 
+const CardDef* BattleController::FindCardDef(int id) const
+{
+	return db_.Find(id);
+}
+
 void BattleController::PreloadCardAssets_()
 {
 	// 共通で使うモデルを先読み
@@ -1021,6 +1026,172 @@ BattleController::PokerBonus BattleController::GetPokerBonus_(PokerHandRank rank
 void BattleController::SetPokerQuickPreviewVisible(bool visible)
 {
 	pokerQuickPreviewVisible_ = visible;
+}
+
+std::wstring BattleController::GetSubEffectTriggerText_(SubEffectTrigger trigger) const
+{
+	switch (trigger) {
+	case SubEffectTrigger::OnTurnStartWithPoker:
+		return L"ターン開始時";
+
+	case SubEffectTrigger::OnPokerSkillActivated:
+		return L"特殊効果発動時";
+
+	case SubEffectTrigger::OnPlayToField:
+		return L"場に出した時";
+
+	default:
+		return L"";
+	}
+}
+
+std::wstring BattleController::GetSubEffectConditionText_(const CardSubEffectDef& sub) const
+{
+	auto rankToText = [](PokerHandRank rank) -> std::wstring {
+		switch (rank) {
+		case PokerHandRank::OnePair:            return L"ワンペア";
+		case PokerHandRank::TwoPair:            return L"ツーペア";
+		case PokerHandRank::ThreeOfAKind:       return L"スリーカード";
+		case PokerHandRank::Straight:           return L"ストレート";
+		case PokerHandRank::Flush:              return L"フラッシュ";
+		case PokerHandRank::FullHouse:          return L"フルハウス";
+		case PokerHandRank::FourOfAKind:        return L"フォーカード";
+		case PokerHandRank::StraightFlush:      return L"ストレートフラッシュ";
+		case PokerHandRank::RoyalStraightFlush: return L"ロイヤルストレートフラッシュ";
+		default:                                return L"";
+		}
+		};
+
+	switch (sub.condition.type) {
+	case SubEffectConditionType::ExactRank:
+	{
+		PokerHandRank rank = ParsePokerRankString_(sub.condition.rank);
+		if (rank != PokerHandRank::None) {
+			return rankToText(rank) + L"の場合";
+		}
+		break;
+	}
+
+	case SubEffectConditionType::AtLeastRank:
+	{
+		PokerHandRank rank = ParsePokerRankString_(sub.condition.rank);
+		if (rank != PokerHandRank::None) {
+			return rankToText(rank) + L"以上の場合";
+		}
+		break;
+	}
+
+	case SubEffectConditionType::RankFamily:
+		if (sub.condition.family == "StraightFamily") return L"ストレート系の場合";
+		if (sub.condition.family == "FlushFamily")    return L"フラッシュ系の場合";
+		if (sub.condition.family == "PairFamily")     return L"ペア系の場合";
+		return L"役条件あり";
+
+	default:
+		break;
+	}
+
+	return L"";
+}
+
+std::wstring BattleController::GetEffectValueText_(const CardEffectDef& effect) const
+{
+	if (!effect.valueText.empty()) {
+		return Utf8ToWString(effect.valueText) + L": " + std::to_wstring(effect.value);
+	}
+
+	if (effect.type == "Draw") {
+		return L"ドロー: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "Damage") {
+		return L"ダメージ: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "DamageAll") {
+		return L"全体ダメージ: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "Heal") {
+		return L"回復: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "Block") {
+		return L"ブロック: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "PowerBoost") {
+		return L"パワー: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "EnergyCharge") {
+		return L"コスト回復: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "NextTurnAtkUp") {
+		return L"次ターンATK UP: " + std::to_wstring(effect.value);
+	}
+	if (effect.type == "SelfDamage") {
+		return L"自傷: " + std::to_wstring(effect.value);
+	}
+
+	return Utf8ToWString(effect.type) + L": " + std::to_wstring(effect.value);
+}
+
+std::wstring BattleController::GetBaseEffectSummaryText_(const CardDef& def) const
+{
+	if (!def.effects.empty()) {
+		std::wstring text;
+
+		for (size_t i = 0; i < def.effects.size(); ++i) {
+			if (i > 0) {
+				text += L"\n";
+			}
+			text += GetEffectValueText_(def.effects[i]);
+		}
+
+		return text;
+	}
+
+	if (!def.desc.empty()) {
+		return Utf8ToWString(def.desc);
+	}
+
+	return L"なし";
+}
+
+std::wstring BattleController::GetPreviewCardDetailText() const
+{
+	const CardDef* def = GetPreviewCardDef();
+	if (!def) {
+		return L"";
+	}
+
+	std::wstring text;
+	text += L"基本効果:\n\n";
+	text += GetBaseEffectSummaryText_(*def);
+
+	if (!def->subEffects.empty()) {
+		const CardSubEffectDef& sub = def->subEffects[0];
+
+		text += L"\n\n------------------------\n\n";
+
+		const std::wstring triggerText = GetSubEffectTriggerText_(sub.trigger);
+		if (!triggerText.empty()) {
+			text += triggerText + L"\n\n";
+		}
+
+		const std::wstring condText = GetSubEffectConditionText_(sub);
+		if (!condText.empty()) {
+			text += condText + L"\n\n";
+		}
+
+		if (!sub.effects.empty()) {
+			for (size_t i = 0; i < sub.effects.size(); ++i) {
+				if (i > 0) {
+					text += L"\n";
+				}
+				text += GetEffectValueText_(sub.effects[i]);
+			}
+		} else {
+			text += L"効果なし";
+		}
+	}
+
+	return text;
 }
 
 std::vector<std::wstring> BattleController::CollectSubEffectPreviewLines_(
