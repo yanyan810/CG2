@@ -145,6 +145,20 @@ void GameScene::OnEnter(GameApp& app) {
 	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
 	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
 
+
+	//
+
+	highlightFilter_ = std::make_unique<Sprite>();
+	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	highlightFilter_->SetPosition({ 0.0f, 0.0f });
+	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
+	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+
+	particleManager_ = ModelParticleManager::GetInstance();
+	particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
+	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
+	// 編集用変数に初期値をコピーしておく
+	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -383,36 +397,32 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 	}
 
-	// 1. 剣をぶん回すアニメーション（テスト用）
-	static float timer = 0.0f;
-	timer += 0.05f;
-
-	// 2. ワールド行列から先端と根元の座標を計算
-	// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
-	Matrix4x4 worldMat = Matrix4x4::MakeScaleMatrix({ 1.0f, 1.0f, 1.0f }) * Matrix4x4::RotateXYZ(0.0f, 0.0, timer) * Matrix4x4::Translation(player_->GetPos());
-
-	Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
-	Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
-
-	// ローカル座標をワールド座標へ変換
-	Vector3 worldBase = trailManager_->Transform(localBase, worldMat);
-	Vector3 worldTip = trailManager_->Transform(localTip, worldMat);
-
-	// 3. 軌跡を更新！
-	trailManager_->Update(worldTip, worldBase);
-
-	//ModelParticleManager::GetInstance()->LoadFromJson("sword_particle.json", effectConfig_);
+	//// 1. 剣をぶん回すアニメーション（テスト用）
+	//static float timer = 0.0f;
+	//timer += 0.05f;
 	//
-	//// Update内
-	//for (int i = 0; i < 3; ++i) {
-	//	effectConfig_.position = ((worldTip + worldBase) * (Rand(0.75f, 1.0f))) + Vector3(0, 0, 0); // 位置だけ更新
-	//	ModelParticleManager::GetInstance()->Emit(
-	//		ModelParticleManager::GetInstance()->MakeParticle(effectConfig_)
-	//	);
-	//}
+	//// 2. ワールド行列から先端と根元の座標を計算
+	//// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
+	//Matrix4x4 worldMat = Matrix4x4::MakeScaleMatrix({ 1.0f, 1.0f, 1.0f }) * Matrix4x4::RotateXYZ(0.0f, 0.0, timer) * Matrix4x4::Translation(player_->GetPos());
+	//
+	//Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
+	//Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
+	//
+	//// ローカル座標をワールド座標へ変換
+	//Vector3 worldBase = trailManager_->Transform(localBase, worldMat);
+	//Vector3 worldTip = trailManager_->Transform(localTip, worldMat);
+	//
+	//// 3. 軌跡を更新！
+	//trailManager_->Update(worldTip, worldBase, trailConfig_);
+	//
+	//// 剣の軌跡上に火花を出す
+	//Vector3 swordMid = (worldTip + worldBase) * 0.5f;
+	//particleManager_->Emit("sword_trail", swordMid, 1);
 
-	ModelParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
+	particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
+	// 最後に1回だけDispatch
+	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
 }
 
 
@@ -421,6 +431,13 @@ void GameScene::Draw3D(GameApp& app) {
 	app.Dx()->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
 	app.ObjCom()->SetGraphicsPipelineState();
+
+	if (player_) player_->Draw();
+
+	// 敵以外のモデルにFilterを書ける
+	if (battle_.GetNowCardInputState() == BattleController::CardInputState::ChoosingEnemyTarget) {
+		highlightFilter_->Draw();
+	}
 
 	battle_.Draw3D(app);
 	enemyMgr_.Draw();
@@ -447,6 +464,9 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 	battle_.Draw2D(app);
+
+
+	highlightFilter_->Update(view, proj);
 
 	if (fieldUi_) {
 		fieldUi_->Draw(app,battle_);
@@ -522,11 +542,25 @@ void GameScene::DrawImGui(GameApp& app) {
 		if (ImGui::Button("Play Random Camera")) {
 			ChangeRandomCamera();
 		}
+		if (player_) {
+			player_->DrawAnimationEditorImGui();
+		}
 	}
 
 	ImGui::End();
 
-	ModelParticleManager::GetInstance()->UpdateImGui(attackEffectConfig_);
+	// 例えば "player_fire" を編集したい場合
+	static std::string targetEffect = "player_fire";
+
+	// コンボボックスで編集対象を切り替えられるようにすると更に便利
+	if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
+		if (ImGui::Selectable("player_fire")) targetEffect = "player_fire";
+		if (ImGui::Selectable("sword_trail")) targetEffect = "sword_trail";
+		ImGui::EndCombo();
+	}
+	
+	// マネージャーから指定したエフェクトの設定を編集・反映
+	particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
 
 	if (fieldUi_) {
 		ImGui::Begin("FieldUi Debug");
@@ -543,8 +577,6 @@ void GameScene::DrawSkydome(GameApp& app)
 
 	if (skyDome_) skyDome_->Draw();
 
-	if (player_) player_->Draw();
-
 }
 
 void GameScene::DrawPostEffect3D(GameApp& app)
@@ -552,8 +584,8 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	//ModelParticleManager::GetInstance()->Draw();
-	//
+	particleManager_->Draw();
+	
 	//Matrix4x4 vp = camera_->GetViewProjectionMatrix();
 	//trailManager_->Draw(vp);
 }

@@ -75,9 +75,17 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     model_ = ModelManager::GetInstance()->FindModel("triangleParticle.obj");
 
     // 2. インスタンシング用リソースの作成
-    instancingResource_ = dxCommon_->CreateBufferResource(sizeof(ModelParticleTransformationMatrix) * kMaxInstance);
-    instancingResource_->Map(0, nullptr, reinterpret_cast<void**>(&instancingData_));
-
+    instancingResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ModelParticleTransformationMatrix) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    
+    // 2. UAVの作成 (Compute Shaderで書き込むため)
+    uavIndexRenderData_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(
+        uavIndexRenderData_,
+        instancingResource_.Get(),
+        kMaxInstance,
+        sizeof(ModelParticleTransformationMatrix)
+    );
+    
     // 3. SRVの作成 (SrvManagerを活用！)
     srvIndex_ = srvManager_->Allocate(); // 空き番号を自動取得
     srvManager_->CreateSRVforStructuredBuffer(
@@ -86,14 +94,6 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
         kMaxInstance,
         sizeof(ModelParticleTransformationMatrix)
     );
-
-    // 用のModelParticleTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
-    transformationMatrixResource = dxCommon_->CreateBufferResource(sizeof(ModelParticleTransformationMatrix));
-    // 書き込むためのアドレスを取得
-    transformationMatrixResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
-    // 単位行列を書き込んでおく
-    transformationMatrixData->WVP = Matrix4x4::MakeIdentity4x4();
-    transformationMatrixData->World = Matrix4x4::MakeIdentity4x4();
 
     // マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
     materialResource_ = dxCommon_->CreateBufferResource(sizeof(Material));
@@ -110,11 +110,11 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     materialData_->shininess = 32.0f;
 
     // 平行光源用のリソースを作る
-    directionalLightResource = dxCommon_->CreateBufferResource(sizeof(DirectionalLight));
+    directionalLightResource_ = dxCommon_->CreateBufferResource(sizeof(DirectionalLight));
     // マテリアルにデータを書き込む
     DirectionalLight* directionalLightData = nullptr;
     // 書き込むためのアドレスを取得
-    directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
+    directionalLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
     // デフォルト値
     directionalLightData->color = { 1.0f, 1.0f, 1.0f, 1.0f };
     directionalLightData->direction = { 0.0f, -1.0f, 0.0f };
@@ -129,13 +129,160 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     // 初期値（とりあえず原点）
     cameraData_->worldPosition = { 0.0f, 0.0f, 0.0f };
     cameraData_->padding = 0.0f;
+    
+
+    // 1. 物理バッファの作成 (Default Heap)
+    particleResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ParticleGPU) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+    // 3. UAVの作成 (SrvManagerにUAV作成機能がある想定)
+    uavIndexParticles_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexParticles_, particleResource_.Get(), kMaxInstance, sizeof(ParticleGPU));
+
+    uavIndexRenderData_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexRenderData_, instancingResource_.Get(), kMaxInstance, sizeof(ModelParticleTransformationMatrix));
+
+    computeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
+    computeConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&computeConfigData_));
+
+    // ComputeShader用のシーン定数バッファ (b1)
+    computeSceneResource_ = dxCommon_->CreateBufferResource(sizeof(SceneConfig));
+    computeSceneResource_->Map(0, nullptr, reinterpret_cast<void**>(&computeSceneData_));
+
+    // Emit用の転送バッファ (1個分)
+    emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * kMaxInstance);
+
+    D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+    argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW; // DrawInstanced用
+
+    D3D12_COMMAND_SIGNATURE_DESC sigDesc = {};
+    sigDesc.ByteStride = sizeof(D3D12_DRAW_ARGUMENTS);
+    sigDesc.NumArgumentDescs = 1;
+    sigDesc.pArgumentDescs = &argDesc;
+
+    dxCommon_->GetDevice()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&commandSignature_));
+    
+    // 1. 本番用のUAVバッファ作成 (DEFAULTヒープ)
+    drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+    // 2. CPUから書き込むための中継用バッファ (UPLOADヒープ) を作成
+    // CreateBufferResource を使うのが正解！
+    Microsoft::WRL::ComPtr<ID3D12Resource> stagingArgs = dxCommon_->CreateBufferResource(sizeof(D3D12_DRAW_ARGUMENTS));
+
+    // 3. 中継用バッファに値を Map して書き込む
+    D3D12_DRAW_ARGUMENTS* mappedArgs = nullptr;
+    stagingArgs->Map(0, nullptr, reinterpret_cast<void**>(&mappedArgs));
+    mappedArgs->VertexCountPerInstance = static_cast<UINT>(model_->GetModelData().meshes[0].vertices.size());
+    mappedArgs->InstanceCount = 0;
+    mappedArgs->StartVertexLocation = 0;
+    mappedArgs->StartInstanceLocation = 0;
+    stagingArgs->Unmap(0, nullptr);
+
+    // 4. GPUコマンドで UPLOAD -> DEFAULT へコピーを実行
+    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, stagingArgs.Get(), 0, sizeof(D3D12_DRAW_ARGUMENTS));
+
+    // 5. コピー完了を待つためのバリア (COPY_DEST -> UNORDERED_ACCESS)
+    auto initBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        drawArgsResource_.Get(),
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    dxCommon_->GetCommandList()->ResourceBarrier(1, &initBarrier);
+
+    // 1. AliveIndicesバッファの作成 (kMaxInstance分)
+    aliveIndicesResource_ = dxCommon_->CreateUAVBufferResource(sizeof(uint32_t) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    uavIndexAliveIndices_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexAliveIndices_, aliveIndicesResource_.Get(), kMaxInstance, sizeof(uint32_t));
+
+    // 2. DrawArgsのUAV登録 (CSのu3にセットするため)
+    uavIndexDrawArgs_ = srvManager_->Allocate();
+    // ※RWByteAddressBufferとして扱う場合は CreateUAVforRawBuffer 等の関数が必要になります
+    srvManager_->CreateUAVforRawBuffer(uavIndexDrawArgs_, drawArgsResource_.Get());
+
+    // 3. カウンターリセット用リソース (中身が常に0の4バイトバッファ)
+    resetResource_ = dxCommon_->CreateBufferResource(sizeof(uint32_t));
+    uint32_t* mappedReset = nullptr;
+    resetResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedReset));
+    *mappedReset = 0;
+    resetResource_->Unmap(0, nullptr);
+    
+    dxCommon_->ExecuteCommandListAndWait();
 
 }
 
-void ModelParticleManager::Emit(const Particle& particle) {
-    if (particles_.size() >= kMaxInstance) return;
+void ModelParticleManager::RegisterEffect(const std::string& effectName, const std::string& jsonPath)
+{
+    ParticleEmitterConfig config;
+    LoadFromJson(jsonPath, config);
+    effectLibrary_[effectName] = config;
+}
 
-    particles_.push_back(particle);
+void ModelParticleManager::Emit(const std::string& effectName, const Vector3& position, uint32_t count) {
+    // 登録されているか確認
+    if (effectLibrary_.find(effectName) == effectLibrary_.end()) {
+        return; // 見つからなければ何もしない
+    }
+
+    // 設定を取り出し、座標をセット
+    ParticleEmitterConfig& config = effectLibrary_[effectName];
+    config.position = position;
+
+    // 今回のエミット用のリストを作成
+    std::vector<Particle> particles;
+    particles.reserve(count);
+
+    for (uint32_t i = 0; i < count; ++i) {
+        particles.push_back(MakeParticle(config));
+    }
+
+    // まとめてGPU転送
+    EmitBatch(particles);
+    auto& conf = effectLibrary_[effectName];
+    char buf[256];
+    sprintf_s(buf, "Emit: %s at (%.2f, %.2f, %.2f) Scale: %.2f ColorA: %.2f\n",
+        effectName.c_str(), position.x, position.y, position.z, conf.startScale, conf.startColor.w);
+    OutputDebugStringA(buf);
+}
+
+void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
+    if (particles.empty()) return;
+
+    // 今回発生させる数（念のためバッファを突き抜けないように制限）
+    size_t count = std::min(particles.size(), (size_t)1000);
+    if (freeIndex_ + count >= kMaxInstance) freeIndex_ = 0; // 簡易的なラップアラウンド処理
+
+    std::vector<ParticleGPU> uploadData(count);
+    for (size_t i = 0; i < count; ++i) {
+        uploadData[i].position = particles[i].transform.translate;
+        uploadData[i].velocity = particles[i].velocity;
+        uploadData[i].acceleration = particles[i].acceleration;
+        uploadData[i].angularVelocity = particles[i].angularVelocity;
+        uploadData[i].currentTime = 0.0f;
+        uploadData[i].lifeTime = particles[i].lifeTime;
+        uploadData[i].startScale = particles[i].startScale;
+        uploadData[i].endScale = particles[i].endScale;
+        uploadData[i].startColor = particles[i].startColor;
+        uploadData[i].endColor = particles[i].endColor;
+        uploadData[i].rotate = particles[i].transform.rotate;
+        uploadData[i].isActive = 1;
+    }
+
+    // ★ 修正：Stagingバッファの「freeIndex_」番目の位置に書き込む
+    void* mappedPtr = nullptr;
+    emitStagingResource_->Map(0, nullptr, &mappedPtr);
+
+    // 書き込み先のアドレスを計算
+    ParticleGPU* dest = static_cast<ParticleGPU*>(mappedPtr) + freeIndex_;
+    memcpy(dest, uploadData.data(), sizeof(ParticleGPU) * count);
+
+    emitStagingResource_->Unmap(0, nullptr);
+
+    // ★ 修正：コピー命令も「freeIndex_」から開始するように指定
+    dxCommon_->GetCommandList()->CopyBufferRegion(
+        particleResource_.Get(), freeIndex_ * sizeof(ParticleGPU), // コピー先
+        emitStagingResource_.Get(), freeIndex_ * sizeof(ParticleGPU), // コピー元もずらす！
+        count * sizeof(ParticleGPU)
+    );
+
+    freeIndex_ += (uint32_t)count;
 }
 
 ModelParticleManager::Particle ModelParticleManager::MakeParticle(const ParticleEmitterConfig& config) {
@@ -170,59 +317,53 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     return particle;
 }
 
-void ModelParticleManager::Update(float deltaTime, Camera* camera) {
-    uint32_t instanceCount = 0;
-    for (auto it = particles_.begin(); it != particles_.end(); ) {
-        it->currentTime += deltaTime;
-        if (it->currentTime >= it->lifeTime) {
-            it = particles_.erase(it);
-            continue;
-        }
+void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
+{
+    auto commandList = dxCommon_->GetCommandList();
+    
+    // 1. カウンター(InstanceCount)をリセット (4バイト目に0をコピー)
+    commandList->CopyBufferRegion(drawArgsResource_.Get(), 4, resetResource_.Get(), 0, 4);
 
-        // 進捗率 (0.0 ～ 1.0)
-        float t = it->currentTime / it->lifeTime;
-        
-        // 色の線形補間 (Lerp)
-        it->color.x = it->startColor.x + (it->endColor.x - it->startColor.x) * t;
-        it->color.y = it->startColor.y + (it->endColor.y - it->startColor.y) * t;
-        it->color.z = it->startColor.z + (it->endColor.z - it->startColor.z) * t;
-        it->color.w = it->startColor.w + (it->endColor.w - it->startColor.w) * t;
-        
-        // 1. 加速度の適用 (速度を更新してから移動)
-        it->velocity += it->acceleration * deltaTime;
-        it->transform.translate += it->velocity * deltaTime;
+    // バリアを張ってリセット完了を待つ
+    auto preBarrier = CD3DX12_RESOURCE_BARRIER::Transition(drawArgsResource_.Get(),
+        D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    commandList->ResourceBarrier(1, &preBarrier);
 
-        // 2. スケールのイージング (線形補間)
-        float currentScale = it->startScale + (it->endScale - it->startScale) * t;
-        it->transform.scale = { currentScale, currentScale, currentScale };
+    auto& psoCS = dxCommon_->GetPSOComputeParticle();
 
-        // 3. 回転
-        it->transform.rotate += it->angularVelocity * deltaTime;
+    // 1. 定数バッファの更新
+    computeConfigData_->deltaTime = deltaTime;
+    computeConfigData_->maxParticles = kMaxInstance;
+    computeSceneData_->viewProjection = camera->GetViewMatrix() * camera->GetProjectionMatrix();
+    
+    // ★ ここが重要！ SRV/UAV管理用のディスクリプタヒープをセットする
+    ID3D12DescriptorHeap* ppHeaps[] = { srvManager_->GetDescriptorHeap() };
+    commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-        if (instanceCount < kMaxInstance) {
-            Matrix4x4 world = Matrix4x4::MakeAffineMatrix(it->transform.scale, it->transform.rotate, it->transform.translate);
+    // 2. Compute Pipeline の設定
+    commandList->SetComputeRootSignature(psoCS.root_.GetSignature().Get());
+    commandList->SetPipelineState(psoCS.computeState_.Get());
 
-            // 色の計算（フェードアウト）
-            // 炎などの場合、後半で一気に透明にするなら t*t などを使うと綺麗です
-            float alpha = 1.0f - t;
-            Vector4 finalColor = it->color;
-            finalColor.w *= alpha;
+    // 3. ルートパラメータのセット (4と5を追加！)
+    commandList->SetComputeRootConstantBufferView(0, computeConfigResource_->GetGPUVirtualAddress());
+    commandList->SetComputeRootConstantBufferView(1, computeSceneResource_->GetGPUVirtualAddress());
+    commandList->SetComputeRootDescriptorTable(2, srvManager_->GetGPUDescriptionHandle(uavIndexParticles_));
+    commandList->SetComputeRootDescriptorTable(3, srvManager_->GetGPUDescriptionHandle(uavIndexRenderData_));
+    commandList->SetComputeRootDescriptorTable(4, srvManager_->GetGPUDescriptionHandle(uavIndexAliveIndices_));
+    commandList->SetComputeRootDescriptorTable(5, srvManager_->GetGPUDescriptionHandle(uavIndexDrawArgs_));
 
-            // GPUへのデータ転送
-            instancingData_[instanceCount].WVP = world * camera->GetViewMatrix() * camera->GetProjectionMatrix();
-            instancingData_[instanceCount].World = world;
-            instancingData_[instanceCount].color = finalColor;
+    commandList->Dispatch((kMaxInstance + 1023) / 1024, 1, 1);
 
-            instanceCount++;
-        }
-        ++it;
-    }
+    // 4. 描画前にバリアを張る (RenderDataとDrawArgsの両方)
+    D3D12_RESOURCE_BARRIER barriers[2];
+    barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(instancingResource_.Get(),
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(drawArgsResource_.Get(),
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+    commandList->ResourceBarrier(2, barriers);
 }
 
 void ModelParticleManager::Draw() {
-    if (particles_.empty()) return;
-
-    //skyDome_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeAdd);
 
     auto commandList = dxCommon_->GetCommandList();
 
@@ -240,7 +381,7 @@ void ModelParticleManager::Draw() {
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     // Index 1: DirectionalLight (b1) - CBV
-    commandList->SetGraphicsRootConstantBufferView(1, directionalLightResource->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootConstantBufferView(1, directionalLightResource_->GetGPUVirtualAddress());
 
     // Index 2: Camera (b2) - CBV
     commandList->SetGraphicsRootConstantBufferView(2, cameraResource_->GetGPUVirtualAddress());
@@ -251,37 +392,60 @@ void ModelParticleManager::Draw() {
 
     // Index 4: Texture (t0) - DescriptorTable
 	commandList->SetGraphicsRootDescriptorTable(4, TextureManager::GetInstance()->GetSrvHandleGPU(model_->GetModelData().materials[0].textureFilePath)); // 0番目のマテリアルのSRVをセット
-
-    // 3. 描画実行
-	commandList->DrawInstanced(static_cast<UINT>(model_->GetModelData().meshes[0].vertices.size()), static_cast<UINT>(particles_.size()), 0, 0); // 頂点数は3（plane.objの三角形1枚分）、インスタンス数はパーティクルの数
+    
+    commandList->ExecuteIndirect(
+        commandSignature_.Get(),
+        1,                          // 実行するコマンド数
+        drawArgsResource_.Get(),    // 引数バッファ
+        0,                          // オフセット
+        nullptr, 0                  // カウントバッファ（今回は未使用）
+    );
+    
+    // 終了バリア (INDIRECT_ARGUMENT から戻す)
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(drawArgsResource_.Get(),
+        D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList->ResourceBarrier(1, &barrier);
 }
 
-void ModelParticleManager::UpdateImGui(ParticleEmitterConfig& editingConfig) {
+void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEmitterConfig& editingConfig) {
     ImGui::Begin("Particle Editor");
 
-    // プレビュー用の設定
-    ImGui::Text("Base Settings");
-    ImGui::ColorEdit4("StartColor", &editingConfig.startColor.x);
-    ImGui::ColorEdit4("EndColor", &editingConfig.endColor.x);
-    ImGui::DragFloat("Speed Min", &editingConfig.speedMin, 0.01f);
-    ImGui::DragFloat("Speed Max", &editingConfig.speedMax, 0.01f);
-    ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
+    ImGui::Text("Editing: %s", effectName.c_str());
+
+    // 値が変更されたかどうかをチェックするフラグ
+    bool changed = false;
+
+    changed |= ImGui::ColorEdit4("StartColor", &editingConfig.startColor.x);
+    changed |= ImGui::ColorEdit4("EndColor", &editingConfig.endColor.x);
+    changed |= ImGui::DragFloat("Speed Min", &editingConfig.speedMin, 0.01f);
+    changed |= ImGui::DragFloat("Speed Max", &editingConfig.speedMax, 0.01f);
+    changed |= ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
+    changed |= ImGui::DragFloat("Start Scale", &editingConfig.startScale, 0.01f);
+    changed |= ImGui::DragFloat("End Scale", &editingConfig.endScale, 0.01f);
+
+    // ★ リアルタイム反映：値が変わったら即座に Library を上書き
+    if (changed) {
+        effectLibrary_[effectName] = editingConfig;
+    }
 
     ImGui::Separator();
 
-    ImGui::Text("Scale Easing");
-    ImGui::DragFloat("Start Scale", &editingConfig.startScale, 0.01f);
-    ImGui::DragFloat("End Scale", &editingConfig.endScale, 0.01f);
+    // 保存用のファイル名（デフォルトは登録時のファイル名など）
+    static char filename[64] = "";
+    if (filename[0] == '\0') sprintf_s(filename, "%s.json", effectName.c_str());
 
-    static char filename[64] = "fire_particle.json";
     ImGui::InputText("Save Filename", filename, IM_ARRAYSIZE(filename));
 
     if (ImGui::Button("Save to JSON")) {
         SaveToJson(filename, editingConfig);
+        // 保存時にも確実に最新を反映
+        effectLibrary_[effectName] = editingConfig;
     }
 
     if (ImGui::Button("Load from JSON")) {
         LoadFromJson(filename, editingConfig);
+        // ロードしたら Library も更新
+        effectLibrary_[effectName] = editingConfig;
     }
 
     ImGui::End();

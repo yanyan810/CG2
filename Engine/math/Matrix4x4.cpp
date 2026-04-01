@@ -1,5 +1,6 @@
 // Matrix4x4.cpp
 #include "Matrix4x4.h"
+#include <cmath>
 
 // Matrix4x4.cpp
 Matrix4x4::Matrix4x4() {
@@ -390,4 +391,74 @@ Matrix4x4 Matrix4x4::Transpose(const Matrix4x4& a)
         }
     }
     return r;
+}
+
+
+// ImGuizmo用：行列とfloat配列[16]の相互変換
+void Matrix4x4::ToFloat16(float* out) const {
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            out[i * 4 + j] = m[i][j];
+        }
+    }
+}
+
+Matrix4x4 Matrix4x4::FromFloat16(const float* in) {
+    Matrix4x4 mat;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            mat.m[i][j] = in[i * 4 + j];
+        }
+    }
+    return mat;
+}
+
+
+void Matrix4x4::Decompose(Vector3& translation, Vector3& rotation, Vector3& scale) const {
+    // 1. 平行移動（Translation）の抽出
+    translation.x = m[3][0];
+    translation.y = m[3][1];
+    translation.z = m[3][2];
+
+    // 2. スケール（Scale）の抽出
+    // 各行のベクトルの長さを計算する
+    scale.x = std::sqrt(m[0][0] * m[0][0] + m[0][1] * m[0][1] + m[0][2] * m[0][2]);
+    scale.y = std::sqrt(m[1][0] * m[1][0] + m[1][1] * m[1][1] + m[1][2] * m[1][2]);
+    scale.z = std::sqrt(m[2][0] * m[2][0] + m[2][1] * m[2][1] + m[2][2] * m[2][2]);
+
+    // スケールが完全に0の場合、ゼロ除算を防ぐためにここで計算を打ち切る
+    if (scale.x == 0.0f || scale.y == 0.0f || scale.z == 0.0f) {
+        rotation = { 0.0f, 0.0f, 0.0f };
+        return;
+    }
+
+    // 3. 回転（Rotation）の抽出
+    // スケール成分を取り除いた純粋な回転行列を作る
+    Matrix4x4 rotMat;
+    rotMat.m[0][0] = m[0][0] / scale.x; rotMat.m[0][1] = m[0][1] / scale.x; rotMat.m[0][2] = m[0][2] / scale.x;
+    rotMat.m[1][0] = m[1][0] / scale.y; rotMat.m[1][1] = m[1][1] / scale.y; rotMat.m[1][2] = m[1][2] / scale.y;
+    rotMat.m[2][0] = m[2][0] / scale.z; rotMat.m[2][1] = m[2][1] / scale.z; rotMat.m[2][2] = m[2][2] / scale.z;
+
+    // オイラー角（XYZ回転）の計算
+    // floatの計算誤差で std::asin の範囲（-1.0 ～ 1.0）を超えないようにクランプする
+    float sin_p = -rotMat.m[0][2];
+    if (sin_p <= -1.0f) sin_p = -1.0f;
+    if (sin_p >= 1.0f) sin_p = 1.0f;
+
+    rotation.y = std::asin(sin_p);
+
+    // ジンバルロック（Pitchが真上か真下を向いている時）の対策
+    if (std::cos(rotation.y) > 0.0001f) {
+        rotation.x = std::atan2(rotMat.m[1][2], rotMat.m[2][2]);
+        rotation.z = std::atan2(rotMat.m[0][1], rotMat.m[0][0]);
+    } else {
+        rotation.x = std::atan2(-rotMat.m[2][1], rotMat.m[1][1]);
+        rotation.z = 0.0f;
+    }
+
+    // ImGuizmoの仕様に合わせて、ラジアン（Radian）から度数法（Degree）に変換して返す
+    const float rad2deg = 180.0f / 3.1415926535f;
+    rotation.x *= rad2deg;
+    rotation.y *= rad2deg;
+    rotation.z *= rad2deg;
 }

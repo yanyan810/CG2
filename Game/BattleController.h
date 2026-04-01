@@ -293,10 +293,16 @@ private:
     std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
     std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
 
+    std::unique_ptr<Sprite> playerHpPredict_;
+
+    std::unique_ptr<Sprite> playerBlockPredict_;
+
     std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
     std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
 
     std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
+
+    std::unique_ptr<Sprite> highlightFilter_;
 
     void StartPlayerTurn_();
     void DrawUntilFive_();
@@ -339,11 +345,14 @@ private:
     void ApplyDamageToEnemy_(Enemy& enemy, int damage);
 
     void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
-
-
+  
     std::wstring GetSubEffectTriggerText_(SubEffectTrigger trigger) const;
     std::wstring GetSubEffectConditionText_(const CardSubEffectDef& sub) const;
     std::wstring GetEffectValueText_(const CardEffectDef& effect) const;
     std::wstring GetBaseEffectSummaryText_(const CardDef& def) const;
+
+    int CalcTotalIncomingDamage() const;
+
+    void UpdateHpGauges();
 
 };

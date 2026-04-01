@@ -573,6 +573,14 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
 	playerHpFg_->SetPosition({ 80.0f, 40.0f });
 
+	playerHpPredict_ = std::make_unique<Sprite>();
+	playerHpPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
+	playerHpPredict_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+
+	playerBlockPredict_ = std::make_unique<Sprite>();
+	playerBlockPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
+	playerBlockPredict_->SetColor({ 0.0f, 0.0f, 1.0f, 1.f });
+
 	enemyHpBgs_.clear();
 	enemyHpFgs_.clear();
 	enemyIntentIcons_.clear();
@@ -607,6 +615,8 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
+	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
 
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
@@ -635,6 +645,13 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	StartPlayerTurn_();
 	RebuildDiscardView_();
 	RebuildCostView_(deltaTime_);
+
+	// ハイライト用Filter
+	highlightFilter_ = std::make_unique<Sprite>();
+	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	highlightFilter_->SetPosition({ 0.0f, 0.0f });
+	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
+	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
 }
 
 bool BattleController::DrawOne_()
@@ -677,7 +694,7 @@ void BattleController::DrawCards_(int count)
 	//	handView_.Rebuild(hand_);
 }
 
-void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects,int targetIndex)
+void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex)
 {
 	for (const auto& effect : effects) {
 		if (effect.type == "Draw") {
@@ -692,8 +709,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 						ApplyDamageToEnemy_(e, totalDamage);
 						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), totalDamage, false);
 					}
-				}
-				else
+				} else
 				{
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (!e.IsAlive()) continue;
@@ -703,7 +719,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 						break;
 					}
 				}
-				
+
 				nextTurnAtkUp_ = 0;
 			}
 
@@ -1378,7 +1394,7 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 	Vector3 scl{ 1.15f, 1.15f, 1.15f };
 
 	if (hovered) {
-		
+
 		pos.y += 0.18f;
 		pos.z -= 0.08f;
 		scl = { 1.18f, 1.18f, 1.18f };
@@ -1478,8 +1494,8 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	// -----------------------------
 	if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice)
 	{
-	
-		
+
+
 		if (pokerChoiceJustOpened_) {
 			pokerChoiceJustOpened_ = false;
 			return;
@@ -1677,6 +1693,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		}
 
 		// ここを追加
+
 		handView_.Update(dt);
 		RefreshAllFieldCardTransforms_(dt);
 		fieldLayoutDirty_ = false;
@@ -1882,7 +1899,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							hand_.erase(hand_.begin() + idx);
 							//handView_.Rebuild(hand_);
 
-							
+
 
 							ApplyCardEffects_(*def);
 
@@ -2018,7 +2035,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 								SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
 							}
 
-							
+
 							// ポーカー役での攻撃だった場合
 							ConsumeFieldCards_();
 							cardState_ = CardInputState::Idle;
@@ -2035,7 +2052,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 							energy_ -= def->cost;
 							auto usedCardView = handView_.ExtractCardAt(idx);
 							hand_.erase(hand_.begin() + idx);
-							
+
 							handView_.Rebuild(hand_);
 
 							// ダメージ以外の効果（ドローなど）を発動
@@ -2161,7 +2178,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		float hpRatio = (float)player_->GetHP() / (float)player_->GetMaxHP();
 		if (hpRatio < 0.0f) hpRatio = 0.0f;
 
-		playerHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
+		//playerHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
 		playerHpFg_->SetPosition({ 80.0f, 40.0f });
 	}
 
@@ -2256,29 +2273,48 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	// --------------------------------------------------
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	UpdateHpGauges();
+	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
+	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
+	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
 }
 
 void BattleController::Draw3D(GameApp& app)
 {
-	for (auto& c : fieldViews_) {
-		c->Draw();
-	}
 
+	// 墓地
 	if (discardView_) {
 		discardView_->Draw();
 	}
 
+	// 手札
 	handView_.Draw();
 
+	// ダメージポップアップ
 	for (auto& popup : damagePopups_) {
 		for (auto& obj : popup.digitModels) {
 			if (obj) obj->Draw();
 		}
 	}
+
+	// 場と交換時フィルター
+	if (cardState_ == CardInputState::ChoosingFieldReplace) {
+		highlightFilter_->Draw();
+	}
+
+	// 場のカード
+	for (auto& c : fieldViews_) {
+		c->Draw();
+	}
+
+	if (cardState_ == CardInputState::ChoosingEnemyTarget) {
+		highlightFilter_->Draw();
+	}
+
 }
 
 void BattleController::Draw2D(GameApp& app)
@@ -2286,6 +2322,8 @@ void BattleController::Draw2D(GameApp& app)
 
 
 	if (playerHpBg_) playerHpBg_->Draw();
+	if (playerHpPredict_)playerHpPredict_->Draw();
+	if (playerBlockPredict_ && player_->GetBlock() > 0)playerBlockPredict_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
 
 	for (auto& bg : enemyHpBgs_) {
@@ -2711,4 +2749,55 @@ std::wstring BattleController::GetPlayerBlockText()const {
 	text = std::to_wstring(player_->GetBlock());
 
 	return text;
+}
+
+int BattleController::CalcTotalIncomingDamage() const {
+	int total = 0;
+	if (!enemyMgr_) return 0;
+
+	for (auto& enemy : enemyMgr_->GetEnemies()) {
+		if (enemy.IsAlive()) {
+			// 敵が次のターンに行う攻撃力を取得（シールド等があればここで減算処理）
+			total += enemy.GetIncomingDamage() - player_->GetBlock();
+		}
+	}
+	return total;
+}
+
+void BattleController::UpdateHpGauges() {
+	float maxHP = (float)player_->GetMaxHP();
+	float currentHP = (float)player_->GetHP();
+	int incomingDamage = CalcTotalIncomingDamage();
+
+	// 現在のHPバーの長さ
+	float currentRatio = currentHP / maxHP;
+
+
+	// 予測ダメージ後のHPバー（ここがミソ）
+	// 現在のHPからダメージを引いた残量を計算（0以下にならないよう clamp）
+	float predictedHP = std::max(0.0f, currentHP - incomingDamage);
+	if (predictedHP >= currentHP) {
+		predictedHP = currentHP;
+	}
+	float predictedRatio = predictedHP / maxHP;
+
+	int currentBlock = player_->GetBlock();
+	float predictedRatioBlock = float(currentBlock) / maxHP;
+
+	// 赤いバー（playerHpPredict_）は「現在のHPバーと同じ位置」に置きつつ、
+	// 長さは「現在のHP」のままにする。
+	// 緑のバー（playerHpFg_）を「予測後のHP」の長さに縮めることで、
+	// 「元あった場所が赤く残る」という表現になります。
+
+	if (turn_ == TurnState::Player) {
+		playerHpFg_->SetScale({ 250.0f * predictedRatio, 18.0f, 1.0f });
+	}
+	playerHpPredict_->SetScale({ 250.0f * currentRatio, 18.0f, 1.0f });
+	playerHpPredict_->SetPosition(playerHpFg_->GetPosition());
+
+	float offset = 5.f;
+
+	playerBlockPredict_->SetScale({ 250.0f * predictedRatioBlock + offset,18.0f + (offset * 2.f), 1.0f });
+	playerBlockPredict_->SetPosition({ 80.f - offset,40.f - offset });
+
 }

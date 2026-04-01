@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include <list>
 #include "DirectXCommon.h"
 #include "SrvManager.h"
 #include "ModelManager.h"
@@ -9,6 +8,7 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iomanip>
+#include <map>
 
 extern std::mt19937 rng;
 
@@ -34,54 +34,6 @@ struct ParticleEmitterConfig {
 
 	Vector4 startColor = { 1, 1, 1, 1 };
 	Vector4 endColor = { 1, 1, 1, 0 };
-
-	// 炎：下から上へ昇りながら小さくなって消える
-	static ParticleEmitterConfig CreateFire(const Vector3& pos) {
-		ParticleEmitterConfig config;
-		config.position = pos;
-		config.speedMin = 0.8f;
-		config.speedMax = 1.5f;
-		config.gravity = { 0.0f, 1.5f, 0.0f }; // 強い上昇気流
-		config.lifeTimeMin = 0.4f;
-		config.lifeTimeMax = 0.7f;
-		config.startScale = 1.2f;
-		config.endScale = 0.2f;
-		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
-		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
-		return config;
-	}
-
-	// 水：放物線を描いて飛び散り、少し小さくなる
-	static ParticleEmitterConfig CreateWater(const Vector3& pos) {
-		ParticleEmitterConfig config;
-		config.position = pos;
-		config.speedMin = 2.0f;
-		config.speedMax = 4.0f;
-		config.gravity = { 0.0f, -9.8f, 0.0f }; // 重力で落下
-		config.lifeTimeMin = 0.8f;
-		config.lifeTimeMax = 1.2f;
-		config.startScale = 0.5f;
-		config.endScale = 0.3f;
-		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
-		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
-		return config;
-	}
-
-	// 氷：キラキラと回転しながら停滞し、ゆっくり消える
-	static ParticleEmitterConfig CreateIce(const Vector3& pos) {
-		ParticleEmitterConfig config;
-		config.position = pos;
-		config.speedMin = 0.2f;
-		config.speedMax = 0.5f;
-		config.gravity = { 0.0f, -0.1f, 0.0f }; // ほとんど落ちない
-		config.lifeTimeMin = 1.5f;
-		config.lifeTimeMax = 2.5f;
-		config.startScale = 0.0f; // 出現時は0
-		config.endScale = 0.8f;   // 徐々に広がる
-		config.startColor = { 1.0f, 0.4f, 0.1f, 1.0f };
-		config.endColor = { 0.2f, 0.0f, 0.0f, 0.0f };
-		return config;
-	}
 
 	// JSONオブジェクトに変換する
 	nlohmann::json ToJson() const {
@@ -120,6 +72,17 @@ struct ParticleEmitterConfig {
 
 class ModelParticleManager {
 public:
+	struct ParticleGPU {
+		Vector3 position;    float currentTime;      // 16 bytes
+		Vector3 velocity;    float lifeTime;         // 16 bytes
+		Vector3 acceleration; float startScale;       // 16 bytes
+		Vector4 startColor;                          // 16 bytes
+		Vector4 endColor;                            // 16 bytes
+		float   endScale;    uint32_t isActive;
+		Vector2 padding0;                            // 16 bytes (isActiveの後は8バイト余る)
+		Vector3 rotate;      float padding1;         // 16 bytes
+		Vector3 angularVelocity; float padding2;     // 16 bytes
+	};
 
 	struct Particle {
 		Transform transform;
@@ -173,51 +136,82 @@ public:
 		float padding; // 16byte アラインメント用（重要）
 	};
 
+	struct GlobalConfig
+	{
+		float deltaTime;
+		uint32_t maxParticles;
+	};
+
+	struct SceneConfig
+	{
+		Matrix4x4 viewProjection;
+	};
+	
 	// シングルトン
 	static ModelParticleManager* GetInstance();
 
 	// パーティクルの最大数
-	static const uint32_t kMaxInstance = 10000;
+	static const uint32_t kMaxInstance = 1000000;
 
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
-	void Update(float deltaTime, Camera* camera);
+	void Dispatch(float deltaTime, Camera* camera);
 	void Draw();
 
 	// パーティクル発生
-	void Emit(const Particle& particle);
+	void EmitBatch(const std::vector<Particle>& particles);
 
 	Particle MakeParticle(const ParticleEmitterConfig& config);
 
-	void UpdateImGui(ParticleEmitterConfig& editingConfig);
-	
+	void UpdateImGui(const std::string& effectName, ParticleEmitterConfig& editingConfig);
 	void SaveToJson(const std::string& path, const ParticleEmitterConfig& config);
-
 	void LoadFromJson(const std::string& path, ParticleEmitterConfig& config);
+	
+	// --- 追加：エフェクトの事前登録 ---
+	// これを呼ぶとJSONを読み込んで、名前（"fire"など）と紐づけて保存する
+	void RegisterEffect(const std::string& effectName, const std::string& jsonPath);
 
+	// --- 変更：名前指定でパーティクルを発生させる ---
+	void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
 private:
+	// エフェクト設定を名前で引けるようにする
+	std::map<std::string, ParticleEmitterConfig> effectLibrary_;
+
 	DirectXCommon* dxCommon_ = nullptr;
 	SrvManager* srvManager_ = nullptr;
 
-	// インスタンシング用リソース
+	// リソース類
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
-	ModelParticleTransformationMatrix* instancingData_ = nullptr;
-	uint32_t srvIndex_; // SrvManagerで割り当てられたインデックス
+	uint32_t srvIndex_;
 
-	// 使用するモデル（plane.objなど）
 	Model* model_ = nullptr;
 
-	// パーティクルリスト
-	std::list<Particle> particles_;
-
+	// 定数バッファ関連
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Material* materialData_ = nullptr;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource;
-	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
-
-	TransformationMatrix* transformationMatrixData;
-	DirectionalLight* directionalLightData;
-
+	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
 	CameraData* cameraData_ = nullptr;
+
+	// GPU計算用 (UAV)
+	Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_;
+	uint32_t uavIndexParticles_;
+	uint32_t uavIndexRenderData_;
+
+	// Compute関連
+	Microsoft::WRL::ComPtr<ID3D12Resource> computeConfigResource_;
+	GlobalConfig* computeConfigData_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> computeSceneResource_;
+	SceneConfig* computeSceneData_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> emitStagingResource_;
+
+	// 間接描画用
+	Microsoft::WRL::ComPtr<ID3D12CommandSignature> commandSignature_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsResource_;
+	uint32_t uavIndexAliveIndices_;
+	uint32_t uavIndexDrawArgs_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> aliveIndicesResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> resetResource_;
+
+	uint32_t freeIndex_ = 0;
+	
 };

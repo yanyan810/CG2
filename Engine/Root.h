@@ -3,6 +3,7 @@
 #include <span>
 #include <wrl.h>
 #include <cassert>
+#include <d3dx12.h>
 
 class Root
 {
@@ -12,6 +13,7 @@ public:
 	void InitializeForPostEffect();
 	void InitalizeForShadow();
 	void InitalizeForTrail();
+	void InitializeForComputeParticle();
 
 	void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 
