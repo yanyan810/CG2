@@ -82,8 +82,7 @@ private:
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
 
     ParticleEmitterConfig attackEffectConfig_;
-
-    ParticleEmitterConfig effectConfig_;
+    
 
     std::unique_ptr<TrailManager> trailManager_;
 
@@ -99,5 +98,9 @@ private:
     int currentCameraIndex_ = -1;
     bool randomCameraEnabled_ = true;   // true: ランダム切替
     bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
+
+    TrailConfig trailConfig_;
+
+    ModelParticleManager* particleManager_;
 
 };
