@@ -2,6 +2,7 @@
 #include "SceneManager.h"
 #include "GameScene.h"  
 #include "TitleScene.h"
+#include"DeckEditScene.h"
 #include "TestScene.h"
 #include "GameOverScene.h"
 #include "GameClearScene.h"
@@ -128,6 +129,7 @@ bool GameApp::Initialize_() {
     // SceneManager
     sceneMgr_ = std::make_unique<SceneManager>();
     sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
+    sceneMgr_->Register("DeckEdit", [] { return std::make_unique<DeckEditScene>(); });
     sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
     sceneMgr_->Register("Test", [] { return std::make_unique<TestScene>();  }); 
     sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  }); 
@@ -135,26 +137,29 @@ bool GameApp::Initialize_() {
 
     sceneMgr_->Change(*this, "Title");
 
-    deckIDs_.push_back(9);
-    deckIDs_.push_back(8);
-    deckIDs_.push_back(7);
-    deckIDs_.push_back(6);
-    deckIDs_.push_back(5);
-    deckIDs_.push_back(4);
-    deckIDs_.push_back(3);
-    deckIDs_.push_back(2);
-    deckIDs_.push_back(1);
-    deckIDs_.push_back(20);
-    deckIDs_.push_back(19);
-    deckIDs_.push_back(18);
-    deckIDs_.push_back(17);
-    deckIDs_.push_back(16);
-    deckIDs_.push_back(15);
-    deckIDs_.push_back(14);
-    deckIDs_.push_back(13);
-    deckIDs_.push_back(12);
-    deckIDs_.push_back(11);
-    deckIDs_.push_back(10);
+    // デフォルトデッキ
+    for (int i = 0; i < 2; i++) {
+        deckIDs_.push_back(9);
+        deckIDs_.push_back(8);
+        deckIDs_.push_back(7);
+        deckIDs_.push_back(6);
+        deckIDs_.push_back(5);
+        deckIDs_.push_back(4);
+        deckIDs_.push_back(3);
+        deckIDs_.push_back(2);
+        deckIDs_.push_back(1);
+        deckIDs_.push_back(20);
+        deckIDs_.push_back(19);
+        deckIDs_.push_back(18);
+        deckIDs_.push_back(17);
+        deckIDs_.push_back(16);
+        deckIDs_.push_back(15);
+        deckIDs_.push_back(14);
+        deckIDs_.push_back(13);
+        deckIDs_.push_back(12);
+        deckIDs_.push_back(11);
+        deckIDs_.push_back(10);
+    }
 
 
     OutputDebugStringA("[GameApp] Initialize END\n");
