@@ -169,6 +169,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\Audio.cpp" />
+    <ClCompile Include="Engine\AudioManager.cpp" />
     <ClCompile Include="Engine\Camera\CameraAnimator.cpp" />
     <ClCompile Include="Engine\2D\TextSprite.cpp" />
     <ClCompile Include="Engine\Bloom.cpp" />
@@ -313,6 +315,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\Audio.h" />
+    <ClInclude Include="Engine\AudioManager.h" />
     <ClInclude Include="Engine\Camera\CameraAnimator.h" />
     <ClInclude Include="Engine\2D\TextSprite.h" />
     <ClInclude Include="Engine\Bloom.h" />

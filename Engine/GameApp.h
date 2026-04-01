@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "SpriteCommon.h"
 #include "Bloom.h"
+#include "AudioManager.h"
 
 class WinApp;
 class DirectXCommon;

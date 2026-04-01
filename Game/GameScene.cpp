@@ -159,6 +159,8 @@ void GameScene::OnEnter(GameApp& app) {
 	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
+
+	//AudioManager::GetInstance()->PlayBGM("toumei");
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -567,6 +569,8 @@ void GameScene::DrawImGui(GameApp& app) {
 		fieldUi_->DrawImGui();
 		ImGui::End();
 	}
+
+	AudioManager::GetInstance()->UpdateImGui();
 
   #endif
 }

@@ -60,6 +60,8 @@ void TitleScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
+	//AudioManager::GetInstance()->PlayBGM("machi");
+
 }
 
 //------------------------------------------------------------
