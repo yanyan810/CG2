@@ -51,6 +51,8 @@ public:
 
     void SetTargetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale, bool instant = false);
 
+    void SetIsPreview(bool flag) { isPreview_ = flag; }
+
 private:
 
     std::unique_ptr<Object3d> frame_;
@@ -81,5 +83,5 @@ private:
 	// 10の位の数字を描画するオブジェクトが必要かどうか
     bool hasTensDigit_ = false;
 
-
+    bool isPreview_;
 };

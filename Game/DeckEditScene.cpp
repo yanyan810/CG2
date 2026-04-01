@@ -5,8 +5,14 @@
 #include <algorithm>
 
 #include"CardInstance.h"
+#include"Card3D.h"
 
 void DeckEditScene::OnEnter(GameApp& app) {
+    camera_ = std::make_unique<Camera>();
+    camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+    camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+    app.ObjCom()->SetDefaultCamera(camera_.get());
+
     // 必要変数の初期化
     totalCount_ = 0;
     editingDeck_.clear();
@@ -24,6 +30,8 @@ void DeckEditScene::OnEnter(GameApp& app) {
 
     // 合計枚数を計算
     RecalculateTotal();
+
+    RebuildCardModels(app);
 }
 
 void DeckEditScene::RecalculateTotal() {
@@ -38,7 +46,17 @@ void DeckEditScene::OnExit(GameApp& app) {
 }
 
 void DeckEditScene::Update(GameApp& app, float dt) {
+    for (auto& card : cardModels_) {
+        // 必要に応じて少し回転させるなど
+        // Vector3 rot = card->GetWorldPos(); // 実際は回転プロパティが必要
+        card->Update(dt);
+    }
+}
 
+void DeckEditScene::Draw3D(GameApp& app) {
+    for (auto& card : cardModels_) {
+        card->Draw();
+    }
 }
 void DeckEditScene::Draw2D(GameApp& app) {
 
@@ -119,4 +137,38 @@ void DeckEditScene::DrawImGui(GameApp& app) {
     if (!canSave) ImGui::EndDisabled();
 
     ImGui::End();
+}
+
+void DeckEditScene::RebuildCardModels(GameApp& app) {
+    cardModels_.clear();
+
+    // データベースにあるカードを順番に並べる（例：ID 1〜20）
+    int index = 0;
+    for (int i = 1; i <= 20; ++i) {
+        const CardDef* def = db_.Find(i);
+        if (!def) continue;
+
+        auto card = std::make_unique<Card3D>();
+        // GameAppから必要な共通クラスを取得してSetup
+        card->Setup(app.ObjCom(), app.Dx(), camera_.get());
+
+        // 表示用のダミーインスタンスを作成
+        CardInstance inst;
+        inst.defId = def->id;
+        inst.number = 1; // プレビュー用なので適当な数値
+        inst.suit = CardSuit::Spade;
+
+        card->SetIsPreview(true);
+
+        card->SetCardData(*def, inst);
+        card->SetIsHand(false); // 手札レイアウト（持ち上げ等）を無効化
+
+        // グリッド配置の計算
+        float x = (index % kCardsPerRow) * kCardSpacingX + kCardStartX;
+        float y = -(index / kCardsPerRow) * kCardSpacingY + kCardStartY;
+        card->SetTransform({ x, y, 10.0f }, { 0, 0, 0 }, { 0.25f, 0.25f, 0.25f });
+
+        cardModels_.push_back(std::move(card));
+        index++;
+    }
 }

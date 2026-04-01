@@ -72,6 +72,8 @@ void Card3D::Initialize(
 {
 	Setup(objCom, dx, cam);
 	SetCardData(def, inst);
+
+	isPreview_ = false;
 }
 
 void Card3D::Setup(
@@ -411,9 +413,9 @@ void Card3D::Draw()
 
 	// コストとマークと数字を描画
 	if (costObj_) costObj_->Draw();
-	if (suitObj_) suitObj_->Draw();
-	if (hasTensDigit_ && numberObjTens_) numberObjTens_->Draw();
-	if (numberObjOnes_) numberObjOnes_->Draw();
+	if (suitObj_ && isPreview_ == false) suitObj_->Draw();
+	if (hasTensDigit_ && numberObjTens_ && isPreview_ == false) numberObjTens_->Draw();
+	if (numberObjOnes_ && isPreview_ == false) numberObjOnes_->Draw();
 
 }
 void Card3D::SetFrameColor(const Vector4& color)
