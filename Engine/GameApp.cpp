@@ -125,6 +125,9 @@ bool GameApp::Initialize_() {
 
     ModelParticleManager::GetInstance()->Initialize(dx_.get(), srv_.get());
 
+    Audio::GetInstance()->Initialize();
+    AudioManager::GetInstance()->LoadAllConfigs("resources/configs/audioSettings.json");
+
     // SceneManager
     sceneMgr_ = std::make_unique<SceneManager>();
     sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });

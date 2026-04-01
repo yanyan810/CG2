@@ -15,6 +15,8 @@
 
 #include "TrailManager.h"
 
+#include "AudioManager.h"
+
 class GameApp;
 
 class GameScene : public IScene {

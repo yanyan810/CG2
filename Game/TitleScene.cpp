@@ -57,6 +57,8 @@ void TitleScene::OnEnter(GameApp& app) {
 	//カード慣例を先に読む
 	battle_.Preload(app);
 
+	//AudioManager::GetInstance()->PlayBGM("machi");
+
 }
 
 //------------------------------------------------------------
