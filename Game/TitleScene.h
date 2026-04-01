@@ -80,4 +80,10 @@ private:
 	//先読み
 	BattleController battle_;
 
+	std::unique_ptr<FieldUi> fieldUi_;
+
+	//カード番号
+	int debugCardId_ = 9;
+	bool showDebugCardDesc_ = true;
+
 };

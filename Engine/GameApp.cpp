@@ -219,6 +219,56 @@ void GameApp::WarmupAssets_() {
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/effectsList.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/noActivation.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/showField.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/damage.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/draw.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/attakUp.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/hand.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/deck.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/discard.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/0.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/1.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/2.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/3.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/4.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/5.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/6.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/7.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/8.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/num/9.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/white.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/enemySingle.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/enemyAll.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/self.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/ni.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/ha.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/cost.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/power.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/x1.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/blockCountBlue.png");
+
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/basicEffect.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/startTurn.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/specialEffectsActivat.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/playerField.png");
+
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/onePair.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/twoPair.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/threeCard.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/straightType.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/flashType.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/fullHouse.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/fourCard.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/straightFlash.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/RoyalStraightFlush.png");
+
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/inTheCase.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/inTheAboveCases.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/colon.png");
+
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/heal.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/block.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/nextTurnATKUP.png");
+
 
     // モデル初回読み込み
     ModelManager::GetInstance()->LoadModel("human/walk.gltf");
