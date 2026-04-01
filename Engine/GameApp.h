@@ -5,6 +5,8 @@
 #include "SpriteCommon.h"
 #include "Bloom.h"
 
+#include"CardInstance.h"
+
 class WinApp;
 class DirectXCommon;
 class SrvManager;
@@ -46,9 +48,12 @@ public:
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }
 
-    // デッキIdの取得とセット
-    const std::vector<int>& GetDeckIds() const { return deckIDs_; }
-    void SetDeckIds(const std::vector<int>& ids) { deckIDs_ = ids; }
+    // デッキインスタンスの取得とセット
+    const std::vector<CardInstance>& GetDeckInstances() const { return deckInstances_; }
+    void SetDeckInstances(const std::vector<CardInstance>& instances) { deckInstances_ = instances; }
+    void SetDeckInstancesFromId(const std::vector<int>& ids);
+
+    //CardInstance MakeCardInstance(int defId);
 
 private:
     bool Initialize_();
@@ -73,5 +78,5 @@ private:
     std::unique_ptr<Bloom> bloom_;
     std::unique_ptr<RtvManager> rtv_;
 
-    std::vector<int> deckIDs_;
+    std::vector<CardInstance> deckInstances_;
 };

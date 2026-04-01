@@ -73,6 +73,32 @@ int GameApp::Run() {
     return 0;
 }
 
+namespace {
+
+    int RandomRangeInt(int minValue, int maxValue)
+    {
+        static std::random_device rd;
+        static std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> dist(minValue, maxValue);
+        return dist(mt);
+    }
+
+    CardSuit RandomSuit()
+    {
+        int v = RandomRangeInt(0, 3);
+        return static_cast<CardSuit>(v);
+    }
+
+    CardInstance MakeCardInstance(int defId)
+    {
+        CardInstance c{};
+        c.defId = defId;
+        c.number = RandomRangeInt(1, 13);
+        c.suit = RandomSuit();
+        return c;
+    }
+}
+
 bool GameApp::Initialize_() {
     OutputDebugStringA("[GameApp] Initialize START\n");
 
@@ -139,26 +165,26 @@ bool GameApp::Initialize_() {
 
     // デフォルトデッキ
     for (int i = 0; i < 2; i++) {
-        deckIDs_.push_back(9);
-        deckIDs_.push_back(8);
-        deckIDs_.push_back(7);
-        deckIDs_.push_back(6);
-        deckIDs_.push_back(5);
-        deckIDs_.push_back(4);
-        deckIDs_.push_back(3);
-        deckIDs_.push_back(2);
-        deckIDs_.push_back(1);
-        deckIDs_.push_back(20);
-        deckIDs_.push_back(19);
-        deckIDs_.push_back(18);
-        deckIDs_.push_back(17);
-        deckIDs_.push_back(16);
-        deckIDs_.push_back(15);
-        deckIDs_.push_back(14);
-        deckIDs_.push_back(13);
-        deckIDs_.push_back(12);
-        deckIDs_.push_back(11);
-        deckIDs_.push_back(10);
+        deckInstances_.push_back(MakeCardInstance(9));
+        deckInstances_.push_back(MakeCardInstance(8));
+        deckInstances_.push_back(MakeCardInstance(7));
+        deckInstances_.push_back(MakeCardInstance(6));
+        deckInstances_.push_back(MakeCardInstance(5));
+        deckInstances_.push_back(MakeCardInstance(4));
+        deckInstances_.push_back(MakeCardInstance(3));
+        deckInstances_.push_back(MakeCardInstance(2));
+        deckInstances_.push_back(MakeCardInstance(1));
+        deckInstances_.push_back(MakeCardInstance(20));
+        deckInstances_.push_back(MakeCardInstance(19));
+        deckInstances_.push_back(MakeCardInstance(18));
+        deckInstances_.push_back(MakeCardInstance(17));
+        deckInstances_.push_back(MakeCardInstance(16));
+        deckInstances_.push_back(MakeCardInstance(15));
+        deckInstances_.push_back(MakeCardInstance(14));
+        deckInstances_.push_back(MakeCardInstance(13));
+        deckInstances_.push_back(MakeCardInstance(12));
+        deckInstances_.push_back(MakeCardInstance(11));
+        deckInstances_.push_back(MakeCardInstance(10));
     }
 
 
@@ -267,4 +293,11 @@ void GameApp::WarmupAssets_() {
 
 
     OutputDebugStringA("[Warmup] END\n");
+}
+
+void GameApp::SetDeckInstancesFromId(const std::vector<int>& ids) {
+    deckInstances_.clear();
+    for (const auto& id : ids) {
+        deckInstances_.push_back(MakeCardInstance(id));
+    }
 }

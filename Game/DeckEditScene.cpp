@@ -4,6 +4,8 @@
 #include <imgui.h>
 #include <algorithm>
 
+#include"CardInstance.h"
+
 void DeckEditScene::OnEnter(GameApp& app) {
     // 必要変数の初期化
     totalCount_ = 0;
@@ -12,12 +14,12 @@ void DeckEditScene::OnEnter(GameApp& app) {
     // カードリスト読み込み
     db_.LoadFromJson("resources/cards/cards.json");
 
-    // gameAppから現在のデッキidを取得
-    const std::vector<int>& currentDeck = app.GetDeckIds();
+    // 1. GameAppから CardInstance型でデッキを取得
+    const auto& currentInstances = app.GetDeckInstances();
 
-    // デッキidをvectorからmapへ変換
-    for (int id : currentDeck) {
-        editingDeck_[id]++;
+    // 2. ID(int) だけを抽出して枚数をカウント
+    for (const auto& inst : currentInstances) {
+        editingDeck_[inst.defId]++;
     }
 
     // 合計枚数を計算
@@ -108,7 +110,7 @@ void DeckEditScene::DrawImGui(GameApp& app) {
         }
 
         // --- GameAppに情報を渡す ---
-        app.SetDeckIds(finalDeck);
+        app.SetDeckInstancesFromId(finalDeck);
 
         // --- シーン遷移 ---
         RequestChangeScene_("Game");

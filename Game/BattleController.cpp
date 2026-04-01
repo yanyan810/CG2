@@ -539,8 +539,8 @@ void BattleController::Preload(GameApp& app)
 			}
 		}*/
 
-		for (int id : app.GetDeckIds()) {
-			prebuiltDeck_.push_back(MakeCardInstance(id));
+		for (CardInstance instance : app.GetDeckInstances()) {
+			prebuiltDeck_.push_back(instance);
 		}
 
 		assetsPreloaded_ = true;
