@@ -4,6 +4,7 @@
 #include "AABB.h"
 #include "Object3d.h"
 #include "ModelParticleManager.h"
+#include "ImGuizmo.h"
 
 class Object3dCommon;
 class DirectXCommon;
@@ -70,13 +71,25 @@ public:
 		}
 	}
 
+	// アニメーションエディタの描画
+	void DrawAnimationEditorImGui();
 
 private:
+	// ギズモ操作用
+	int32_t selectedJointIndex_ = -1;             // 今どのボーンを選んでいるか (-1は未選択)
+	ImGuizmo::OPERATION currentGizmoOperation_ = ImGuizmo::ROTATE; // 今ギズモで何をしているか (デフォルトは回転)
+	ImGuizmo::MODE currentGizmoMode_ = ImGuizmo::LOCAL;           // 今LOCAL操作かWORLD操作か
+
 	std::unique_ptr<Object3d> model_;
 
 	Vector3 pos_{ 0.0f, 0.0f, 0.0f };
 	Vector3 rot_{ 0.0f, 0.0f, 0.0f };
 
+
+	// アニメーションエディタ（タイムライン）用
+	float editorTime_ = 0.0f;               // 現在のスライダーの時間（秒）
+	float editorMaxDuration_ = 2.0f;        // アニメーションの全体の長さ
+	Animation editedAnim_;                  // 今作っているアニメーションデータ
 
 	int hp_ = 100;
 	int maxHp_ = 100;
