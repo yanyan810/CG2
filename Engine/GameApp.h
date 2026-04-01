@@ -46,6 +46,10 @@ public:
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }
 
+    // デッキIdの取得とセット
+    const std::vector<int>& GetDeckIds() const { return deckIDs_; }
+    void SetDeckIds(const std::vector<int>& ids) { deckIDs_ = ids; }
+
 private:
     bool Initialize_();
     void Finalize_();
@@ -68,4 +72,6 @@ private:
 
     std::unique_ptr<Bloom> bloom_;
     std::unique_ptr<RtvManager> rtv_;
+
+    std::vector<int> deckIDs_;
 };

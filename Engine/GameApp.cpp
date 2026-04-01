@@ -135,9 +135,32 @@ bool GameApp::Initialize_() {
 
     sceneMgr_->Change(*this, "Title");
 
+    deckIDs_.push_back(9);
+    deckIDs_.push_back(8);
+    deckIDs_.push_back(7);
+    deckIDs_.push_back(6);
+    deckIDs_.push_back(5);
+    deckIDs_.push_back(4);
+    deckIDs_.push_back(3);
+    deckIDs_.push_back(2);
+    deckIDs_.push_back(1);
+    deckIDs_.push_back(20);
+    deckIDs_.push_back(19);
+    deckIDs_.push_back(18);
+    deckIDs_.push_back(17);
+    deckIDs_.push_back(16);
+    deckIDs_.push_back(15);
+    deckIDs_.push_back(14);
+    deckIDs_.push_back(13);
+    deckIDs_.push_back(12);
+    deckIDs_.push_back(11);
+    deckIDs_.push_back(10);
+
 
     OutputDebugStringA("[GameApp] Initialize END\n");
     return true;
+
+   
 }
 
 
