@@ -48,6 +48,8 @@ void DeckEditScene::OnExit(GameApp& app) {
 void DeckEditScene::Update(GameApp& app, float dt) {
     Input* input = app.GetInput();
 
+  
+
     for (int i = 0; i < (int)cardModels_.size(); ++i) {
         int cardId = i + 1; // IDが1から始まる前提
         int currentCount = editingDeck_[cardId];
@@ -67,6 +69,8 @@ void DeckEditScene::Update(GameApp& app, float dt) {
         } else {
             cardModels_[i]->ResetFrameColor(); // 通常時
         }
+
+        cardModels_[i]->SetCount(currentCount);
     }
 
     // --- クリック判定 ---
