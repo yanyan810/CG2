@@ -57,10 +57,12 @@ public:
     const TrailConfig& GetConfig() const { return config_; }
     void SetConfig(const TrailConfig& config) { config_ = config; }
     void Clear() { points_.clear(); }
-    bool IsActive() { return isActive_; }
+
+    void SetActive(bool active) { isActive_ = active; }
+    bool IsActive() const { return isActive_; }
 
 private:
     std::deque<SwordSection> points_;
     TrailConfig config_;
-    bool isActive_;
+    bool isActive_ = true;
 };
