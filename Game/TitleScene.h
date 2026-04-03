@@ -36,7 +36,7 @@ public:
 
 	void DrawPostEffect3D(GameApp& app) override;
 	void DrawPostEffect2D(GameApp& app) override;
-
+	
 private:
 	//--------------------------------------------------------
 	// タイトルの状態

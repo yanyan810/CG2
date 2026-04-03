@@ -5,6 +5,29 @@ AudioManager* AudioManager::GetInstance() {
 	return &instance;
 }
 
+void AudioManager::RefreshAudioFileList() {
+    audioFileList_.clear();
+
+    std::string kAudioDirPath = "resources/audio/"; // ルートとなるフォルダ
+
+    if (!fs::exists(kAudioDirPath)) return;
+
+    // recursive_directory_iterator を使うことでサブフォルダも全て探索する
+    for (const auto& entry : fs::recursive_directory_iterator(kAudioDirPath)) {
+        // ファイルであり、かつディレクトリではないことを確認
+        if (entry.is_regular_file()) {
+            std::string ext = entry.path().extension().string();
+            // 大文字小文字を区別する場合があるため注意
+            if (ext == ".wav" || ext == ".mp3" || ext == ".ogg") {
+                // Windows標準のバックスラッシュ(\)をスラッシュ(/)に統一しておくと事故が減ります
+                std::string path = entry.path().string();
+                std::replace(path.begin(), path.end(), '\\', '/');
+                audioFileList_.push_back(path);
+            }
+        }
+    }
+}
+
 // 全ての音設定をロードしてAudioクラスに登録する
 void AudioManager::LoadAllConfigs(const std::string& path) {
 	std::ifstream file(path);
@@ -28,9 +51,13 @@ void AudioManager::LoadAllConfigs(const std::string& path) {
 
 void AudioManager::UpdateImGui() {
     ImGui::Begin("Audio Editor");
-
+    
+    // 最初にリストを更新するボタンがあると便利
+    if (ImGui::Button("Refresh File List")) {
+        RefreshAudioFileList();
+    }
+    ImGui::SameLine();
     if (ImGui::Button("Add New Audio")) {
-        // 重複しない名前を生成
         std::string newName = "NewAudio_" + std::to_string(configs_.size());
         configs_[newName] = AudioConfig{ newName, "resources/audio/sample.wav" };
     }
@@ -64,12 +91,25 @@ void AudioManager::UpdateImGui() {
             ImGui::TextDisabled("(Press Enter)"); // ユーザーにEnterが必要だと伝える
 
             // --- 2. パスの変更 ---
-            // パスもIDを固定して、他の項目の影響を受けないようにする
-            char pathBuf[256];
-            strcpy_s(pathBuf, config.filePath.c_str());
-            std::string pathLabel = "Path##path" + std::to_string(i);
-            if (ImGui::InputText(pathLabel.c_str(), pathBuf, sizeof(pathBuf))) {
-                config.filePath = pathBuf;
+            ImGui::Text("File Path:");
+
+            // 現在のパスからファイル名だけ抽出してラベルにする（見た目スッキリ）
+            std::string currentFileName = fs::path(config.filePath).filename().string();
+
+            if (ImGui::BeginCombo(("##pathCombo" + std::to_string(i)).c_str(), currentFileName.c_str())) {
+                for (const auto& filePath : audioFileList_) {
+                    std::string fileName = fs::path(filePath).filename().string();
+                    bool isSelected = (config.filePath == filePath);
+
+                    if (ImGui::Selectable(fileName.c_str(), isSelected)) {
+                        config.filePath = filePath; // パスを更新！
+                    }
+
+                    if (isSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
             }
 
             // --- 3. パラメータの変更 ---
@@ -84,7 +124,8 @@ void AudioManager::UpdateImGui() {
             std::wstring wName = ConvertString(name);
             if (ImGui::Button("Preview Play")) {
                 if (config.loop) {
-                    Audio::GetInstance()->PlayAudio(wName, config.loop, config.defaultVolume);
+                    //Audio::GetInstance()->PlayAudio(wName, config.loop, config.defaultVolume);
+                    PlayBGM(name);
                 } else {
                     Audio::GetInstance()->PlayAudioSE(wName, config.defaultVolume);
                 }
@@ -124,7 +165,7 @@ void AudioManager::UpdateImGui() {
         SaveAllConfigs("resources/configs/audioSettings.json");
     }
 
-    ImGui::End(); // 正しいEndはここ一箇所だけ！
+    ImGui::End();
 }
 
 // 文字列変換用ヘルパー (std::string <-> std::wstring)

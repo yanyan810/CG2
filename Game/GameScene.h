@@ -102,6 +102,7 @@ private:
     bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
     TrailConfig trailConfig_;
+    TrailConfig swordTrailConfig_;
 
     ModelParticleManager* particleManager_;
 
