@@ -1,0 +1,26 @@
+{
+    "machi": {
+        "filePath": "resources/audio/BGM/machi.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 1.0
+    },
+    "neppuu": {
+        "filePath": "resources/audio/BGM/neppuu.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 1.0
+    },
+    "sword": {
+        "filePath": "resources/audio/SE/sword.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 2.0
+    },
+    "toumei": {
+        "filePath": "resources/audio/BGM/toumei.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 1.0
+    }
+}

@@ -29,6 +29,11 @@ struct RenderData
 RWStructuredBuffer<Particle> gParticles : register(u0);
 RWStructuredBuffer<RenderData> gRenderData : register(u1); // 描画用
 
+// 描画対象のインデックスを保持するバッファ
+RWStructuredBuffer<uint> gAliveIndices : register(u2);
+// ExecuteIndirect用の引数バッファ (InstanceCountを書き換える)
+RWByteAddressBuffer gDrawArgs : register(u3);
+
 // 定数
 struct GlobalConfig
 {
@@ -97,47 +102,57 @@ float4x4 MakeAffineMatrix(float3 scale, float3 rotate, float3 translate)
 [numthreads(1024, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
+    // 1. 範囲外チェック
     if (DTid.x >= gConfig.maxParticles)
         return;
+
+    // 2. アクティブチェック
     if (gParticles[DTid.x].isActive == 0)
-    {
-        // 非アクティブなら描画データを透明にするなどして隠す
-        gRenderData[DTid.x].color.a = 0;
         return;
-    }
 
     Particle p = gParticles[DTid.x];
 
-    // 1. 更新
+    // 3. 寿命更新と終了判定
     p.currentTime += gConfig.deltaTime;
     if (p.currentTime >= p.lifeTime)
     {
         p.isActive = 0;
         gParticles[DTid.x] = p;
-        gRenderData[DTid.x].color.a = 0;
+        // ここでは gRenderData への書き込みは不要（描画リストに入れないため）
         return;
     }
 
+    // 4. 物理挙動の計算
     float t = p.currentTime / p.lifeTime;
     p.velocity += p.acceleration * gConfig.deltaTime;
     p.position += p.velocity * gConfig.deltaTime;
     p.rotate += p.angularVelocity * gConfig.deltaTime;
 
-    // 2. 演出パラメータ計算
+    // 5. 演出パラメータ計算
     float currentScale = lerp(p.startScale, p.endScale, t);
     float4 currentColor = lerp(p.startColor, p.endColor, t);
-    // フェードアウトの余韻（C++のコードにあった logic）
     currentColor.a *= (1.0f - t);
 
-    // 3. 行列生成
+    // 6. 行列生成
     float4x4 world = MakeAffineMatrix(float3(currentScale, currentScale, currentScale), p.rotate, p.position);
     
-    // 4. 描画バッファへ書き込み
-    gRenderData[DTid.x].World = world;
-    gRenderData[DTid.x].WVP = mul(world, gScene.viewProjection);
-    gRenderData[DTid.x].WorldInverseTranspose = transpose(world); // 簡易的にはworldで代用可
-    gRenderData[DTid.x].color = currentColor;
+    // --- ここからが「間接描画」のための重要処理 ---
 
-    // 5. パーティクル状態の保存
+    // 7. 生存カウンタをインクリメントして、書き込み先のインデックスを取得
+    // gDrawArgs (RWByteAddressBuffer) の 4バイト目 (InstanceCount) を +1 する
+    uint drawIndex;
+    gDrawArgs.InterlockedAdd(4, 1, drawIndex);
+
+    // 8. 取得した drawIndex 番目に描画データを詰めて書き込む
+    // 注意：DTid.x ではなく drawIndex を使うことで、バッファの先頭から生存分が並ぶ
+    gRenderData[drawIndex].World = world;
+    gRenderData[drawIndex].WVP = mul(world, gScene.viewProjection);
+    gRenderData[drawIndex].WorldInverseTranspose = transpose(world);
+    gRenderData[drawIndex].color = currentColor;
+
+    // (オプション) 生存している元のパーティクルIDを保持しておきたい場合
+    gAliveIndices[drawIndex] = DTid.x;
+
+    // 9. パーティクル状態を保存
     gParticles[DTid.x] = p;
 }

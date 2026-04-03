@@ -189,16 +189,21 @@ void Root::InitializeForComputeParticle() {
 	// UAV用のレンジを個別に用意（u0用とu1用）
 	CD3DX12_DESCRIPTOR_RANGE1 rangeU0;
 	rangeU0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0); // u0
-
 	CD3DX12_DESCRIPTOR_RANGE1 rangeU1;
 	rangeU1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1); // u1
+	CD3DX12_DESCRIPTOR_RANGE1 rangeU2;
+	rangeU2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 2); // u2: AliveIndices
+	CD3DX12_DESCRIPTOR_RANGE1 rangeU3;
+	rangeU3.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 3); // u3: DrawArgs
 
 	// パラメータを4つに設定
-	CD3DX12_ROOT_PARAMETER1 rootParameters[4];
-	rootParameters[0].InitAsConstantBufferView(0);          // Index 0: b0 (GlobalConfig)
-	rootParameters[1].InitAsConstantBufferView(1);          // Index 1: b1 (SceneConfig)
-	rootParameters[2].InitAsDescriptorTable(1, &rangeU0);   // Index 2: u0 (Particles)
-	rootParameters[3].InitAsDescriptorTable(1, &rangeU1);   // Index 3: u1 (RenderData)
+	CD3DX12_ROOT_PARAMETER1 rootParameters[6]; // 4 -> 6に増加
+	rootParameters[0].InitAsConstantBufferView(0); // b0
+	rootParameters[1].InitAsConstantBufferView(1); // b1
+	rootParameters[2].InitAsDescriptorTable(1, &rangeU0); // u0
+	rootParameters[3].InitAsDescriptorTable(1, &rangeU1); // u1
+	rootParameters[4].InitAsDescriptorTable(1, &rangeU2); // u2 (追加)
+	rootParameters[5].InitAsDescriptorTable(1, &rangeU3); // u3 (追加)
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
 	rootSigDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);

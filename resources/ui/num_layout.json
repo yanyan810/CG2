@@ -1,0 +1,38 @@
+{
+    "deckCount": {
+        "scale": 0.25,
+        "spacing": 18.0,
+        "x": 1200.0,
+        "y": 673.0
+    },
+    "discardCount": {
+        "scale": 0.27000001072883606,
+        "spacing": 28.0,
+        "x": 1203.0,
+        "y": 384.0
+    },
+    "effect1": {
+        "offsetX": 116.0,
+        "offsetY": 4.0,
+        "scale": 0.3499999940395355,
+        "spacing": 28.0
+    },
+    "effect2": {
+        "offsetX": 112.0,
+        "offsetY": 4.0,
+        "scale": 0.3499999940395355,
+        "spacing": 28.0
+    },
+    "effect3": {
+        "offsetX": 123.0,
+        "offsetY": 4.0,
+        "scale": 0.3499999940395355,
+        "spacing": 28.0
+    },
+    "handCount": {
+        "scale": 0.25,
+        "spacing": 25.0,
+        "x": 1089.0,
+        "y": 672.0
+    }
+}
