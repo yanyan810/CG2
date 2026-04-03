@@ -36,7 +36,7 @@ public:
 
 	void DrawPostEffect3D(GameApp& app) override;
 	void DrawPostEffect2D(GameApp& app) override;
-	
+
 private:
 	//--------------------------------------------------------
 	// タイトルの状態
@@ -75,7 +75,7 @@ private:
 	//--------------------------------------------------------
 	// 遷移先
 	//--------------------------------------------------------
-	const char* kNextScene_ = "Game";
+	const char* kNextScene_ = "DeckEdit";
 
 	//先読み
 	BattleController battle_;
@@ -85,5 +85,7 @@ private:
 	//カード番号
 	int debugCardId_ = 9;
 	bool showDebugCardDesc_ = true;
+
+	bool showPokerPreview_ = true;
 
 };
