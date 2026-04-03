@@ -120,9 +120,173 @@
             "y": 40.0
         }
     },
+    "previewImages": {
+        "activatedLabel": {
+            "scale": 0.6399999856948853,
+            "x": 599.0,
+            "y": 424.0
+        },
+        "activatedLines": [
+            {
+                "labelScale": 0.550000011920929,
+                "numberOffsetX": 272.0,
+                "numberOffsetY": 23.0,
+                "numberScale": 0.17000000178813934,
+                "numberSpacing": 17.0,
+                "suffixOffsetX": -130.0,
+                "x": 566.0,
+                "y": 479.0
+            },
+            {
+                "labelScale": 0.5699999928474426,
+                "numberOffsetX": 110.0,
+                "numberOffsetY": 20.0,
+                "numberScale": 0.2199999988079071,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": -143.0,
+                "x": 738.0,
+                "y": 515.0
+            },
+            {
+                "labelScale": 0.5400000214576721,
+                "numberOffsetX": 235.0,
+                "numberOffsetY": 21.0,
+                "numberScale": 0.18000000715255737,
+                "numberSpacing": 19.0,
+                "suffixOffsetX": -116.0,
+                "x": 566.0,
+                "y": 555.0
+            },
+            {
+                "labelScale": 0.75,
+                "numberOffsetX": 185.0,
+                "numberOffsetY": 8.0,
+                "numberScale": 0.2800000011920929,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": 20.0,
+                "x": 725.0,
+                "y": 771.0
+            },
+            {
+                "labelScale": 0.75,
+                "numberOffsetX": 185.0,
+                "numberOffsetY": 8.0,
+                "numberScale": 0.2800000011920929,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": 20.0,
+                "x": 725.0,
+                "y": 833.0
+            }
+        ],
+        "activatedNoneLabel": {
+            "scale": 0.75,
+            "x": 644.0,
+            "y": 602.0
+        },
+        "atkLabel": {
+            "scale": 0.550000011920929,
+            "x": 588.0,
+            "y": 213.0
+        },
+        "atkValue": {
+            "scale": 0.23000000417232513,
+            "spacing": 26.0,
+            "x": 837.0,
+            "y": 230.0
+        },
+        "damageLabel": {
+            "scale": 0.550000011920929,
+            "x": 900.0,
+            "y": 214.0
+        },
+        "damageValue": {
+            "scale": 0.23000000417232513,
+            "spacing": 28.0,
+            "x": 1143.0,
+            "y": 230.0
+        },
+        "drawLabel": {
+            "scale": 0.6299999952316284,
+            "x": 713.0,
+            "y": 210.0
+        },
+        "drawValue": {
+            "scale": 0.23000000417232513,
+            "spacing": 28.0,
+            "x": 991.0,
+            "y": 232.0
+        },
+        "rank": {
+            "scale": 0.6100000143051147,
+            "x": 760.0,
+            "y": 261.0
+        },
+        "turnStartLabel": {
+            "scale": 0.6499999761581421,
+            "x": 597.0,
+            "y": 302.0
+        },
+        "turnStartLines": [
+            {
+                "labelScale": 0.75,
+                "numberOffsetX": 185.0,
+                "numberOffsetY": 8.0,
+                "numberScale": 0.2800000011920929,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": 20.0,
+                "x": 725.0,
+                "y": 475.0
+            },
+            {
+                "labelScale": 0.75,
+                "numberOffsetX": 185.0,
+                "numberOffsetY": 8.0,
+                "numberScale": 0.2800000011920929,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": 20.0,
+                "x": 725.0,
+                "y": 537.0
+            },
+            {
+                "labelScale": 0.75,
+                "numberOffsetX": 185.0,
+                "numberOffsetY": 8.0,
+                "numberScale": 0.2800000011920929,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": 20.0,
+                "x": 725.0,
+                "y": 599.0
+            },
+            {
+                "labelScale": 0.75,
+                "numberOffsetX": 185.0,
+                "numberOffsetY": 8.0,
+                "numberScale": 0.2800000011920929,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": 20.0,
+                "x": 725.0,
+                "y": 661.0
+            },
+            {
+                "labelScale": 0.75,
+                "numberOffsetX": 185.0,
+                "numberOffsetY": 8.0,
+                "numberScale": 0.2800000011920929,
+                "numberSpacing": 28.0,
+                "suffixOffsetX": 20.0,
+                "x": 725.0,
+                "y": 723.0
+            }
+        ],
+        "turnStartNoneLabel": {
+            "scale": 0.75,
+            "x": 496.0,
+            "y": 347.0
+        }
+    },
     "previewPanelBg": {
-        "h": 450.0,
-        "w": 540.0,
+        "h": 518.0,
+        "w": 548.0,
         "x": 700.0,
         "y": 120.0
     },

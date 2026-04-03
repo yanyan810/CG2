@@ -86,4 +86,6 @@ private:
 	int debugCardId_ = 9;
 	bool showDebugCardDesc_ = true;
 
+	bool showPokerPreview_ = true;
+
 };
