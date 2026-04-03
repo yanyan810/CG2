@@ -85,9 +85,6 @@ private:
 
     ParticleEmitterConfig attackEffectConfig_;
     
-
-    std::unique_ptr<TrailManager> trailManager_;
-
     std::unique_ptr<Sprite> powerBoostBg_;
     std::unique_ptr<TextSprite> powerBoostText_;
     std::unique_ptr<Sprite> blockBg_;
@@ -101,9 +98,9 @@ private:
     bool randomCameraEnabled_ = true;   // true: ランダム切替
     bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
-    TrailConfig trailConfig_;
-    TrailConfig swordTrailConfig_;
-
     ModelParticleManager* particleManager_;
-
+    
+    std::unique_ptr<TrailManager> trailManager_;
+    TrailInstance* testTrail_ = nullptr; // マネージャが寿命管理するので生のポインタでOK
+    TrailConfig trailConfig_;            // インスペクタ調整用
 };
