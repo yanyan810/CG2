@@ -72,6 +72,8 @@ void Card3D::Initialize(
 {
 	Setup(objCom, dx, cam);
 	SetCardData(def, inst);
+
+	isPreview_ = false;
 }
 
 void Card3D::Setup(
@@ -120,6 +122,14 @@ void Card3D::Setup(
 		numberObjOnes_->Initialize(objCom, dx);
 		numberObjOnes_->SetCamera(cam);
 		numberObjOnes_->SetEnableLighting(0);
+	}
+
+	if (!countObj_) {
+		countObj_ = std::make_unique<Object3d>();
+		countObj_->Initialize(objCom, dx);
+		countObj_->SetCamera(cam);
+		countObj_->SetEnableLighting(0);
+		countObj_->SetMaterialColor({ 1.f,1.f,1.f,1.f });
 	}
 
 }
@@ -397,6 +407,33 @@ void Card3D::Update(float dt)
 		numberObjTens_->Update(dt);
 	}
 
+	if (countObj_) {
+		std::string onesPath = "cards/models/" + std::to_string(count_) + ".obj";
+		countObj_->SetModel(onesPath.c_str());
+
+		float digitSpacing = 0.7f;
+		float baseX = g_numberX[mode] - digitSpacing * 0.5f;
+
+		Vector3 localOffset = { 0.5f, -4.5f, 2.f };
+		Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
+
+		Vector3 tensPos = {
+			pos_.x + rotatedOffset.x,
+			pos_.y + rotatedOffset.y,
+			pos_.z + rotatedOffset.z
+		};
+
+		countObj_->SetTranslate(tensPos);
+		countObj_->SetRotate(fixRot);
+		float s = 0.5f;
+		countObj_->SetScale({
+			scale_.x * s,
+			scale_.y * s,
+			scale_.z * s
+			});
+		countObj_->Update(dt);
+	}
+
 	transformDirty_ = false;
 	frameColorDirty_ = false;
 	hasSubmittedOnce_ = true;
@@ -411,9 +448,10 @@ void Card3D::Draw()
 
 	// コストとマークと数字を描画
 	if (costObj_) costObj_->Draw();
-	if (suitObj_) suitObj_->Draw();
-	if (hasTensDigit_ && numberObjTens_) numberObjTens_->Draw();
-	if (numberObjOnes_) numberObjOnes_->Draw();
+	if (suitObj_ && isPreview_ == false) suitObj_->Draw();
+	if (hasTensDigit_ && numberObjTens_ && isPreview_ == false) numberObjTens_->Draw();
+	if (numberObjOnes_ && isPreview_ == false) numberObjOnes_->Draw();
+	if (countObj_) countObj_->Draw();
 
 }
 void Card3D::SetFrameColor(const Vector4& color)
@@ -499,3 +537,7 @@ void Card3D::DrawAdjustImGui()
 
 }
 #endif
+
+void Card3D::SetCount(int count) {
+	count_ = count;
+}

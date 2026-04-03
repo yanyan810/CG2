@@ -69,6 +69,83 @@ struct UiCardDescImageLayout {
     float subValueSpacing = 28.0f;
 };
 
+struct UiCustomDescImageLayout {
+    float x = 0.0f;
+    float y = 0.0f;
+    float scaleX = 1.0f;
+    float scaleY = 1.0f;
+};
+
+struct UiPreviewImageItem {
+    float x = 0.0f;
+    float y = 0.0f;
+    float scale = 0.75f;
+};
+
+struct UiPreviewNumberItem {
+    float x = 0.0f;
+    float y = 0.0f;
+    float scale = 0.28f;
+    float spacing = 28.0f;
+};
+
+struct UiPokerPreviewLineAnchor {
+    float x = 0.0f;
+    float y = 0.0f;
+};
+
+struct UiPokerPreviewPatternLayout {
+    float labelScale = 0.75f;
+
+    float prefixOffsetX = 0.0f;
+    float prefixOffsetY = 0.0f;
+
+    float numberOffsetX = 185.0f;
+    float numberOffsetY = 8.0f;
+    float numberScale = 0.28f;
+    float numberSpacing = 28.0f;
+
+    float suffixOffsetX = 20.0f;
+    float suffixOffsetY = 0.0f;
+};
+
+struct UiPokerPreviewPatternSet {
+    UiPokerPreviewPatternLayout singleDamage;
+    UiPokerPreviewPatternLayout allDamage;
+    UiPokerPreviewPatternLayout draw;
+    UiPokerPreviewPatternLayout block;
+    UiPokerPreviewPatternLayout heal;
+};
+
+struct UiPokerPreviewLinesLayout {
+    UiPokerPreviewLineAnchor lines[5];
+};
+
+struct UiPokerPreviewImageLayout {
+    UiPreviewImageItem rank;
+
+    UiPreviewImageItem atkLabel;
+    UiPreviewNumberItem atkValue;
+
+    UiPreviewImageItem drawLabel;
+    UiPreviewNumberItem drawValue;
+
+    UiPreviewImageItem damageLabel;
+    UiPreviewNumberItem damageValue;
+
+    UiPreviewImageItem turnStartLabel;
+    UiPreviewImageItem turnStartNoneLabel;
+
+    UiPreviewImageItem activatedLabel;
+    UiPreviewImageItem activatedNoneLabel;
+
+    UiPokerPreviewLinesLayout turnStartLines;
+    UiPokerPreviewLinesLayout activatedLines;
+
+    UiPokerPreviewPatternSet turnStartPatterns;
+    UiPokerPreviewPatternSet activatedPatterns;
+};
+
 struct PokerEffectChoiceLayout {
     // タイトル画像
     UiVec2 titleImage;
@@ -94,6 +171,9 @@ struct PokerEffectChoiceLayout {
     UiRect effectViewBoardRect;
     UiVec2 effectViewBoardImage;
 
+	// プレビューUI
+    UiPokerPreviewImageLayout previewImages;
+
     // 共通
     UiRect infoButtonRect;
     UiText infoButtonImage;
@@ -115,6 +195,8 @@ struct UiNumberItem {
     float scale = 1.0f;
     float spacing = 28.0f;
 };
+
+
 
 struct UiCardDescBaseRowLayout {
     UiImageItem target;
@@ -241,6 +323,73 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 
     l.activateViewBoardRect = { 460.0f, 590.0f, 360.0f, 90.0f };
     l.activateViewBoardImage = { 555.0f, 615.0f };
+
+    l.previewImages.rank = { 725.0f, 185.0f, 0.75f };
+
+    l.previewImages.atkLabel = { 725.0f, 235.0f, 0.75f };
+    l.previewImages.atkValue = { 905.0f, 243.0f, 0.28f, 28.0f };
+
+    l.previewImages.drawLabel = { 725.0f, 295.0f, 0.75f };
+    l.previewImages.drawValue = { 905.0f, 303.0f, 0.28f, 28.0f };
+
+    l.previewImages.damageLabel = { 725.0f, 355.0f, 0.75f };
+    l.previewImages.damageValue = { 905.0f, 363.0f, 0.28f, 28.0f };
+
+    l.previewImages.turnStartLabel = { 725.0f, 425.0f, 0.75f };
+    l.previewImages.turnStartNoneLabel = { 725.0f, 475.0f, 0.75f };
+
+    l.previewImages.activatedLabel = { 725.0f, 525.0f, 0.75f };
+    l.previewImages.activatedNoneLabel = { 725.0f, 585.0f, 0.75f };
+
+    for (int i = 0; i < 5; ++i) {
+        l.previewImages.turnStartLines.lines[i].x = 725.0f;
+        l.previewImages.turnStartLines.lines[i].y = 475.0f + 62.0f * i;
+
+        l.previewImages.activatedLines.lines[i].x = 725.0f;
+        l.previewImages.activatedLines.lines[i].y = 585.0f + 62.0f * i;
+    }
+
+    // -------------------------
+    // TurnStart Patterns
+    // -------------------------
+    l.previewImages.turnStartPatterns.singleDamage.labelScale = 0.75f;
+    l.previewImages.turnStartPatterns.singleDamage.prefixOffsetX = 0.0f;
+    l.previewImages.turnStartPatterns.singleDamage.prefixOffsetY = 0.0f;
+    l.previewImages.turnStartPatterns.singleDamage.numberOffsetX = 185.0f;
+    l.previewImages.turnStartPatterns.singleDamage.numberOffsetY = 8.0f;
+    l.previewImages.turnStartPatterns.singleDamage.numberScale = 0.28f;
+    l.previewImages.turnStartPatterns.singleDamage.numberSpacing = 28.0f;
+    l.previewImages.turnStartPatterns.singleDamage.suffixOffsetX = 20.0f;
+    l.previewImages.turnStartPatterns.singleDamage.suffixOffsetY = 0.0f;
+
+    l.previewImages.turnStartPatterns.allDamage = l.previewImages.turnStartPatterns.singleDamage;
+
+    l.previewImages.turnStartPatterns.draw.labelScale = 0.75f;
+    l.previewImages.turnStartPatterns.draw.prefixOffsetX = 0.0f;
+    l.previewImages.turnStartPatterns.draw.prefixOffsetY = 0.0f;
+    l.previewImages.turnStartPatterns.draw.numberOffsetX = 0.0f;
+    l.previewImages.turnStartPatterns.draw.numberOffsetY = 8.0f;
+    l.previewImages.turnStartPatterns.draw.numberScale = 0.28f;
+    l.previewImages.turnStartPatterns.draw.numberSpacing = 28.0f;
+    l.previewImages.turnStartPatterns.draw.suffixOffsetX = 20.0f;
+    l.previewImages.turnStartPatterns.draw.suffixOffsetY = 0.0f;
+
+    l.previewImages.turnStartPatterns.block.labelScale = 0.75f;
+    l.previewImages.turnStartPatterns.block.prefixOffsetX = 0.0f;
+    l.previewImages.turnStartPatterns.block.prefixOffsetY = 0.0f;
+    l.previewImages.turnStartPatterns.block.numberOffsetX = 185.0f;
+    l.previewImages.turnStartPatterns.block.numberOffsetY = 8.0f;
+    l.previewImages.turnStartPatterns.block.numberScale = 0.28f;
+    l.previewImages.turnStartPatterns.block.numberSpacing = 28.0f;
+    l.previewImages.turnStartPatterns.block.suffixOffsetX = 20.0f;
+    l.previewImages.turnStartPatterns.block.suffixOffsetY = 0.0f;
+
+    l.previewImages.turnStartPatterns.heal = l.previewImages.turnStartPatterns.block;
+
+    // -------------------------
+    // Activated Patterns
+    // -------------------------
+    l.previewImages.activatedPatterns = l.previewImages.turnStartPatterns;
 
     return l;
 }

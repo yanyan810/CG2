@@ -58,12 +58,37 @@ public:
 	//数字用レイアウトのゲッター
 	const UiNumberLayout& GetUiNumberLayout() const { return numberLayout_; }
 
+public:
 
+	//=======================
 	//デバッグ用
+	//=======================
+
+	struct DebugPokerPreviewData {
+		bool enabled = false;
+
+		BattleController::PokerHandRank rank = BattleController::PokerHandRank::ThreeOfAKind;
+
+		int atkUp = 5;
+		int draw = 2;
+		int damage = 15;
+
+		std::vector<std::wstring> turnStartLines;
+		std::vector<std::wstring> activatedLines;
+	};
+
 	void SetDebugCardDescVisible(bool visible) { debugCardDescVisible_ = visible; }
 	void SetDebugCardDescText(const std::wstring& text) { debugCardDescText_ = text; }
 	void SetDebugImageCardDescVisible(bool visible) { debugImageCardDescVisible_ = visible; }
 	void SetDebugImageCardDescCard(const CardDef* def) { debugImageCardDescCard_ = def; }
+
+	void SetEditCardId(int cardId) { editCardId_ = (cardId > 0) ? cardId : 1; }
+	int GetEditCardId() const { return editCardId_; }//Id対応
+
+	void SetDebugPokerPreviewVisible(bool v);
+
+	void SetDebugPokerPreviewData(const DebugPokerPreviewData& data);
+	void ClearDebugPokerPreviewData();
 
 private:
 	void ApplyPokerOptionImageLayout_(const BattleController& battle);
@@ -83,13 +108,24 @@ private:
 	//カード説明のカスタムレイアウト関連
 	const UiCardDescCustomLayout& GetCardDescCustomLayout_(int cardId) const;
 	UiCardDescCustomLayout& GetOrCreateCardDescCustomLayout_(int cardId);
+	bool IsCustomDescCardId_(int cardId) const;
+	const UiCustomDescImageLayout& GetCustomDescImageLayout_(int cardId) const;
+	UiCustomDescImageLayout& GetOrCreateCustomDescImageLayout_(int cardId);
+
+	//プレビュー用を画像にする
+	void UpdatePokerPreviewImageCommands_(const BattleController& battle);
+	void DrawPokerPreviewImageCommands_(const Matrix4x4& view, const Matrix4x4& proj);
+	void HidePokerPreviewImageCommands_();
 
 	void UpdatePreviewCardImageDesc_(const BattleController& battle);
 	void HidePreviewCardImageDesc_();
 	void DrawPreviewCardImageDesc_(const Matrix4x4& view, const Matrix4x4& proj);
 
+	void DrawCardDescSingleImage_(int cardId, const std::string& path);
+
 	//デバッグ用
-	void UpdatePreviewCardImageDescFromDef_(const CardDef* def);
+	void UpdatePreviewCardImageDescFromDef_(const CardDef* def, const BattleController* battle = nullptr);
+
 
 private:
 
@@ -106,6 +142,20 @@ private:
 		float x, float y,
 		float sx = 1.0f, float sy = 1.0f,
 		Vector4 color = { 1.0f,1.0f,1.0f,1.0f });
+
+	void AddImageCommandTo_(
+		std::vector<PreviewImageCommand>& commands,
+		const std::string& texturePath,
+		float x, float y,
+		float sx, float sy,
+		Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+
+	void AddNumberCommandsTo_(
+		std::vector<PreviewImageCommand>& commands,
+		int value,
+		float x, float y,
+		float scale,
+		float spacing);
 
 	void AddPreviewNumberCommands_(
 		int value,
@@ -199,19 +249,36 @@ private:
 	std::array<std::array<std::unique_ptr<Sprite>, kMaxUiDigits>, 3> pokerEffectValueDigits_;
 
 	std::vector<PreviewImageCommand> previewImageCommands_;
-	//std::unique_ptr<Sprite> previewWorkSprite_;
+	std::vector<PreviewImageCommand> pokerPreviewImageCommands_;
 
-	//デバッグ用
+
+	//========================
+	// デバッグ用
+	//========================
+
+
 	bool debugCardDescVisible_ = false;
 	std::wstring debugCardDescText_;
 	bool debugImageCardDescVisible_ = false;
 	const CardDef* debugImageCardDescCard_ = nullptr;
 
+	bool debugShowPokerPreview_ = false;
+
 	//カード説明のカスタムレイアウト。カードIDごとに個別のレイアウトを指定できる。UIレイアウトのJSONにはない、カード固有のレイアウト調整に使う。
 	std::unordered_map<int, UiCardDescCustomLayout> perCardDescCustomLayouts_;
 	int editCardId_ = 1; // ImGuiで今編集するカードID
+	std::unordered_map<int, UiCustomDescImageLayout> perCardCustomDescImageLayouts_;
 
 
+	DebugPokerPreviewData debugPokerPreviewData_;
+
+	void UpdatePokerPreviewImageCommandsFromDebugData_();
+	void AddActivatedPreviewLineFromText_(
+		std::vector<PreviewImageCommand>& cmds,
+		const std::wstring& line,
+		float baseX, float baseY,
+		const UiPokerPreviewPatternSet& patterns,
+		float noneScale);
 
 private:
 	static std::wstring Utf8ToWString_(const std::string& s);
