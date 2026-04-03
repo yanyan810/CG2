@@ -60,6 +60,7 @@ void TitleScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
+
 	FieldUi::DebugPokerPreviewData debugPreview{};
 	debugPreview.enabled = true;
 	debugPreview.rank = BattleController::PokerHandRank::ThreeOfAKind;
@@ -74,6 +75,8 @@ void TitleScene::OnEnter(GameApp& app) {
 	};
 
 	fieldUi_->SetDebugPokerPreviewData(debugPreview);
+
+	//AudioManager::GetInstance()->PlayBGM("machi");
 
 }
 

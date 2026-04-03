@@ -4,6 +4,9 @@
 #include "Input.h"
 #include "SpriteCommon.h"
 #include "Bloom.h"
+#include "AudioManager.h"
+
+#include"CardInstance.h"
 
 class WinApp;
 class DirectXCommon;
@@ -46,6 +49,13 @@ public:
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }
 
+    // デッキインスタンスの取得とセット
+    const std::vector<CardInstance>& GetDeckInstances() const { return deckInstances_; }
+    void SetDeckInstances(const std::vector<CardInstance>& instances) { deckInstances_ = instances; }
+    void SetDeckInstancesFromId(const std::vector<int>& ids);
+
+    //CardInstance MakeCardInstance(int defId);
+
 private:
     bool Initialize_();
     void Finalize_();
@@ -68,4 +78,6 @@ private:
 
     std::unique_ptr<Bloom> bloom_;
     std::unique_ptr<RtvManager> rtv_;
+
+    std::vector<CardInstance> deckInstances_;
 };

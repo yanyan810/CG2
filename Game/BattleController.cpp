@@ -511,7 +511,7 @@ void BattleController::Preload(GameApp& app)
 
 		prebuiltDeck_.clear();
 
-		if (DeckLoader::LoadFromJson("resources/cards/deck/deck.json", deckDef) &&
+		/*if (DeckLoader::LoadFromJson("resources/cards/deck/deck.json", deckDef) &&
 			DeckLoader::ValidateDeck(deckDef, db_, err)) {
 
 			for (const auto& e : deckDef.cards) {
@@ -542,6 +542,10 @@ void BattleController::Preload(GameApp& app)
 				prebuiltDeck_.push_back(MakeCardInstance(11));
 				prebuiltDeck_.push_back(MakeCardInstance(10));
 			}
+		}*/
+
+		for (CardInstance instance : app.GetDeckInstances()) {
+			prebuiltDeck_.push_back(instance);
 		}
 
 		assetsPreloaded_ = true;
