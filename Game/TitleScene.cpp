@@ -60,6 +60,22 @@ void TitleScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
+
+	FieldUi::DebugPokerPreviewData debugPreview{};
+	debugPreview.enabled = true;
+	debugPreview.rank = BattleController::PokerHandRank::ThreeOfAKind;
+	debugPreview.atkUp = 7;
+	debugPreview.draw = 2;
+	debugPreview.damage = 25;
+	debugPreview.turnStartLines = {};
+	debugPreview.activatedLines = {
+		L"敵単体に25ダメージ",
+		L"3枚引く",
+		L"自身に10ブロック"
+	};
+
+	fieldUi_->SetDebugPokerPreviewData(debugPreview);
+
 	//AudioManager::GetInstance()->PlayBGM("machi");
 
 }
@@ -121,6 +137,10 @@ void TitleScene::Update(GameApp& app, float dt) {
 	skyDome_->Update(dt);
 
 	if (fieldUi_) {
+		fieldUi_->SetEditCardId(debugCardId_);
+
+		fieldUi_->SetDebugPokerPreviewVisible(showPokerPreview_);
+
 		const CardDef* debugDef = battle_.FindCardDef(debugCardId_);
 		fieldUi_->SetDebugImageCardDescVisible(showDebugCardDesc_);
 		fieldUi_->SetDebugImageCardDescCard(debugDef);
@@ -194,11 +214,16 @@ void TitleScene::DrawImGui(GameApp& app) {
 	ImGui::Checkbox("Show Debug Card Desc", &showDebugCardDesc_);
 	ImGui::DragInt("Debug Card ID", &debugCardId_, 1.0f, 1, 999);
 
+	ImGui::Checkbox("Show Poker Preview", &showPokerPreview_);
+
 	ImGui::End();
 
 	if (fieldUi_) {
 		fieldUi_->DrawImGui();
 	}
+
+	//battle_.DrawImGui();
+
 #else
 	(void)app;
 #endif

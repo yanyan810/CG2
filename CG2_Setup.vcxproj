@@ -169,6 +169,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+
+    <ClCompile Include="Engine\3D\AnimationEditorPose.cpp" />
+    <ClCompile Include="Engine\3D\AnimationEditorSession.cpp" />
+    <ClCompile Include="Engine\3D\AnimationClipDocument.cpp" />
+    <ClCompile Include="Engine\3D\AnimationJsonSerializer.cpp" />
     <ClCompile Include="Game\DeckEditScene.cpp" />
     <ClCompile Include="Engine\Audio.cpp" />
     <ClCompile Include="Engine\AudioManager.cpp" />
@@ -316,9 +321,16 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+
+    <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
+    <ClInclude Include="Engine\3D\AnimationEditorSession.h" />
+    <ClInclude Include="Engine\3D\AnimationClipDocument.h" />
+    <ClInclude Include="Engine\3D\AnimationJsonSerializer.h" />
+
     <ClInclude Include="Game\DeckEditScene.h" />
     <ClInclude Include="Engine\Audio.h" />
     <ClInclude Include="Engine\AudioManager.h" />
+
     <ClInclude Include="Engine\Camera\CameraAnimator.h" />
     <ClInclude Include="Engine\2D\TextSprite.h" />
     <ClInclude Include="Engine\Bloom.h" />

@@ -321,11 +321,16 @@ void GameApp::WarmupAssets_() {
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/inTheCase.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/inTheAboveCases.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/colon.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/text/nasi.png");
 
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/heal.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/block.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/text/nextTurnATKUP.png");
 
+    TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_6.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_17.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_18.png");
+    TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_19.png");
 
     // モデル初回読み込み
     ModelManager::GetInstance()->LoadModel("human/walk.gltf");

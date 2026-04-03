@@ -95,7 +95,8 @@ public:
 
     bool IsAllEnemiesDead() const;
 
-    
+	// カード効果の値を、現在のバトル状況を考慮して計算する関数
+    int GetDisplayEffectValue(const CardEffectDef& effect, bool applyAttackBuff = true) const;
 
 #ifdef USE_IMGUI
     void DrawImGui();
@@ -148,6 +149,9 @@ public:
         SubEffectTrigger trigger,
         PokerHandRank rank
     ) const;
+
+    //デバッグ用パワーアップ
+    void SetDebugPreviewBuffEnabled(bool enabled) { useDebugPreviewBuff_ = enabled; }
 
     void Finalize() {
         fieldViews_.clear();
@@ -235,7 +239,8 @@ private:
 	//ポーカー選択UI用
     bool pokerChoiceJustOpened_ = false;
 
-    int nextTurnAtkUp_ = 0;
+    int nextTurnAtkUp_ = 0;      // 次の自分ターン開始時に受け取る予約分
+    int currentTurnAtkUp_ = 0;   // 今の自分ターン中だけ有効なATK UP
     int currentEnemyIndex_ = 0;
     int pendingDamage_ = 0;
     bool isPokerDamageTargeting_ = false;
@@ -286,6 +291,12 @@ private:
 
     bool pokerQuickPreviewVisible_ = false;
 
+    //デバッグ用パワーアップ
+    int debugPreviewPowerBoost_ = 0;
+    int debugPreviewCurrentTurnAtkUp_ = 0;
+    int debugPreviewNextTurnAtkUp_ = 0;
+    bool useDebugPreviewBuff_ = true;
+
 private:
 
     SpriteCommon* spriteCom_ = nullptr;
@@ -322,7 +333,7 @@ private:
     bool IsRankInFamily_(PokerHandRank rank, const std::string& family) const;
     bool DoesSubEffectConditionMatch_(const CardSubEffectDef& sub, PokerHandRank rank) const;
 
-    void ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex = -1);
+    void ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex = -1, bool applyAttackBuff = true);
     void TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank);
     void TriggerSubEffectsForCard_(const CardInstance& card, SubEffectTrigger trigger, PokerHandRank rank);
 

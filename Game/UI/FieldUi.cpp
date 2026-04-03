@@ -28,7 +28,8 @@ std::wstring FieldUi::Utf8ToWString_(const std::string& s)
 	return Utf8ToWStringLocal(s);
 }
 
-void FieldUi::AddPreviewImageCommand_(
+void FieldUi::AddImageCommandTo_(
+	std::vector<PreviewImageCommand>& commands,
 	const std::string& texturePath,
 	float x, float y,
 	float sx, float sy,
@@ -48,7 +49,44 @@ void FieldUi::AddPreviewImageCommand_(
 	cmd.sprite->Initialize(app_->SpriteCom(), app_->Dx(), texturePath);
 	cmd.sprite->SetAnchorPointKeepingVisual({ 0.0f, 0.0f });
 
-	previewImageCommands_.push_back(std::move(cmd));
+	// ⭐ これが超重要
+	commands.push_back(std::move(cmd));
+}
+
+
+void FieldUi::AddPreviewImageCommand_(
+	const std::string& texturePath,
+	float x, float y,
+	float sx, float sy,
+	Vector4 color)
+{
+	AddImageCommandTo_(previewImageCommands_, texturePath, x, y, sx, sy, color);
+}
+
+void FieldUi::AddNumberCommandsTo_(
+	std::vector<PreviewImageCommand>& commands,
+	int value,
+	float x, float y,
+	float scale,
+	float spacing)
+{
+	std::string text = std::to_string(std::max(0, value));
+
+	for (int i = 0; i < static_cast<int>(text.size()); ++i) {
+		std::string path = "resources/ui/num/";
+		path += text[i];
+		path += ".png";
+
+		AddImageCommandTo_(
+			commands,
+			path,
+			x + spacing * i,
+			y,
+			scale,
+			scale,
+			{ 1,1,1,1 }
+		);
+	}
 }
 
 void FieldUi::AddPreviewNumberCommands_(
@@ -71,6 +109,312 @@ void FieldUi::AddPreviewNumberCommands_(
 			scale,
 			{ 1.0f,1.0f,1.0f,1.0f }
 		);
+	}
+}
+
+void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
+{
+	pokerPreviewImageCommands_.clear();
+	auto& cmds = pokerPreviewImageCommands_;
+	const auto& p = pokerEffectLayout_.previewImages;
+
+	// 役名
+	{
+		std::string rankPath = GetRankImagePath_(battle.GetCurrentPokerRankForUi());
+		AddImageCommandTo_(cmds, rankPath,
+			p.rank.x, p.rank.y,
+			p.rank.scale, p.rank.scale,
+			{ 1,1,1,1 });
+	}
+
+	// ATK UP
+	AddImageCommandTo_(cmds, "resources/ui/text/attakUp.png",
+		p.atkLabel.x, p.atkLabel.y,
+		p.atkLabel.scale, p.atkLabel.scale,
+		{ 1,1,1,1 });
+
+	AddNumberCommandsTo_(cmds, battle.GetCurrentPokerBonusForUi().atkUp,
+		p.atkValue.x, p.atkValue.y,
+		p.atkValue.scale, p.atkValue.spacing);
+
+	// Draw
+	AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
+		p.drawLabel.x, p.drawLabel.y,
+		p.drawLabel.scale, p.drawLabel.scale,
+		{ 1,1,1,1 });
+
+	AddNumberCommandsTo_(cmds, battle.GetCurrentPokerBonusForUi().drawCount,
+		p.drawValue.x, p.drawValue.y,
+		p.drawValue.scale, p.drawValue.spacing);
+
+	// Damage
+	AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
+		p.damageLabel.x, p.damageLabel.y,
+		p.damageLabel.scale, p.damageLabel.scale,
+		{ 1,1,1,1 });
+
+	AddNumberCommandsTo_(cmds, battle.GetCurrentPokerBonusForUi().damage,
+		p.damageValue.x, p.damageValue.y,
+		p.damageValue.scale, p.damageValue.spacing);
+
+	// -------------------------
+	// ターン開始時
+	// -------------------------
+	AddImageCommandTo_(cmds, "resources/ui/text/startTurn.png",
+		p.turnStartLabel.x, p.turnStartLabel.y,
+		p.turnStartLabel.scale, p.turnStartLabel.scale,
+		{ 1,1,1,1 });
+
+	auto turnStartLines = battle.CollectSubEffectPreviewLines_(
+		SubEffectTrigger::OnTurnStartWithPoker,
+		battle.GetCurrentPokerRankForUi()
+	);
+
+	if (turnStartLines.empty()) {
+		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
+			p.turnStartNoneLabel.x, p.turnStartNoneLabel.y,
+			p.turnStartNoneLabel.scale, p.turnStartNoneLabel.scale,
+			{ 1,1,1,1 });
+	} else {
+		const int maxLines = (std::min)(static_cast<int>(turnStartLines.size()), 5);
+		for (int i = 0; i < maxLines; ++i) {
+			const auto& anchor = p.turnStartLines.lines[i];
+			AddActivatedPreviewLineFromText_(
+				cmds,
+				turnStartLines[i],
+				anchor.x, anchor.y,
+				p.turnStartPatterns,
+				p.turnStartNoneLabel.scale);
+		}
+	}
+
+	// -------------------------
+	// 特殊効果発動時
+	// -------------------------
+	AddImageCommandTo_(cmds, "resources/ui/text/specialEffectsActivat.png",
+		p.activatedLabel.x, p.activatedLabel.y,
+		p.activatedLabel.scale, p.activatedLabel.scale,
+		{ 1,1,1,1 });
+
+	auto pokerActivatedLines = battle.CollectSubEffectPreviewLines_(
+		SubEffectTrigger::OnPokerSkillActivated,
+		battle.GetCurrentPokerRankForUi()
+	);
+
+	if (pokerActivatedLines.empty()) {
+		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
+			p.activatedNoneLabel.x, p.activatedNoneLabel.y,
+			p.activatedNoneLabel.scale, p.activatedNoneLabel.scale,
+			{ 1,1,1,1 });
+	} else {
+		const int maxLines = (std::min)(static_cast<int>(pokerActivatedLines.size()), 5);
+		for (int i = 0; i < maxLines; ++i) {
+			const auto& anchor = p.activatedLines.lines[i];
+			AddActivatedPreviewLineFromText_(
+				cmds,
+				pokerActivatedLines[i],
+				anchor.x, anchor.y,
+				p.activatedPatterns,
+				p.activatedNoneLabel.scale);
+		}
+	}
+}
+
+void FieldUi::UpdatePokerPreviewImageCommandsFromDebugData_()
+{
+	pokerPreviewImageCommands_.clear();
+	auto& cmds = pokerPreviewImageCommands_;
+	const auto& p = pokerEffectLayout_.previewImages;
+	const auto& d = debugPokerPreviewData_;
+
+	// 役名
+	{
+		std::string rankPath = GetRankImagePath_(d.rank);
+		AddImageCommandTo_(cmds, rankPath,
+			p.rank.x, p.rank.y,
+			p.rank.scale, p.rank.scale,
+			{ 1,1,1,1 });
+	}
+
+	// ATK UP
+	AddImageCommandTo_(cmds, "resources/ui/text/attakUp.png",
+		p.atkLabel.x, p.atkLabel.y,
+		p.atkLabel.scale, p.atkLabel.scale,
+		{ 1,1,1,1 });
+
+	AddNumberCommandsTo_(cmds, d.atkUp,
+		p.atkValue.x, p.atkValue.y,
+		p.atkValue.scale, p.atkValue.spacing);
+
+	// Draw
+	AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
+		p.drawLabel.x, p.drawLabel.y,
+		p.drawLabel.scale, p.drawLabel.scale,
+		{ 1,1,1,1 });
+
+	AddNumberCommandsTo_(cmds, d.draw,
+		p.drawValue.x, p.drawValue.y,
+		p.drawValue.scale, p.drawValue.spacing);
+
+	// Damage
+	AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
+		p.damageLabel.x, p.damageLabel.y,
+		p.damageLabel.scale, p.damageLabel.scale,
+		{ 1,1,1,1 });
+
+	AddNumberCommandsTo_(cmds, d.damage,
+		p.damageValue.x, p.damageValue.y,
+		p.damageValue.scale, p.damageValue.spacing);
+
+	// ターン開始時
+	AddImageCommandTo_(cmds, "resources/ui/text/startTurn.png",
+		p.turnStartLabel.x, p.turnStartLabel.y,
+		p.turnStartLabel.scale, p.turnStartLabel.scale,
+		{ 1,1,1,1 });
+
+	if (d.turnStartLines.empty()) {
+		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
+			p.turnStartNoneLabel.x, p.turnStartNoneLabel.y,
+			p.turnStartNoneLabel.scale, p.turnStartNoneLabel.scale,
+			{ 1,1,1,1 });
+	} else {
+		const int maxLines = (std::min)(static_cast<int>(d.turnStartLines.size()), 5);
+		for (int i = 0; i < maxLines; ++i) {
+			const auto& anchor = p.turnStartLines.lines[i];
+			AddActivatedPreviewLineFromText_(
+				cmds,
+				d.turnStartLines[i],
+				anchor.x, anchor.y,
+				p.turnStartPatterns,
+				p.turnStartNoneLabel.scale);
+		}
+	}
+
+	// 特殊効果発動時
+	AddImageCommandTo_(cmds, "resources/ui/text/specialEffectsActivat.png",
+		p.activatedLabel.x, p.activatedLabel.y,
+		p.activatedLabel.scale, p.activatedLabel.scale,
+		{ 1,1,1,1 });
+
+	if (d.activatedLines.empty()) {
+		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
+			p.activatedNoneLabel.x, p.activatedNoneLabel.y,
+			p.activatedNoneLabel.scale, p.activatedNoneLabel.scale,
+			{ 1,1,1,1 });
+	} else {
+		const int maxLines = (std::min)(static_cast<int>(d.activatedLines.size()), 5);
+		for (int i = 0; i < maxLines; ++i) {
+			const auto& anchor = p.activatedLines.lines[i];
+			AddActivatedPreviewLineFromText_(
+				cmds,
+				d.activatedLines[i],
+				anchor.x, anchor.y,
+				p.activatedPatterns,
+				p.activatedNoneLabel.scale);
+		}
+	}
+}
+
+void FieldUi::AddActivatedPreviewLineFromText_(
+	std::vector<PreviewImageCommand>& cmds,
+	const std::wstring& line,
+	float baseX, float baseY,
+	const UiPokerPreviewPatternSet& patterns,
+	float noneScale)
+{
+	std::wstring digits;
+	for (wchar_t ch : line) {
+		if (ch >= L'0' && ch <= L'9') {
+			digits.push_back(ch);
+		}
+	}
+
+	int value = 0;
+	if (!digits.empty()) {
+		value = std::stoi(digits);
+	}
+
+	if (line.find(L"敵単体に") != std::wstring::npos &&
+		line.find(L"ダメージ") != std::wstring::npos) {
+
+		const auto& pat = patterns.singleDamage;
+
+		AddImageCommandTo_(cmds, "resources/ui/text/enemySingle.png",
+			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+
+		AddNumberCommandsTo_(cmds, value,
+			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
+			pat.numberScale, pat.numberSpacing);
+
+		AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
+			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
+			baseY + pat.suffixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+	} else if (line.find(L"敵全体に") != std::wstring::npos &&
+		line.find(L"ダメージ") != std::wstring::npos) {
+
+		const auto& pat = patterns.allDamage;
+
+		AddImageCommandTo_(cmds, "resources/ui/text/enemyAll.png",
+			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+
+		AddNumberCommandsTo_(cmds, value,
+			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
+			pat.numberScale, pat.numberSpacing);
+
+		AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
+			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
+			baseY + pat.suffixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+	} else if (line.find(L"枚引く") != std::wstring::npos) {
+
+		const auto& pat = patterns.draw;
+
+		AddNumberCommandsTo_(cmds, value,
+			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
+			pat.numberScale, pat.numberSpacing);
+
+		AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
+			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
+			baseY + pat.suffixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+	} else if (line.find(L"回復") != std::wstring::npos) {
+
+		const auto& pat = patterns.heal;
+
+		AddImageCommandTo_(cmds, "resources/ui/text/self.png",
+			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+
+		AddNumberCommandsTo_(cmds, value,
+			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
+			pat.numberScale, pat.numberSpacing);
+
+		AddImageCommandTo_(cmds, "resources/ui/text/heal.png",
+			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
+			baseY + pat.suffixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+	} else if (line.find(L"ブロック") != std::wstring::npos) {
+
+		const auto& pat = patterns.block;
+
+		AddImageCommandTo_(cmds, "resources/ui/text/self.png",
+			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+
+		AddNumberCommandsTo_(cmds, value,
+			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
+			pat.numberScale, pat.numberSpacing);
+
+		AddImageCommandTo_(cmds, "resources/ui/text/block.png",
+			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
+			baseY + pat.suffixOffsetY,
+			pat.labelScale, pat.labelScale, { 1,1,1,1 });
+	} else {
+		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
+			baseX, baseY, noneScale, noneScale, { 1,1,1,1 });
 	}
 }
 
@@ -455,6 +799,20 @@ std::string FieldUi::GetEffectParticleImagePath_(const CardEffectDef& effect) co
 	return "resources/ui/text/ni.png";
 }
 
+void FieldUi::DrawCardDescSingleImage_(int cardId, const std::string& path)
+{
+	const auto& custom = GetCustomDescImageLayout_(cardId);
+
+	AddPreviewImageCommand_(
+		path,
+		custom.x,
+		custom.y,
+		custom.scaleX,
+		custom.scaleY,
+		{ 1.0f, 1.0f, 1.0f, 1.0f }
+	);
+}
+
 void FieldUi::HidePreviewCardImageDesc_()
 {
 	previewImageCommands_.clear();
@@ -462,10 +820,10 @@ void FieldUi::HidePreviewCardImageDesc_()
 
 void FieldUi::UpdatePreviewCardImageDesc_(const BattleController& battle)
 {
-	UpdatePreviewCardImageDescFromDef_(battle.GetPreviewCardDef());
+	UpdatePreviewCardImageDescFromDef_(battle.GetPreviewCardDef(), &battle);
 }
 
-void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
+void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def, const BattleController* battle)
 {
 	previewImageCommands_.clear();
 
@@ -479,8 +837,8 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 	const auto& img = layout_.cardDescImage;
 
 	// =========================
-	// 基本効果タイトル
-	// =========================
+// 基本効果タイトル
+// =========================
 	AddPreviewImageCommand_(
 		"resources/ui/text/basicEffect.png",
 		baseX + custom.titleBasicEffect.x,
@@ -489,9 +847,39 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 		custom.titleBasicEffect.scale
 	);
 
+	// 特殊カード（専用画像）
+	if (def->id == 6 || def->id == 17 || def->id == 18 || def->id == 19) {
+		// 区切り線だけは通常カードと同じように出す
+		AddPreviewImageCommand_(
+			"resources/ui/white.png",
+			baseX + custom.separator.x,
+			baseY + custom.separator.y,
+			img.separatorWidth,
+			img.separatorHeight,
+			{ 1.0f, 1.0f, 1.0f, 0.75f }
+		);
+
+		if (def->id == 6) {
+			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_6.png");
+		} else if (def->id == 17) {
+			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_17.png");
+		} else if (def->id == 18) {
+			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_18.png");
+		} else if (def->id == 19) {
+			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_19.png");
+		}
+		return;
+	}
+
+	// =========================
+	// 基本効果
+	// =========================
 	const int baseEffectCount = (std::min)(static_cast<int>(def->effects.size()), 3);
 	for (int i = 0; i < baseEffectCount; ++i) {
 		const auto& effect = def->effects[i];
+		const int displayValue = battle
+			? battle->GetDisplayEffectValue(effect, true)
+			: effect.value;
 		const auto& row = custom.baseRows[i];
 
 		const std::string targetPath = GetEffectTargetImagePath_(effect);
@@ -506,22 +894,6 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 		const float effectTypeAdvance = 185.0f;
 		const float numberYOffset = -18.0f;
 
-
-		float extraValueOffsetX = 0.0f;
-		if (effect.type == "Draw") {
-			extraValueOffsetX = 55.0f;
-		}
-		if (effect.type == "NextTurnAtkUp") {
-			extraValueOffsetX = 55.0f;
-		}
-		if (effect.type == "PowerBoost") {
-			extraValueOffsetX = 55.0f;
-		}
-		if (effect.type == "EnergyCharge") {
-			extraValueOffsetX = 55.0f;
-		}
-
-		// target
 		if (!targetPath.empty()) {
 			AddPreviewImageCommand_(
 				targetPath,
@@ -530,11 +902,9 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 				row.target.scale,
 				row.target.scale
 			);
-			cursorX += targetAdvance;
-			cursorX += gap;
+			cursorX += targetAdvance + gap;
 		}
 
-		// particle
 		if (!particlePath.empty()) {
 			AddPreviewImageCommand_(
 				particlePath,
@@ -543,15 +913,10 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 				row.particle.scale,
 				row.particle.scale
 			);
-			cursorX += particleAdvance;
-			cursorX += gap;
+			cursorX += particleAdvance + gap;
 		}
 
-		// value
 		if (effect.type == "DamageByBlock") {
-			// DamageByBlock は value を使わず、
-			// effectType の前に専用画像を並べる
-
 			AddPreviewImageCommand_(
 				"resources/ui/text/blockCountBlue.png",
 				cursorX + row.special1.x,
@@ -568,26 +933,23 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 				row.special2.scale
 			);
 
-			cursorX += row.specialAdvance;
-			cursorX += gap;
+			cursorX += row.specialAdvance + gap;
 		} else {
-			// 通常の数字
 			AddPreviewNumberCommands_(
-				effect.value,
+				displayValue,
 				cursorX + row.value.x,
 				baseY + row.value.y + numberYOffset,
 				row.value.scale,
 				row.value.spacing
 			);
 
-			std::string valueText = std::to_string(std::max(0, effect.value));
+			std::string valueText = std::to_string(std::max(0, displayValue));
 			if (!valueText.empty()) {
 				cursorX += row.value.spacing * static_cast<float>(valueText.size());
 				cursorX += gap;
 			}
 		}
 
-		// effectType
 		if (!effectPath.empty()) {
 			AddPreviewImageCommand_(
 				effectPath,
@@ -596,8 +958,7 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 				row.effectType.scale,
 				row.effectType.scale
 			);
-			cursorX += effectTypeAdvance;
-			cursorX += gap;
+			cursorX += effectTypeAdvance + gap;
 		}
 	}
 
@@ -610,14 +971,11 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 		baseY + custom.separator.y,
 		img.separatorWidth,
 		img.separatorHeight,
-		{ 1.0f,1.0f,1.0f,0.75f }
+		{ 1.0f, 1.0f, 1.0f, 0.75f }
 	);
 
 	// =========================
 	// サブ効果
-	// 1個目→subBlocks[0]
-	// 2個目→subBlocks[1]
-	// 3個目→subBlocks[2]
 	// =========================
 	const int subEffectCount = (std::min)(static_cast<int>(def->subEffects.size()), 3);
 	for (int i = 0; i < subEffectCount; ++i) {
@@ -651,19 +1009,28 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 					rankPath = "resources/ui/text/flashType.png";
 				}
 			} else {
-				BattleController::PokerHandRank rank = BattleController::PokerHandRank::None;
+				// まず family系文字列を rank に入れているケースも吸収
+				if (sub.condition.rank == "PairFamily") {
+					rankPath = "resources/ui/text/pairType.png";
+				} else if (sub.condition.rank == "StraightFamily") {
+					rankPath = "resources/ui/text/straightType.png";
+				} else if (sub.condition.rank == "FlushFamily") {
+					rankPath = "resources/ui/text/flashType.png";
+				} else {
+					BattleController::PokerHandRank rank = BattleController::PokerHandRank::None;
 
-				if (sub.condition.rank == "OnePair") rank = BattleController::PokerHandRank::OnePair;
-				else if (sub.condition.rank == "TwoPair") rank = BattleController::PokerHandRank::TwoPair;
-				else if (sub.condition.rank == "ThreeOfAKind") rank = BattleController::PokerHandRank::ThreeOfAKind;
-				else if (sub.condition.rank == "Straight") rank = BattleController::PokerHandRank::Straight;
-				else if (sub.condition.rank == "Flush") rank = BattleController::PokerHandRank::Flush;
-				else if (sub.condition.rank == "FullHouse") rank = BattleController::PokerHandRank::FullHouse;
-				else if (sub.condition.rank == "FourOfAKind") rank = BattleController::PokerHandRank::FourOfAKind;
-				else if (sub.condition.rank == "StraightFlush") rank = BattleController::PokerHandRank::StraightFlush;
-				else if (sub.condition.rank == "RoyalStraightFlush") rank = BattleController::PokerHandRank::RoyalStraightFlush;
+					if (sub.condition.rank == "OnePair") rank = BattleController::PokerHandRank::OnePair;
+					else if (sub.condition.rank == "TwoPair") rank = BattleController::PokerHandRank::TwoPair;
+					else if (sub.condition.rank == "ThreeOfAKind") rank = BattleController::PokerHandRank::ThreeOfAKind;
+					else if (sub.condition.rank == "Straight") rank = BattleController::PokerHandRank::Straight;
+					else if (sub.condition.rank == "Flush") rank = BattleController::PokerHandRank::Flush;
+					else if (sub.condition.rank == "FullHouse") rank = BattleController::PokerHandRank::FullHouse;
+					else if (sub.condition.rank == "FourOfAKind") rank = BattleController::PokerHandRank::FourOfAKind;
+					else if (sub.condition.rank == "StraightFlush") rank = BattleController::PokerHandRank::StraightFlush;
+					else if (sub.condition.rank == "RoyalStraightFlush") rank = BattleController::PokerHandRank::RoyalStraightFlush;
 
-				rankPath = GetRankImagePath_(rank);
+					rankPath = GetRankImagePath_(rank);
+				}
 			}
 
 			if (!rankPath.empty()) {
@@ -691,9 +1058,13 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 			}
 		}
 
-		// 効果本体（今は先頭1個だけ表示）
+		// 効果本体
 		if (!sub.effects.empty()) {
 			const auto& effect = sub.effects[0];
+
+			const int displayValue = battle
+				? battle->GetDisplayEffectValue(effect, false)
+				: effect.value;
 
 			const std::string targetPath = GetEffectTargetImagePath_(effect);
 			const std::string particlePath = GetEffectParticleImagePath_(effect);
@@ -719,13 +1090,31 @@ void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def)
 				);
 			}
 
-			AddPreviewNumberCommands_(
-				effect.value,
-				baseX + block.value.x,
-				baseY + block.value.y,
-				block.value.scale,
-				block.value.spacing
-			);
+			if (effect.type == "DamageByBlock") {
+				AddPreviewImageCommand_(
+					"resources/ui/text/blockCountBlue.png",
+					baseX + block.value.x,
+					baseY + block.value.y,
+					block.value.scale,
+					block.value.scale
+				);
+
+				AddPreviewImageCommand_(
+					"resources/ui/text/x1.png",
+					baseX + block.value.x + 170.0f,
+					baseY + block.value.y,
+					block.value.scale,
+					block.value.scale
+				);
+			} else {
+				AddPreviewNumberCommands_(
+					displayValue,
+					baseX + block.value.x,
+					baseY + block.value.y,
+					block.value.scale,
+					block.value.spacing
+				);
+			}
 
 			if (!effectPath.empty()) {
 				AddPreviewImageCommand_(
@@ -758,6 +1147,58 @@ UiCardDescCustomLayout& FieldUi::GetOrCreateCardDescCustomLayout_(int cardId)
 
 	perCardDescCustomLayouts_[cardId] = layout_.cardDescCustom;
 	return perCardDescCustomLayouts_[cardId];
+}
+
+bool FieldUi::IsCustomDescCardId_(int cardId) const
+{
+	return cardId == 6 || cardId == 17 || cardId == 18 || cardId == 19;
+}
+
+const UiCustomDescImageLayout& FieldUi::GetCustomDescImageLayout_(int cardId) const
+{
+	auto it = perCardCustomDescImageLayouts_.find(cardId);
+	if (it != perCardCustomDescImageLayouts_.end()) {
+		return it->second;
+	}
+
+	static UiCustomDescImageLayout defaultLayout{};
+	defaultLayout.x = layout_.cardDescBg.x;
+	defaultLayout.y = layout_.cardDescBg.y;
+	defaultLayout.scaleX = 1.0f;
+	defaultLayout.scaleY = 1.0f;
+	return defaultLayout;
+}
+
+UiCustomDescImageLayout& FieldUi::GetOrCreateCustomDescImageLayout_(int cardId)
+{
+	auto it = perCardCustomDescImageLayouts_.find(cardId);
+	if (it != perCardCustomDescImageLayouts_.end()) {
+		return it->second;
+	}
+
+	UiCustomDescImageLayout layout{};
+	layout.x = layout_.cardDescBg.x;
+	layout.y = layout_.cardDescBg.y;
+	layout.scaleX = 1.0f;
+	layout.scaleY = 1.0f;
+
+	perCardCustomDescImageLayouts_[cardId] = layout;
+	return perCardCustomDescImageLayouts_[cardId];
+}
+
+void FieldUi::SetDebugPokerPreviewVisible(bool v)
+{
+	debugShowPokerPreview_ = v;
+}
+
+void FieldUi::SetDebugPokerPreviewData(const DebugPokerPreviewData& data)
+{
+	debugPokerPreviewData_ = data;
+}
+
+void FieldUi::ClearDebugPokerPreviewData()
+{
+	debugPokerPreviewData_ = DebugPokerPreviewData{};
 }
 
 void FieldUi::Initialize(GameApp& app)
@@ -946,6 +1387,13 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 	int newPreviewDefId = -1;
 	std::wstring newText;
 
+	const BattleController::CardInputState inputState = battle.GetNowCardInputState();
+
+	const bool isBattleCardPreview =
+		(inputState == BattleController::CardInputState::Preview) &&
+		!battle.HasPokerChoiceUi() &&
+		!battle.IsViewingBoardFromPokerUi();
+
 	if (battle.HasPokerChoiceUi()) {
 		newMode = DescMode::PokerChoice;
 		showDescBg_ = true;
@@ -976,36 +1424,12 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 			pokerOptionImageSprites_[4]->SetTextureFilePath("resources/ui/text/showField.png");
 		}
 
-
-
-
-
 		const bool previewVisible = battle.IsPokerQuickPreviewVisible();
 
-		if (previewVisible && pokerPreviewText_) {
-			std::wstring previewText = battle.GetPokerQuickPreviewText();
-
-			if (!lastPokerPreviewVisible_ || previewText != lastPokerPreviewText_) {
-				pokerPreviewText_->SetText(previewText);
-				lastPokerPreviewText_ = previewText;
-			}
-
-			pokerPreviewText_->SetPosition({
-				pokerEffectLayout_.previewPanelText.x,
-				pokerEffectLayout_.previewPanelText.y
-				});
-			pokerPreviewText_->SetSize({
-				pokerEffectLayout_.previewPanelText.scale,
-				pokerEffectLayout_.previewPanelText.scale,
-				1.0f
-				});
+		if (previewVisible) {
+			UpdatePokerPreviewImageCommands_(battle);
 		} else {
-			if (lastPokerPreviewVisible_) {
-				lastPokerPreviewText_.clear();
-				if (pokerPreviewText_) {
-					pokerPreviewText_->SetText(L"");
-				}
-			}
+			HidePokerPreviewImageCommands_();
 		}
 
 		lastPokerPreviewVisible_ = previewVisible;
@@ -1019,8 +1443,8 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 			if (pokerOptionImageSprites_[0]) {
 				pokerOptionImageSprites_[0]->SetTextureFilePath("resources/ui/text/back.png");
 				pokerOptionImageSprites_[0]->SetPosition({
-		pokerEffectLayout_.backImage.x,
-		pokerEffectLayout_.backImage.y
+					pokerEffectLayout_.backImage.x,
+					pokerEffectLayout_.backImage.y
 					});
 			}
 
@@ -1051,6 +1475,33 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 
 			ApplyPokerOptionImageLayout_(battle);
 
+		} else if (isBattleCardPreview) {
+			activeCardDescText_ = nullptr;
+
+			const CardDef* def = battle.GetPreviewCardDef();
+			if (def) {
+				newMode = DescMode::CardDesc;
+				newPreviewDefId = def->id;
+				showDescBg_ = true;
+
+				if (cardDescBg_) {
+					cardDescBg_->SetPosition({ layout_.cardDescBg.x, layout_.cardDescBg.y });
+					cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
+				}
+
+				if (useImageCardDesc_) {
+					UpdatePreviewCardImageDesc_(battle);
+					newText.clear();
+				} else {
+					newText = battle.GetPreviewCardDetailText();
+					if (cardDescText_) {
+						cardDescText_->SetPosition({ layout_.cardDescText.x, layout_.cardDescText.y });
+						SetTextScale_(cardDescText_.get(), layout_.cardDescText.scale);
+					}
+				}
+			} else {
+				HidePreviewCardImageDesc_();
+			}
 		} else if (battle.ShouldShowOperationUi()) {
 			newMode = DescMode::Operation;
 			showDescBg_ = true;
@@ -1061,6 +1512,10 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 
 			cardDescText_->SetPosition({ 40.0f, 520.0f });
 			cardDescText_->SetSize({ 1.0f, 1.0f, 1.0f });
+
+			HidePreviewCardImageDesc_();
+		} else {
+			HidePreviewCardImageDesc_();
 		}
 	}
 
@@ -1149,16 +1604,12 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		numberLayout_.handCount.spacing);
 	UpdatePokerEffectValueSprites_(battle);
 
-
 	if (turnText_) {
 		turnText_->SetText(battle.GetTurnUiText());
 	}
 	if (costText_) {
 		costText_->SetText(battle.GetEnergyText());
 	}
-
-	BattleController::CardInputState inputState = battle.GetNowCardInputState();
-
 
 	switch (inputState) {
 	case BattleController::CardInputState::Preview:
@@ -1177,12 +1628,10 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		clickChoiceBg_->SetScale({ 500.f,80.f,1.f });
 		break;
 	default:
-		// それ以外の状態（何も表示しないとき）
 		clickChoiceText_->SetText(L"");
 		clickChoiceBg_->SetColor({ 1.f, 1.f, 1.f, 0.f });
 		break;
 	}
-
 
 	if (debugCardDescVisible_) {
 		showDescBg_ = true;
@@ -1197,7 +1646,6 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		}
 	}
 
-
 	if (debugImageCardDescVisible_ && debugImageCardDescCard_) {
 		showDescBg_ = true;
 
@@ -1207,6 +1655,16 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		}
 
 		UpdatePreviewCardImageDescFromDef_(debugImageCardDescCard_);
+	}
+
+	if (debugShowPokerPreview_) {
+		if (debugPokerPreviewData_.enabled) {
+			UpdatePokerPreviewImageCommandsFromDebugData_();
+		} else {
+			UpdatePokerPreviewImageCommands_(battle);
+		}
+	} else if (!battle.HasPokerChoiceUi()) {
+		HidePokerPreviewImageCommands_();
 	}
 
 }
@@ -1237,6 +1695,12 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		float(WinApp::kClientHeight),
 		0, 100
 	);
+
+	const BattleController::CardInputState inputState = battle.GetNowCardInputState();
+	const bool isBattleCardPreview =
+		(inputState == BattleController::CardInputState::Preview) &&
+		!battle.HasPokerChoiceUi() &&
+		!battle.IsViewingBoardFromPokerUi();
 
 	// ==============================
 	// ポーカーUI
@@ -1375,8 +1839,8 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 					Vector4{ 0.0f, 0.0f, 0.0f, 0.78f }
 				);
 				pokerOptionBgs_[4]->SetPosition({
-	pokerEffectLayout_.effectViewBoardRect.x,
-	pokerEffectLayout_.effectViewBoardRect.y
+					pokerEffectLayout_.effectViewBoardRect.x,
+					pokerEffectLayout_.effectViewBoardRect.y
 					});
 				pokerOptionBgs_[4]->SetScale({
 					pokerEffectLayout_.effectViewBoardRect.w,
@@ -1386,13 +1850,12 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 				pokerOptionBgs_[4]->Update(view, proj);
 				pokerOptionBgs_[4]->Draw();
 			}
-
 		}
 
 		if (pokerTitleImage_) {
 			pokerTitleImage_->SetPosition({
-		pokerEffectLayout_.titleImage.x,
-		pokerEffectLayout_.titleImage.y
+				pokerEffectLayout_.titleImage.x,
+				pokerEffectLayout_.titleImage.y
 				});
 			pokerTitleImage_->Update(view, proj);
 			pokerTitleImage_->Draw();
@@ -1401,10 +1864,8 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		for (int i = 0; i < pokerOptionCount_; ++i) {
 			if (!pokerOptionImageSprites_[i]) continue;
 
-			// ホバー時に少し拡大
 			float scale = (pokerHoverIndex_ == i) ? 1.06f : 1.0f;
 
-			// 戻るだけ少し大きめでもよければ
 			if (i == 0 && pokerOptionCount_ == 5) {
 				scale = (pokerHoverIndex_ == i) ? 1.12f : 1.05f;
 			}
@@ -1426,7 +1887,6 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		}
 
 		if (showPokerOptions_) {
-			// 右上ボタン背景
 			if (cardDescBg_) {
 				cardDescBg_->SetPosition({
 					pokerEffectLayout_.infoButtonRect.x,
@@ -1467,10 +1927,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 					pokerPreviewTitleImage_->Draw();
 				}
 
-				if (pokerPreviewText_) {
-					pokerPreviewText_->Update(view, proj);
-					pokerPreviewText_->Draw();
-				}
+				DrawPokerPreviewImageCommands_(view, proj);
 			}
 		}
 
@@ -1512,7 +1969,37 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		}
 	}
 
+	if (debugShowPokerPreview_ && !showPokerOptions_) {
+		if (pokerPreviewBg_) {
+			pokerPreviewBg_->SetPosition({
+				pokerEffectLayout_.previewPanelBg.x,
+				pokerEffectLayout_.previewPanelBg.y
+				});
+			pokerPreviewBg_->SetScale({
+				pokerEffectLayout_.previewPanelBg.w,
+				pokerEffectLayout_.previewPanelBg.h,
+				1.0f
+				});
+			pokerPreviewBg_->Update(view, proj);
+			pokerPreviewBg_->Draw();
+		}
 
+		if (pokerPreviewTitleImage_) {
+			pokerPreviewTitleImage_->SetPosition({
+				pokerEffectLayout_.previewPanelTitleImage.x,
+				pokerEffectLayout_.previewPanelTitleImage.y
+				});
+			pokerPreviewTitleImage_->SetScale({
+				pokerEffectLayout_.previewPanelTitleImage.scale,
+				pokerEffectLayout_.previewPanelTitleImage.scale,
+				1.0f
+				});
+			pokerPreviewTitleImage_->Update(view, proj);
+			pokerPreviewTitleImage_->Draw();
+		}
+
+		DrawPokerPreviewImageCommands_(view, proj);
+	}
 
 	// ==============================
 	// 通常UI
@@ -1566,7 +2053,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 	}
 
 	if (useImageCardDesc_ &&
-		(battle.IsViewingBoardFromPokerUi() || debugImageCardDescVisible_)) {
+		(battle.IsViewingBoardFromPokerUi() || isBattleCardPreview || debugImageCardDescVisible_)) {
 		DrawPreviewCardImageDesc_(view, proj);
 	} else if (activeCardDescText_) {
 		activeCardDescText_->Update(view, proj);
@@ -1619,6 +2106,25 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 	}
 }
 
+
+void FieldUi::HidePokerPreviewImageCommands_()
+{
+	pokerPreviewImageCommands_.clear();
+}
+
+void FieldUi::DrawPokerPreviewImageCommands_(const Matrix4x4& view, const Matrix4x4& proj)
+{
+	for (auto& cmd : pokerPreviewImageCommands_) {
+		if (!cmd.sprite) continue;
+
+		cmd.sprite->SetPosition(cmd.position);
+		cmd.sprite->SetScale(cmd.scale);
+		cmd.sprite->SetColor(cmd.color);
+		cmd.sprite->Update(view, proj);
+		cmd.sprite->Draw();
+	}
+}
+
 #ifdef USE_IMGUI
 void FieldUi::DrawImGui()
 {
@@ -1666,6 +2172,92 @@ void FieldUi::DrawImGui()
 		changed |= ImGui::DragFloat4("PreviewPanel Bg", &pokerEffectLayout_.previewPanelBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("PreviewPanel Title Image", &pokerEffectLayout_.previewPanelTitleImage.x, 1.0f);
 		changed |= ImGui::DragFloat3("PreviewPanel Text", &pokerEffectLayout_.previewPanelText.x, 1.0f);
+
+		ImGui::Separator();
+		ImGui::Text("PreviewPanel Images");
+
+		changed |= ImGui::DragFloat2("Preview Rank Pos", &pokerEffectLayout_.previewImages.rank.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview Rank Scale", &pokerEffectLayout_.previewImages.rank.scale, 0.01f, 0.1f, 5.0f);
+
+		changed |= ImGui::DragFloat2("Preview ATK Label Pos", &pokerEffectLayout_.previewImages.atkLabel.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview ATK Label Scale", &pokerEffectLayout_.previewImages.atkLabel.scale, 0.01f, 0.1f, 5.0f);
+		changed |= ImGui::DragFloat2("Preview ATK Value Pos", &pokerEffectLayout_.previewImages.atkValue.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview ATK Value Scale", &pokerEffectLayout_.previewImages.atkValue.scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Preview ATK Value Spacing", &pokerEffectLayout_.previewImages.atkValue.spacing, 1.0f, 0.0f, 200.0f);
+
+		changed |= ImGui::DragFloat2("Preview Draw Label Pos", &pokerEffectLayout_.previewImages.drawLabel.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview Draw Label Scale", &pokerEffectLayout_.previewImages.drawLabel.scale, 0.01f, 0.1f, 5.0f);
+		changed |= ImGui::DragFloat2("Preview Draw Value Pos", &pokerEffectLayout_.previewImages.drawValue.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview Draw Value Scale", &pokerEffectLayout_.previewImages.drawValue.scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Preview Draw Value Spacing", &pokerEffectLayout_.previewImages.drawValue.spacing, 1.0f, 0.0f, 200.0f);
+
+		changed |= ImGui::DragFloat2("Preview Damage Label Pos", &pokerEffectLayout_.previewImages.damageLabel.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview Damage Label Scale", &pokerEffectLayout_.previewImages.damageLabel.scale, 0.01f, 0.1f, 5.0f);
+		changed |= ImGui::DragFloat2("Preview Damage Value Pos", &pokerEffectLayout_.previewImages.damageValue.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview Damage Value Scale", &pokerEffectLayout_.previewImages.damageValue.scale, 0.01f, 0.05f, 5.0f);
+		changed |= ImGui::DragFloat("Preview Damage Value Spacing", &pokerEffectLayout_.previewImages.damageValue.spacing, 1.0f, 0.0f, 200.0f);
+
+		changed |= ImGui::DragFloat2("Preview TurnStart Pos", &pokerEffectLayout_.previewImages.turnStartLabel.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview TurnStart Scale", &pokerEffectLayout_.previewImages.turnStartLabel.scale, 0.01f, 0.1f, 5.0f);
+
+		changed |= ImGui::DragFloat2("Preview TurnStart None Pos", &pokerEffectLayout_.previewImages.turnStartNoneLabel.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview TurnStart None Scale", &pokerEffectLayout_.previewImages.turnStartNoneLabel.scale, 0.01f, 0.1f, 5.0f);
+
+		changed |= ImGui::DragFloat2("Preview Activated Pos", &pokerEffectLayout_.previewImages.activatedLabel.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview Activated Scale", &pokerEffectLayout_.previewImages.activatedLabel.scale, 0.01f, 0.1f, 5.0f);
+
+		changed |= ImGui::DragFloat2("Preview Activated None Pos", &pokerEffectLayout_.previewImages.activatedNoneLabel.x, 1.0f);
+		changed |= ImGui::DragFloat("Preview Activated None Scale", &pokerEffectLayout_.previewImages.activatedNoneLabel.scale, 0.01f, 0.1f, 5.0f);
+
+		ImGui::Separator();
+		ImGui::Text("Preview TurnStart Lines");
+		for (int i = 0; i < 5; ++i) {
+			auto& row = pokerEffectLayout_.previewImages.turnStartLines.lines[i];
+			std::string label = "TurnStartLine" + std::to_string(i);
+			if (ImGui::TreeNode(label.c_str())) {
+				changed |= ImGui::DragFloat2(("Pos##ts" + std::to_string(i)).c_str(), &row.x, 1.0f);
+				ImGui::TreePop();
+			}
+		}
+
+		ImGui::Separator();
+		ImGui::Text("Preview Activated Lines");
+		for (int i = 0; i < 5; ++i) {
+			auto& row = pokerEffectLayout_.previewImages.activatedLines.lines[i];
+			std::string label = "ActivatedLine" + std::to_string(i);
+			if (ImGui::TreeNode(label.c_str())) {
+				changed |= ImGui::DragFloat2(("Pos##ac" + std::to_string(i)).c_str(), &row.x, 1.0f);
+				ImGui::TreePop();
+			}
+		}
+
+		auto DrawPatternEditor = [&](const char* name, UiPokerPreviewPatternLayout& pat, const char* suffix) {
+			if (ImGui::TreeNode(name)) {
+				changed |= ImGui::DragFloat(("LabelScale##" + std::string(suffix)).c_str(), &pat.labelScale, 0.01f);
+				changed |= ImGui::DragFloat2(("PrefixOffset##" + std::string(suffix)).c_str(), &pat.prefixOffsetX, 1.0f);
+				changed |= ImGui::DragFloat2(("NumberOffset##" + std::string(suffix)).c_str(), &pat.numberOffsetX, 1.0f);
+				changed |= ImGui::DragFloat(("NumberScale##" + std::string(suffix)).c_str(), &pat.numberScale, 0.01f);
+				changed |= ImGui::DragFloat(("NumberSpacing##" + std::string(suffix)).c_str(), &pat.numberSpacing, 1.0f);
+				changed |= ImGui::DragFloat2(("SuffixOffset##" + std::string(suffix)).c_str(), &pat.suffixOffsetX, 1.0f);
+				ImGui::TreePop();
+			}
+			};
+
+		ImGui::Separator();
+		ImGui::Text("TurnStart Patterns");
+		DrawPatternEditor("SingleDamage TS", pokerEffectLayout_.previewImages.turnStartPatterns.singleDamage, "ts_sd");
+		DrawPatternEditor("AllDamage TS", pokerEffectLayout_.previewImages.turnStartPatterns.allDamage, "ts_ad");
+		DrawPatternEditor("Draw TS", pokerEffectLayout_.previewImages.turnStartPatterns.draw, "ts_dr");
+		DrawPatternEditor("Block TS", pokerEffectLayout_.previewImages.turnStartPatterns.block, "ts_bl");
+		DrawPatternEditor("Heal TS", pokerEffectLayout_.previewImages.turnStartPatterns.heal, "ts_he");
+
+		ImGui::Separator();
+		ImGui::Text("Activated Patterns");
+		DrawPatternEditor("SingleDamage AC", pokerEffectLayout_.previewImages.activatedPatterns.singleDamage, "ac_sd");
+		DrawPatternEditor("AllDamage AC", pokerEffectLayout_.previewImages.activatedPatterns.allDamage, "ac_ad");
+		DrawPatternEditor("Draw AC", pokerEffectLayout_.previewImages.activatedPatterns.draw, "ac_dr");
+		DrawPatternEditor("Block AC", pokerEffectLayout_.previewImages.activatedPatterns.block, "ac_bl");
+		DrawPatternEditor("Heal AC", pokerEffectLayout_.previewImages.activatedPatterns.heal, "ac_he");
 
 		if (ImGui::Button("Save PokerEffectChoiceLayout")) {
 			SavePokerEffectChoiceLayout(pokerEffectLayoutPath_);
@@ -1739,9 +2331,10 @@ void FieldUi::DrawImGui()
 		static bool editDefaultLayout = false;
 		ImGui::Checkbox("Edit Default Layout", &editDefaultLayout);
 
-		ImGui::BeginDisabled(editDefaultLayout);
+		ImGui::BeginDisabled();
 		ImGui::DragInt("Edit Card ID", &editCardId_, 1.0f, 1, 999);
 		ImGui::EndDisabled();
+		ImGui::Text("※ Title Debug の Debug Card ID と連動");
 
 		UiCardDescCustomLayout* editLayoutPtr = nullptr;
 
@@ -1769,6 +2362,32 @@ void FieldUi::DrawImGui()
 		}
 
 		UiCardDescCustomLayout& editLayout = *editLayoutPtr;
+
+		ImGui::Separator();
+
+		ImGui::Text("Custom Desc Image Layout");
+
+		if (!editDefaultLayout && IsCustomDescCardId_(editCardId_)) {
+			auto& customImage = GetOrCreateCustomDescImageLayout_(editCardId_);
+
+			changed |= ImGui::DragFloat2("CustomDescImage Pos", &customImage.x, 1.0f);
+			changed |= ImGui::DragFloat2("CustomDescImage Scale", &customImage.scaleX, 0.01f, 0.01f, 10.0f);
+
+			ImGui::Text("Custom Desc Image Target Card ID = %d", editCardId_);
+		} else {
+			ImGui::BeginDisabled();
+			static float dummyPos[2] = { 0.0f, 0.0f };
+			static float dummyScale[2] = { 1.0f, 1.0f };
+			ImGui::DragFloat2("CustomDescImage Pos", dummyPos, 1.0f);
+			ImGui::DragFloat2("CustomDescImage Scale", dummyScale, 0.01f, 0.01f, 10.0f);
+			ImGui::EndDisabled();
+
+			if (editDefaultLayout) {
+				ImGui::Text("※ Default Layout編集中は専用画像レイアウトは編集できません");
+			} else {
+				ImGui::Text("※ このCard IDは専用画像カードではありません");
+			}
+		}
 
 		ImGui::Separator();
 
@@ -1951,6 +2570,18 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 {
 	json j;
 
+	auto writePattern = [&](json& dst, const UiPokerPreviewPatternLayout& pat) {
+		dst["labelScale"] = pat.labelScale;
+		dst["prefixOffsetX"] = pat.prefixOffsetX;
+		dst["prefixOffsetY"] = pat.prefixOffsetY;
+		dst["numberOffsetX"] = pat.numberOffsetX;
+		dst["numberOffsetY"] = pat.numberOffsetY;
+		dst["numberScale"] = pat.numberScale;
+		dst["numberSpacing"] = pat.numberSpacing;
+		dst["suffixOffsetX"] = pat.suffixOffsetX;
+		dst["suffixOffsetY"] = pat.suffixOffsetY;
+		};
+
 	j["title"]["x"] = pokerEffectLayout_.titleImage.x;
 	j["title"]["y"] = pokerEffectLayout_.titleImage.y;
 
@@ -1981,7 +2612,8 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 	j["infoButton"]["image"]["y"] = pokerEffectLayout_.infoButtonImage.y;
 	j["infoButton"]["image"]["scale"] = pokerEffectLayout_.infoButtonImage.scale;
 
-	j["previewPanelBg"]["x"] = pokerEffectLayout_.previewPanelBg.x;
+	j["previewPanelBg"]["x"] = pokerEffectLayout_.
+		previewPanelBg.x;
 	j["previewPanelBg"]["y"] = pokerEffectLayout_.previewPanelBg.y;
 	j["previewPanelBg"]["w"] = pokerEffectLayout_.previewPanelBg.w;
 	j["previewPanelBg"]["h"] = pokerEffectLayout_.previewPanelBg.h;
@@ -1993,6 +2625,85 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 	j["previewPanelText"]["x"] = pokerEffectLayout_.previewPanelText.x;
 	j["previewPanelText"]["y"] = pokerEffectLayout_.previewPanelText.y;
 	j["previewPanelText"]["scale"] = pokerEffectLayout_.previewPanelText.scale;
+
+	j["previewImages"]["rank"]["x"] = pokerEffectLayout_.previewImages.rank.x;
+	j["previewImages"]["rank"]["y"] = pokerEffectLayout_.previewImages.rank.y;
+	j["previewImages"]["rank"]["scale"] = pokerEffectLayout_.previewImages.rank.scale;
+
+	j["previewImages"]["atkLabel"]["x"] = pokerEffectLayout_.previewImages.atkLabel.x;
+	j["previewImages"]["atkLabel"]["y"] = pokerEffectLayout_.previewImages.atkLabel.y;
+	j["previewImages"]["atkLabel"]["scale"] = pokerEffectLayout_.previewImages.atkLabel.scale;
+
+	j["previewImages"]["atkValue"]["x"] = pokerEffectLayout_.previewImages.atkValue.x;
+	j["previewImages"]["atkValue"]["y"] = pokerEffectLayout_.previewImages.atkValue.y;
+	j["previewImages"]["atkValue"]["scale"] = pokerEffectLayout_.previewImages.atkValue.scale;
+	j["previewImages"]["atkValue"]["spacing"] = pokerEffectLayout_.previewImages.atkValue.spacing;
+
+	j["previewImages"]["drawLabel"]["x"] = pokerEffectLayout_.previewImages.drawLabel.x;
+	j["previewImages"]["drawLabel"]["y"] = pokerEffectLayout_.previewImages.drawLabel.y;
+	j["previewImages"]["drawLabel"]["scale"] = pokerEffectLayout_.previewImages.drawLabel.scale;
+
+	j["previewImages"]["drawValue"]["x"] = pokerEffectLayout_.previewImages.drawValue.x;
+	j["previewImages"]["drawValue"]["y"] = pokerEffectLayout_.previewImages.drawValue.y;
+	j["previewImages"]["drawValue"]["scale"] = pokerEffectLayout_.previewImages.drawValue.scale;
+	j["previewImages"]["drawValue"]["spacing"] = pokerEffectLayout_.previewImages.drawValue.spacing;
+
+	j["previewImages"]["damageLabel"]["x"] = pokerEffectLayout_.previewImages.damageLabel.x;
+	j["previewImages"]["damageLabel"]["y"] = pokerEffectLayout_.previewImages.damageLabel.y;
+	j["previewImages"]["damageLabel"]["scale"] = pokerEffectLayout_.previewImages.damageLabel.scale;
+
+	j["previewImages"]["damageValue"]["x"] = pokerEffectLayout_.previewImages.damageValue.x;
+	j["previewImages"]["damageValue"]["y"] = pokerEffectLayout_.previewImages.damageValue.y;
+	j["previewImages"]["damageValue"]["scale"] = pokerEffectLayout_.previewImages.damageValue.scale;
+	j["previewImages"]["damageValue"]["spacing"] = pokerEffectLayout_.previewImages.damageValue.spacing;
+
+	j["previewImages"]["turnStartLabel"]["x"] = pokerEffectLayout_.previewImages.turnStartLabel.x;
+	j["previewImages"]["turnStartLabel"]["y"] = pokerEffectLayout_.previewImages.turnStartLabel.y;
+	j["previewImages"]["turnStartLabel"]["scale"] = pokerEffectLayout_.previewImages.turnStartLabel.scale;
+
+	j["previewImages"]["turnStartNoneLabel"]["x"] = pokerEffectLayout_.previewImages.turnStartNoneLabel.x;
+	j["previewImages"]["turnStartNoneLabel"]["y"] = pokerEffectLayout_.previewImages.turnStartNoneLabel.y;
+	j["previewImages"]["turnStartNoneLabel"]["scale"] = pokerEffectLayout_.previewImages.turnStartNoneLabel.scale;
+
+	j["previewImages"]["activatedNoneLabel"]["x"] = pokerEffectLayout_.previewImages.activatedNoneLabel.x;
+	j["previewImages"]["activatedNoneLabel"]["y"] = pokerEffectLayout_.previewImages.activatedNoneLabel.y;
+	j["previewImages"]["activatedNoneLabel"]["scale"] = pokerEffectLayout_.previewImages.activatedNoneLabel.scale;
+
+	for (int i = 0; i < 5; ++i) {
+		const auto& ts = pokerEffectLayout_.previewImages.turnStartLines.lines[i];
+		j["previewImages"]["turnStartLines"][i]["x"] = ts.x;
+		j["previewImages"]["turnStartLines"][i]["y"] = ts.y;
+
+		const auto& ac = pokerEffectLayout_.previewImages.activatedLines.lines[i];
+		j["previewImages"]["activatedLines"][i]["x"] = ac.x;
+		j["previewImages"]["activatedLines"][i]["y"] = ac.y;
+	}
+
+	writePattern(j["previewImages"]["turnStartPatterns"]["singleDamage"],
+		pokerEffectLayout_.previewImages.turnStartPatterns.singleDamage);
+	writePattern(j["previewImages"]["turnStartPatterns"]["allDamage"],
+		pokerEffectLayout_.previewImages.turnStartPatterns.allDamage);
+	writePattern(j["previewImages"]["turnStartPatterns"]["draw"],
+		pokerEffectLayout_.previewImages.turnStartPatterns.draw);
+	writePattern(j["previewImages"]["turnStartPatterns"]["block"],
+		pokerEffectLayout_.previewImages.turnStartPatterns.block);
+	writePattern(j["previewImages"]["turnStartPatterns"]["heal"],
+		pokerEffectLayout_.previewImages.turnStartPatterns.heal);
+
+	writePattern(j["previewImages"]["activatedPatterns"]["singleDamage"],
+		pokerEffectLayout_.previewImages.activatedPatterns.singleDamage);
+	writePattern(j["previewImages"]["activatedPatterns"]["allDamage"],
+		pokerEffectLayout_.previewImages.activatedPatterns.allDamage);
+	writePattern(j["previewImages"]["activatedPatterns"]["draw"],
+		pokerEffectLayout_.previewImages.activatedPatterns.draw);
+	writePattern(j["previewImages"]["activatedPatterns"]["block"],
+		pokerEffectLayout_.previewImages.activatedPatterns.block);
+	writePattern(j["previewImages"]["activatedPatterns"]["heal"],
+		pokerEffectLayout_.previewImages.activatedPatterns.heal);
+
+	j["previewImages"]["activatedLabel"]["x"] = pokerEffectLayout_.previewImages.activatedLabel.x;
+	j["previewImages"]["activatedLabel"]["y"] = pokerEffectLayout_.previewImages.activatedLabel.y;
+	j["previewImages"]["activatedLabel"]["scale"] = pokerEffectLayout_.previewImages.activatedLabel.scale;
 
 	j["activateTitleBg"]["x"] = pokerEffectLayout_.activateTitleBg.x;
 	j["activateTitleBg"]["y"] = pokerEffectLayout_.activateTitleBg.y;
@@ -2058,6 +2769,18 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 	}
 
 	pokerEffectLayout_ = MakeDefaultPokerEffectChoiceLayout();
+
+	auto readPattern = [&](const json& src, UiPokerPreviewPatternLayout& pat) {
+		pat.labelScale = src.value("labelScale", pat.labelScale);
+		pat.prefixOffsetX = src.value("prefixOffsetX", pat.prefixOffsetX);
+		pat.prefixOffsetY = src.value("prefixOffsetY", pat.prefixOffsetY);
+		pat.numberOffsetX = src.value("numberOffsetX", pat.numberOffsetX);
+		pat.numberOffsetY = src.value("numberOffsetY", pat.numberOffsetY);
+		pat.numberScale = src.value("numberScale", pat.numberScale);
+		pat.numberSpacing = src.value("numberSpacing", pat.numberSpacing);
+		pat.suffixOffsetX = src.value("suffixOffsetX", pat.suffixOffsetX);
+		pat.suffixOffsetY = src.value("suffixOffsetY", pat.suffixOffsetY);
+		};
 
 	// title
 	pokerEffectLayout_.titleImage.x = j.value("title", json::object()).value("x", pokerEffectLayout_.titleImage.x);
@@ -2135,6 +2858,147 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 		pokerEffectLayout_.previewPanelText.y = j["previewPanelText"].value("y", pokerEffectLayout_.previewPanelText.y);
 		pokerEffectLayout_.previewPanelText.scale = j["previewPanelText"].value("scale", pokerEffectLayout_.previewPanelText.scale);
 	}
+
+	if (j.contains("previewImages")) {
+		auto& p = j["previewImages"];
+
+		if (p.contains("rank")) {
+			pokerEffectLayout_.previewImages.rank.x = p["rank"].value("x", pokerEffectLayout_.previewImages.rank.x);
+			pokerEffectLayout_.previewImages.rank.y = p["rank"].value("y", pokerEffectLayout_.previewImages.rank.y);
+			pokerEffectLayout_.previewImages.rank.scale = p["rank"].value("scale", pokerEffectLayout_.previewImages.rank.scale);
+		}
+
+		if (p.contains("atkLabel")) {
+			pokerEffectLayout_.previewImages.atkLabel.x = p["atkLabel"].value("x", pokerEffectLayout_.previewImages.atkLabel.x);
+			pokerEffectLayout_.previewImages.atkLabel.y = p["atkLabel"].value("y", pokerEffectLayout_.previewImages.atkLabel.y);
+			pokerEffectLayout_.previewImages.atkLabel.scale = p["atkLabel"].value("scale", pokerEffectLayout_.previewImages.atkLabel.scale);
+		}
+		if (p.contains("atkValue")) {
+			pokerEffectLayout_.previewImages.atkValue.x = p["atkValue"].value("x", pokerEffectLayout_.previewImages.atkValue.x);
+			pokerEffectLayout_.previewImages.atkValue.y = p["atkValue"].value("y", pokerEffectLayout_.previewImages.atkValue.y);
+			pokerEffectLayout_.previewImages.atkValue.scale = p["atkValue"].value("scale", pokerEffectLayout_.previewImages.atkValue.scale);
+			pokerEffectLayout_.previewImages.atkValue.spacing = p["atkValue"].value("spacing", pokerEffectLayout_.previewImages.atkValue.spacing);
+		}
+
+		if (p.contains("drawLabel")) {
+			pokerEffectLayout_.previewImages.drawLabel.x = p["drawLabel"].value("x", pokerEffectLayout_.previewImages.drawLabel.x);
+			pokerEffectLayout_.previewImages.drawLabel.y = p["drawLabel"].value("y", pokerEffectLayout_.previewImages.drawLabel.y);
+			pokerEffectLayout_.previewImages.drawLabel.scale = p["drawLabel"].value("scale", pokerEffectLayout_.previewImages.drawLabel.scale);
+		}
+		if (p.contains("drawValue")) {
+			pokerEffectLayout_.previewImages.drawValue.x = p["drawValue"].value("x", pokerEffectLayout_.previewImages.drawValue.x);
+			pokerEffectLayout_.previewImages.drawValue.y = p["drawValue"].value("y", pokerEffectLayout_.previewImages.drawValue.y);
+			pokerEffectLayout_.previewImages.drawValue.scale = p["drawValue"].value("scale", pokerEffectLayout_.previewImages.drawValue.scale);
+			pokerEffectLayout_.previewImages.drawValue.spacing = p["drawValue"].value("spacing", pokerEffectLayout_.previewImages.drawValue.spacing);
+		}
+
+		if (p.contains("damageLabel")) {
+			pokerEffectLayout_.previewImages.damageLabel.x = p["damageLabel"].value("x", pokerEffectLayout_.previewImages.damageLabel.x);
+			pokerEffectLayout_.previewImages.damageLabel.y = p["damageLabel"].value("y", pokerEffectLayout_.previewImages.damageLabel.y);
+			pokerEffectLayout_.previewImages.damageLabel.scale = p["damageLabel"].value("scale", pokerEffectLayout_.previewImages.damageLabel.scale);
+		}
+		if (p.contains("damageValue")) {
+			pokerEffectLayout_.previewImages.damageValue.x = p["damageValue"].value("x", pokerEffectLayout_.previewImages.damageValue.x);
+			pokerEffectLayout_.previewImages.damageValue.y = p["damageValue"].value("y", pokerEffectLayout_.previewImages.damageValue.y);
+			pokerEffectLayout_.previewImages.damageValue.scale = p["damageValue"].value("scale", pokerEffectLayout_.previewImages.damageValue.scale);
+			pokerEffectLayout_.previewImages.damageValue.spacing = p["damageValue"].value("spacing", pokerEffectLayout_.previewImages.damageValue.spacing);
+		}
+
+		if (p.contains("turnStartLabel")) {
+			pokerEffectLayout_.previewImages.turnStartLabel.x = p["turnStartLabel"].value("x", pokerEffectLayout_.previewImages.turnStartLabel.x);
+			pokerEffectLayout_.previewImages.turnStartLabel.y = p["turnStartLabel"].value("y", pokerEffectLayout_.previewImages.turnStartLabel.y);
+			pokerEffectLayout_.previewImages.turnStartLabel.scale = p["turnStartLabel"].value("scale", pokerEffectLayout_.previewImages.turnStartLabel.scale);
+		}
+
+		if (p.contains("turnStartNoneLabel")) {
+			pokerEffectLayout_.previewImages.turnStartNoneLabel.x = p["turnStartNoneLabel"].value("x", pokerEffectLayout_.previewImages.turnStartNoneLabel.x);
+			pokerEffectLayout_.previewImages.turnStartNoneLabel.y = p["turnStartNoneLabel"].value("y", pokerEffectLayout_.previewImages.turnStartNoneLabel.y);
+			pokerEffectLayout_.previewImages.turnStartNoneLabel.scale = p["turnStartNoneLabel"].value("scale", pokerEffectLayout_.previewImages.turnStartNoneLabel.scale);
+		}
+
+		if (p.contains("activatedLabel")) {
+			pokerEffectLayout_.previewImages.activatedLabel.x = p["activatedLabel"].value("x", pokerEffectLayout_.previewImages.activatedLabel.x);
+			pokerEffectLayout_.previewImages.activatedLabel.y = p["activatedLabel"].value("y", pokerEffectLayout_.previewImages.activatedLabel.y);
+			pokerEffectLayout_.previewImages.activatedLabel.scale = p["activatedLabel"].value("scale", pokerEffectLayout_.previewImages.activatedLabel.scale);
+		}
+
+		if (p.contains("activatedNoneLabel")) {
+			pokerEffectLayout_.previewImages.activatedNoneLabel.x = p["activatedNoneLabel"].value("x", pokerEffectLayout_.previewImages.activatedNoneLabel.x);
+			pokerEffectLayout_.previewImages.activatedNoneLabel.y = p["activatedNoneLabel"].value("y", pokerEffectLayout_.previewImages.activatedNoneLabel.y);
+			pokerEffectLayout_.previewImages.activatedNoneLabel.scale = p["activatedNoneLabel"].value("scale", pokerEffectLayout_.previewImages.activatedNoneLabel.scale);
+		}
+
+		if (p.contains("turnStartLines") && p["turnStartLines"].is_array()) {
+			for (int i = 0; i < static_cast<int>(p["turnStartLines"].size()) && i < 5; ++i) {
+				auto& row = p["turnStartLines"][i];
+				auto& dst = pokerEffectLayout_.previewImages.turnStartLines.lines[i];
+				dst.x = row.value("x", dst.x);
+				dst.y = row.value("y", dst.y);
+			}
+		}
+
+		if (p.contains("activatedLines") && p["activatedLines"].is_array()) {
+			for (int i = 0; i < static_cast<int>(p["activatedLines"].size()) && i < 5; ++i) {
+				auto& row = p["activatedLines"][i];
+				auto& dst = pokerEffectLayout_.previewImages.activatedLines.lines[i];
+				dst.x = row.value("x", dst.x);
+				dst.y = row.value("y", dst.y);
+			}
+		}
+
+		if (p.contains("turnStartPatterns")) {
+			auto& pp = p["turnStartPatterns"];
+
+			if (pp.contains("singleDamage")) {
+				readPattern(pp["singleDamage"],
+					pokerEffectLayout_.previewImages.turnStartPatterns.singleDamage);
+			}
+			if (pp.contains("allDamage")) {
+				readPattern(pp["allDamage"],
+					pokerEffectLayout_.previewImages.turnStartPatterns.allDamage);
+			}
+			if (pp.contains("draw")) {
+				readPattern(pp["draw"],
+					pokerEffectLayout_.previewImages.turnStartPatterns.draw);
+			}
+			if (pp.contains("block")) {
+				readPattern(pp["block"],
+					pokerEffectLayout_.previewImages.turnStartPatterns.block);
+			}
+			if (pp.contains("heal")) {
+				readPattern(pp["heal"],
+					pokerEffectLayout_.previewImages.turnStartPatterns.heal);
+			}
+		}
+
+		if (p.contains("activatedPatterns")) {
+			auto& pp = p["activatedPatterns"];
+
+			if (pp.contains("singleDamage")) {
+				readPattern(pp["singleDamage"],
+					pokerEffectLayout_.previewImages.activatedPatterns.singleDamage);
+			}
+			if (pp.contains("allDamage")) {
+				readPattern(pp["allDamage"],
+					pokerEffectLayout_.previewImages.activatedPatterns.allDamage);
+			}
+			if (pp.contains("draw")) {
+				readPattern(pp["draw"],
+					pokerEffectLayout_.previewImages.activatedPatterns.draw);
+			}
+			if (pp.contains("block")) {
+				readPattern(pp["block"],
+					pokerEffectLayout_.previewImages.activatedPatterns.block);
+			}
+			if (pp.contains("heal")) {
+				readPattern(pp["heal"],
+					pokerEffectLayout_.previewImages.activatedPatterns.heal);
+			}
+		}
+
+	}
+
+
 
 	// activateTitleBg
 	if (j.contains("activateTitleBg")) {
@@ -2712,6 +3576,21 @@ bool FieldUi::LoadCardShowUiLayout(const std::string& path)
 		}
 	}
 
+	perCardCustomDescImageLayouts_.clear();
+	if (j.contains("perCardCustomDescImage") && j["perCardCustomDescImage"].is_object()) {
+		for (auto it = j["perCardCustomDescImage"].begin(); it != j["perCardCustomDescImage"].end(); ++it) {
+			int cardId = std::stoi(it.key());
+
+			UiCustomDescImageLayout layout{};
+			layout.x = it.value().value("x", layout_.cardDescBg.x);
+			layout.y = it.value().value("y", layout_.cardDescBg.y);
+			layout.scaleX = it.value().value("scaleX", 1.0f);
+			layout.scaleY = it.value().value("scaleY", 1.0f);
+
+			perCardCustomDescImageLayouts_[cardId] = layout;
+		}
+	}
+
 	return true;
 }
 
@@ -2777,6 +3656,13 @@ bool FieldUi::SaveCardShowUiLayout(const std::string& path) const
 
 	for (const auto& [cardId, layout] : perCardDescCustomLayouts_) {
 		writeCardDescCustomToJson(j["perCard"][std::to_string(cardId)], layout);
+	}
+
+	for (const auto& [cardId, layout] : perCardCustomDescImageLayouts_) {
+		j["perCardCustomDescImage"][std::to_string(cardId)]["x"] = layout.x;
+		j["perCardCustomDescImage"][std::to_string(cardId)]["y"] = layout.y;
+		j["perCardCustomDescImage"][std::to_string(cardId)]["scaleX"] = layout.scaleX;
+		j["perCardCustomDescImage"][std::to_string(cardId)]["scaleY"] = layout.scaleY;
 	}
 
 	std::ofstream ofs(path);
