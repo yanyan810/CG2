@@ -48,9 +48,29 @@ void DeckEditScene::OnExit(GameApp& app) {
 void DeckEditScene::Update(GameApp& app, float dt) {
     Input* input = app.GetInput();
 
-    // 3Dモデルのアニメーション更新
-    for (auto& card : cardModels_) {
-        card->Update(dt);
+  
+
+    for (int i = 0; i < (int)cardModels_.size(); ++i) {
+        int cardId = i + 1; // IDが1から始まる前提
+        int currentCount = editingDeck_[cardId];
+
+        // 条件1: そのカード自体がすでに4枚ある
+        bool isIndividualMax = (currentCount >= 4);
+
+        // 条件2: デッキ全体がすでに40枚ある
+        bool isDeckFull = (totalCount_ >= 40);
+
+        if (isIndividualMax || (isDeckFull && currentCount == 0)) {
+            // 完全に上限、または空きがないのに0枚のカード
+            cardModels_[i]->SetFrameColor({ 0.2f, 0.2f, 0.2f, 1.0f }); // かなり暗く
+        } else if (isDeckFull && currentCount > 0) {
+            // デッキは満杯だが、そのカード自体はデッキに入っている（減らせる）状態
+            cardModels_[i]->SetFrameColor({ 0.4f, 0.4f, 0.4f, 1.0f }); // やや暗く
+        } else {
+            cardModels_[i]->ResetFrameColor(); // 通常時
+        }
+
+        cardModels_[i]->SetCount(currentCount);
     }
 
     // --- クリック判定 ---
@@ -65,15 +85,33 @@ void DeckEditScene::Update(GameApp& app, float dt) {
             int cardId = idx + 1;
             int currentCount = editingDeck_[cardId];
 
+            // 現在の基本位置と回転を取得
+             // (RebuildCardModelsで設定した値をベースにする)
+            float x = (idx % kCardsPerRow) * kCardSpacingX + kCardStartX;
+            float y = -(idx / kCardsPerRow) * kCardSpacingY + kCardStartY;
+            Vector3 basePos = { x, y, 10.0f };
+            Vector3 baseRot = { 0, 0, 0 };
+            float defaultScl = 0.25f; // RebuildCardModels で設定している基本サイズ
+
             if (leftClick) {
-                // 追加 (最大4枚、合計40枚制限)
                 if (currentCount < 4 && totalCount_ < 40) {
                     editingDeck_[cardId]++;
+
+                    // --- 演出: 一瞬大きくする ---
+                    // 1. 現在のサイズを 0.4f (1.6倍) に強制設定
+                    cardModels_[idx]->SetTransform(basePos, baseRot, { 0.4f, 0.4f, 0.4f });
+                    // 2. 目標サイズを 0.25f (通常) に設定して戻していく
+                    cardModels_[idx]->SetTargetTransform(basePos, baseRot, { defaultScl, defaultScl, defaultScl });
                 }
             } else if (rightClick) {
-                // 削除
                 if (currentCount > 0) {
                     editingDeck_[cardId]--;
+
+                    // --- 演出: 一瞬小さくする ---
+                    // 1. 現在のサイズを 0.1f (0.4倍) に強制設定
+                    cardModels_[idx]->SetTransform(basePos, baseRot, { 0.1f, 0.1f, 0.1f });
+                    // 2. 目標サイズを 0.25f (通常) に設定して戻していく
+                    cardModels_[idx]->SetTargetTransform(basePos, baseRot, { defaultScl, defaultScl, defaultScl });
                 }
             }
             RecalculateTotal();

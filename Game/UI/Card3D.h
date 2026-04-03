@@ -53,6 +53,8 @@ public:
 
     void SetIsPreview(bool flag) { isPreview_ = flag; }
 
+    void SetCount(int count);
+
 private:
 
     std::unique_ptr<Object3d> frame_;
@@ -61,6 +63,7 @@ private:
     std::unique_ptr<Object3d> suitObj_;
     std::unique_ptr<Object3d> numberObjTens_;
     std::unique_ptr<Object3d> numberObjOnes_;
+    std::unique_ptr<Object3d> countObj_;
 
     D3D12_GPU_DESCRIPTOR_HANDLE artSrv_{};
 
@@ -84,4 +87,6 @@ private:
     bool hasTensDigit_ = false;
 
     bool isPreview_;
+
+    int count_ = 0;
 };
