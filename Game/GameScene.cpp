@@ -144,7 +144,7 @@ void GameScene::OnEnter(GameApp& app) {
 	trailManager_ = std::make_unique<TrailManager>();
 	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
 	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
-
+	//trailManager_->LoadFromJson("sword_trail.json", swordTrailConfig_);
 
 	//
 
@@ -160,7 +160,8 @@ void GameScene::OnEnter(GameApp& app) {
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 
-	//AudioManager::GetInstance()->PlayBGM("toumei");
+	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
+	//AudioManager::GetInstance()->PlayBGM("neppuu");
 }
 
 void GameScene::OnExit(GameApp& app) {

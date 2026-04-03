@@ -1,4 +1,34 @@
 {
+    "BGM_Game": {
+        "filePath": "resources/audio/BGM/BGM_Game.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 1.0
+    },
+    "BGM_Title": {
+        "filePath": "resources/audio/BGM/BGM_Title.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 1.0
+    },
+    "cardPlay": {
+        "filePath": "resources/audio/SE/cardPlay.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "cardSelect": {
+        "filePath": "resources/audio/SE/cardSelect.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "click": {
+        "filePath": "resources/audio/SE/click.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
     "machi": {
         "filePath": "resources/audio/BGM/machi.mp3",
         "loop": true,
