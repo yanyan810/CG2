@@ -26,7 +26,7 @@ private:
     std::map<int, int> editingDeck_;
     int totalCount_ = 0;
 
-    CardDatabase db_;
+    CardDatabase* cardDB_ = nullptr;
 
     // --- 3D表示用 ---
     std::vector<std::unique_ptr<Card3D>> cardModels_;
