@@ -177,6 +177,11 @@ void DeckEditScene::DrawImGui(GameApp& app) {
         ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Total: %d / 40 (Need exactly 40)", totalCount_);
     }
 
+
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+        1000.0f / ImGui::GetIO().Framerate,
+        ImGui::GetIO().Framerate);
+
     ImGui::Separator();
 
     // カードリストをもとに表示
