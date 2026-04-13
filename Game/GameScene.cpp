@@ -146,6 +146,8 @@ void GameScene::OnEnter(GameApp& app) {
 	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
 	// 軌跡インスタンスを作成
 	testTrail_ = trailManager_->CreateInstance();
+	testTrail_->SetIsPermanent(true);
+	player_->SetTrailInstance(testTrail_);
 
 	highlightFilter_ = std::make_unique<Sprite>();
 	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -158,6 +160,14 @@ void GameScene::OnEnter(GameApp& app) {
 	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
+
+	// 軌跡の見た目の設定
+	TrailConfig config;
+	config.startColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // 鮮やかな黄色
+	config.endColor = { 1.0f, 0.1f, 0.0f, 0.0f };   // 赤く消えていく
+	config.maxPoints = 40;                         // 軌跡の長さ（残像感）
+	config.interpolationSteps = 4;                 // 滑らかさ
+	player_->SetTrailConfig(config);
 
 	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
 	//AudioManager::GetInstance()->PlayBGM("neppuu");
@@ -402,22 +412,6 @@ void GameScene::Update(GameApp& app, float dt) {
 	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
 	trailManager_->Update();
 
-	// 2. テスト用の軌跡更新ロジック
-	if (testTrail_) {
-		static float timer = 0.0f;
-		timer += 0.1f; // 回転速度
-
-		// プレイヤーの頭上で円を描くように動かす
-		float radius = 5.0f;
-		Vector3 offset = { cosf(timer) * radius, 2.0f, sinf(timer) * radius };
-		Vector3 basePos = player_->GetPos() + offset;
-		Vector3 tipPos = basePos + Vector3{ 0.0f, 4.0f, 0.0f }; // 上に伸びる棒のような軌跡
-
-		// 実際に更新をかける
-		testTrail_->SetActive(true);
-		testTrail_->Update(tipPos, basePos, trailConfig_);
-	}
-
 	particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
 	// 最後に1回だけDispatch
@@ -596,7 +590,7 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	particleManager_->Draw();
+	//particleManager_->Draw();
 	
 	if (trailManager_) {
 		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());
