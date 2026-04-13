@@ -184,24 +184,6 @@ void AnimationEditorPose::SetJointPoseFromLocalMatrix(int32_t jointIndex, const 
     pose.rotate = NormalizeSafe_(ExtractRotationQuaternion_(localMatrix));
 }
 
-void AnimationEditorPose::ApplyToBoneOffsets(
-    std::map<std::string, Object3d::BoneOffset>& boneOffsets,
-    const Model::Skeleton& skeleton) const {
-    boneOffsets.clear();
-
-    const size_t jointCount = std::min(currentLocalPoses_.size(), skeleton.joints.size());
-    for (size_t i = 0; i < jointCount; ++i) {
-        const JointPose& pose = currentLocalPoses_[i];
-
-        Object3d::BoneOffset offset{};
-        offset.translate = pose.translate;
-        offset.rotate = QuaternionToEulerDeg_(pose.rotate);
-        offset.scale = SanitizeScale_(pose.scale);
-
-        boneOffsets[skeleton.joints[i].name] = offset;
-    }
-}
-
 Quaternion AnimationEditorPose::NormalizeSafe_(const Quaternion& q) {
     float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
     if (len < 0.0001f || std::isnan(len)) {

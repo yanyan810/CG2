@@ -88,4 +88,27 @@ private:
 
 	bool showPokerPreview_ = true;
 
+	//プレビュー用
+	std::array<std::array<char, 128>, 5> debugActivatedLinesUtf8_ = { {
+	"10回復",
+"10回復",
+"10回復",
+"10回復",
+"10回復",
+
+		} };
+
+	std::array<std::array<char, 128>, 5> debugTurnStartLinesUtf8_ = { {
+		"",
+		"",
+		"",
+		"",
+		""
+	} };
+
+	int debugActivatedLineCount_ = 5;
+	int debugTurnStartLineCount_ = 5;
+
+	void ApplyDebugPokerPreviewData_();
+
 };

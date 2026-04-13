@@ -145,21 +145,6 @@ void Player::Damage(int damage)
     }
 }
 
-void Player::DrawAnimationEditorImGui(Camera* editorCamera) {
-    OutputDebugStringA("[AnimEditor] Player::DrawAnimationEditorImGui CALLED\n");
-
-#ifdef USE_IMGUI
-    if (!model_) {
-        OutputDebugStringA("[AnimEditor] model_ is null in Player\n");
-        return;
-    }
-
-    animationEditor_.DrawImGui(model_.get(), editorCamera);
-#else
-    OutputDebugStringA("[AnimEditor] USE_IMGUI OFF in Player\n");
-#endif
-}
-
 Vector3 Player::GetWeaponTipPos()
 {
     // 武器の根本（手元）の位置を基準にする
@@ -188,3 +173,4 @@ Vector3 Player::GetWeaponBasePos()
 {
     return Matrix4x4::TransformPos(kWeaponOffset, model_->GetWorldMatrix());
 }
+

@@ -73,6 +73,7 @@ public:
 	}
 
 	// アニメーションエディタの描画
+	Object3d* GetObject3d() const { return model_.get(); }
 	void DrawAnimationEditorImGui(Camera* editorCamera);
 
 	// 軌跡のための座標取得
@@ -95,7 +96,6 @@ private:
 	Vector3 pos_{ 0.0f, 0.0f, 0.0f };
 	Vector3 rot_{ 0.0f, 0.0f, 0.0f };
 
-	AnimationEditorSession animationEditor_;
 	int hp_ = 100;
 	int maxHp_ = 100;
 

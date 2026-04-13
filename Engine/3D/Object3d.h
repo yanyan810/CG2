@@ -20,6 +20,7 @@
 #include "VideoPlayerMF.h"
 
 //class Object3dCommon;
+class AnimationEditorPose;
 
 class Object3d
 {
@@ -262,6 +263,16 @@ public:
 	};
 
 	// ボーン名をキーにして、移動・回転・スケールのオフセットを保存する
+	void ApplyAnimationEditorPosePreview(const AnimationEditorPose& pose, const Model::Skeleton& skeleton);
+
+	void SetBonePreviewOffsets(const std::map<std::string, BoneOffset>& offsets) {
+		boneOffsets_ = offsets;
+	}
+
+	void ClearBonePreviewOffsets() {
+		boneOffsets_.clear();
+	}
+
 	std::map<std::string, BoneOffset> boneOffsets_;
 
 	Model::Skeleton* GetSkeleton() { return &poseSkeleton_; }
