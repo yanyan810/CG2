@@ -18,11 +18,10 @@ void DeckEditScene::OnEnter(GameApp& app) {
     totalCount_ = 0;
     editingDeck_.clear();
 
-    // カードリスト読み込み
-    db_.LoadFromJson("resources/cards/cards.json");
-
     // 1. GameAppから CardInstance型でデッキを取得
     const auto& currentInstances = app.GetDeckInstances();
+
+   cardDB_ = app.GetCardDB();
 
     // 2. ID(int) だけを抽出して枚数をカウント
     for (const auto& inst : currentInstances) {
@@ -185,7 +184,7 @@ void DeckEditScene::DrawImGui(GameApp& app) {
 
     // 仮にID 1〜100までループ（実際はCardDatabaseの中身に合わせて調整）
     for (int i = 1; i <= 20; ++i) {
-        auto cardDef = db_.Find(i);
+        auto cardDef = cardDB_->Find(i);
         if (!cardDef) continue;
 
         int currentCount = editingDeck_[cardDef->id];
@@ -251,7 +250,7 @@ void DeckEditScene::RebuildCardModels(GameApp& app) {
     // データベースにあるカードを順番に並べる（例：ID 1〜20）
     int index = 0;
     for (int i = 1; i <= 20; ++i) {
-        const CardDef* def = db_.Find(i);
+        const CardDef* def = cardDB_->Find(i);
         if (!def) continue;
 
         auto card = std::make_unique<Card3D>();
