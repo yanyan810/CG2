@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <algorithm>
+#include <cmath>
 #include <windows.h> // OutputDebugStringAのため
 #include <stdio.h>   // sprintf_sのため
 #include <nlohmann/json.hpp> 
@@ -15,6 +16,158 @@ void CameraAnimator::Initialize(Camera* camera, Input* input) {
     camera_ = camera;
     input_ = input;
     currentTime_ = 0.0f;
+    isDirty_ = false;
+}
+
+void CameraAnimator::Initialize(Camera* camera) {
+    Initialize(camera, nullptr);
+}
+
+void CameraAnimator::SetCurrentTime(float value) {
+    if (value < 0.0f) {
+        currentTime_ = 0.0f;
+        return;
+    }
+
+    currentTime_ = maxTime_ > 0.0f ? std::min(value, maxTime_) : value;
+}
+
+void CameraAnimator::SetMaxTime(float value) {
+    maxTime_ = std::max(value, 0.1f);
+    if (currentTime_ > maxTime_) {
+        currentTime_ = maxTime_;
+    }
+}
+
+void CameraAnimator::SampleAtTime(float time) {
+    if (!camera_) {
+        return;
+    }
+
+    SetCurrentTime(time);
+
+    if (keyframes_.empty()) {
+        return;
+    }
+
+    if (keyframes_.size() == 1 || currentTime_ <= keyframes_.front().time) {
+        camera_->SetTranslate(keyframes_.front().pos);
+        camera_->SetRotate(keyframes_.front().rot);
+        camera_->SetFovY(keyframes_.front().fov);
+        return;
+    }
+
+    if (currentTime_ >= keyframes_.back().time) {
+        camera_->SetTranslate(keyframes_.back().pos);
+        camera_->SetRotate(keyframes_.back().rot);
+        camera_->SetFovY(keyframes_.back().fov);
+        return;
+    }
+
+    for (size_t i = 0; i + 1 < keyframes_.size(); ++i) {
+        if (currentTime_ < keyframes_[i].time || currentTime_ > keyframes_[i + 1].time) {
+            continue;
+        }
+
+        float duration = keyframes_[i + 1].time - keyframes_[i].time;
+        if (duration <= 0.0f) {
+            camera_->SetTranslate(keyframes_[i].pos);
+            camera_->SetRotate(keyframes_[i].rot);
+            camera_->SetFovY(keyframes_[i].fov);
+            return;
+        }
+
+        float t = (currentTime_ - keyframes_[i].time) / duration;
+        camera_->SetTranslate(Lerp(keyframes_[i].pos, keyframes_[i + 1].pos, t));
+        camera_->SetRotate(Lerp(keyframes_[i].rot, keyframes_[i + 1].rot, t));
+        camera_->SetFovY(LerpFloat(keyframes_[i].fov, keyframes_[i + 1].fov, t));
+        return;
+    }
+}
+
+void CameraAnimator::AddOrUpdateKeyframe(float time) {
+    if (!camera_) {
+        return;
+    }
+
+    CameraKeyframe keyframe{};
+    keyframe.time = time;
+    keyframe.pos = camera_->GetTranslate();
+    keyframe.rot = camera_->GetRotate();
+    keyframe.fov = camera_->GetFovY();
+
+    auto it = std::find_if(
+        keyframes_.begin(),
+        keyframes_.end(),
+        [time](const CameraKeyframe& key) {
+            return std::abs(key.time - time) < 0.001f;
+        });
+
+    if (it != keyframes_.end()) {
+        *it = keyframe;
+    } else {
+        keyframes_.push_back(keyframe);
+        std::sort(
+            keyframes_.begin(),
+            keyframes_.end(),
+            [](const CameraKeyframe& a, const CameraKeyframe& b) {
+                return a.time < b.time;
+            });
+    }
+
+    maxTime_ = keyframes_.empty() ? std::max(maxTime_, 0.1f) : std::max(keyframes_.back().time, 0.1f);
+    isDirty_ = true;
+}
+
+void CameraAnimator::DeleteKeyframeAt(float time) {
+    keyframes_.erase(
+        std::remove_if(
+            keyframes_.begin(),
+            keyframes_.end(),
+            [time](const CameraKeyframe& key) {
+                return std::abs(key.time - time) < 0.001f;
+            }),
+        keyframes_.end());
+
+    maxTime_ = keyframes_.empty() ? std::max(maxTime_, 0.1f) : std::max(keyframes_.back().time, 0.1f);
+    if (currentTime_ > maxTime_) {
+        currentTime_ = maxTime_;
+    }
+    isDirty_ = true;
+}
+
+CameraAnimator::StateSnapshot CameraAnimator::CaptureState() const {
+    StateSnapshot snapshot{};
+    snapshot.keyframes = keyframes_;
+    snapshot.isLoop = isLoop_;
+    snapshot.isPlaying = isPlaying_;
+    snapshot.isDirty = isDirty_;
+    snapshot.currentTime = currentTime_;
+    snapshot.maxTime = maxTime_;
+
+    if (camera_) {
+        snapshot.cameraPos = camera_->GetTranslate();
+        snapshot.cameraRot = camera_->GetRotate();
+        snapshot.cameraFov = camera_->GetFovY();
+    }
+
+    return snapshot;
+}
+
+void CameraAnimator::RestoreState(const StateSnapshot& snapshot) {
+    keyframes_ = snapshot.keyframes;
+    isLoop_ = snapshot.isLoop;
+    isPlaying_ = snapshot.isPlaying;
+    isDirty_ = snapshot.isDirty;
+    currentTime_ = snapshot.currentTime;
+    maxTime_ = snapshot.maxTime;
+
+    if (camera_) {
+        camera_->SetTranslate(snapshot.cameraPos);
+        camera_->SetRotate(snapshot.cameraRot);
+        camera_->SetFovY(snapshot.cameraFov);
+        camera_->Update();
+    }
 }
 
 Vector3 CameraAnimator::Lerp(const Vector3& a, const Vector3& b, float t) const {
@@ -23,6 +176,10 @@ Vector3 CameraAnimator::Lerp(const Vector3& a, const Vector3& b, float t) const 
         a.y + (b.y - a.y) * t,
         a.z + (b.z - a.z) * t
     };
+}
+
+float CameraAnimator::LerpFloat(float a, float b, float t) const {
+    return a + (b - a) * t;
 }
 
 bool CameraAnimator::LoadFromJson(const std::string& filepath) {
@@ -61,6 +218,7 @@ bool CameraAnimator::LoadFromJson(const std::string& filepath) {
             frame.rot.x = k["rot"][0];
             frame.rot.y = k["rot"][1];
             frame.rot.z = k["rot"][2];
+            frame.fov = k.contains("fov") ? k["fov"].get<float>() : (camera_ ? camera_->GetFovY() : 0.45f);
 
             keyframes_.push_back(frame);
         }
@@ -72,6 +230,8 @@ bool CameraAnimator::LoadFromJson(const std::string& filepath) {
     } else {
         maxTime_ = 0.0f;
     }
+
+    isDirty_ = false;
 
     return true;
 }
@@ -146,9 +306,11 @@ bool CameraAnimator::Update(float dt) {
             float t = (currentTime_ - keyframes_[i].time) / duration;
             Vector3 currentPos = Lerp(keyframes_[i].pos, keyframes_[i + 1].pos, t);
             Vector3 currentRot = Lerp(keyframes_[i].rot, keyframes_[i + 1].rot, t);
+            float currentFov = LerpFloat(keyframes_[i].fov, keyframes_[i + 1].fov, t);
 
             camera_->SetTranslate(currentPos);
             camera_->SetRotate(currentRot);
+            camera_->SetFovY(currentFov);
             break;
         }
     }
@@ -166,6 +328,7 @@ void CameraAnimator::SaveToJson(const std::string& filepath) {
         kf["time"] = k.time;
         kf["pos"] = { k.pos.x, k.pos.y, k.pos.z };
         kf["rot"] = { k.rot.x, k.rot.y, k.rot.z };
+        kf["fov"] = k.fov;
         jKeyframes.push_back(kf);
     }
     j["keyframes"] = jKeyframes;
@@ -175,6 +338,7 @@ void CameraAnimator::SaveToJson(const std::string& filepath) {
     if (file.is_open()) {
         file << j.dump(4);
         file.close();
+        isDirty_ = false;
         OutputDebugStringA((">>> SUCCESS: Saved Camera to " + filepath + "\n").c_str());
     } else {
         OutputDebugStringA((">>> ERROR: Failed to save " + filepath + "\n").c_str());
@@ -204,18 +368,21 @@ void CameraAnimator::DrawImGui() {
         // 1. カメラを自由に動かせるスライダー
         Vector3 cPos = camera_->GetTranslate();
         Vector3 cRot = camera_->GetRotate();
+        float cFov = camera_->GetFovY();
         if (ImGui::DragFloat3("Camera Pos", &cPos.x, 0.1f)) camera_->SetTranslate(cPos);
         if (ImGui::DragFloat3("Camera Rot", &cRot.x, 0.01f)) camera_->SetRotate(cRot);
+        if (ImGui::DragFloat("Camera Fov", &cFov, 0.001f, 0.1f, 3.0f)) camera_->SetFovY(cFov);
 
         ImGui::Spacing();
 
         // 2. 現在のカメラ位置を新しいキーフレームとして登録
         ImGui::InputFloat("Set Time (sec)", &newKeyframeTime_);
         if (ImGui::Button("Add Keyframe Here!")) {
-            CameraKeyframe kf;
+            CameraKeyframe kf{};
             kf.time = newKeyframeTime_;
             kf.pos = cPos;
             kf.rot = cRot;
+            kf.fov = camera_->GetFovY();
             keyframes_.push_back(kf);
 
             // 時間順に並び替える

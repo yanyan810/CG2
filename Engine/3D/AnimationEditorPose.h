@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "Object3d.h"
 #include "Animation.h"
+#include "Model.h"
 
 class AnimationEditorPose {
 public:
@@ -42,10 +42,6 @@ public:
     void SetJointScale(int32_t jointIndex, const Vector3& value);
 
     void SetJointPoseFromLocalMatrix(int32_t jointIndex, const Matrix4x4& localMatrix);
-
-    void ApplyToBoneOffsets(
-        std::map<std::string, Object3d::BoneOffset>& boneOffsets,
-        const Model::Skeleton& skeleton) const;
 
 private:
     static Quaternion NormalizeSafe_(const Quaternion& q);

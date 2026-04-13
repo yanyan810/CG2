@@ -62,6 +62,8 @@ void GameScene::OnEnter(GameApp& app) {
 	player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
 	player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
 	player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+	animationEditTarget_ = player_ ? player_->GetObject3d() : nullptr;
+	cameraEditTarget_ = animCamera_.get();
 
 	// エネミーの配置（右側・左向き）
 	enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
@@ -144,9 +146,8 @@ void GameScene::OnEnter(GameApp& app) {
 	trailManager_ = std::make_unique<TrailManager>();
 	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
 	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
-
-
-	//
+	// 軌跡インスタンスを作成
+	testTrail_ = trailManager_->CreateInstance();
 
 	highlightFilter_ = std::make_unique<Sprite>();
 	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -160,7 +161,8 @@ void GameScene::OnEnter(GameApp& app) {
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 
-	//AudioManager::GetInstance()->PlayBGM("toumei");
+	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
+	//AudioManager::GetInstance()->PlayBGM("neppuu");
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -168,6 +170,8 @@ void GameScene::OnExit(GameApp& app) {
 	cardDescBg_.reset();
 	cardDescText_.reset();
 
+	animationEditTarget_ = nullptr;
+	cameraEditTarget_ = nullptr;
 	player_.reset();
 	skyDome_.reset();
 	camera_.reset();
@@ -399,27 +403,24 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 	}
 
-	//// 1. 剣をぶん回すアニメーション（テスト用）
-	//static float timer = 0.0f;
-	//timer += 0.05f;
-	//
-	//// 2. ワールド行列から先端と根元の座標を計算
-	//// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
-	//Matrix4x4 worldMat = Matrix4x4::MakeScaleMatrix({ 1.0f, 1.0f, 1.0f }) * Matrix4x4::RotateXYZ(0.0f, 0.0, timer) * Matrix4x4::Translation(player_->GetPos());
-	//
-	//Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
-	//Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
-	//
-	//// ローカル座標をワールド座標へ変換
-	//Vector3 worldBase = trailManager_->Transform(localBase, worldMat);
-	//Vector3 worldTip = trailManager_->Transform(localTip, worldMat);
-	//
-	//// 3. 軌跡を更新！
-	//trailManager_->Update(worldTip, worldBase, trailConfig_);
-	//
-	//// 剣の軌跡上に火花を出す
-	//Vector3 swordMid = (worldTip + worldBase) * 0.5f;
-	//particleManager_->Emit("sword_trail", swordMid, 1);
+	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
+	trailManager_->Update();
+
+	// 2. テスト用の軌跡更新ロジック
+	if (testTrail_) {
+		static float timer = 0.0f;
+		timer += 0.1f; // 回転速度
+
+		// プレイヤーの頭上で円を描くように動かす
+		float radius = 5.0f;
+		Vector3 offset = { cosf(timer) * radius, 2.0f, sinf(timer) * radius };
+		Vector3 basePos = player_->GetPos() + offset;
+		Vector3 tipPos = basePos + Vector3{ 0.0f, 4.0f, 0.0f }; // 上に伸びる棒のような軌跡
+
+		// 実際に更新をかける
+		testTrail_->SetActive(true);
+		testTrail_->Update(tipPos, basePos, trailConfig_);
+	}
 
 	particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
@@ -500,8 +501,20 @@ void GameScene::Draw2D(GameApp& app) {
 
 void GameScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
-	ImGui::Begin("Battle Debug");
+	ImGui::Begin("UI Visibility", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+	ImGui::Checkbox("Battle Debug", &battleDebugVisible_);
+	ImGui::Checkbox("Battle Effects", &battleEffectsDebugVisible_);
+	ImGui::Separator();
+	ImGui::TextUnformatted("Animation Editor");
+	auto& editorWindows = animationEditor_.GetWindowVisibility();
+	ImGui::Checkbox("Toolbar", &editorWindows.toolbar);
+	ImGui::Checkbox("Hierarchy", &editorWindows.hierarchy);
+	ImGui::Checkbox("Inspector", &editorWindows.inspector);
+	ImGui::Checkbox("Timeline", &editorWindows.timeline);
+	ImGui::Checkbox("Preview", &editorWindows.preview);
+	ImGui::End();
 
+	ImGui::Begin("Battle Debug", &battleDebugVisible_);
 	battle_.DrawImGui();
 
 	ImGui::DragFloat2("position", &position_.x);
@@ -509,8 +522,18 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	//playerHpText_->SetPosition(position_);
 
-	if (cameraAnim_) {
-		cameraAnim_->DrawImGui();
+	if (false && cameraAnim_) {
+		ImGui::Separator();
+		ImGui::Text("=== Editor Target ===");
+
+		const bool editAnimation = (editorTargetKind_ == EditorTargetKind::Animation);
+		if (ImGui::RadioButton("Animation", editAnimation)) {
+			editorTargetKind_ = EditorTargetKind::Animation;
+		}
+		ImGui::SameLine();
+		if (ImGui::RadioButton("Camera", !editAnimation)) {
+			editorTargetKind_ = EditorTargetKind::Camera;
+		}
 
 		ImGui::Separator();
 		ImGui::Text("=== Camera File Browser ===");
@@ -546,15 +569,16 @@ void GameScene::DrawImGui(GameApp& app) {
 		}
 	}
 
-	if (player_) {
-		Camera* editorCamera = animCamera_ ? animCamera_.get() : camera_.get();
-		player_->DrawAnimationEditorImGui(editorCamera);
+	if (animationEditTarget_ || cameraEditTarget_) {
+		animationEditor_.DrawImGui(BuildEditorContext_());
 	}
 
 	ImGui::End();
 
 	// 例えば "player_fire" を編集したい場合
-	static std::string targetEffect = "player_fire";
+	if (battleEffectsDebugVisible_) {
+		ImGui::Begin("Battle Effects", &battleEffectsDebugVisible_);
+		static std::string targetEffect = "player_fire";
 
 	// コンボボックスで編集対象を切り替えられるようにすると更に便利
 	if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
@@ -565,6 +589,8 @@ void GameScene::DrawImGui(GameApp& app) {
 	
 	// マネージャーから指定したエフェクトの設定を編集・反映
 	particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
+		ImGui::End();
+	}
 
 	if (fieldUi_) {
 		ImGui::Begin("FieldUi Debug");
@@ -573,6 +599,15 @@ void GameScene::DrawImGui(GameApp& app) {
 	}
 
 	AudioManager::GetInstance()->UpdateImGui();
+	
+	ImGui::Begin("Trail Debug");
+	if (ImGui::CollapsingHeader("Test Trail Settings")) {
+		ImGui::ColorEdit4("Start Color", &trailConfig_.startColor.x);
+		ImGui::ColorEdit4("End Color", &trailConfig_.endColor.x);
+		ImGui::SliderInt("Max Points", (int*)&trailConfig_.maxPoints, 10, 200);
+		ImGui::SliderInt("Steps", (int*)&trailConfig_.interpolationSteps, 1, 10);
+	}
+	ImGui::End();
 
   #endif
 }
@@ -592,8 +627,9 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	particleManager_->Draw();
 	
-	//Matrix4x4 vp = camera_->GetViewProjectionMatrix();
-	//trailManager_->Draw(vp);
+	if (trailManager_) {
+		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());
+	}
 }
 
 void GameScene::DrawPostEffect2D(GameApp& app)
@@ -689,4 +725,42 @@ bool GameScene::LoadCameraByIndex_(int index) {
 		return false;
 	}
 	return LoadCameraByPath_(cameraFiles_[index]);
+}
+
+AnimationEditorSession::EditorContext GameScene::BuildEditorContext_() {
+	AnimationEditorSession::EditorContext context{};
+	context.editorCamera = cameraEditTarget_ ? cameraEditTarget_ : camera_.get();
+	context.cameraAnimator = cameraAnim_.get();
+	context.canEditAnimation = (animationEditTarget_ != nullptr);
+	context.canEditCamera = (cameraEditTarget_ != nullptr && cameraAnim_ != nullptr);
+	context.editCameraMode = (editorTargetKind_ == EditorTargetKind::Camera);
+	context.cameraFiles = &cameraFiles_;
+	context.currentCameraIndex = currentCameraIndex_;
+	context.randomCameraEnabled = &randomCameraEnabled_;
+	context.sameCameraLoopEnabled = &sameCameraLoopEnabled_;
+	context.switchToAnimation = [this]() {
+		editorTargetKind_ = EditorTargetKind::Animation;
+	};
+	context.switchToCamera = [this]() {
+		editorTargetKind_ = EditorTargetKind::Camera;
+	};
+	context.reloadCameraFiles = [this]() {
+		ReloadCameraFileList_();
+	};
+	context.loadCameraByIndex = [this](int index) {
+		LoadCameraByIndex_(index);
+	};
+	context.playRandomCamera = [this]() {
+		ChangeRandomCamera();
+	};
+
+	if (editorTargetKind_ == EditorTargetKind::Camera) {
+		context.cameraTarget = cameraEditTarget_;
+		context.animationTarget = nullptr;
+	} else {
+		context.animationTarget = animationEditTarget_;
+		context.cameraTarget = nullptr;
+	}
+
+	return context;
 }

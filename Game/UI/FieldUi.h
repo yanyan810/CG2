@@ -77,6 +77,22 @@ public:
 		std::vector<std::wstring> activatedLines;
 	};
 
+	enum class PokerPreviewEffectKind {
+		None,
+		SingleDamage,
+		AllDamage,
+		Draw,
+		Block,
+		Heal
+	};
+
+	PokerPreviewEffectKind ClassifyPreviewEffectKind_(const std::wstring& line) const;
+
+	const UiPokerPreviewLineAnchor& GetPreviewEffectAnchor_(
+		PokerPreviewEffectKind kind,
+		const UiPokerPreviewEffectAnchors& anchors,
+		int laneIndex) const;
+
 	void SetDebugCardDescVisible(bool visible) { debugCardDescVisible_ = visible; }
 	void SetDebugCardDescText(const std::wstring& text) { debugCardDescText_ = text; }
 	void SetDebugImageCardDescVisible(bool visible) { debugImageCardDescVisible_ = visible; }

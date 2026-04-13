@@ -1,5 +1,6 @@
 #include "Object3d.h"
 #include "Object3dCommon.h"
+#include "AnimationEditorPose.h"
 
 
 //Vector3 Normalize(const Vector3& v) {
@@ -39,6 +40,23 @@ static uint32_t CalcTotalVertexCount(const Model::ModelData& modelData) {
 		total += m.vertices.size();
 	}
 	return static_cast<uint32_t>(total);
+}
+
+void Object3d::ApplyAnimationEditorPosePreview(const AnimationEditorPose& pose, const Model::Skeleton& skeleton) {
+	boneOffsets_.clear();
+
+	const size_t jointCount =
+		pose.GetJointCount() < skeleton.joints.size() ? pose.GetJointCount() : skeleton.joints.size();
+	for (size_t i = 0; i < jointCount; ++i) {
+		const auto& jointPose = pose.GetJointPose(static_cast<int32_t>(i));
+
+		BoneOffset offset{};
+		offset.translate = jointPose.translate;
+		offset.rotate = pose.GetJointRotationEulerDeg(static_cast<int32_t>(i));
+		offset.scale = jointPose.scale;
+
+		boneOffsets_[skeleton.joints[i].name] = offset;
+	}
 }
 
 void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx) {

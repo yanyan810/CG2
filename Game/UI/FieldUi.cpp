@@ -118,7 +118,6 @@ void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
 	auto& cmds = pokerPreviewImageCommands_;
 	const auto& p = pokerEffectLayout_.previewImages;
 
-	// 役名
 	{
 		std::string rankPath = GetRankImagePath_(battle.GetCurrentPokerRankForUi());
 		AddImageCommandTo_(cmds, rankPath,
@@ -127,7 +126,6 @@ void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
 			{ 1,1,1,1 });
 	}
 
-	// ATK UP
 	AddImageCommandTo_(cmds, "resources/ui/text/attakUp.png",
 		p.atkLabel.x, p.atkLabel.y,
 		p.atkLabel.scale, p.atkLabel.scale,
@@ -137,7 +135,6 @@ void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
 		p.atkValue.x, p.atkValue.y,
 		p.atkValue.scale, p.atkValue.spacing);
 
-	// Draw
 	AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
 		p.drawLabel.x, p.drawLabel.y,
 		p.drawLabel.scale, p.drawLabel.scale,
@@ -147,7 +144,6 @@ void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
 		p.drawValue.x, p.drawValue.y,
 		p.drawValue.scale, p.drawValue.spacing);
 
-	// Damage
 	AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
 		p.damageLabel.x, p.damageLabel.y,
 		p.damageLabel.scale, p.damageLabel.scale,
@@ -157,9 +153,6 @@ void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
 		p.damageValue.x, p.damageValue.y,
 		p.damageValue.scale, p.damageValue.spacing);
 
-	// -------------------------
-	// ターン開始時
-	// -------------------------
 	AddImageCommandTo_(cmds, "resources/ui/text/startTurn.png",
 		p.turnStartLabel.x, p.turnStartLabel.y,
 		p.turnStartLabel.scale, p.turnStartLabel.scale,
@@ -178,19 +171,19 @@ void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
 	} else {
 		const int maxLines = (std::min)(static_cast<int>(turnStartLines.size()), 5);
 		for (int i = 0; i < maxLines; ++i) {
-			const auto& anchor = p.turnStartLines.lines[i];
+			const auto kind = ClassifyPreviewEffectKind_(turnStartLines[i]);
+			const auto& anchor = GetPreviewEffectAnchor_(kind, p.turnStartEffectAnchors, i);
+
 			AddActivatedPreviewLineFromText_(
 				cmds,
 				turnStartLines[i],
-				anchor.x, anchor.y,
+				anchor.x,
+				anchor.y,
 				p.turnStartPatterns,
 				p.turnStartNoneLabel.scale);
 		}
 	}
 
-	// -------------------------
-	// 特殊効果発動時
-	// -------------------------
 	AddImageCommandTo_(cmds, "resources/ui/text/specialEffectsActivat.png",
 		p.activatedLabel.x, p.activatedLabel.y,
 		p.activatedLabel.scale, p.activatedLabel.scale,
@@ -209,11 +202,14 @@ void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
 	} else {
 		const int maxLines = (std::min)(static_cast<int>(pokerActivatedLines.size()), 5);
 		for (int i = 0; i < maxLines; ++i) {
-			const auto& anchor = p.activatedLines.lines[i];
+			const auto kind = ClassifyPreviewEffectKind_(pokerActivatedLines[i]);
+			const auto& anchor = GetPreviewEffectAnchor_(kind, p.activatedEffectAnchors, i);
+
 			AddActivatedPreviewLineFromText_(
 				cmds,
 				pokerActivatedLines[i],
-				anchor.x, anchor.y,
+				anchor.x,
+				anchor.y,
 				p.activatedPatterns,
 				p.activatedNoneLabel.scale);
 		}
@@ -280,11 +276,14 @@ void FieldUi::UpdatePokerPreviewImageCommandsFromDebugData_()
 	} else {
 		const int maxLines = (std::min)(static_cast<int>(d.turnStartLines.size()), 5);
 		for (int i = 0; i < maxLines; ++i) {
-			const auto& anchor = p.turnStartLines.lines[i];
+			const auto kind = ClassifyPreviewEffectKind_(d.turnStartLines[i]);
+			const auto& anchor = GetPreviewEffectAnchor_(kind, p.turnStartEffectAnchors, i);
+
 			AddActivatedPreviewLineFromText_(
 				cmds,
 				d.turnStartLines[i],
-				anchor.x, anchor.y,
+				anchor.x,
+				anchor.y,
 				p.turnStartPatterns,
 				p.turnStartNoneLabel.scale);
 		}
@@ -304,15 +303,68 @@ void FieldUi::UpdatePokerPreviewImageCommandsFromDebugData_()
 	} else {
 		const int maxLines = (std::min)(static_cast<int>(d.activatedLines.size()), 5);
 		for (int i = 0; i < maxLines; ++i) {
-			const auto& anchor = p.activatedLines.lines[i];
+			const auto kind = ClassifyPreviewEffectKind_(d.activatedLines[i]);
+			const auto& anchor = GetPreviewEffectAnchor_(kind, p.activatedEffectAnchors, i);
+
 			AddActivatedPreviewLineFromText_(
 				cmds,
 				d.activatedLines[i],
-				anchor.x, anchor.y,
+				anchor.x,
+				anchor.y,
 				p.activatedPatterns,
 				p.activatedNoneLabel.scale);
 		}
 	}
+}
+
+FieldUi::PokerPreviewEffectKind FieldUi::ClassifyPreviewEffectKind_(const std::wstring& line) const
+{
+	if (line.find(L"敵単体に") != std::wstring::npos &&
+		line.find(L"ダメージ") != std::wstring::npos) {
+		return PokerPreviewEffectKind::SingleDamage;
+	}
+
+	if (line.find(L"敵全体に") != std::wstring::npos &&
+		line.find(L"ダメージ") != std::wstring::npos) {
+		return PokerPreviewEffectKind::AllDamage;
+	}
+
+	if (line.find(L"枚引く") != std::wstring::npos) {
+		return PokerPreviewEffectKind::Draw;
+	}
+
+	if (line.find(L"ブロック") != std::wstring::npos) {
+		return PokerPreviewEffectKind::Block;
+	}
+
+	if (line.find(L"回復") != std::wstring::npos) {
+		return PokerPreviewEffectKind::Heal;
+	}
+
+	return PokerPreviewEffectKind::None;
+}
+
+const UiPokerPreviewLineAnchor& FieldUi::GetPreviewEffectAnchor_(
+    PokerPreviewEffectKind kind,
+    const UiPokerPreviewEffectAnchors& anchors,
+    int laneIndex) const
+{
+    laneIndex = (std::max)(0, (std::min)(laneIndex, 4));
+
+    switch (kind) {
+    case PokerPreviewEffectKind::SingleDamage:
+        return anchors.singleDamage.lanes[laneIndex];
+    case PokerPreviewEffectKind::AllDamage:
+        return anchors.allDamage.lanes[laneIndex];
+    case PokerPreviewEffectKind::Draw:
+        return anchors.draw.lanes[laneIndex];
+    case PokerPreviewEffectKind::Block:
+        return anchors.block.lanes[laneIndex];
+    case PokerPreviewEffectKind::Heal:
+        return anchors.heal.lanes[laneIndex];
+    default:
+        return anchors.none.lanes[laneIndex];
+    }
 }
 
 void FieldUi::AddActivatedPreviewLineFromText_(
@@ -372,12 +424,17 @@ void FieldUi::AddActivatedPreviewLineFromText_(
 
 		const auto& pat = patterns.draw;
 
+		// 数字（3など）
 		AddNumberCommandsTo_(cmds, value,
-			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
+			baseX + pat.numberOffsetX,
+			baseY + pat.numberOffsetY,
 			pat.numberScale, pat.numberSpacing);
 
+		// ドロー画像
 		AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
-			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
+			baseX + pat.numberOffsetX +
+			pat.numberSpacing * static_cast<float>(digits.size()) +
+			pat.suffixOffsetX,
 			baseY + pat.suffixOffsetY,
 			pat.labelScale, pat.labelScale, { 1,1,1,1 });
 	} else if (line.find(L"回復") != std::wstring::npos) {
@@ -2209,27 +2266,40 @@ void FieldUi::DrawImGui()
 		changed |= ImGui::DragFloat2("Preview Activated None Pos", &pokerEffectLayout_.previewImages.activatedNoneLabel.x, 1.0f);
 		changed |= ImGui::DragFloat("Preview Activated None Scale", &pokerEffectLayout_.previewImages.activatedNoneLabel.scale, 0.01f, 0.1f, 5.0f);
 
-		ImGui::Separator();
-		ImGui::Text("Preview TurnStart Lines");
-		for (int i = 0; i < 5; ++i) {
-			auto& row = pokerEffectLayout_.previewImages.turnStartLines.lines[i];
-			std::string label = "TurnStartLine" + std::to_string(i);
-			if (ImGui::TreeNode(label.c_str())) {
-				changed |= ImGui::DragFloat2(("Pos##ts" + std::to_string(i)).c_str(), &row.x, 1.0f);
+		auto DrawLinesEditor = [&](const char* title, UiPokerPreviewLinesLayout& lines, const char* suffix) {
+			if (ImGui::TreeNode(title)) {
+				for (int i = 0; i < 5; ++i) {
+					std::string label = "Lane" + std::to_string(i + 1) + "##" + suffix;
+					changed |= ImGui::DragFloat2(label.c_str(), &lines.lanes[i].x, 1.0f);
+				}
 				ImGui::TreePop();
 			}
-		}
+			};
+
+		auto DrawEffectAnchorsEditor = [&](const char* title, UiPokerPreviewEffectAnchors& anchors, const char* suffix) {
+			if (ImGui::TreeNode(title)) {
+				DrawLinesEditor("SingleDamage", anchors.singleDamage, (std::string(suffix) + "_sd").c_str());
+				DrawLinesEditor("AllDamage", anchors.allDamage, (std::string(suffix) + "_ad").c_str());
+				DrawLinesEditor("Draw", anchors.draw, (std::string(suffix) + "_dr").c_str());
+				DrawLinesEditor("Block", anchors.block, (std::string(suffix) + "_bl").c_str());
+				DrawLinesEditor("Heal", anchors.heal, (std::string(suffix) + "_he").c_str());
+				DrawLinesEditor("None", anchors.none, (std::string(suffix) + "_no").c_str());
+				ImGui::TreePop();
+			}
+			};
 
 		ImGui::Separator();
-		ImGui::Text("Preview Activated Lines");
-		for (int i = 0; i < 5; ++i) {
-			auto& row = pokerEffectLayout_.previewImages.activatedLines.lines[i];
-			std::string label = "ActivatedLine" + std::to_string(i);
-			if (ImGui::TreeNode(label.c_str())) {
-				changed |= ImGui::DragFloat2(("Pos##ac" + std::to_string(i)).c_str(), &row.x, 1.0f);
-				ImGui::TreePop();
-			}
-		}
+		ImGui::Text("Preview Effect Anchors");
+
+		DrawEffectAnchorsEditor(
+			"TurnStart Effect Anchors",
+			pokerEffectLayout_.previewImages.turnStartEffectAnchors,
+			"ts_anchor");
+
+		DrawEffectAnchorsEditor(
+			"Activated Effect Anchors",
+			pokerEffectLayout_.previewImages.activatedEffectAnchors,
+			"ac_anchor");
 
 		auto DrawPatternEditor = [&](const char* name, UiPokerPreviewPatternLayout& pat, const char* suffix) {
 			if (ImGui::TreeNode(name)) {
@@ -2580,6 +2650,9 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 		dst["numberSpacing"] = pat.numberSpacing;
 		dst["suffixOffsetX"] = pat.suffixOffsetX;
 		dst["suffixOffsetY"] = pat.suffixOffsetY;
+		dst["leadingLabelOffsetX"] = pat.leadingLabelOffsetX;
+		dst["leadingLabelOffsetY"] = pat.leadingLabelOffsetY;
+		dst["leadingAdvanceX"] = pat.leadingAdvanceX;
 		};
 
 	j["title"]["x"] = pokerEffectLayout_.titleImage.x;
@@ -2669,15 +2742,7 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 	j["previewImages"]["activatedNoneLabel"]["y"] = pokerEffectLayout_.previewImages.activatedNoneLabel.y;
 	j["previewImages"]["activatedNoneLabel"]["scale"] = pokerEffectLayout_.previewImages.activatedNoneLabel.scale;
 
-	for (int i = 0; i < 5; ++i) {
-		const auto& ts = pokerEffectLayout_.previewImages.turnStartLines.lines[i];
-		j["previewImages"]["turnStartLines"][i]["x"] = ts.x;
-		j["previewImages"]["turnStartLines"][i]["y"] = ts.y;
-
-		const auto& ac = pokerEffectLayout_.previewImages.activatedLines.lines[i];
-		j["previewImages"]["activatedLines"][i]["x"] = ac.x;
-		j["previewImages"]["activatedLines"][i]["y"] = ac.y;
-	}
+	
 
 	writePattern(j["previewImages"]["turnStartPatterns"]["singleDamage"],
 		pokerEffectLayout_.previewImages.turnStartPatterns.singleDamage);
@@ -2700,6 +2765,30 @@ bool FieldUi::SavePokerEffectChoiceLayout(const std::string& path) const
 		pokerEffectLayout_.previewImages.activatedPatterns.block);
 	writePattern(j["previewImages"]["activatedPatterns"]["heal"],
 		pokerEffectLayout_.previewImages.activatedPatterns.heal);
+
+	auto writeLines = [&](json& dst, const UiPokerPreviewLinesLayout& lines) {
+		for (int i = 0; i < 5; ++i) {
+			dst[i]["x"] = lines.lanes[i].x;
+			dst[i]["y"] = lines.lanes[i].y;
+		}
+		};
+
+	auto writeEffectAnchors = [&](json& dst, const UiPokerPreviewEffectAnchors& a) {
+		writeLines(dst["singleDamage"], a.singleDamage);
+		writeLines(dst["allDamage"], a.allDamage);
+		writeLines(dst["draw"], a.draw);
+		writeLines(dst["block"], a.block);
+		writeLines(dst["heal"], a.heal);
+		writeLines(dst["none"], a.none);
+		};
+
+	writeEffectAnchors(
+		j["previewImages"]["turnStartEffectAnchors"],
+		pokerEffectLayout_.previewImages.turnStartEffectAnchors);
+
+	writeEffectAnchors(
+		j["previewImages"]["activatedEffectAnchors"],
+		pokerEffectLayout_.previewImages.activatedEffectAnchors);
 
 	j["previewImages"]["activatedLabel"]["x"] = pokerEffectLayout_.previewImages.activatedLabel.x;
 	j["previewImages"]["activatedLabel"]["y"] = pokerEffectLayout_.previewImages.activatedLabel.y;
@@ -2780,6 +2869,29 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 		pat.numberSpacing = src.value("numberSpacing", pat.numberSpacing);
 		pat.suffixOffsetX = src.value("suffixOffsetX", pat.suffixOffsetX);
 		pat.suffixOffsetY = src.value("suffixOffsetY", pat.suffixOffsetY);
+		
+		pat.leadingLabelOffsetX = src.value("leadingLabelOffsetX", pat.leadingLabelOffsetX);
+		pat.leadingLabelOffsetY = src.value("leadingLabelOffsetY", pat.leadingLabelOffsetY);
+		pat.leadingAdvanceX = src.value("leadingAdvanceX", pat.leadingAdvanceX);
+		
+		};
+
+	auto readLines = [&](const json& src, UiPokerPreviewLinesLayout& lines) {
+		if (!src.is_array()) return;
+
+		for (int i = 0; i < static_cast<int>(src.size()) && i < 5; ++i) {
+			lines.lanes[i].x = src[i].value("x", lines.lanes[i].x);
+			lines.lanes[i].y = src[i].value("y", lines.lanes[i].y);
+		}
+		};
+
+	auto readEffectAnchors = [&](const json& src, UiPokerPreviewEffectAnchors& a) {
+		if (src.contains("singleDamage")) readLines(src["singleDamage"], a.singleDamage);
+		if (src.contains("allDamage"))    readLines(src["allDamage"], a.allDamage);
+		if (src.contains("draw"))         readLines(src["draw"], a.draw);
+		if (src.contains("block"))        readLines(src["block"], a.block);
+		if (src.contains("heal"))         readLines(src["heal"], a.heal);
+		if (src.contains("none"))         readLines(src["none"], a.none);
 		};
 
 	// title
@@ -2928,22 +3040,16 @@ bool FieldUi::LoadPokerEffectChoiceLayout(const std::string& path)
 			pokerEffectLayout_.previewImages.activatedNoneLabel.scale = p["activatedNoneLabel"].value("scale", pokerEffectLayout_.previewImages.activatedNoneLabel.scale);
 		}
 
-		if (p.contains("turnStartLines") && p["turnStartLines"].is_array()) {
-			for (int i = 0; i < static_cast<int>(p["turnStartLines"].size()) && i < 5; ++i) {
-				auto& row = p["turnStartLines"][i];
-				auto& dst = pokerEffectLayout_.previewImages.turnStartLines.lines[i];
-				dst.x = row.value("x", dst.x);
-				dst.y = row.value("y", dst.y);
-			}
+		if (p.contains("turnStartEffectAnchors")) {
+			readEffectAnchors(
+				p["turnStartEffectAnchors"],
+				pokerEffectLayout_.previewImages.turnStartEffectAnchors);
 		}
 
-		if (p.contains("activatedLines") && p["activatedLines"].is_array()) {
-			for (int i = 0; i < static_cast<int>(p["activatedLines"].size()) && i < 5; ++i) {
-				auto& row = p["activatedLines"][i];
-				auto& dst = pokerEffectLayout_.previewImages.activatedLines.lines[i];
-				dst.x = row.value("x", dst.x);
-				dst.y = row.value("y", dst.y);
-			}
+		if (p.contains("activatedEffectAnchors")) {
+			readEffectAnchors(
+				p["activatedEffectAnchors"],
+				pokerEffectLayout_.previewImages.activatedEffectAnchors);
 		}
 
 		if (p.contains("turnStartPatterns")) {

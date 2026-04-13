@@ -5,6 +5,15 @@
 #include "WinApp.h"
 #include "TextureManager.h"
 
+static std::wstring Utf8ToWStringLocal_Title(const std::string& s)
+{
+	if (s.empty()) return L"";
+	int size = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+	std::wstring out(size - 1, L'\0');
+	MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, out.data(), size);
+	return out;
+}
+
 //------------------------------------------------------------
 // シーン開始時の初期化
 //------------------------------------------------------------
@@ -60,21 +69,7 @@ void TitleScene::OnEnter(GameApp& app) {
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
-
-	FieldUi::DebugPokerPreviewData debugPreview{};
-	debugPreview.enabled = true;
-	debugPreview.rank = BattleController::PokerHandRank::ThreeOfAKind;
-	debugPreview.atkUp = 7;
-	debugPreview.draw = 2;
-	debugPreview.damage = 25;
-	debugPreview.turnStartLines = {};
-	debugPreview.activatedLines = {
-		L"敵単体に25ダメージ",
-		L"3枚引く",
-		L"自身に10ブロック"
-	};
-
-	fieldUi_->SetDebugPokerPreviewData(debugPreview);
+	ApplyDebugPokerPreviewData_();
 
 	//AudioManager::GetInstance()->PlayBGM("machi");
 
@@ -144,6 +139,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 		const CardDef* debugDef = battle_.FindCardDef(debugCardId_);
 		fieldUi_->SetDebugImageCardDescVisible(showDebugCardDesc_);
 		fieldUi_->SetDebugImageCardDescCard(debugDef);
+		ApplyDebugPokerPreviewData_();
 		fieldUi_->Update(app, battle_);
 	}
 
@@ -216,6 +212,22 @@ void TitleScene::DrawImGui(GameApp& app) {
 
 	ImGui::Checkbox("Show Poker Preview", &showPokerPreview_);
 
+	ImGui::Separator();
+	ImGui::Text("Debug Poker Preview Text");
+
+	ImGui::DragInt("Activated Line Count", &debugActivatedLineCount_, 1.0f, 0, 5);
+	ImGui::DragInt("TurnStart Line Count", &debugTurnStartLineCount_, 1.0f, 0, 5);
+
+	for (int i = 0; i < 5; ++i) {
+		std::string label = "Activated Line " + std::to_string(i);
+		ImGui::InputText(label.c_str(), debugActivatedLinesUtf8_[i].data(), debugActivatedLinesUtf8_[i].size());
+	}
+
+	for (int i = 0; i < 5; ++i) {
+		std::string label = "TurnStart Line " + std::to_string(i);
+		ImGui::InputText(label.c_str(), debugTurnStartLinesUtf8_[i].data(), debugTurnStartLinesUtf8_[i].size());
+	}
+
 	ImGui::End();
 
 	if (fieldUi_) {
@@ -243,4 +255,40 @@ void TitleScene::DrawPostEffect3D(GameApp& app)
 void TitleScene::DrawPostEffect2D(GameApp& app)
 {
 
+}
+
+
+//プレビュー用デバッグ
+void TitleScene::ApplyDebugPokerPreviewData_()
+{
+	if (!fieldUi_) {
+		return;
+	}
+
+	FieldUi::DebugPokerPreviewData debugPreview{};
+	debugPreview.enabled = true;
+	debugPreview.rank = BattleController::PokerHandRank::ThreeOfAKind;
+	debugPreview.atkUp = 7;
+	debugPreview.draw = 2;
+	debugPreview.damage = 25;
+
+	debugPreview.turnStartLines.clear();
+	for (int i = 0; i < debugTurnStartLineCount_ && i < 5; ++i) {
+		if (debugTurnStartLinesUtf8_[i][0] != '\0') {
+			debugPreview.turnStartLines.push_back(
+				Utf8ToWStringLocal_Title(debugTurnStartLinesUtf8_[i].data())
+			);
+		}
+	}
+
+	debugPreview.activatedLines.clear();
+	for (int i = 0; i < debugActivatedLineCount_ && i < 5; ++i) {
+		if (debugActivatedLinesUtf8_[i][0] != '\0') {
+			debugPreview.activatedLines.push_back(
+				Utf8ToWStringLocal_Title(debugActivatedLinesUtf8_[i].data())
+			);
+		}
+	}
+
+	fieldUi_->SetDebugPokerPreviewData(debugPreview);
 }
