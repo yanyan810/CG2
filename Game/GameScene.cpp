@@ -146,9 +146,8 @@ void GameScene::OnEnter(GameApp& app) {
 	trailManager_ = std::make_unique<TrailManager>();
 	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
 	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
-
-
-	//
+	// 軌跡インスタンスを作成
+	testTrail_ = trailManager_->CreateInstance();
 
 	highlightFilter_ = std::make_unique<Sprite>();
 	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -162,7 +161,8 @@ void GameScene::OnEnter(GameApp& app) {
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 
-	//AudioManager::GetInstance()->PlayBGM("toumei");
+	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
+	//AudioManager::GetInstance()->PlayBGM("neppuu");
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -403,27 +403,24 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 	}
 
-	//// 1. 剣をぶん回すアニメーション（テスト用）
-	//static float timer = 0.0f;
-	//timer += 0.05f;
-	//
-	//// 2. ワールド行列から先端と根元の座標を計算
-	//// ※Object3dに GetWorldMatrix() がある前提。なければ計算してください
-	//Matrix4x4 worldMat = Matrix4x4::MakeScaleMatrix({ 1.0f, 1.0f, 1.0f }) * Matrix4x4::RotateXYZ(0.0f, 0.0, timer) * Matrix4x4::Translation(player_->GetPos());
-	//
-	//Vector3 localBase = { 0.0f, 0.0f, 0.0f };   // 剣の根元
-	//Vector3 localTip = { 0.0f, 6.0f, 0.0f };  // 剣の先端（Scale.yが10ならこのあたり）
-	//
-	//// ローカル座標をワールド座標へ変換
-	//Vector3 worldBase = trailManager_->Transform(localBase, worldMat);
-	//Vector3 worldTip = trailManager_->Transform(localTip, worldMat);
-	//
-	//// 3. 軌跡を更新！
-	//trailManager_->Update(worldTip, worldBase, trailConfig_);
-	//
-	//// 剣の軌跡上に火花を出す
-	//Vector3 swordMid = (worldTip + worldBase) * 0.5f;
-	//particleManager_->Emit("sword_trail", swordMid, 1);
+	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
+	trailManager_->Update();
+
+	// 2. テスト用の軌跡更新ロジック
+	if (testTrail_) {
+		static float timer = 0.0f;
+		timer += 0.1f; // 回転速度
+
+		// プレイヤーの頭上で円を描くように動かす
+		float radius = 5.0f;
+		Vector3 offset = { cosf(timer) * radius, 2.0f, sinf(timer) * radius };
+		Vector3 basePos = player_->GetPos() + offset;
+		Vector3 tipPos = basePos + Vector3{ 0.0f, 4.0f, 0.0f }; // 上に伸びる棒のような軌跡
+
+		// 実際に更新をかける
+		testTrail_->SetActive(true);
+		testTrail_->Update(tipPos, basePos, trailConfig_);
+	}
 
 	particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
@@ -602,6 +599,15 @@ void GameScene::DrawImGui(GameApp& app) {
 	}
 
 	AudioManager::GetInstance()->UpdateImGui();
+	
+	ImGui::Begin("Trail Debug");
+	if (ImGui::CollapsingHeader("Test Trail Settings")) {
+		ImGui::ColorEdit4("Start Color", &trailConfig_.startColor.x);
+		ImGui::ColorEdit4("End Color", &trailConfig_.endColor.x);
+		ImGui::SliderInt("Max Points", (int*)&trailConfig_.maxPoints, 10, 200);
+		ImGui::SliderInt("Steps", (int*)&trailConfig_.interpolationSteps, 1, 10);
+	}
+	ImGui::End();
 
   #endif
 }
@@ -621,8 +627,9 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	particleManager_->Draw();
 	
-	//Matrix4x4 vp = camera_->GetViewProjectionMatrix();
-	//trailManager_->Draw(vp);
+	if (trailManager_) {
+		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());
+	}
 }
 
 void GameScene::DrawPostEffect2D(GameApp& app)

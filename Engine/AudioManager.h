@@ -5,6 +5,9 @@
 #include <iomanip>
 #include "DirectXCommon.h"
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 struct AudioConfig {
     std::string name;           // 識別名 (JSONのキー)
     std::string filePath;       // ファイルパス
@@ -46,6 +49,9 @@ public:
     /// 今流れているBGMを止める
     /// </summary>
     void StopBGM();
+
+    void RefreshAudioFileList();
+
 private:
     std::map<std::string, AudioConfig> configs_;
 
@@ -55,4 +61,7 @@ private:
     void SaveAllConfigs(const std::string& path);
 
     std::string currentBGMName_ = "";
+
+    std::vector<std::string> audioFileList_;
+    const std::string kAudioDirPath = "resources/audio/";
 };
