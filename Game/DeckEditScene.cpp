@@ -73,10 +73,11 @@ void DeckEditScene::Update(GameApp& app, float dt) {
         y += scrollY_;
 
         // カードの座標を即座に更新
-        card->SetTransform(
+        card->SetTargetTransform(
             { x, y, 0.0f },
             card->GetModelFixRot(),
-            { 0.25f, 0.25f, 0.25f }
+            { 0.25f, 0.25f, 0.25f },
+            false // instant を false にすることで補間を有効化
         );
 
         card->Update(dt);
@@ -121,30 +122,30 @@ void DeckEditScene::Update(GameApp& app, float dt) {
             // 現在の基本位置と回転を取得
              // (RebuildCardModelsで設定した値をベースにする)
             float x = (idx % kCardsPerRow) * kCardSpacingX + kCardStartX;
-            float y = -(idx / kCardsPerRow) * kCardSpacingY + kCardStartY;
-            Vector3 basePos = { x, y, 10.0f };
-            Vector3 baseRot = { 0, 0, 0 };
-            float defaultScl = 0.25f; // RebuildCardModels で設定している基本サイズ
+            float y = -(idx / kCardsPerRow) * kCardSpacingY + kCardStartY + scrollY_;
+            Vector3 currentPos = { x, y, 0.0f };
+            Vector3 baseRot = cardModels_[idx]->GetModelFixRot();
+            float defaultScl = 0.25f;
 
             if (leftClick) {
                 if (currentCount < 4 && totalCount_ < 40) {
                     editingDeck_[cardId]++;
 
-                    // --- 演出: 一瞬大きくする ---
-                    // 1. 現在のサイズを 0.4f (1.6倍) に強制設定
-                    cardModels_[idx]->SetTransform(basePos, baseRot, { 0.4f, 0.4f, 0.4f });
-                    // 2. 目標サイズを 0.25f (通常) に設定して戻していく
-                    cardModels_[idx]->SetTargetTransform(basePos, baseRot, { defaultScl, defaultScl, defaultScl });
+                    // --- 演出 ---
+                    // 1. 現在の値を「強制的に」大きくする (SetTransform)
+                    cardModels_[idx]->SetTransform(currentPos, baseRot, { 0.4f, 0.4f, 0.4f });
+                    // 2. 目標の値を「通常」に戻す (SetTargetTransform)
+                    // Card3D::Update 内の lerp によって、0.4f から 0.25f へ滑らかに戻ります
+                    cardModels_[idx]->SetTargetTransform(currentPos, baseRot, { defaultScl, defaultScl, defaultScl });
                 }
             } else if (rightClick) {
                 if (currentCount > 0) {
                     editingDeck_[cardId]--;
 
-                    // --- 演出: 一瞬小さくする ---
-                    // 1. 現在のサイズを 0.1f (0.4倍) に強制設定
-                    cardModels_[idx]->SetTransform(basePos, baseRot, { 0.1f, 0.1f, 0.1f });
-                    // 2. 目標サイズを 0.25f (通常) に設定して戻していく
-                    cardModels_[idx]->SetTargetTransform(basePos, baseRot, { defaultScl, defaultScl, defaultScl });
+                    // 1. 現在の値を「強制的に」小さくする
+                    cardModels_[idx]->SetTransform(currentPos, baseRot, { 0.1f, 0.1f, 0.1f });
+                    // 2. 目標の値を通常に戻す
+                    cardModels_[idx]->SetTargetTransform(currentPos, baseRot, { defaultScl, defaultScl, defaultScl });
                 }
             }
             RecalculateTotal();
