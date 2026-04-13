@@ -6,6 +6,7 @@
 #include "TestScene.h"
 #include "GameOverScene.h"
 #include "GameClearScene.h"
+#include "TutorialScene.h"
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
@@ -162,6 +163,7 @@ bool GameApp::Initialize_() {
     sceneMgr_->Register("DeckEdit", [] { return std::make_unique<DeckEditScene>(); });
     sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
     sceneMgr_->Register("Test", [] { return std::make_unique<TestScene>();  }); 
+    sceneMgr_->Register("Tutorial", [] { return std::make_unique<TutorialScene>();  });
     sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  }); 
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
 

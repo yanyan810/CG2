@@ -15,6 +15,7 @@ public:
     void SetText(const std::wstring& text);
     void SetPosition(const Vector2& pos) { position_ = pos; }
     void SetSize(const Vector3& size) { size_ = size; }
+    void SetAlpha(float a) { alpha_ = a; }
 
     void Update(const Matrix4x4& view, const Matrix4x4& proj);
     void Draw();
@@ -34,6 +35,8 @@ private:
 
     std::wstring text_;
     std::wstring prevText_;
+
+    float alpha_ = 1.0f;
 
     std::string textureKey_;
 

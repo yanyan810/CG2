@@ -106,6 +106,12 @@ void TitleScene::Update(GameApp& app, float dt) {
 	//--------------------------------------------------------
 	bool spaceTrig = input->IsKeyTrigger(DIK_SPACE);
 
+	//================
+	//Tキーを押したとき
+	//================
+
+	bool tutorialTrig = input->IsKeyTrigger(DIK_T);
+
 	//--------------------------------------------------------
 	// 状態更新
 	//--------------------------------------------------------
@@ -115,6 +121,12 @@ void TitleScene::Update(GameApp& app, float dt) {
 		if (spaceTrig) {
 			state_ = State::ExitClose;
 		}
+
+		if (tutorialTrig) {
+			RequestChangeScene_("Tutorial");
+			return;
+		}
+
 		break;
 
 	case State::ExitClose:
@@ -127,6 +139,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 		}
 		break;
 	}
+
 
 	//3D更新
 	skyDome_->Update(dt);

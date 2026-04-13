@@ -630,6 +630,25 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	deck_ = prebuiltDeck_;
 	ShuffleDeck_();
 
+	if (useTutorialOpeningHand_) {
+		// 最初に引く5枚を deck の末尾に積むため、
+		// 先に同じカードがあれば軽く取り除く
+		for (const auto& fixedCard : tutorialOpeningHand_) {
+			auto it = std::find_if(deck_.begin(), deck_.end(),
+				[&](const CardInstance& c) {
+					return c.defId == fixedCard.defId;
+				});
+			if (it != deck_.end()) {
+				deck_.erase(it);
+			}
+		}
+
+		// DrawOne_ は back() を引くので、逆順で積む
+		for (auto it = tutorialOpeningHand_.rbegin(); it != tutorialOpeningHand_.rend(); ++it) {
+			deck_.push_back(*it);
+		}
+	}
+
 	hand_.clear();
 	discard_.clear();
 	field_.clear();
@@ -2902,4 +2921,13 @@ void BattleController::UpdateHpGauges() {
 	playerBlockPredict_->SetScale({ 250.0f * predictedRatioBlock + offset,18.0f + (offset * 2.f), 1.0f });
 	playerBlockPredict_->SetPosition({ 80.f - offset,40.f - offset });
 
+}
+
+//=====================
+//チュートリアル用
+//=====================
+void BattleController::SetTutorialOpeningHand(const std::vector<CardInstance>& cards)
+{
+	tutorialOpeningHand_ = cards;
+	useTutorialOpeningHand_ = !cards.empty();
 }

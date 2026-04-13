@@ -118,3 +118,4 @@ private:
     TrailInstance* testTrail_ = nullptr; // マネージャが寿命管理するので生のポインタでOK
     TrailConfig trailConfig_;            // インスペクタ調整用
 };
+
