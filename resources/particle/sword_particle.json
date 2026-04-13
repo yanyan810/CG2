@@ -8,18 +8,18 @@
     "endScale": 0.0,
     "gravity": [
         0.0,
-        0.0,
+        2.0,
         0.0
     ],
     "lifeTimeMax": 3.0,
     "lifeTimeMin": 2.0,
-    "speedMax": 10.0,
-    "speedMin": 7.0,
+    "speedMax": 2.0,
+    "speedMin": 1.0,
     "startColor": [
         0.0,
         1.0,
         0.0,
         1.0
     ],
-    "startScale": 1.0
+    "startScale": 0.15000000596046448
 }

@@ -165,10 +165,11 @@ void GameScene::OnEnter(GameApp& app) {
 
 	// 軌跡の見た目の設定
 	TrailConfig config;
-	config.startColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // 鮮やかな黄色
-	config.endColor = { 1.0f, 0.1f, 0.0f, 0.0f };   // 赤く消えていく
-	config.maxPoints = 40;                         // 軌跡の長さ（残像感）
-	config.interpolationSteps = 4;                 // 滑らかさ
+	// 軌跡の設定を大幅に強化
+	trailConfig_.maxPoints = 200;           // 記録数を増やす（50だと一瞬で終わります）
+	trailConfig_.interpolationSteps = 8;     // 補間を増やして密度を上げる
+	trailConfig_.startColor = { 1, 1, 1, 1 };  // 最初はハッキリ白
+	trailConfig_.endColor = { 1, 0, 0, 0.2f }; // 最後まで少し色を残す
 	player_->SetTrailConfig(config);
 
 	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
@@ -416,7 +417,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
 	trailManager_->Update();
 
-	particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
+	//particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
 	// 最後に1回だけDispatch
 	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
