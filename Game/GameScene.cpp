@@ -98,6 +98,7 @@ void GameScene::OnEnter(GameApp& app) {
 	cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
 	cardDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
+	// フィールドUI
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
 
@@ -172,6 +173,7 @@ void GameScene::OnExit(GameApp& app) {
 	skyDome_.reset();
 	camera_.reset();
 	battle_.Finalize();
+
 	// EnemyManager に Clear() があるなら呼ぶ
 	// enemyMgr_.Clear();
 

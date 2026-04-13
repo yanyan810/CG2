@@ -431,3 +431,34 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 
     return l;
 }
+
+//=========================
+//チュートリアル用
+//=========================
+
+struct TutorialUiLayout {
+    UiRect messageBg;
+    UiVec2 messageText;
+
+    UiRect darkOverlay;
+
+    // FieldUiに専用rectがないものだけ持つ
+    UiRect handArea;
+    UiRect fieldArea;
+};
+
+inline TutorialUiLayout MakeDefaultTutorialUiLayout()
+{
+    TutorialUiLayout l{};
+
+    l.messageBg = { 20.0f, 52.0f, 900.0f, 140.0f };
+    l.messageText = { 40.0f, 80.0f };
+
+    l.darkOverlay = { 0.0f, 0.0f, 1280.0f, 720.0f };
+
+    // とりあえずの初期値。あとでImGuiで合わせる
+    l.handArea = { 170.0f, 560.0f, 950.0f, 140.0f };
+    l.fieldArea = { 200.0f, 330.0f, 900.0f, 190.0f };
+
+    return l;
+}

@@ -75,7 +75,7 @@ private:
 	//--------------------------------------------------------
 	// 遷移先
 	//--------------------------------------------------------
-	const char* kNextScene_ = "DeckEdit";
+	const char* kNextScene_ = "Game";
 
 	//先読み
 	BattleController battle_;

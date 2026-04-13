@@ -1,0 +1,12 @@
+{
+  "messageBg": { "x": 20, "y": 52, "w": 900, "h": 140 },
+  "messageText": { "x": 40, "y": 80 },
+  "darkOverlay": { "x": 0, "y": 0, "w": 1280, "h": 720 },
+  "focusRect": { "x": 0, "y": 0, "w": 0, "h": 0 },
+  "handArea": { "x": 412, "y": 563, "w": 445, "h": 177 },
+  "fieldArea": { "x": 240, "y": 360, "w": 0, "h": 0 },
+  "energyArea": { "x": 60, "y": 560, "w": 180, "h": 90 },
+  "endTurnButtonArea": { "x": 1080, "y": 360, "w": 170, "h": 100 },
+  "pokerChoiceArea": { "x": 180, "y": 250, "w": 940, "h": 340 },
+  "enemyTurnArea": { "x": 500, "y": 20, "w": 300, "h": 100 }
+}

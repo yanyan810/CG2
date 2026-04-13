@@ -73,6 +73,8 @@ void TextSprite::Draw()
         return;
     }
 
+    sprite_->SetColor({ 1.0f, 1.0f, 1.0f, alpha_ });
+
     sprite_->Draw();
 }
 
