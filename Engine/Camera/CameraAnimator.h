@@ -14,6 +14,18 @@ struct CameraKeyframe {
 
 class CameraAnimator {
 public:
+    struct StateSnapshot {
+        std::vector<CameraKeyframe> keyframes;
+        bool isLoop = true;
+        bool isPlaying = true;
+        bool isDirty = false;
+        float currentTime = 0.0f;
+        float maxTime = 0.0f;
+        Vector3 cameraPos{ 0.0f, 0.0f, 0.0f };
+        Vector3 cameraRot{ 0.0f, 0.0f, 0.0f };
+        float cameraFov = 0.45f;
+    };
+
     void Initialize(Camera* camera, Input* input);
     void Initialize(Camera* camera);
     bool LoadFromJson(const std::string& filepath);
@@ -46,6 +58,10 @@ public:
     void DeleteKeyframeAt(float time);
     char* GetSaveFilepathBuffer() { return saveFilepath_; }
     const char* GetSaveFilepath() const { return saveFilepath_; }
+    StateSnapshot CaptureState() const;
+    void RestoreState(const StateSnapshot& snapshot);
+    bool IsDirty() const { return isDirty_; }
+    void SetDirty(bool value) { isDirty_ = value; }
 
 private:
     Camera* camera_ = nullptr;
@@ -54,6 +70,7 @@ private:
 
     bool isLoop_ = true;
     bool isPlaying_ = true;
+    bool isDirty_ = false;
     float currentTime_ = 0.0f;
     float maxTime_ = 0.0f;
 

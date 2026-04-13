@@ -28,6 +28,13 @@ namespace {
         }
         return false;
     }
+
+    template <class TEntry>
+    void TrimHistoryStack(std::vector<TEntry>& stack, size_t maxEntries) {
+        if (stack.size() > maxEntries) {
+            stack.erase(stack.begin(), stack.begin() + (stack.size() - maxEntries));
+        }
+    }
 }
 
 namespace fs = std::filesystem;
@@ -231,6 +238,23 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
 #ifdef USE_IMGUI
     OutputDebugStringA("[AnimEditor] Session DrawImGui\n");
 
+    auto pollShortcutCommand = []() -> int {
+        const ImGuiIO& io = ImGui::GetIO();
+        if (io.WantTextInput || !io.KeyCtrl) {
+            return 0;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
+            return 1;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+            return io.KeyShift ? 1 : -1;
+        }
+
+        return 0;
+    };
+
     if (IsCameraContext_(context)) {
         Camera* cameraTarget = context.cameraTarget;
         CameraAnimator* cameraAnimator = context.cameraAnimator;
@@ -238,6 +262,8 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
         if (!cameraTarget || !cameraAnimator) {
             return;
         }
+
+        EnsureCameraHistoryTarget_(cameraTarget, cameraAnimator);
 
         const LayoutRects layout = ComputeLayout_();
         if (windowVisibility_.toolbar) {
@@ -255,6 +281,13 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
         if (windowVisibility_.preview) {
             DrawCameraPreviewOverlay_(layout);
         }
+
+        const int shortcutCommand = pollShortcutCommand();
+        if (shortcutCommand < 0) {
+            UndoCamera_(*cameraTarget, *cameraAnimator);
+        } else if (shortcutCommand > 0) {
+            RedoCamera_(*cameraTarget, *cameraAnimator);
+        }
         return;
     }
 
@@ -265,6 +298,8 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
         OutputDebugStringA("[AnimEditor] target is null\n");
         return;
     }
+
+    EnsureAnimationHistoryTarget_(target);
 
     Model::Skeleton* skeleton = target->GetSkeleton();
     if (!skeleton) {
@@ -300,6 +335,14 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
     if (windowVisibility_.preview) {
         DrawPreviewOverlay_(*skeleton, layout);
     }
+
+    const int shortcutCommand = pollShortcutCommand();
+    if (shortcutCommand < 0) {
+        UndoAnimation_(*target, *skeleton);
+    } else if (shortcutCommand > 0) {
+        RedoAnimation_(*target, *skeleton);
+    }
+
     HandleViewportEditing_(*target, *skeleton, layout, editorCamera);
 #else
     (void)target;
@@ -318,6 +361,163 @@ void AnimationEditorSession::DrawImGui(Object3d* target, Camera* editorCamera) {
 
 #ifdef USE_IMGUI
 
+void AnimationEditorSession::ResetAnimationHistory_() {
+    animationUndoStack_.clear();
+    animationRedoStack_.clear();
+    pendingAnimationInspectorHistory_.reset();
+    pendingAnimationGizmoHistory_.reset();
+    wasUsingGizmo_ = false;
+    animationDirty_ = false;
+}
+
+void AnimationEditorSession::ResetCameraHistory_() {
+    cameraUndoStack_.clear();
+    cameraRedoStack_.clear();
+    pendingCameraInspectorHistory_.reset();
+}
+
+void AnimationEditorSession::EnsureAnimationHistoryTarget_(Object3d* target) {
+    if (historyAnimationTarget_ != target) {
+        historyAnimationTarget_ = target;
+        ResetAnimationHistory_();
+    }
+}
+
+void AnimationEditorSession::EnsureCameraHistoryTarget_(Camera* target, CameraAnimator* animator) {
+    if (historyCameraTarget_ != target || historyCameraAnimator_ != animator) {
+        historyCameraTarget_ = target;
+        historyCameraAnimator_ = animator;
+        ResetCameraHistory_();
+    }
+}
+
+void AnimationEditorSession::SetAnimationDirty_(bool value) {
+    animationDirty_ = value;
+}
+
+AnimationEditorSession::AnimationHistoryEntry AnimationEditorSession::CaptureAnimationHistory_() const {
+    AnimationHistoryEntry entry{};
+    entry.pose = pose_;
+    entry.clipDocument = clipDocument_;
+    entry.isDirty = animationDirty_;
+    entry.editorTime = editorTime_;
+    entry.editorMaxDuration = editorMaxDuration_;
+    entry.selectedJointIndex = selectedJointIndex_;
+    return entry;
+}
+
+void AnimationEditorSession::RestoreAnimationHistory_(
+    const AnimationHistoryEntry& entry,
+    Object3d& target,
+    const Model::Skeleton& skeleton) {
+    if (isTestingPlay_) {
+        target.StopAnimation();
+        isTestingPlay_ = false;
+    }
+
+    pose_ = entry.pose;
+    clipDocument_ = entry.clipDocument;
+    animationDirty_ = entry.isDirty;
+    editorTime_ = entry.editorTime;
+    editorMaxDuration_ = entry.editorMaxDuration;
+    selectedJointIndex_ = entry.selectedJointIndex;
+    ApplyCurrentPoseToTarget_(target, skeleton);
+}
+
+void AnimationEditorSession::PushAnimationUndo_(const AnimationHistoryEntry& entry) {
+    animationUndoStack_.push_back(entry);
+    TrimHistoryStack(animationUndoStack_, kMaxHistoryEntries_);
+    animationRedoStack_.clear();
+}
+
+bool AnimationEditorSession::CanUndoAnimation_() const {
+    return !animationUndoStack_.empty();
+}
+
+bool AnimationEditorSession::CanRedoAnimation_() const {
+    return !animationRedoStack_.empty();
+}
+
+void AnimationEditorSession::UndoAnimation_(Object3d& target, const Model::Skeleton& skeleton) {
+    if (animationUndoStack_.empty()) {
+        return;
+    }
+
+    animationRedoStack_.push_back(CaptureAnimationHistory_());
+    TrimHistoryStack(animationRedoStack_, kMaxHistoryEntries_);
+
+    AnimationHistoryEntry entry = animationUndoStack_.back();
+    animationUndoStack_.pop_back();
+    RestoreAnimationHistory_(entry, target, skeleton);
+}
+
+void AnimationEditorSession::RedoAnimation_(Object3d& target, const Model::Skeleton& skeleton) {
+    if (animationRedoStack_.empty()) {
+        return;
+    }
+
+    animationUndoStack_.push_back(CaptureAnimationHistory_());
+    TrimHistoryStack(animationUndoStack_, kMaxHistoryEntries_);
+
+    AnimationHistoryEntry entry = animationRedoStack_.back();
+    animationRedoStack_.pop_back();
+    RestoreAnimationHistory_(entry, target, skeleton);
+}
+
+AnimationEditorSession::CameraHistoryEntry AnimationEditorSession::CaptureCameraHistory_(CameraAnimator& animator) const {
+    CameraHistoryEntry entry{};
+    entry.state = animator.CaptureState();
+    return entry;
+}
+
+void AnimationEditorSession::RestoreCameraHistory_(
+    const CameraHistoryEntry& entry,
+    Camera& target,
+    CameraAnimator& animator) {
+    animator.RestoreState(entry.state);
+    target.Update();
+}
+
+void AnimationEditorSession::PushCameraUndo_(const CameraHistoryEntry& entry) {
+    cameraUndoStack_.push_back(entry);
+    TrimHistoryStack(cameraUndoStack_, kMaxHistoryEntries_);
+    cameraRedoStack_.clear();
+}
+
+bool AnimationEditorSession::CanUndoCamera_() const {
+    return !cameraUndoStack_.empty();
+}
+
+bool AnimationEditorSession::CanRedoCamera_() const {
+    return !cameraRedoStack_.empty();
+}
+
+void AnimationEditorSession::UndoCamera_(Camera& target, CameraAnimator& animator) {
+    if (cameraUndoStack_.empty()) {
+        return;
+    }
+
+    cameraRedoStack_.push_back(CaptureCameraHistory_(animator));
+    TrimHistoryStack(cameraRedoStack_, kMaxHistoryEntries_);
+
+    CameraHistoryEntry entry = cameraUndoStack_.back();
+    cameraUndoStack_.pop_back();
+    RestoreCameraHistory_(entry, target, animator);
+}
+
+void AnimationEditorSession::RedoCamera_(Camera& target, CameraAnimator& animator) {
+    if (cameraRedoStack_.empty()) {
+        return;
+    }
+
+    cameraUndoStack_.push_back(CaptureCameraHistory_(animator));
+    TrimHistoryStack(cameraUndoStack_, kMaxHistoryEntries_);
+
+    CameraHistoryEntry entry = cameraRedoStack_.back();
+    cameraRedoStack_.pop_back();
+    RestoreCameraHistory_(entry, target, animator);
+}
+
 void AnimationEditorSession::EnsureEditorStateInitialized_(Object3d& target, Model::Skeleton& skeleton) {
     Model* model = target.GetModel();
     if (!model) {
@@ -326,6 +526,7 @@ void AnimationEditorSession::EnsureEditorStateInitialized_(Object3d& target, Mod
 
     const bool rebuilt = pose_.EnsureInitialized(model);
     if (rebuilt) {
+        ResetAnimationHistory_();
         if (clipDocument_.HasValidClip()) {
             pose_.SampleFromAnimation(clipDocument_.GetAnimation(), editorTime_, skeleton);
         } else {
@@ -374,6 +575,22 @@ void AnimationEditorSession::DrawToolbarWindow_(Object3d& target, Model::Skeleto
         ImGui::SameLine();
         ImGui::TextDisabled("| Selected: %s", skeleton.joints[selectedJointIndex_].name.c_str());
     }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!CanUndoAnimation_());
+    if (ImGui::Button("Undo")) {
+        UndoAnimation_(target, skeleton);
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!CanRedoAnimation_());
+    if (ImGui::Button("Redo")) {
+        RedoAnimation_(target, skeleton);
+    }
+    ImGui::EndDisabled();
+
+    const std::string animationFileLabel =
+        fs::path(exportFileName_).filename().string() + (animationDirty_ ? "*" : "");
+    ImGui::Text("File: %s", animationFileLabel.c_str());
 
     ImGui::PushItemWidth(360.0f);
     ImGui::InputText("Clip Path", exportFileName_, IM_ARRAYSIZE(exportFileName_));
@@ -406,6 +623,7 @@ void AnimationEditorSession::DrawToolbarWindow_(Object3d& target, Model::Skeleto
     if (ImGui::DragFloat("Length", &editorMaxDuration_, 0.05f, 0.1f, 60.0f, "%.2f sec")) {
         editorMaxDuration_ = std::max(editorMaxDuration_, 0.1f);
         clipDocument_.SetDuration(editorMaxDuration_);
+        SetAnimationDirty_(true);
         editorTime_ = std::clamp(editorTime_, 0.0f, editorMaxDuration_);
         if (!isTestingPlay_) {
             SampleClipAtCurrentTime_(target, skeleton);
@@ -456,6 +674,22 @@ void AnimationEditorSession::DrawCameraToolbarWindow_(Camera& target, CameraAnim
     }
 
     ImGui::TextUnformatted("Camera Editor");
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!CanUndoCamera_());
+    if (ImGui::Button("Undo")) {
+        UndoCamera_(target, animator);
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!CanRedoCamera_());
+    if (ImGui::Button("Redo")) {
+        RedoCamera_(target, animator);
+    }
+    ImGui::EndDisabled();
+
+    const std::string cameraFileLabel =
+        fs::path(animator.GetSaveFilepath()).filename().string() + (animator.IsDirty() ? "*" : "");
+    ImGui::Text("File: %s", cameraFileLabel.c_str());
 
     bool isPlaying = animator.GetPlaying();
     if (ImGui::Checkbox("Play Camera", &isPlaying)) {
@@ -470,6 +704,7 @@ void AnimationEditorSession::DrawCameraToolbarWindow_(Camera& target, CameraAnim
     bool isLoop = animator.GetLoop();
     if (ImGui::Checkbox("Loop", &isLoop)) {
         animator.SetLoop(isLoop);
+        animator.SetDirty(true);
     }
 
     ImGui::PushItemWidth(360.0f);
@@ -609,10 +844,12 @@ void AnimationEditorSession::DrawCameraInspectorWindow_(Camera& target, CameraAn
     ImGui::BeginDisabled(isPlaying);
 
     if (ImGui::Button("Add Key At Current Time", ImVec2(-1.0f, 0.0f))) {
+        PushCameraUndo_(CaptureCameraHistory_(animator));
         animator.AddOrUpdateKeyframe(animator.GetCurrentTime());
     }
 
     if (ImGui::Button("Delete Key At Current Time", ImVec2(-1.0f, 0.0f))) {
+        PushCameraUndo_(CaptureCameraHistory_(animator));
         animator.DeleteKeyframeAt(animator.GetCurrentTime());
         animator.SampleAtTime(animator.GetCurrentTime());
         target.Update();
@@ -625,23 +862,42 @@ void AnimationEditorSession::DrawCameraInspectorWindow_(Camera& target, CameraAn
     Vector3 rotation = target.GetRotate();
     float fov = target.GetFovY();
     bool changed = false;
+    bool editCompleted = false;
 
     if (ImGui::InputFloat3("Position", &position.x, "%.3f")) {
+        if (!pendingCameraInspectorHistory_.has_value()) {
+            pendingCameraInspectorHistory_ = CaptureCameraHistory_(animator);
+        }
         target.SetTranslate(position);
         changed = true;
     }
+    editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
     if (ImGui::InputFloat3("Rotation", &rotation.x, "%.3f")) {
+        if (!pendingCameraInspectorHistory_.has_value()) {
+            pendingCameraInspectorHistory_ = CaptureCameraHistory_(animator);
+        }
         target.SetRotate(rotation);
         changed = true;
     }
+    editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
     if (ImGui::InputFloat("FOV", &fov, 0.001f, 0.01f, "%.3f")) {
+        if (!pendingCameraInspectorHistory_.has_value()) {
+            pendingCameraInspectorHistory_ = CaptureCameraHistory_(animator);
+        }
         fov = std::clamp(fov, 0.1f, 3.0f);
         target.SetFovY(fov);
         changed = true;
     }
+    editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
 
     if (changed) {
+        animator.SetDirty(true);
         target.Update();
+    }
+
+    if (editCompleted && pendingCameraInspectorHistory_.has_value()) {
+        PushCameraUndo_(pendingCameraInspectorHistory_.value());
+        pendingCameraInspectorHistory_.reset();
     }
 
     ImGui::EndDisabled();
@@ -688,10 +944,12 @@ void AnimationEditorSession::DrawCameraTimelineWindow_(Camera& target, CameraAni
     ImGui::BeginDisabled(animator.GetPlaying());
 
     if (ImGui::Button("Add Camera Key")) {
+        PushCameraUndo_(CaptureCameraHistory_(animator));
         animator.AddOrUpdateKeyframe(animator.GetCurrentTime());
     }
     ImGui::SameLine();
     if (ImGui::Button("Delete Camera Key")) {
+        PushCameraUndo_(CaptureCameraHistory_(animator));
         animator.DeleteKeyframeAt(animator.GetCurrentTime());
         animator.SampleAtTime(animator.GetCurrentTime());
         target.Update();
@@ -873,40 +1131,65 @@ void AnimationEditorSession::DrawInspectorWindow_(Object3d& target, Model::Skele
     ImGui::BeginDisabled(isTestingPlay_);
 
     if (ImGui::Button("Reset To Bind Pose", ImVec2(-1.0f, 0.0f))) {
+        PushAnimationUndo_(CaptureAnimationHistory_());
         pose_.ResetJointToBindPose(selectedJointIndex_);
+        SetAnimationDirty_(true);
         ApplyCurrentPoseToTarget_(target, skeleton);
     }
 
     if (ImGui::Button("Add Key (All Bones)", ImVec2(-1.0f, 0.0f))) {
+        PushAnimationUndo_(CaptureAnimationHistory_());
         RecordCurrentPoseAsKeyframe_(skeleton);
+        SetAnimationDirty_(true);
     }
 
     if (ImGui::Button("Delete Key At Current Time", ImVec2(-1.0f, 0.0f))) {
+        PushAnimationUndo_(CaptureAnimationHistory_());
         DeleteCurrentTimeKeyframe_();
+        SetAnimationDirty_(true);
     }
 
     ImGui::Separator();
     ImGui::TextUnformatted("Local Transform");
 
     bool changed = false;
+    bool editCompleted = false;
 
     if (ImGui::InputFloat3("Position", &translation.x, "%.3f")) {
+        if (!pendingAnimationInspectorHistory_.has_value()) {
+            pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
+        }
         pose_.SetJointTranslate(selectedJointIndex_, translation);
         changed = true;
     }
+    editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
 
     if (ImGui::InputFloat3("Rotation", &rotation.x, "%.3f")) {
+        if (!pendingAnimationInspectorHistory_.has_value()) {
+            pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
+        }
         pose_.SetJointRotateEulerDeg(selectedJointIndex_, rotation);
         changed = true;
     }
+    editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
 
     if (ImGui::InputFloat3("Scale", &scale.x, "%.3f")) {
+        if (!pendingAnimationInspectorHistory_.has_value()) {
+            pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
+        }
         pose_.SetJointScale(selectedJointIndex_, scale);
         changed = true;
     }
+    editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
 
     if (changed) {
+        SetAnimationDirty_(true);
         ApplyCurrentPoseToTarget_(target, skeleton);
+    }
+
+    if (editCompleted && pendingAnimationInspectorHistory_.has_value()) {
+        PushAnimationUndo_(pendingAnimationInspectorHistory_.value());
+        pendingAnimationInspectorHistory_.reset();
     }
 
     ImGui::EndDisabled();
@@ -959,11 +1242,15 @@ void AnimationEditorSession::DrawTimelineWindow_(Object3d& target, Model::Skelet
     }
 
     if (ImGui::Button("Add Key (All Bones)")) {
+        PushAnimationUndo_(CaptureAnimationHistory_());
         RecordCurrentPoseAsKeyframe_(skeleton);
+        SetAnimationDirty_(true);
     }
     ImGui::SameLine();
     if (ImGui::Button("Delete Key")) {
+        PushAnimationUndo_(CaptureAnimationHistory_());
         DeleteCurrentTimeKeyframe_();
+        SetAnimationDirty_(true);
     }
 
     ImGui::EndDisabled();
@@ -1184,6 +1471,8 @@ void AnimationEditorSession::HandleViewportEditing_(Object3d& target, Model::Ske
     if (selectedJointIndex_ < 0 ||
         selectedJointIndex_ >= static_cast<int32_t>(skeleton.joints.size()) ||
         isTestingPlay_) {
+        wasUsingGizmo_ = false;
+        pendingAnimationGizmoHistory_.reset();
         return;
     }
 
@@ -1268,10 +1557,12 @@ void AnimationEditorSession::HandleViewportEditing_(Object3d& target, Model::Ske
         ImGuizmo::LOCAL,
         gizmoMat);
 
+    const bool isUsingGizmo = ImGuizmo::IsUsing();
+    if (isUsingGizmo && !wasUsingGizmo_ && !pendingAnimationGizmoHistory_.has_value()) {
+        pendingAnimationGizmoHistory_ = CaptureAnimationHistory_();
+    }
 
-
-
-    if (ImGuizmo::IsUsing()) {
+    if (isUsingGizmo) {
         Matrix4x4 newBoneFinalWorld = Matrix4x4::FromFloat16(gizmoMat);
 
 
@@ -1378,12 +1669,20 @@ void AnimationEditorSession::HandleViewportEditing_(Object3d& target, Model::Ske
             pose_.SetJointScale(selectedJointIndex_, extractedScale);
         }
         else {
-            pose_.SetJointScale(selectedJointIndex_, currentPose.scale);
+        pose_.SetJointScale(selectedJointIndex_, currentPose.scale);
         }
 
 
+        SetAnimationDirty_(true);
         ApplyCurrentPoseToTarget_(target, skeleton);
     }
+
+    if (!isUsingGizmo && wasUsingGizmo_ && pendingAnimationGizmoHistory_.has_value()) {
+        PushAnimationUndo_(pendingAnimationGizmoHistory_.value());
+        pendingAnimationGizmoHistory_.reset();
+    }
+
+    wasUsingGizmo_ = isUsingGizmo;
 
 }
 
@@ -1488,6 +1787,7 @@ void AnimationEditorSession::ExportCurrentClip_(const Model::Skeleton& skeleton)
     clipDocument_.PrepareForExport(skeleton);
 
     if (clipDocument_.SaveToJson(exportFileName_)) {
+        SetAnimationDirty_(false);
         OutputDebugStringA(("Animation Exported to: " + std::string(exportFileName_) + "\n").c_str());
     } else {
         OutputDebugStringA("Failed to open file for writing!\n");
@@ -1501,6 +1801,7 @@ void AnimationEditorSession::LoadClipToEdit_(Object3d& target, const Model::Skel
         editorMaxDuration_ = clipDocument_.GetDuration();
         editorTime_ = 0.0f;
         isTestingPlay_ = false;
+        SetAnimationDirty_(false);
 
         pose_.SampleFromAnimation(clipDocument_.GetAnimation(), editorTime_, skeleton);
         ApplyCurrentPoseToTarget_(target, skeleton);
