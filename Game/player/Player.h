@@ -4,7 +4,6 @@
 #include "AABB.h"
 #include "Object3d.h"
 #include "ModelParticleManager.h"
-#include "AnimationEditorSession.h"
 
 class Object3dCommon;
 class DirectXCommon;
@@ -72,7 +71,7 @@ public:
 	}
 
 	// アニメーションエディタの描画
-	void DrawAnimationEditorImGui(Camera* editorCamera);
+	Object3d* GetObject3d() const { return model_.get(); }
 
 
 private:
@@ -81,7 +80,6 @@ private:
 	Vector3 pos_{ 0.0f, 0.0f, 0.0f };
 	Vector3 rot_{ 0.0f, 0.0f, 0.0f };
 
-	AnimationEditorSession animationEditor_;
 	int hp_ = 100;
 	int maxHp_ = 100;
 

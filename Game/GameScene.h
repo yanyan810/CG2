@@ -6,6 +6,7 @@
 #include "Object3d.h"
 #include "Enemy.h"
 #include "Player.h"
+#include "AnimationEditorSession.h"
 #include "BattleController.h"
 #include "TextSprite.h"
 #include "StringUtility.h"
@@ -21,6 +22,11 @@ class GameApp;
 
 class GameScene : public IScene {
 public:
+    enum class EditorTargetKind {
+        Animation,
+        Camera,
+    };
+
     GameScene() = default;
     ~GameScene() = default;
 
@@ -45,6 +51,7 @@ private:
     void ReloadCameraFileList_();
     bool LoadCameraByIndex_(int index);
     bool LoadCameraByPath_(const std::string& path);
+    AnimationEditorSession::EditorContext BuildEditorContext_();
 
 private:
     std::unique_ptr<Camera> camera_;
@@ -55,6 +62,12 @@ private:
     float cameraBlend_ = 0.0f;
 
     std::unique_ptr<Player> player_;
+    Object3d* animationEditTarget_ = nullptr;
+    Camera* cameraEditTarget_ = nullptr;
+    AnimationEditorSession animationEditor_;
+    EditorTargetKind editorTargetKind_ = EditorTargetKind::Animation;
+    bool battleDebugVisible_ = true;
+    bool battleEffectsDebugVisible_ = true;
     EnemyManager enemyMgr_;
 
     std::unique_ptr<Sprite> cardDescBg_;
@@ -99,9 +112,10 @@ private:
     bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
     ModelParticleManager* particleManager_;
+
     
     std::unique_ptr<TrailManager> trailManager_;
     TrailInstance* testTrail_ = nullptr; // マネージャが寿命管理するので生のポインタでOK
     TrailConfig trailConfig_;            // インスペクタ調整用
-
 };
+

@@ -31,6 +31,11 @@ public:
 
     void UpdateMouseDelta();
 
+    // ホイールの回転量を取得
+    int32_t GetWheel() const { return wheel_; }
+    // WinAppから呼ばれる用
+    void SetWheel(int32_t wheel) { wheel_ = wheel; }
+
 private:
     IDirectInput8* directInput_ = nullptr;
     IDirectInputDevice8* keyboardDevice_ = nullptr;
@@ -52,4 +57,6 @@ private:
     bool justEnteredCameraMode_ = false;
 
     WinApp* winApp_ = nullptr;
+
+    int32_t wheel_ = 0;
 };

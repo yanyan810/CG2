@@ -9,10 +9,23 @@ struct CameraKeyframe {
     float time;
     Vector3 pos;
     Vector3 rot;
+    float fov;
 };
 
 class CameraAnimator {
 public:
+    struct StateSnapshot {
+        std::vector<CameraKeyframe> keyframes;
+        bool isLoop = true;
+        bool isPlaying = true;
+        bool isDirty = false;
+        float currentTime = 0.0f;
+        float maxTime = 0.0f;
+        Vector3 cameraPos{ 0.0f, 0.0f, 0.0f };
+        Vector3 cameraRot{ 0.0f, 0.0f, 0.0f };
+        float cameraFov = 0.45f;
+    };
+
     void Initialize(Camera* camera, Input* input);
     void Initialize(Camera* camera);
     bool LoadFromJson(const std::string& filepath);
@@ -35,6 +48,20 @@ public:
 	// 再生中かどうか
     void SetPlaying(bool value) { isPlaying_ = value; }
     bool GetPlaying() const { return isPlaying_; }
+    float GetCurrentTime() const { return currentTime_; }
+    float GetMaxTime() const { return maxTime_; }
+    void SetCurrentTime(float value);
+    void SetMaxTime(float value);
+    const std::vector<CameraKeyframe>& GetKeyframes() const { return keyframes_; }
+    void SampleAtTime(float time);
+    void AddOrUpdateKeyframe(float time);
+    void DeleteKeyframeAt(float time);
+    char* GetSaveFilepathBuffer() { return saveFilepath_; }
+    const char* GetSaveFilepath() const { return saveFilepath_; }
+    StateSnapshot CaptureState() const;
+    void RestoreState(const StateSnapshot& snapshot);
+    bool IsDirty() const { return isDirty_; }
+    void SetDirty(bool value) { isDirty_ = value; }
 
 private:
     Camera* camera_ = nullptr;
@@ -43,6 +70,7 @@ private:
 
     bool isLoop_ = true;
     bool isPlaying_ = true;
+    bool isDirty_ = false;
     float currentTime_ = 0.0f;
     float maxTime_ = 0.0f;
 
@@ -51,4 +79,5 @@ private:
 
     // 2つのベクトルを滑らかに繋ぐ計算
     Vector3 Lerp(const Vector3& a, const Vector3& b, float t) const;
+    float LerpFloat(float a, float b, float t) const;
 };

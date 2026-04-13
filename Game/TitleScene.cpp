@@ -144,7 +144,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 	//3D更新
 	skyDome_->Update(dt);
 
-	if (fieldUi_) {
+	/*if (fieldUi_) {
 		fieldUi_->SetEditCardId(debugCardId_);
 
 		fieldUi_->SetDebugPokerPreviewVisible(showPokerPreview_);
@@ -154,7 +154,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 		fieldUi_->SetDebugImageCardDescCard(debugDef);
 		ApplyDebugPokerPreviewData_();
 		fieldUi_->Update(app, battle_);
-	}
+	}*/
 
 }
 
@@ -218,6 +218,10 @@ void TitleScene::DrawImGui(GameApp& app) {
 	ImGui::Text("ESC   : Quit");
 	ImGui::SliderFloat("Circle", &circle_, 0.0f, 1.0f);
 	ImGui::SliderFloat("Softness", &softness_, 0.0f, 1.0f);
+
+	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+		1000.0f / ImGui::GetIO().Framerate,
+		ImGui::GetIO().Framerate);
 
 	ImGui::Separator();
 	ImGui::Checkbox("Show Debug Card Desc", &showDebugCardDesc_);

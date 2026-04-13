@@ -148,6 +148,7 @@ bool GameApp::Initialize_() {
     input_->Initialize(win_.get());
     input_->Update(); // 初回
 
+    win_->SetInputPointer(input_.get());
 
     WarmupAssets_();
 
@@ -191,6 +192,9 @@ bool GameApp::Initialize_() {
         deckInstances_.push_back(MakeCardInstance(11));
         deckInstances_.push_back(MakeCardInstance(10));
     }
+
+    cardDB_ = std::make_unique<CardDatabase>();
+    cardDB_->LoadFromJson("resources/cards/cards.json");
 
 
     OutputDebugStringA("[GameApp] Initialize END\n");
