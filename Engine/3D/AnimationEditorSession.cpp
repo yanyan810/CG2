@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <functional>
 
 #ifdef USE_IMGUI
@@ -28,6 +29,8 @@ namespace {
         return false;
     }
 }
+
+namespace fs = std::filesystem;
 
 Vector3 AnimationEditorSession::QuaternionToEulerDeg_(const Quaternion& q) {
     Vector3 rot{};
@@ -155,6 +158,12 @@ bool AnimationEditorSession::IsPointInsideRect_(float px, float py, const Rect& 
         py >= rect.y && py <= rect.y + rect.h;
 }
 
+bool AnimationEditorSession::IsCameraContext_(const EditorContext& context) {
+    return context.animationTarget == nullptr &&
+        context.cameraTarget != nullptr &&
+        context.cameraAnimator != nullptr;
+}
+
 AnimationEditorSession::LayoutRects AnimationEditorSession::ComputeLayout_() const {
     LayoutRects layout{};
 
@@ -218,9 +227,39 @@ AnimationEditorSession::LayoutRects AnimationEditorSession::ComputeLayout_() con
     return layout;
 }
 
-void AnimationEditorSession::DrawImGui(Object3d* target, Camera* editorCamera) {
+void AnimationEditorSession::DrawImGui(const EditorContext& context) {
 #ifdef USE_IMGUI
     OutputDebugStringA("[AnimEditor] Session DrawImGui\n");
+
+    if (IsCameraContext_(context)) {
+        Camera* cameraTarget = context.cameraTarget;
+        CameraAnimator* cameraAnimator = context.cameraAnimator;
+
+        if (!cameraTarget || !cameraAnimator) {
+            return;
+        }
+
+        const LayoutRects layout = ComputeLayout_();
+        if (windowVisibility_.toolbar) {
+            DrawCameraToolbarWindow_(*cameraTarget, *cameraAnimator, layout);
+        }
+        if (windowVisibility_.hierarchy) {
+            DrawCameraHierarchyWindow_(layout, context);
+        }
+        if (windowVisibility_.inspector) {
+            DrawCameraInspectorWindow_(*cameraTarget, *cameraAnimator, layout);
+        }
+        if (windowVisibility_.timeline) {
+            DrawCameraTimelineWindow_(*cameraTarget, *cameraAnimator, layout);
+        }
+        if (windowVisibility_.preview) {
+            DrawCameraPreviewOverlay_(layout);
+        }
+        return;
+    }
+
+    Object3d* target = context.animationTarget;
+    Camera* editorCamera = context.editorCamera ? context.editorCamera : context.cameraTarget;
 
     if (!target) {
         OutputDebugStringA("[AnimEditor] target is null\n");
@@ -246,16 +285,35 @@ void AnimationEditorSession::DrawImGui(Object3d* target, Camera* editorCamera) {
 
     const LayoutRects layout = ComputeLayout_();
 
-    DrawToolbarWindow_(*target, *skeleton, layout);
-    DrawHierarchyWindow_(*skeleton, layout);
-    DrawInspectorWindow_(*target, *skeleton, layout);
-    DrawTimelineWindow_(*target, *skeleton, layout);
-    DrawPreviewOverlay_(*skeleton, layout);
+    if (windowVisibility_.toolbar) {
+        DrawToolbarWindow_(*target, *skeleton, layout);
+    }
+    if (windowVisibility_.hierarchy) {
+        DrawHierarchyWindow_(*skeleton, layout, context);
+    }
+    if (windowVisibility_.inspector) {
+        DrawInspectorWindow_(*target, *skeleton, layout);
+    }
+    if (windowVisibility_.timeline) {
+        DrawTimelineWindow_(*target, *skeleton, layout);
+    }
+    if (windowVisibility_.preview) {
+        DrawPreviewOverlay_(*skeleton, layout);
+    }
     HandleViewportEditing_(*target, *skeleton, layout, editorCamera);
 #else
     (void)target;
     (void)editorCamera;
 #endif
+}
+
+void AnimationEditorSession::DrawImGui(Object3d* target, Camera* editorCamera) {
+    EditorContext context{};
+    context.animationTarget = target;
+    context.editorCamera = editorCamera;
+    context.cameraTarget = editorCamera;
+    context.cameraAnimator = nullptr;
+    DrawImGui(context);
 }
 
 #ifdef USE_IMGUI
@@ -281,7 +339,7 @@ void AnimationEditorSession::EnsureEditorStateInitialized_(Object3d& target, Mod
 }
 
 void AnimationEditorSession::ApplyCurrentPoseToTarget_(Object3d& target, const Model::Skeleton& skeleton) {
-    pose_.ApplyToBoneOffsets(target.boneOffsets_, skeleton);
+    target.ApplyAnimationEditorPosePreview(pose_, skeleton);
 }
 
 void AnimationEditorSession::SampleClipAtCurrentTime_(Object3d& target, const Model::Skeleton& skeleton) {
@@ -306,7 +364,10 @@ void AnimationEditorSession::DrawToolbarWindow_(Object3d& target, Model::Skeleto
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings;
 
-    ImGui::Begin("Animation Toolbar", nullptr, flags);
+    if (!ImGui::Begin("Animation Toolbar", &windowVisibility_.toolbar, flags)) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::TextUnformatted("Animation Editor");
     if (selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int32_t>(skeleton.joints.size())) {
@@ -354,6 +415,10 @@ void AnimationEditorSession::DrawToolbarWindow_(Object3d& target, Model::Skeleto
     ImGui::SameLine();
     ImGui::Text("Time %.2f / %.2f", editorTime_, editorMaxDuration_);
 
+    if (currentGizmoOperation_ == ImGuizmo::SCALE) {
+        currentGizmoOperation_ = ImGuizmo::ROTATE;
+    }
+
     ImGui::SameLine(0.0f, 24.0f);
     if (ImGui::Button("Translate")) {
         currentGizmoOperation_ = ImGuizmo::TRANSLATE;
@@ -361,10 +426,6 @@ void AnimationEditorSession::DrawToolbarWindow_(Object3d& target, Model::Skeleto
     ImGui::SameLine();
     if (ImGui::Button("Rotate")) {
         currentGizmoOperation_ = ImGuizmo::ROTATE;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Scale")) {
-        currentGizmoOperation_ = ImGuizmo::SCALE;
     }
 
     ImGui::SameLine(0.0f, 18.0f);
@@ -379,7 +440,131 @@ void AnimationEditorSession::DrawToolbarWindow_(Object3d& target, Model::Skeleto
     ImGui::End();
 }
 
-void AnimationEditorSession::DrawHierarchyWindow_(Model::Skeleton& skeleton, const LayoutRects& layout) {
+void AnimationEditorSession::DrawCameraToolbarWindow_(Camera& target, CameraAnimator& animator, const LayoutRects& layout) {
+    ImGui::SetNextWindowPos(ImVec2(layout.toolbar.x, layout.toolbar.y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(layout.toolbar.w, layout.toolbar.h), ImGuiCond_Always);
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    if (!ImGui::Begin("Camera Toolbar", &windowVisibility_.toolbar, flags)) {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::TextUnformatted("Camera Editor");
+
+    bool isPlaying = animator.GetPlaying();
+    if (ImGui::Checkbox("Play Camera", &isPlaying)) {
+        animator.SetPlaying(isPlaying);
+        if (isPlaying) {
+            animator.SampleAtTime(animator.GetCurrentTime());
+            target.Update();
+        }
+    }
+
+    ImGui::SameLine();
+    bool isLoop = animator.GetLoop();
+    if (ImGui::Checkbox("Loop", &isLoop)) {
+        animator.SetLoop(isLoop);
+    }
+
+    ImGui::PushItemWidth(360.0f);
+    ImGui::InputText("Camera Path", animator.GetSaveFilepathBuffer(), 256);
+    ImGui::PopItemWidth();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load Camera")) {
+        if (animator.LoadFromJson(animator.GetSaveFilepath())) {
+            animator.SampleAtTime(animator.GetCurrentTime());
+            target.Update();
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Camera")) {
+        animator.SaveToJson(animator.GetSaveFilepath());
+    }
+
+    ImGui::Separator();
+
+    float duration = std::max(animator.GetMaxTime(), 0.1f);
+    if (ImGui::DragFloat("Length", &duration, 0.05f, 0.1f, 60.0f, "%.2f sec")) {
+        animator.SetMaxTime(duration);
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("Time %.2f / %.2f", animator.GetCurrentTime(), std::max(animator.GetMaxTime(), 0.1f));
+
+    ImGui::End();
+}
+
+void AnimationEditorSession::DrawEditorNavigationSection_(const EditorContext& context) {
+    ImGui::TextUnformatted("Editor Target");
+
+    if (context.canEditAnimation) {
+        const bool isAnimation = !context.editCameraMode;
+        if (ImGui::RadioButton("Animation", isAnimation) && context.switchToAnimation) {
+            context.switchToAnimation();
+        }
+    }
+
+    if (context.canEditAnimation && context.canEditCamera) {
+        ImGui::SameLine();
+    }
+
+    if (context.canEditCamera) {
+        const bool isCamera = context.editCameraMode;
+        if (ImGui::RadioButton("Camera", isCamera) && context.switchToCamera) {
+            context.switchToCamera();
+        }
+    }
+
+    if (context.cameraFiles || context.reloadCameraFiles || context.playRandomCamera) {
+        ImGui::Separator();
+        ImGui::TextUnformatted("Camera File Browser");
+
+        if (context.reloadCameraFiles && ImGui::Button("Reload Camera Files")) {
+            context.reloadCameraFiles();
+        }
+
+        if (context.randomCameraEnabled) {
+            ImGui::Checkbox("Random Camera Change", context.randomCameraEnabled);
+        }
+        if (context.sameCameraLoopEnabled) {
+            ImGui::Checkbox("Same Camera Loop", context.sameCameraLoopEnabled);
+            if (*context.sameCameraLoopEnabled && context.randomCameraEnabled) {
+                *context.randomCameraEnabled = false;
+            }
+        }
+        if (context.cameraAnimator && context.sameCameraLoopEnabled) {
+            context.cameraAnimator->SetLoop(*context.sameCameraLoopEnabled);
+        }
+
+        const int fileCount = context.cameraFiles ? static_cast<int>(context.cameraFiles->size()) : 0;
+        ImGui::Text("Camera Files: %d", fileCount);
+        ImGui::Text("Current Index: %d", context.currentCameraIndex);
+
+        if (context.cameraFiles && context.loadCameraByIndex) {
+            for (int i = 0; i < static_cast<int>(context.cameraFiles->size()); ++i) {
+                std::string label = fs::path((*context.cameraFiles)[i]).filename().string();
+                const bool selected = (i == context.currentCameraIndex);
+                if (ImGui::Selectable(label.c_str(), selected)) {
+                    context.loadCameraByIndex(i);
+                }
+            }
+        }
+
+        if (context.playRandomCamera && ImGui::Button("Play Random Camera")) {
+            context.playRandomCamera();
+        }
+    }
+}
+
+void AnimationEditorSession::DrawCameraHierarchyWindow_(const LayoutRects& layout, const EditorContext& context) {
     ImGui::SetNextWindowPos(ImVec2(layout.hierarchy.x, layout.hierarchy.y), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(layout.hierarchy.w, layout.hierarchy.h), ImGuiCond_Always);
 
@@ -389,7 +574,222 @@ void AnimationEditorSession::DrawHierarchyWindow_(Model::Skeleton& skeleton, con
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings;
 
-    ImGui::Begin("Hierarchy", nullptr, flags);
+    if (!ImGui::Begin("Hierarchy", &windowVisibility_.hierarchy, flags)) {
+        ImGui::End();
+        return;
+    }
+    DrawEditorNavigationSection_(context);
+    ImGui::Separator();
+    ImGui::TextUnformatted("Targets");
+    ImGui::Separator();
+    ImGui::Selectable("Camera", true);
+    ImGui::TextDisabled("Camera editing uses Inspector and Timeline.");
+    ImGui::End();
+}
+
+void AnimationEditorSession::DrawCameraInspectorWindow_(Camera& target, CameraAnimator& animator, const LayoutRects& layout) {
+    ImGui::SetNextWindowPos(ImVec2(layout.inspector.x, layout.inspector.y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(layout.inspector.w, layout.inspector.h), ImGuiCond_Always);
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    if (!ImGui::Begin("Inspector", &windowVisibility_.inspector, flags)) {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::TextUnformatted("Camera");
+    ImGui::Separator();
+
+    bool isPlaying = animator.GetPlaying();
+    ImGui::BeginDisabled(isPlaying);
+
+    if (ImGui::Button("Add Key At Current Time", ImVec2(-1.0f, 0.0f))) {
+        animator.AddOrUpdateKeyframe(animator.GetCurrentTime());
+    }
+
+    if (ImGui::Button("Delete Key At Current Time", ImVec2(-1.0f, 0.0f))) {
+        animator.DeleteKeyframeAt(animator.GetCurrentTime());
+        animator.SampleAtTime(animator.GetCurrentTime());
+        target.Update();
+    }
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Camera Transform");
+
+    Vector3 position = target.GetTranslate();
+    Vector3 rotation = target.GetRotate();
+    float fov = target.GetFovY();
+    bool changed = false;
+
+    if (ImGui::InputFloat3("Position", &position.x, "%.3f")) {
+        target.SetTranslate(position);
+        changed = true;
+    }
+    if (ImGui::InputFloat3("Rotation", &rotation.x, "%.3f")) {
+        target.SetRotate(rotation);
+        changed = true;
+    }
+    if (ImGui::InputFloat("FOV", &fov, 0.001f, 0.01f, "%.3f")) {
+        fov = std::clamp(fov, 0.1f, 3.0f);
+        target.SetFovY(fov);
+        changed = true;
+    }
+
+    if (changed) {
+        target.Update();
+    }
+
+    ImGui::EndDisabled();
+
+    const auto& keys = animator.GetKeyframes();
+    bool hasKey = false;
+    for (const auto& key : keys) {
+        if (std::abs(key.time - animator.GetCurrentTime()) < 0.001f) {
+            hasKey = true;
+            break;
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Current Time Key");
+    ImGui::BulletText("Camera Key: %s", hasKey ? "Yes" : "No");
+
+    ImGui::End();
+}
+
+void AnimationEditorSession::DrawCameraTimelineWindow_(Camera& target, CameraAnimator& animator, const LayoutRects& layout) {
+    ImGui::SetNextWindowPos(ImVec2(layout.timeline.x, layout.timeline.y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(layout.timeline.w, layout.timeline.h), ImGuiCond_Always);
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    if (!ImGui::Begin("Timeline", &windowVisibility_.timeline, flags)) {
+        ImGui::End();
+        return;
+    }
+
+    float currentTime = animator.GetCurrentTime();
+    const float maxTime = std::max(animator.GetMaxTime(), 0.1f);
+    if (ImGui::SliderFloat("Current Time", &currentTime, 0.0f, maxTime, "%.2f sec")) {
+        animator.SetPlaying(false);
+        animator.SampleAtTime(currentTime);
+        target.Update();
+    }
+
+    ImGui::BeginDisabled(animator.GetPlaying());
+
+    if (ImGui::Button("Add Camera Key")) {
+        animator.AddOrUpdateKeyframe(animator.GetCurrentTime());
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Camera Key")) {
+        animator.DeleteKeyframeAt(animator.GetCurrentTime());
+        animator.SampleAtTime(animator.GetCurrentTime());
+        target.Update();
+    }
+
+    ImGui::EndDisabled();
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Track: Camera");
+
+    const auto& keys = animator.GetKeyframes();
+    auto drawKeyStrip = [&](const char* label, ImU32 color) {
+        ImGui::Text("%s", label);
+        ImGui::SameLine();
+
+        const float stripWidth = ImGui::GetContentRegionAvail().x;
+        const float stripHeight = 20.0f;
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const ImVec2 size(stripWidth, stripHeight);
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), IM_COL32(36, 39, 44, 255), 4.0f);
+        drawList->AddRect(p, ImVec2(p.x + size.x, p.y + size.y), IM_COL32(72, 76, 84, 255), 4.0f);
+
+        const float centerY = p.y + size.y * 0.5f;
+        drawList->AddLine(
+            ImVec2(p.x + 8.0f, centerY),
+            ImVec2(p.x + size.x - 8.0f, centerY),
+            IM_COL32(110, 110, 120, 255),
+            1.0f);
+
+        const float usableWidth = std::max(1.0f, size.x - 16.0f);
+        const float currentX = p.x + 8.0f + (animator.GetCurrentTime() / maxTime) * usableWidth;
+        drawList->AddLine(
+            ImVec2(currentX, p.y + 2.0f),
+            ImVec2(currentX, p.y + size.y - 2.0f),
+            IM_COL32(255, 235, 120, 255),
+            2.0f);
+
+        for (const auto& key : keys) {
+            const float x = p.x + 8.0f + (key.time / maxTime) * usableWidth;
+            drawList->AddCircleFilled(ImVec2(x, centerY), 4.0f, color);
+        }
+
+        ImGui::Dummy(size);
+    };
+
+    drawKeyStrip("Position", IM_COL32(90, 170, 255, 255));
+    drawKeyStrip("Rotation", IM_COL32(255, 140, 90, 255));
+    drawKeyStrip("FOV", IM_COL32(180, 220, 120, 255));
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Camera keys use the current camera position, rotation, and FOV.");
+
+    ImGui::End();
+}
+
+void AnimationEditorSession::DrawCameraPreviewOverlay_(const LayoutRects& layout) {
+    ImGui::SetNextWindowPos(
+        ImVec2(layout.preview.x + 12.0f, layout.preview.y + 12.0f),
+        ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.45f);
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_AlwaysAutoResize;
+
+    if (!ImGui::Begin("Camera Preview Overlay", &windowVisibility_.preview, flags)) {
+        ImGui::End();
+        return;
+    }
+    ImGui::TextUnformatted("Camera Preview");
+    ImGui::Separator();
+    ImGui::TextDisabled("Edit Position / Rotation / FOV in Inspector.");
+    ImGui::TextDisabled("Scrub and key camera motion in Timeline.");
+    ImGui::End();
+}
+
+void AnimationEditorSession::DrawHierarchyWindow_(Model::Skeleton& skeleton, const LayoutRects& layout, const EditorContext& context) {
+    ImGui::SetNextWindowPos(ImVec2(layout.hierarchy.x, layout.hierarchy.y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(layout.hierarchy.w, layout.hierarchy.h), ImGuiCond_Always);
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    if (!ImGui::Begin("Hierarchy", &windowVisibility_.hierarchy, flags)) {
+        ImGui::End();
+        return;
+    }
+
+    DrawEditorNavigationSection_(context);
+    ImGui::Separator();
 
     ImGui::TextUnformatted("Bones");
     ImGui::Separator();
@@ -447,7 +847,10 @@ void AnimationEditorSession::DrawInspectorWindow_(Object3d& target, Model::Skele
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings;
 
-    ImGui::Begin("Inspector", nullptr, flags);
+    if (!ImGui::Begin("Inspector", &windowVisibility_.inspector, flags)) {
+        ImGui::End();
+        return;
+    }
 
     if (selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int32_t>(skeleton.joints.size())) {
         ImGui::TextWrapped("Select a bone from Hierarchy or click a joint in the preview.");
@@ -544,7 +947,10 @@ void AnimationEditorSession::DrawTimelineWindow_(Object3d& target, Model::Skelet
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings;
 
-    ImGui::Begin("Timeline", nullptr, flags);
+    if (!ImGui::Begin("Timeline", &windowVisibility_.timeline, flags)) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::BeginDisabled(isTestingPlay_);
 
@@ -640,7 +1046,10 @@ void AnimationEditorSession::DrawPreviewOverlay_(Model::Skeleton& skeleton, cons
         ImGuiWindowFlags_NoInputs |
         ImGuiWindowFlags_AlwaysAutoResize;
 
-    ImGui::Begin("Preview Overlay", nullptr, flags);
+    if (!ImGui::Begin("Preview Overlay", &windowVisibility_.preview, flags)) {
+        ImGui::End();
+        return;
+    }
     ImGui::TextUnformatted("Preview");
     ImGui::Separator();
     ImGui::TextDisabled("Click joint to select");
@@ -929,14 +1338,49 @@ void AnimationEditorSession::HandleViewportEditing_(Object3d& target, Model::Ske
         Quaternion newRotate = MatrixToQuaternion(rotationOnly);
         newRotate = Normalize(newRotate);
 
+        if (currentGizmoOperation_ == ImGuizmo::SCALE) {
+            auto CalcAxisLen = [](const Matrix4x4& m) {
+                Vector3 s{};
+                s.x = std::sqrt(
+                    m.m[0][0] * m.m[0][0] +
+                    m.m[0][1] * m.m[0][1] +
+                    m.m[0][2] * m.m[0][2]);
+                s.y = std::sqrt(
+                    m.m[1][0] * m.m[1][0] +
+                    m.m[1][1] * m.m[1][1] +
+                    m.m[1][2] * m.m[1][2]);
+                s.z = std::sqrt(
+                    m.m[2][0] * m.m[2][0] +
+                    m.m[2][1] * m.m[2][1] +
+                    m.m[2][2] * m.m[2][2]);
+                return s;
+                };
+
+            Vector3 parentScale = CalcAxisLen(parentWorld);
+            Vector3 worldScale = CalcAxisLen(newBoneFinalWorld);
+
+            char buf[1024];
+            std::snprintf(
+                buf,
+                sizeof(buf),
+                "[AnimEditor][Scale] current=(%.3f, %.3f, %.3f) parent=(%.3f, %.3f, %.3f) world=(%.3f, %.3f, %.3f) local=(%.3f, %.3f, %.3f)\n",
+                currentPose.scale.x, currentPose.scale.y, currentPose.scale.z,
+                parentScale.x, parentScale.y, parentScale.z,
+                worldScale.x, worldScale.y, worldScale.z,
+                extractedScale.x, extractedScale.y, extractedScale.z);
+            OutputDebugStringA(buf);
+        }
+
         pose_.SetJointTranslate(selectedJointIndex_, newTranslate);
         pose_.SetJointRotateQuaternion(selectedJointIndex_, newRotate);
 
         if (currentGizmoOperation_ == ImGuizmo::SCALE) {
             pose_.SetJointScale(selectedJointIndex_, extractedScale);
-        } else {
+        }
+        else {
             pose_.SetJointScale(selectedJointIndex_, currentPose.scale);
         }
+
 
         ApplyCurrentPoseToTarget_(target, skeleton);
     }
@@ -1072,7 +1516,7 @@ void AnimationEditorSession::LoadClipAndPlay_(Object3d& target) {
             target.GetModel()->AddAnimation("CustomAnim", playDocument.GetAnimation());
             target.PlayAnimation("CustomAnim", true);
 
-            target.boneOffsets_.clear();
+            target.ClearBonePreviewOffsets();
             isTestingPlay_ = true;
 
             OutputDebugStringA("Animation Loaded and Playing!\n");

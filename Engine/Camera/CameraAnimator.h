@@ -9,6 +9,7 @@ struct CameraKeyframe {
     float time;
     Vector3 pos;
     Vector3 rot;
+    float fov;
 };
 
 class CameraAnimator {
@@ -35,6 +36,16 @@ public:
 	// 再生中かどうか
     void SetPlaying(bool value) { isPlaying_ = value; }
     bool GetPlaying() const { return isPlaying_; }
+    float GetCurrentTime() const { return currentTime_; }
+    float GetMaxTime() const { return maxTime_; }
+    void SetCurrentTime(float value);
+    void SetMaxTime(float value);
+    const std::vector<CameraKeyframe>& GetKeyframes() const { return keyframes_; }
+    void SampleAtTime(float time);
+    void AddOrUpdateKeyframe(float time);
+    void DeleteKeyframeAt(float time);
+    char* GetSaveFilepathBuffer() { return saveFilepath_; }
+    const char* GetSaveFilepath() const { return saveFilepath_; }
 
 private:
     Camera* camera_ = nullptr;
@@ -51,4 +62,5 @@ private:
 
     // 2つのベクトルを滑らかに繋ぐ計算
     Vector3 Lerp(const Vector3& a, const Vector3& b, float t) const;
+    float LerpFloat(float a, float b, float t) const;
 };

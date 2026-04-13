@@ -62,6 +62,8 @@ void GameScene::OnEnter(GameApp& app) {
 	player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
 	player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
 	player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+	animationEditTarget_ = player_ ? player_->GetObject3d() : nullptr;
+	cameraEditTarget_ = animCamera_.get();
 
 	// エネミーの配置（右側・左向き）
 	enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
@@ -168,6 +170,8 @@ void GameScene::OnExit(GameApp& app) {
 	cardDescBg_.reset();
 	cardDescText_.reset();
 
+	animationEditTarget_ = nullptr;
+	cameraEditTarget_ = nullptr;
 	player_.reset();
 	skyDome_.reset();
 	camera_.reset();
@@ -497,8 +501,20 @@ void GameScene::Draw2D(GameApp& app) {
 
 void GameScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
-	ImGui::Begin("Battle Debug");
+	ImGui::Begin("UI Visibility", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+	ImGui::Checkbox("Battle Debug", &battleDebugVisible_);
+	ImGui::Checkbox("Battle Effects", &battleEffectsDebugVisible_);
+	ImGui::Separator();
+	ImGui::TextUnformatted("Animation Editor");
+	auto& editorWindows = animationEditor_.GetWindowVisibility();
+	ImGui::Checkbox("Toolbar", &editorWindows.toolbar);
+	ImGui::Checkbox("Hierarchy", &editorWindows.hierarchy);
+	ImGui::Checkbox("Inspector", &editorWindows.inspector);
+	ImGui::Checkbox("Timeline", &editorWindows.timeline);
+	ImGui::Checkbox("Preview", &editorWindows.preview);
+	ImGui::End();
 
+	ImGui::Begin("Battle Debug", &battleDebugVisible_);
 	battle_.DrawImGui();
 
 	ImGui::DragFloat2("position", &position_.x);
@@ -506,8 +522,18 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	//playerHpText_->SetPosition(position_);
 
-	if (cameraAnim_) {
-		cameraAnim_->DrawImGui();
+	if (false && cameraAnim_) {
+		ImGui::Separator();
+		ImGui::Text("=== Editor Target ===");
+
+		const bool editAnimation = (editorTargetKind_ == EditorTargetKind::Animation);
+		if (ImGui::RadioButton("Animation", editAnimation)) {
+			editorTargetKind_ = EditorTargetKind::Animation;
+		}
+		ImGui::SameLine();
+		if (ImGui::RadioButton("Camera", !editAnimation)) {
+			editorTargetKind_ = EditorTargetKind::Camera;
+		}
 
 		ImGui::Separator();
 		ImGui::Text("=== Camera File Browser ===");
@@ -543,15 +569,16 @@ void GameScene::DrawImGui(GameApp& app) {
 		}
 	}
 
-	if (player_) {
-		Camera* editorCamera = animCamera_ ? animCamera_.get() : camera_.get();
-		player_->DrawAnimationEditorImGui(editorCamera);
+	if (animationEditTarget_ || cameraEditTarget_) {
+		animationEditor_.DrawImGui(BuildEditorContext_());
 	}
 
 	ImGui::End();
 
 	// 例えば "player_fire" を編集したい場合
-	static std::string targetEffect = "player_fire";
+	if (battleEffectsDebugVisible_) {
+		ImGui::Begin("Battle Effects", &battleEffectsDebugVisible_);
+		static std::string targetEffect = "player_fire";
 
 	// コンボボックスで編集対象を切り替えられるようにすると更に便利
 	if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
@@ -562,6 +589,8 @@ void GameScene::DrawImGui(GameApp& app) {
 	
 	// マネージャーから指定したエフェクトの設定を編集・反映
 	particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
+		ImGui::End();
+	}
 
 	if (fieldUi_) {
 		ImGui::Begin("FieldUi Debug");
@@ -696,4 +725,42 @@ bool GameScene::LoadCameraByIndex_(int index) {
 		return false;
 	}
 	return LoadCameraByPath_(cameraFiles_[index]);
+}
+
+AnimationEditorSession::EditorContext GameScene::BuildEditorContext_() {
+	AnimationEditorSession::EditorContext context{};
+	context.editorCamera = cameraEditTarget_ ? cameraEditTarget_ : camera_.get();
+	context.cameraAnimator = cameraAnim_.get();
+	context.canEditAnimation = (animationEditTarget_ != nullptr);
+	context.canEditCamera = (cameraEditTarget_ != nullptr && cameraAnim_ != nullptr);
+	context.editCameraMode = (editorTargetKind_ == EditorTargetKind::Camera);
+	context.cameraFiles = &cameraFiles_;
+	context.currentCameraIndex = currentCameraIndex_;
+	context.randomCameraEnabled = &randomCameraEnabled_;
+	context.sameCameraLoopEnabled = &sameCameraLoopEnabled_;
+	context.switchToAnimation = [this]() {
+		editorTargetKind_ = EditorTargetKind::Animation;
+	};
+	context.switchToCamera = [this]() {
+		editorTargetKind_ = EditorTargetKind::Camera;
+	};
+	context.reloadCameraFiles = [this]() {
+		ReloadCameraFileList_();
+	};
+	context.loadCameraByIndex = [this](int index) {
+		LoadCameraByIndex_(index);
+	};
+	context.playRandomCamera = [this]() {
+		ChangeRandomCamera();
+	};
+
+	if (editorTargetKind_ == EditorTargetKind::Camera) {
+		context.cameraTarget = cameraEditTarget_;
+		context.animationTarget = nullptr;
+	} else {
+		context.animationTarget = animationEditTarget_;
+		context.cameraTarget = nullptr;
+	}
+
+	return context;
 }

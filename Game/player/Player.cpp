@@ -132,17 +132,3 @@ void Player::Damage(int damage)
     }
 }
 
-void Player::DrawAnimationEditorImGui(Camera* editorCamera) {
-    OutputDebugStringA("[AnimEditor] Player::DrawAnimationEditorImGui CALLED\n");
-
-#ifdef USE_IMGUI
-    if (!model_) {
-        OutputDebugStringA("[AnimEditor] model_ is null in Player\n");
-        return;
-    }
-
-    animationEditor_.DrawImGui(model_.get(), editorCamera);
-#else
-    OutputDebugStringA("[AnimEditor] USE_IMGUI OFF in Player\n");
-#endif
-}
