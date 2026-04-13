@@ -147,6 +147,7 @@ bool GameApp::Initialize_() {
     input_->Initialize(win_.get());
     input_->Update(); // 初回
 
+    win_->SetInputPointer(input_.get());
 
     WarmupAssets_();
 

@@ -9,8 +9,9 @@
 
 void DeckEditScene::OnEnter(GameApp& app) {
     camera_ = std::make_unique<Camera>();
-    camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+    camera_->SetTranslate({ 0.0f, 4.0f, -10.0f });
     camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+    camera_->Update();
     app.ObjCom()->SetDefaultCamera(camera_.get());
 
     // 必要変数の初期化
@@ -48,7 +49,40 @@ void DeckEditScene::OnExit(GameApp& app) {
 void DeckEditScene::Update(GameApp& app, float dt) {
     Input* input = app.GetInput();
 
-  
+    float wheel = float(input->GetWheel()); // 奥に回すとプラス、手前に回すとマイナス
+    input->SetWheel(0);
+
+    // --- 2. スクロール量の更新 ---
+    float scrollSpeed = 1.0f; // ホイール1目盛りあたりの移動量（調整してください）
+
+    if (wheel != 0) {
+        
+        scrollY_ -= (static_cast<float>(wheel) / 120.0f) * scrollSpeed;
+    }
+
+    int index = 0;
+    for (auto& card : cardModels_) {
+        int row = index / kCardsPerRow;
+        int col = index % kCardsPerRow;
+
+        // 本来のレイアウト位置
+        float x = kCardStartX + (col * kCardSpacingX);
+        float y = kCardStartY - (row * kCardSpacingY);
+
+        // ★計算されたスクロールオフセットを適用
+        y += scrollY_;
+
+        // カードの座標を即座に更新
+        card->SetTargetTransform(
+            { x, y, 0.0f },
+            card->GetModelFixRot(),
+            { 0.25f, 0.25f, 0.25f },
+            false // instant を false にすることで補間を有効化
+        );
+
+        card->Update(dt);
+        index++;
+    }
 
     for (int i = 0; i < (int)cardModels_.size(); ++i) {
         int cardId = i + 1; // IDが1から始まる前提
@@ -88,30 +122,30 @@ void DeckEditScene::Update(GameApp& app, float dt) {
             // 現在の基本位置と回転を取得
              // (RebuildCardModelsで設定した値をベースにする)
             float x = (idx % kCardsPerRow) * kCardSpacingX + kCardStartX;
-            float y = -(idx / kCardsPerRow) * kCardSpacingY + kCardStartY;
-            Vector3 basePos = { x, y, 10.0f };
-            Vector3 baseRot = { 0, 0, 0 };
-            float defaultScl = 0.25f; // RebuildCardModels で設定している基本サイズ
+            float y = -(idx / kCardsPerRow) * kCardSpacingY + kCardStartY + scrollY_;
+            Vector3 currentPos = { x, y, 0.0f };
+            Vector3 baseRot = cardModels_[idx]->GetModelFixRot();
+            float defaultScl = 0.25f;
 
             if (leftClick) {
                 if (currentCount < 4 && totalCount_ < 40) {
                     editingDeck_[cardId]++;
 
-                    // --- 演出: 一瞬大きくする ---
-                    // 1. 現在のサイズを 0.4f (1.6倍) に強制設定
-                    cardModels_[idx]->SetTransform(basePos, baseRot, { 0.4f, 0.4f, 0.4f });
-                    // 2. 目標サイズを 0.25f (通常) に設定して戻していく
-                    cardModels_[idx]->SetTargetTransform(basePos, baseRot, { defaultScl, defaultScl, defaultScl });
+                    // --- 演出 ---
+                    // 1. 現在の値を「強制的に」大きくする (SetTransform)
+                    cardModels_[idx]->SetTransform(currentPos, baseRot, { 0.4f, 0.4f, 0.4f });
+                    // 2. 目標の値を「通常」に戻す (SetTargetTransform)
+                    // Card3D::Update 内の lerp によって、0.4f から 0.25f へ滑らかに戻ります
+                    cardModels_[idx]->SetTargetTransform(currentPos, baseRot, { defaultScl, defaultScl, defaultScl });
                 }
             } else if (rightClick) {
                 if (currentCount > 0) {
                     editingDeck_[cardId]--;
 
-                    // --- 演出: 一瞬小さくする ---
-                    // 1. 現在のサイズを 0.1f (0.4倍) に強制設定
-                    cardModels_[idx]->SetTransform(basePos, baseRot, { 0.1f, 0.1f, 0.1f });
-                    // 2. 目標サイズを 0.25f (通常) に設定して戻していく
-                    cardModels_[idx]->SetTargetTransform(basePos, baseRot, { defaultScl, defaultScl, defaultScl });
+                    // 1. 現在の値を「強制的に」小さくする
+                    cardModels_[idx]->SetTransform(currentPos, baseRot, { 0.1f, 0.1f, 0.1f });
+                    // 2. 目標の値を通常に戻す
+                    cardModels_[idx]->SetTargetTransform(currentPos, baseRot, { defaultScl, defaultScl, defaultScl });
                 }
             }
             RecalculateTotal();

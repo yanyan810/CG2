@@ -78,6 +78,10 @@ void Input::UpdateMouseDelta() {
 }
 
 void Input::Update() {
+   /* if (wheel_ != 0) {
+        wheel_ = 0;
+    }*/
+
     // 前フレーム保存
     memcpy(prevKeys_, keys_, sizeof(keys_));
     memcpy(prevMouseButtons_, mouseButtons_, sizeof(mouseButtons_));
@@ -102,6 +106,8 @@ void Input::Update() {
         ShowCursor(!cameraControlEnabled_);
     }
     prevToggleKeyState_ = toggleKey;
+
+   
 }
 
 bool Input::IsKeyTrigger(BYTE keyCode) const {
