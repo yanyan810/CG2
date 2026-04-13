@@ -113,7 +113,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 	case State::Idle:
 		// 入力待ち中にSPACEで閉じ演出へ
 		if (spaceTrig) {
-		//	state_ = State::ExitClose;
+			state_ = State::ExitClose;
 		}
 		break;
 
