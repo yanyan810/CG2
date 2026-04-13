@@ -67,6 +67,11 @@ private:
         Rect preview;
     };
 
+    struct JointSelectionState {
+        std::vector<int32_t> selectedIndices;
+        int32_t activeIndex = -1;
+    };
+
     struct AnimationHistoryEntry {
         AnimationEditorPose pose;
         AnimationClipDocument clipDocument;
@@ -78,6 +83,24 @@ private:
 
     struct CameraHistoryEntry {
         CameraAnimator::StateSnapshot state;
+    };
+
+    struct AnimationClipboard {
+        struct PoseEntry {
+            Vector3 translate{ 0.0f, 0.0f, 0.0f };
+            Quaternion rotate{ 0.0f, 0.0f, 0.0f, 1.0f };
+            Vector3 scale{ 1.0f, 1.0f, 1.0f };
+        };
+
+        bool hasValue = false;
+        std::vector<PoseEntry> poses;
+    };
+
+    struct CameraClipboard {
+        bool hasValue = false;
+        Vector3 position{ 0.0f, 0.0f, 0.0f };
+        Vector3 rotation{ 0.0f, 0.0f, 0.0f };
+        float fov = 0.45f;
     };
 
 private:
@@ -120,6 +143,10 @@ private:
     bool CanRedoCamera_() const;
     void UndoCamera_(Camera& target, CameraAnimator& animator);
     void RedoCamera_(Camera& target, CameraAnimator& animator);
+    void CopyAnimationSelection_(const Model::Skeleton& skeleton);
+    void PasteAnimationSelection_(Object3d& target, const Model::Skeleton& skeleton);
+    void CopyCameraState_(Camera& target, CameraAnimator& animator);
+    void PasteCameraState_(Camera& target, CameraAnimator& animator);
 
     void RecordCurrentPoseAsKeyframe_(const Model::Skeleton& skeleton);
     void DeleteCurrentTimeKeyframe_();
@@ -154,6 +181,7 @@ private:
     static constexpr size_t kMaxHistoryEntries_ = 64;
 
     int32_t selectedJointIndex_ = -1;
+    JointSelectionState jointSelectionState_;
 
     ImGuizmo::OPERATION currentGizmoOperation_ = ImGuizmo::ROTATE;
     ImGuizmo::MODE currentGizmoMode_ = ImGuizmo::LOCAL;
@@ -168,9 +196,11 @@ private:
     std::vector<AnimationHistoryEntry> animationRedoStack_;
     std::optional<AnimationHistoryEntry> pendingAnimationInspectorHistory_;
     std::optional<AnimationHistoryEntry> pendingAnimationGizmoHistory_;
+    AnimationClipboard animationClipboard_;
     std::vector<CameraHistoryEntry> cameraUndoStack_;
     std::vector<CameraHistoryEntry> cameraRedoStack_;
     std::optional<CameraHistoryEntry> pendingCameraInspectorHistory_;
+    CameraClipboard cameraClipboard_;
     bool wasUsingGizmo_ = false;
     bool animationDirty_ = false;
     Object3d* historyAnimationTarget_ = nullptr;
