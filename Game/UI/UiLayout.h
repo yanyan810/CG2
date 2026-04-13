@@ -107,6 +107,10 @@ struct UiPokerPreviewPatternLayout {
 
     float suffixOffsetX = 20.0f;
     float suffixOffsetY = 0.0f;
+
+    float leadingLabelOffsetX = 0.0f;
+    float leadingLabelOffsetY = 0.0f;
+    float leadingAdvanceX = 0.0f;
 };
 
 struct UiPokerPreviewPatternSet {
@@ -118,7 +122,16 @@ struct UiPokerPreviewPatternSet {
 };
 
 struct UiPokerPreviewLinesLayout {
-    UiPokerPreviewLineAnchor lines[5];
+    UiPokerPreviewLineAnchor lanes[5];
+};
+
+struct UiPokerPreviewEffectAnchors {
+    UiPokerPreviewLinesLayout singleDamage;
+    UiPokerPreviewLinesLayout allDamage;
+    UiPokerPreviewLinesLayout draw;
+    UiPokerPreviewLinesLayout block;
+    UiPokerPreviewLinesLayout heal;
+    UiPokerPreviewLinesLayout none;
 };
 
 struct UiPokerPreviewImageLayout {
@@ -139,8 +152,11 @@ struct UiPokerPreviewImageLayout {
     UiPreviewImageItem activatedLabel;
     UiPreviewImageItem activatedNoneLabel;
 
-    UiPokerPreviewLinesLayout turnStartLines;
-    UiPokerPreviewLinesLayout activatedLines;
+    float turnStartLineStepY = 62.0f;
+    float activatedLineStepY = 62.0f;
+
+    UiPokerPreviewEffectAnchors turnStartEffectAnchors;
+    UiPokerPreviewEffectAnchors activatedEffectAnchors;
 
     UiPokerPreviewPatternSet turnStartPatterns;
     UiPokerPreviewPatternSet activatedPatterns;
@@ -341,12 +357,31 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
     l.previewImages.activatedLabel = { 725.0f, 525.0f, 0.75f };
     l.previewImages.activatedNoneLabel = { 725.0f, 585.0f, 0.75f };
 
-    for (int i = 0; i < 5; ++i) {
-        l.previewImages.turnStartLines.lines[i].x = 725.0f;
-        l.previewImages.turnStartLines.lines[i].y = 475.0f + 62.0f * i;
+    l.previewImages.turnStartLineStepY = 62.0f;
+    l.previewImages.activatedLineStepY = 62.0f;
 
-        l.previewImages.activatedLines.lines[i].x = 725.0f;
-        l.previewImages.activatedLines.lines[i].y = 585.0f + 62.0f * i;
+    // ターン開始時
+    for (int i = 0; i < 5; ++i) {
+        float y = 475.0f + 62.0f * i;
+
+        l.previewImages.turnStartEffectAnchors.singleDamage.lanes[i] = { 725.0f, y };
+        l.previewImages.turnStartEffectAnchors.allDamage.lanes[i] = { 725.0f, y };
+        l.previewImages.turnStartEffectAnchors.draw.lanes[i] = { 725.0f, y };
+        l.previewImages.turnStartEffectAnchors.block.lanes[i] = { 725.0f, y };
+        l.previewImages.turnStartEffectAnchors.heal.lanes[i] = { 725.0f, y };
+        l.previewImages.turnStartEffectAnchors.none.lanes[i] = { 725.0f, y };
+    }
+
+    // 特殊効果発動時
+    for (int i = 0; i < 5; ++i) {
+        float y = 585.0f + 62.0f * i;
+
+        l.previewImages.activatedEffectAnchors.singleDamage.lanes[i] = { 725.0f, y };
+        l.previewImages.activatedEffectAnchors.allDamage.lanes[i] = { 725.0f, y };
+        l.previewImages.activatedEffectAnchors.draw.lanes[i] = { 725.0f, y };
+        l.previewImages.activatedEffectAnchors.block.lanes[i] = { 725.0f, y };
+        l.previewImages.activatedEffectAnchors.heal.lanes[i] = { 725.0f, y };
+        l.previewImages.activatedEffectAnchors.none.lanes[i] = { 725.0f, y };
     }
 
     // -------------------------
@@ -373,6 +408,9 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
     l.previewImages.turnStartPatterns.draw.numberSpacing = 28.0f;
     l.previewImages.turnStartPatterns.draw.suffixOffsetX = 20.0f;
     l.previewImages.turnStartPatterns.draw.suffixOffsetY = 0.0f;
+    l.previewImages.turnStartPatterns.draw.leadingLabelOffsetX = 0.0f;
+    l.previewImages.turnStartPatterns.draw.leadingLabelOffsetY = 0.0f;
+    l.previewImages.turnStartPatterns.draw.leadingAdvanceX = 165.0f;
 
     l.previewImages.turnStartPatterns.block.labelScale = 0.75f;
     l.previewImages.turnStartPatterns.block.prefixOffsetX = 0.0f;
