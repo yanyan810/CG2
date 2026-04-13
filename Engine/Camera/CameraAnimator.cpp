@@ -16,6 +16,7 @@ void CameraAnimator::Initialize(Camera* camera, Input* input) {
     camera_ = camera;
     input_ = input;
     currentTime_ = 0.0f;
+    isDirty_ = false;
 }
 
 void CameraAnimator::Initialize(Camera* camera) {
@@ -115,6 +116,7 @@ void CameraAnimator::AddOrUpdateKeyframe(float time) {
     }
 
     maxTime_ = keyframes_.empty() ? std::max(maxTime_, 0.1f) : std::max(keyframes_.back().time, 0.1f);
+    isDirty_ = true;
 }
 
 void CameraAnimator::DeleteKeyframeAt(float time) {
@@ -130,6 +132,41 @@ void CameraAnimator::DeleteKeyframeAt(float time) {
     maxTime_ = keyframes_.empty() ? std::max(maxTime_, 0.1f) : std::max(keyframes_.back().time, 0.1f);
     if (currentTime_ > maxTime_) {
         currentTime_ = maxTime_;
+    }
+    isDirty_ = true;
+}
+
+CameraAnimator::StateSnapshot CameraAnimator::CaptureState() const {
+    StateSnapshot snapshot{};
+    snapshot.keyframes = keyframes_;
+    snapshot.isLoop = isLoop_;
+    snapshot.isPlaying = isPlaying_;
+    snapshot.isDirty = isDirty_;
+    snapshot.currentTime = currentTime_;
+    snapshot.maxTime = maxTime_;
+
+    if (camera_) {
+        snapshot.cameraPos = camera_->GetTranslate();
+        snapshot.cameraRot = camera_->GetRotate();
+        snapshot.cameraFov = camera_->GetFovY();
+    }
+
+    return snapshot;
+}
+
+void CameraAnimator::RestoreState(const StateSnapshot& snapshot) {
+    keyframes_ = snapshot.keyframes;
+    isLoop_ = snapshot.isLoop;
+    isPlaying_ = snapshot.isPlaying;
+    isDirty_ = snapshot.isDirty;
+    currentTime_ = snapshot.currentTime;
+    maxTime_ = snapshot.maxTime;
+
+    if (camera_) {
+        camera_->SetTranslate(snapshot.cameraPos);
+        camera_->SetRotate(snapshot.cameraRot);
+        camera_->SetFovY(snapshot.cameraFov);
+        camera_->Update();
     }
 }
 
@@ -193,6 +230,8 @@ bool CameraAnimator::LoadFromJson(const std::string& filepath) {
     } else {
         maxTime_ = 0.0f;
     }
+
+    isDirty_ = false;
 
     return true;
 }
@@ -299,6 +338,7 @@ void CameraAnimator::SaveToJson(const std::string& filepath) {
     if (file.is_open()) {
         file << j.dump(4);
         file.close();
+        isDirty_ = false;
         OutputDebugStringA((">>> SUCCESS: Saved Camera to " + filepath + "\n").c_str());
     } else {
         OutputDebugStringA((">>> ERROR: Failed to save " + filepath + "\n").c_str());
