@@ -44,4 +44,6 @@ private:
 
     // どのインデックスがクリックされたか
     int PickCardIndex(GameApp& app);
+
+    float scrollY_ = 0.0f;
 };

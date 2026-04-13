@@ -9,8 +9,9 @@
 
 void DeckEditScene::OnEnter(GameApp& app) {
     camera_ = std::make_unique<Camera>();
-    camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+    camera_->SetTranslate({ 0.0f, 4.0f, -10.0f });
     camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+    camera_->Update();
     app.ObjCom()->SetDefaultCamera(camera_.get());
 
     // 必要変数の初期化
@@ -48,7 +49,39 @@ void DeckEditScene::OnExit(GameApp& app) {
 void DeckEditScene::Update(GameApp& app, float dt) {
     Input* input = app.GetInput();
 
-  
+    float wheel = float(input->GetWheel()); // 奥に回すとプラス、手前に回すとマイナス
+    input->SetWheel(0);
+
+    // --- 2. スクロール量の更新 ---
+    float scrollSpeed = 1.0f; // ホイール1目盛りあたりの移動量（調整してください）
+
+    if (wheel != 0) {
+        
+        scrollY_ -= (static_cast<float>(wheel) / 120.0f) * scrollSpeed;
+    }
+
+    int index = 0;
+    for (auto& card : cardModels_) {
+        int row = index / kCardsPerRow;
+        int col = index % kCardsPerRow;
+
+        // 本来のレイアウト位置
+        float x = kCardStartX + (col * kCardSpacingX);
+        float y = kCardStartY - (row * kCardSpacingY);
+
+        // ★計算されたスクロールオフセットを適用
+        y += scrollY_;
+
+        // カードの座標を即座に更新
+        card->SetTransform(
+            { x, y, 0.0f },
+            card->GetModelFixRot(),
+            { 0.25f, 0.25f, 0.25f }
+        );
+
+        card->Update(dt);
+        index++;
+    }
 
     for (int i = 0; i < (int)cardModels_.size(); ++i) {
         int cardId = i + 1; // IDが1から始まる前提

@@ -1,9 +1,15 @@
 #include "WinApp.h"
+#include "Input/Input.h"
 
 #pragma comment(lib,"winmm.lib")
 
 
+static Input* sInputPtr = nullptr;
 
+// Inputクラス側でこれを呼ぶ仕組みを作るか、WinAppにセットする関数を作る
+void WinApp::SetInputPointer(Input* input) {
+	sInputPtr = input;
+}
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 bool WinApp::ProcessMessage() {
@@ -30,19 +36,20 @@ LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 		return true;
 	}
 
-	//メッセージに応じてゲーム固有の処理を行う
 	switch (msg) {
-		//ウィンドウが破棄された
+	case WM_MOUSEWHEEL:
+		if (sInputPtr) {
+			// GET_WHEEL_DELTA_WPARAM で回転量（120の倍数）を取得
+			sInputPtr->SetWheel(GET_WHEEL_DELTA_WPARAM(wparam));
+		}
+		return 0;
+
 	case WM_DESTROY:
-		//OSに対して、アプリの終了を伝える
 		PostQuitMessage(0);
 		return 0;
 	}
 
-	//標準のメッセージ処理を行う
 	return DefWindowProc(hwnd, msg, wparam, lparam);
-
-
 }
 
 void WinApp::Initialize() {
