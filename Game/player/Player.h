@@ -4,6 +4,8 @@
 #include "AABB.h"
 #include "Object3d.h"
 #include "ModelParticleManager.h"
+#include "AnimationEditorSession.h"
+#include "TrailManager.h"
 
 class Object3dCommon;
 class DirectXCommon;
@@ -72,7 +74,21 @@ public:
 
 	// アニメーションエディタの描画
 	Object3d* GetObject3d() const { return model_.get(); }
+	void DrawAnimationEditorImGui(Camera* editorCamera);
 
+	// 軌跡のための座標取得
+	Vector3 GetWeaponTipPos();
+	Vector3 GetWeaponBasePos();
+
+	// TrailManagerから自分用のインスタンスを受け取るための関数
+	void SetTrailInstance(TrailInstance* instance) {
+		trailInstance_ = instance;
+	}
+
+	// 軌跡の色の設定などを外から変えられるように
+	void SetTrailConfig(const TrailConfig& config) {
+		trailConfig_ = config;
+	}
 
 private:
 	std::unique_ptr<Object3d> model_;
@@ -105,4 +121,14 @@ private:
 	bool isAlive_ = true;
 
 	ParticleEmitterConfig attackEffectConfig_;
+
+	bool isRecordingTrail_ = false;
+
+	// 修正: Managerそのものではなく、生成されたインスタンスを保持
+	TrailInstance* trailInstance_ = nullptr;
+	TrailConfig trailConfig_;
+
+	// 武器の計算用（モデルに合わせて微調整してください）
+	const float kWeaponLength = 100.0f;
+	const Vector3 kWeaponOffset = { 0.0f, 1.2f, 0.0f }; // モデルの手に合わせる
 };

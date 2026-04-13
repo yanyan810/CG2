@@ -66,6 +66,19 @@ void Player::Update(float dt) {
                 pos_ = basePos_;
             }
         }
+        if (trailInstance_) {
+            if (animState_ == AnimState::AttackForward) {
+                // 攻撃中：軌跡を出す
+                trailInstance_->SetActive(true);
+                // 毎フレーム新しい座標を覚えさせる
+                trailInstance_->Update(GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
+            } else {
+                // 攻撃終了後：SetActive(false) にすると TrailInstance 内で古い点から消えていく
+                trailInstance_->SetActive(false);
+                // isActive_がfalseの時も、Updateを呼ぶことで「古い点を消す」処理が進む
+                trailInstance_->Update(GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
+            }
+        }
     }
 
     // 赤点滅（フラッシュ）の計算
@@ -130,5 +143,34 @@ void Player::Damage(int damage)
         hp_ = 0;
         isAlive_ = false;
     }
+}
+
+Vector3 Player::GetWeaponTipPos()
+{
+    // 武器の根本（手元）の位置を基準にする
+    Vector3 base = kWeaponOffset;
+
+    // スイングの計算：突進中(AttackForward)に扇形に動かす
+    float swingOffset = 0.0f;
+    if (animState_ == AnimState::AttackForward) {
+        float t = animTimer_ / animDuration_;
+        // -1.5ラジアン(約-85度)から1.5ラジアン(約85度)まで回転させる
+        swingOffset = -1.5f + (t * 3.0f);
+    }
+
+    // 剣先のローカル座標（Y軸周りに回転させて横振りを表現）
+    Vector3 localTip = {
+        sinf(swingOffset) * kWeaponLength,
+        0.0f,
+        cosf(swingOffset) * kWeaponLength
+    };
+
+    // キャラのワールド行列を使ってワールド座標に変換
+    return Matrix4x4::TransformPos(base + localTip, model_->GetWorldMatrix());
+}
+
+Vector3 Player::GetWeaponBasePos()
+{
+    return Matrix4x4::TransformPos(kWeaponOffset, model_->GetWorldMatrix());
 }
 
