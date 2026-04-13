@@ -191,6 +191,9 @@ bool GameApp::Initialize_() {
         deckInstances_.push_back(MakeCardInstance(10));
     }
 
+    cardDB_ = std::make_unique<CardDatabase>();
+    cardDB_->LoadFromJson("resources/cards/cards.json");
+
 
     OutputDebugStringA("[GameApp] Initialize END\n");
     return true;

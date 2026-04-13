@@ -8,6 +8,7 @@
 
 #include"CardInstance.h"
 
+class CardDatabase;
 class WinApp;
 class DirectXCommon;
 class SrvManager;
@@ -54,7 +55,7 @@ public:
     void SetDeckInstances(const std::vector<CardInstance>& instances) { deckInstances_ = instances; }
     void SetDeckInstancesFromId(const std::vector<int>& ids);
 
-    //CardInstance MakeCardInstance(int defId);
+    CardDatabase* GetCardDB() { return cardDB_.get(); }
 
 private:
     bool Initialize_();
@@ -80,4 +81,6 @@ private:
     std::unique_ptr<RtvManager> rtv_;
 
     std::vector<CardInstance> deckInstances_;
+
+    std::unique_ptr<CardDatabase> cardDB_;
 };
