@@ -129,6 +129,8 @@ private:
 	TrailConfig trailConfig_;
 
 	// 武器の計算用（モデルに合わせて微調整してください）
-	const float kWeaponLength = 100.0f;
+	const float kWeaponLength = 2.0f;
 	const Vector3 kWeaponOffset = { 0.0f, 1.2f, 0.0f }; // モデルの手に合わせる
+
+	ModelParticleManager* particleManager_;
 };
