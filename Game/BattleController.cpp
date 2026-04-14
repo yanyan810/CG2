@@ -1510,9 +1510,9 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 	bool yTrig = input->IsKeyTrigger(DIK_Y);
 	bool nTrig = input->IsKeyTrigger(DIK_N);
-	bool key1Trig = input->IsKeyTrigger(DIK_1);
+	/*bool key1Trig = input->IsKeyTrigger(DIK_1);
 	bool key2Trig = input->IsKeyTrigger(DIK_2);
-	bool key3Trig = input->IsKeyTrigger(DIK_3);
+	bool key3Trig = input->IsKeyTrigger(DIK_3);*/
 
 	POINT mouse = input->GetMousePosition();
 
@@ -1624,18 +1624,18 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		} else if (PointInRect(mouse.x, mouse.y,
 			layout.effectRects[1].x, layout.effectRects[1].y,
 			layout.effectRects[1].w, layout.effectRects[1].h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
+			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
 		} else if (PointInRect(mouse.x, mouse.y,
 			layout.effectRects[2].x, layout.effectRects[2].y,
 			layout.effectRects[2].w, layout.effectRects[2].h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
+			pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
 		} else if (PointInRect(mouse.x, mouse.y,
 			layout.effectViewBoardRect.x, layout.effectViewBoardRect.y,
 			layout.effectViewBoardRect.w, layout.effectViewBoardRect.h)) {
 			pokerMouseChoice_ = PokerMouseChoice::EffectViewBoard;
 		}
 
-		if (key1Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
+		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
 			nextTurnAtkUp_ += bonus.atkUp;
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
@@ -1646,7 +1646,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			return;
 		}
 
-		if (key2Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
+		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
 			DrawCards_(bonus.drawCount);
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
@@ -1657,7 +1657,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			return;
 		}
 
-		if (key3Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
+		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
@@ -2702,8 +2702,8 @@ int BattleController::GetPokerMouseChoiceIndex() const
 
 	case PokerMouseChoice::EffectBack:        return 0;
 	case PokerMouseChoice::EffectAtkUp:       return 1;
-	case PokerMouseChoice::EffectDraw:        return 2;
-	case PokerMouseChoice::EffectDamage:      return 3;
+	case PokerMouseChoice::EffectDamage:      return 2;
+	case PokerMouseChoice::EffectDraw:        return 3;
 	case PokerMouseChoice::EffectViewBoard:   return 4;
 
 	case PokerMouseChoice::ReturnFromBoard:   return 0;
