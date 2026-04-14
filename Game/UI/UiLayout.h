@@ -163,10 +163,8 @@ struct UiPokerPreviewImageLayout {
 };
 
 struct PokerEffectChoiceLayout {
-    // タイトル画像
     UiVec2 titleImage;
 
-    // 発動確認UI
     UiRect activateTitleBg;
     UiRect activateYesRect;
     UiVec2 activateYesImage;
@@ -175,7 +173,6 @@ struct PokerEffectChoiceLayout {
     UiRect activateViewBoardRect;
     UiVec2 activateViewBoardImage;
 
-    // 効果選択UI
     UiRect effectTitleBg;
 
     UiRect backRect;
@@ -187,16 +184,26 @@ struct PokerEffectChoiceLayout {
     UiRect effectViewBoardRect;
     UiVec2 effectViewBoardImage;
 
-	// プレビューUI
     UiPokerPreviewImageLayout previewImages;
 
-    // 共通
     UiRect infoButtonRect;
     UiText infoButtonImage;
 
     UiRect previewPanelBg;
     UiText previewPanelTitleImage;
     UiText previewPanelText;
+
+    // 追加
+    UiText activateTitleText;
+    UiText activateYesText;
+    UiText activateNoText;
+    UiText activateViewBoardText;
+    UiText infoButtonText;
+
+    UiText effectTitleText;
+    UiText backText;
+    UiText effectTexts[3];
+    UiText effectViewBoardText;
 };
 
 struct UiImageItem {
@@ -359,6 +366,19 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 
     l.previewImages.turnStartLineStepY = 62.0f;
     l.previewImages.activatedLineStepY = 62.0f;
+
+    l.activateTitleText = { 510.0f, 170.0f, 1.0f };
+    l.activateYesText = { 235.0f, 470.0f, 1.0f };
+    l.activateNoText = { 915.0f, 470.0f, 1.0f };
+    l.activateViewBoardText = { 555.0f, 615.0f, 1.0f };
+    l.infoButtonText = { 1098.0f, 54.0f, 0.9f };
+
+    l.effectTitleText = { 515.0f, 170.0f, 1.0f };
+    l.backText = { 78.0f, 78.0f, 1.0f };
+    l.effectTexts[0] = { 95.0f, 280.0f, 0.95f };   // ATK UP
+    l.effectTexts[1] = { 545.0f, 280.0f, 0.95f };  // ダメージ
+    l.effectTexts[2] = { 993.0f, 280.0f, 0.95f };  // ドロー
+    l.effectViewBoardText = { 555.0f, 655.0f, 1.0f };
 
     // ターン開始時
     for (int i = 0; i < 5; ++i) {

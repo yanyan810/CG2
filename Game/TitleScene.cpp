@@ -197,9 +197,9 @@ void TitleScene::Draw2D(GameApp& app) {
 	}
 
 	//デバッグ用
-	if (fieldUi_) {
-		fieldUi_->Draw(app, battle_);
-	}
+	//if (fieldUi_) {
+	//	fieldUi_->Draw(app, battle_);
+	//}
 
 	//--------------------------------------------------------
 	// 円形マスク描画

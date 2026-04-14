@@ -204,7 +204,11 @@ private:
 	std::unique_ptr<Sprite> discardLabelImage_; //墓地
 	std::unique_ptr<Sprite> handLabelImage_; //手札
 
-	bool useImageCardDesc_ = true;
+	std::unique_ptr<TextSprite> pokerTitleText_;
+	std::unique_ptr<TextSprite> pokerInfoButtonText_;
+	std::array<std::unique_ptr<TextSprite>, 5> pokerOptionTexts_;
+
+	bool useImageCardDesc_ = false;
 
 	//ui用の背景スプライト
     std::unique_ptr<Sprite>     turnTextBg_;
@@ -220,6 +224,7 @@ private:
     std::unique_ptr<Sprite> pokerActivateDescBg_;
     std::unique_ptr<Sprite> pokerEffectDescBg_;
 	std::unique_ptr<Sprite> clickChoiceBg_;
+	std::unique_ptr<Sprite> pokerInfoButtonBg_;
     std::unique_ptr<Sprite> endTurnButtonBg_;
 
     std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
