@@ -377,92 +377,32 @@
         },
         "turnStartEffectAnchors": {
             "allDamage": [
-                {
-                    "x": 725.0,
-                    "y": 475.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 537.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 599.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 661.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 723.0
-                }
+                { "x": 525.0, "y": 575.0 },
+        { "x": 525.0, "y": 610.0 },
+        { "x": 525.0, "y": 645.0 },
+        { "x": 525.0, "y": 680.0 },
+        { "x": 525.0, "y": 715.0 }
             ],
             "block": [
-                {
-                    "x": 725.0,
-                    "y": 475.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 537.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 599.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 661.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 723.0
-                }
+               { "x": 525.0, "y": 575.0 },
+        { "x": 525.0, "y": 610.0 },
+        { "x": 525.0, "y": 645.0 },
+        { "x": 525.0, "y": 680.0 },
+        { "x": 525.0, "y": 715.0 }
             ],
             "draw": [
-                {
-                    "x": 725.0,
-                    "y": 475.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 537.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 599.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 661.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 723.0
-                }
+                 { "x": 525.0, "y": 575.0 },
+        { "x": 525.0, "y": 610.0 },
+        { "x": 525.0, "y": 645.0 },
+        { "x": 525.0, "y": 680.0 },
+        { "x": 525.0, "y": 715.0 }
             ],
             "heal": [
-                {
-                    "x": 725.0,
-                    "y": 475.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 537.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 599.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 661.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 723.0
-                }
+                 { "x": 525.0, "y": 575.0 },
+        { "x": 525.0, "y": 610.0 },
+        { "x": 525.0, "y": 645.0 },
+        { "x": 525.0, "y": 680.0 },
+        { "x": 525.0, "y": 715.0 }
             ],
             "none": [
                 {
@@ -487,26 +427,11 @@
                 }
             ],
             "singleDamage": [
-                {
-                    "x": 725.0,
-                    "y": 475.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 537.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 599.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 661.0
-                },
-                {
-                    "x": 725.0,
-                    "y": 723.0
-                }
+               { "x": 525.0, "y": 575.0 },
+        { "x": 525.0, "y": 610.0 },
+        { "x": 525.0, "y": 645.0 },
+        { "x": 525.0, "y": 680.0 },
+        { "x": 525.0, "y": 715.0 }
             ]
         },
         "turnStartLabel": {
@@ -521,74 +446,74 @@
         },
         "turnStartPatterns": {
             "allDamage": {
-                "labelScale": 0.9100000262260437,
-                "leadingAdvanceX": 0.0,
-                "leadingLabelOffsetX": 0.0,
-                "leadingLabelOffsetY": 0.0,
-                "numberOffsetX": 185.0,
-                "numberOffsetY": 8.0,
-                "numberScale": 0.2800000011920929,
-                "numberSpacing": 28.0,
-                "prefixOffsetX": -28.0,
-                "prefixOffsetY": 0.0,
-                "suffixOffsetX": 20.0,
-                "suffixOffsetY": 0.0
+                "labelScale": 0.55,
+    "leadingAdvanceX": 0.0,
+    "leadingLabelOffsetX": 0.0,
+    "leadingLabelOffsetY": 0.0,
+    "numberOffsetX": 508.0,
+    "numberOffsetY": -192.0,
+    "numberScale": 0.20,
+    "numberSpacing": 16.0,
+    "prefixOffsetX": 247.0,
+    "prefixOffsetY": -212.0,
+    "suffixOffsetX": -117.0,
+    "suffixOffsetY": -208.0
             },
             "block": {
-                "labelScale": 0.4099999964237213,
-                "leadingAdvanceX": 0.0,
-                "leadingLabelOffsetX": 0.0,
-                "leadingLabelOffsetY": 0.0,
-                "numberOffsetX": 185.0,
-                "numberOffsetY": 8.0,
-                "numberScale": 0.2800000011920929,
-                "numberSpacing": 28.0,
-                "prefixOffsetX": -29.0,
-                "prefixOffsetY": 0.0,
-                "suffixOffsetX": 6.0,
-                "suffixOffsetY": 0.0
+                "labelScale": 0.55,
+    "leadingAdvanceX": 0.0,
+    "leadingLabelOffsetX": 0.0,
+    "leadingLabelOffsetY": 0.0,
+    "numberOffsetX": 508.0,
+    "numberOffsetY": -192.0,
+    "numberScale": 0.20,
+    "numberSpacing": 16.0,
+    "prefixOffsetX": 247.0,
+    "prefixOffsetY": -212.0,
+    "suffixOffsetX": -117.0,
+    "suffixOffsetY": -208.0
             },
             "draw": {
-                "labelScale": 0.75,
-                "leadingAdvanceX": 165.0,
-                "leadingLabelOffsetX": 0.0,
-                "leadingLabelOffsetY": 0.0,
-                "numberOffsetX": 0.0,
-                "numberOffsetY": 8.0,
-                "numberScale": 0.12999999523162842,
-                "numberSpacing": 28.0,
-                "prefixOffsetX": 17.0,
-                "prefixOffsetY": 0.0,
-                "suffixOffsetX": 20.0,
-                "suffixOffsetY": 0.0
+                "labelScale": 0.55,
+    "leadingAdvanceX": 0.0,
+    "leadingLabelOffsetX": 0.0,
+    "leadingLabelOffsetY": 0.0,
+    "numberOffsetX": 508.0,
+    "numberOffsetY": -192.0,
+    "numberScale": 0.20,
+    "numberSpacing": 16.0,
+    "prefixOffsetX": 247.0,
+    "prefixOffsetY": -212.0,
+    "suffixOffsetX": -117.0,
+    "suffixOffsetY": -208.0
             },
             "heal": {
-                "labelScale": 0.5099999904632568,
-                "leadingAdvanceX": 0.0,
-                "leadingLabelOffsetX": 0.0,
-                "leadingLabelOffsetY": 0.0,
-                "numberOffsetX": 185.0,
-                "numberOffsetY": 8.0,
-                "numberScale": 0.2800000011920929,
-                "numberSpacing": 28.0,
-                "prefixOffsetX": -11.0,
-                "prefixOffsetY": 0.0,
-                "suffixOffsetX": 20.0,
-                "suffixOffsetY": 0.0
+                "labelScale": 0.55,
+    "leadingAdvanceX": 0.0,
+    "leadingLabelOffsetX": 0.0,
+    "leadingLabelOffsetY": 0.0,
+    "numberOffsetX": 508.0,
+    "numberOffsetY": -192.0,
+    "numberScale": 0.20,
+    "numberSpacing": 16.0,
+    "prefixOffsetX": 247.0,
+    "prefixOffsetY": -212.0,
+    "suffixOffsetX": -117.0,
+    "suffixOffsetY": -208.0
             },
             "singleDamage": {
-                "labelScale": 0.75,
-                "leadingAdvanceX": 0.0,
-                "leadingLabelOffsetX": 0.0,
-                "leadingLabelOffsetY": 0.0,
-                "numberOffsetX": 185.0,
-                "numberOffsetY": 8.0,
-                "numberScale": 0.2800000011920929,
-                "numberSpacing": 28.0,
-                "prefixOffsetX": 0.0,
-                "prefixOffsetY": 0.0,
-                "suffixOffsetX": 20.0,
-                "suffixOffsetY": 0.0
+               "labelScale": 0.55,
+    "leadingAdvanceX": 0.0,
+    "leadingLabelOffsetX": 0.0,
+    "leadingLabelOffsetY": 0.0,
+    "numberOffsetX": 508.0,
+    "numberOffsetY": -192.0,
+    "numberScale": 0.20,
+    "numberSpacing": 16.0,
+    "prefixOffsetX": 247.0,
+    "prefixOffsetY": -212.0,
+    "suffixOffsetX": -117.0,
+    "suffixOffsetY": -208.0
             }
         }
     },

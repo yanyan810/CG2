@@ -345,8 +345,8 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
 
     HandleViewportEditing_(*target, *skeleton, layout, editorCamera);
 #else
-    (void)target;
-    (void)editorCamera;
+  //  (void)target;
+    //(void)editorCamera;
 #endif
 }
 
