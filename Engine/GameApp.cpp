@@ -165,7 +165,7 @@ bool GameApp::Initialize_() {
     sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  }); 
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
 
-    sceneMgr_->Change(*this, "Title");
+    sceneMgr_->Change(*this, "Game");
 
     // デフォルトデッキ
     for (int i = 0; i < 2; i++) {
@@ -335,6 +335,8 @@ void GameApp::WarmupAssets_() {
     TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_17.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_18.png");
     TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_19.png");
+
+    TextureManager::GetInstance()->LoadTexture("resources/ui/PauseMenu.png");
 
     // モデル初回読み込み
     ModelManager::GetInstance()->LoadModel("human/walk.gltf");

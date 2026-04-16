@@ -61,6 +61,7 @@ public:
 	const bool GetFlipY() const { return isFlipY_; }
 	const Vector2& GetTextureTopLeft() const { return textureTopLeft_; }
 	const Vector2& GetTextureCutSize() const { return textureCutSize_; }
+	const std::string& GetName() const { return name_; }
 
 	//setter
 	void SetAnchorPoint(const Vector2& ap) { this->anchorPoint = ap; }
@@ -70,12 +71,30 @@ public:
 	void SetTextureCutSize(const Vector2& tcs) { this->textureCutSize_ = tcs; }
 	void SetAnchorPointKeepingVisual(const Vector2& ap);
 	Vector2 GetTopLeftPosition() const;
+	std::string SetName(const std::string& name) { this->name_ = name; return name_; }
+	
 
 	//テクスチャサイズをイメージに合わせる
 	void AdjustTextureSize();
 
 	void SetTextureFilePath(const std::string& filePath);
 	const std::string& GetTextureFilePath() const { return textureFilePath_; }
+
+	bool IsMouseOver(const Vector2& mousePos) const {
+		// 現在の左上座標を取得
+		Vector2 topLeft = GetTopLeftPosition();
+
+		// スケールを考慮した実際のサイズ
+		float width = size_.x * scale_.x;
+		float height = size_.y * scale_.y;
+
+		// 当たり判定（点と矩形）
+		if (mousePos.x >= topLeft.x && mousePos.x <= topLeft.x + width &&
+			mousePos.y >= topLeft.y && mousePos.y <= topLeft.y + height) {
+			return true;
+		}
+		return false;
+	}
 
 private:
 
@@ -136,5 +155,6 @@ private:
 	//テクスチャ切り出しサイズ
 	Vector2 textureCutSize_{ 1.0f,1.0f };
 
-
+	// スプライト名
+	std::string name_ = "DefaultName";
 };

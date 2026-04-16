@@ -169,7 +169,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-
     <ClCompile Include="Engine\3D\AnimationEditorPose.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorSession.cpp" />
     <ClCompile Include="Engine\3D\AnimationClipDocument.cpp" />
@@ -246,6 +245,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\player\Player.cpp" />
     <ClCompile Include="Game\TestScene.cpp" />
     <ClCompile Include="Engine\TrailInstance.cpp" />
+    <ClCompile Include="Game\UI\PausingUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\ParticleUpdate.CS.hlsl">
@@ -322,16 +322,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
     <ClInclude Include="Engine\3D\AnimationEditorSession.h" />
     <ClInclude Include="Engine\3D\AnimationClipDocument.h" />
     <ClInclude Include="Engine\3D\AnimationJsonSerializer.h" />
-
     <ClInclude Include="Game\DeckEditScene.h" />
     <ClInclude Include="Engine\Audio.h" />
     <ClInclude Include="Engine\AudioManager.h" />
-
     <ClInclude Include="Engine\Camera\CameraAnimator.h" />
     <ClInclude Include="Engine\2D\TextSprite.h" />
     <ClInclude Include="Engine\Bloom.h" />
@@ -412,6 +409,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\UI\FieldUi.h" />
     <ClInclude Include="Game\UI\UiLayout.h" />
     <ClInclude Include="Engine\TrailInstance.h" />
+    <ClInclude Include="Game\UI\PausingUI.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

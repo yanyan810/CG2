@@ -163,6 +163,9 @@ void GameScene::OnEnter(GameApp& app) {
 
 	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
 	//AudioManager::GetInstance()->PlayBGM("neppuu");
+
+	pausingUI_ = std::make_unique<PausingUI>();
+	pausingUI_->Initialize(app);
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -189,6 +192,13 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	Input* input = app.GetInput();
 	if (!input) return;
+
+	pausingUI_->DrawImGui();
+	pausingUI_->Update(app, input);
+
+	if (pausingUI_->GetIsPaused()) {
+		return;
+	}
 
 	if (cameraAnim_ && cameraAnim_->IsEditing()) {
 		cameraAnim_->Update(dt); // カメラの操作だけは受け付ける
@@ -456,6 +466,12 @@ void GameScene::Draw2D(GameApp& app) {
 		float(WinApp::kClientHeight),
 		0, 100
 	);
+
+	pausingUI_->Draw(app);
+
+	if (pausingUI_->GetIsPaused()) {
+		return;
+	}
 
 	bool showDescBg = false;
 
