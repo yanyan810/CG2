@@ -186,14 +186,13 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive()) {
+	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive()||pausingUI_->GetIsSceneChangeRequested()) {
 		RequestChangeScene_("Title");
 	}
 
 	Input* input = app.GetInput();
 	if (!input) return;
 
-	pausingUI_->DrawImGui();
 	pausingUI_->Update(app, input);
 
 	if (pausingUI_->GetIsPaused()) {

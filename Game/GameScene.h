@@ -13,7 +13,7 @@
 #include "ModelParticleManager.h"
 #include "TrailManager.h"
 #include "AudioManager.h"
-#include "PausingUI.h"
+#include "PausingUI/PausingUI.h"
 
 class GameApp;
 
