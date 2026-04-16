@@ -98,14 +98,7 @@ void Input::Update() {
 
     UpdateMouseDelta();
 
-    // TABでカメラ操作切り替え
-    bool toggleKey = IsKeyPressed(DIK_TAB);
-    if (toggleKey && !prevToggleKeyState_) {
-        cameraControlEnabled_ = !cameraControlEnabled_;
-        justEnteredCameraMode_ = cameraControlEnabled_;
-        ShowCursor(!cameraControlEnabled_);
-    }
-    prevToggleKeyState_ = toggleKey;
+   
 
    
 }

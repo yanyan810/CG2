@@ -88,6 +88,9 @@
     <ClCompile Include="Game\player\Player.cpp" />
     <ClCompile Include="Game\TestScene.cpp" />
     <ClCompile Include="Engine\TrailInstance.cpp" />
+    <ClCompile Include="Game\UI\PausingUI\PausingUI.cpp" />
+    <ClCompile Include="Game\UI\PausingUI\Selection\SelectionState.cpp" />
+    <ClCompile Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialManager.cpp" />
     <ClCompile Include="Game\UI\TutorialUi.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
@@ -180,6 +183,10 @@
     <ClInclude Include="Game\UI\FieldUi.h" />
     <ClInclude Include="Game\UI\UiLayout.h" />
     <ClInclude Include="Engine\TrailInstance.h" />
+    <ClInclude Include="Game\UI\PausingUI\PausingUI.h" />
+    <ClInclude Include="Game\UI\PausingUI\IPauseState.h" />
+    <ClInclude Include="Game\UI\PausingUI\Selection\SelectionState.h" />
+    <ClInclude Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.h" />
     <ClInclude Include="Game\Tutorial\TutorialManager.h" />
     <ClInclude Include="Game\UI\TutorialUi.h" />
     <ClInclude Include="Game\Tutorial\TutorialScene.h" />

@@ -1,6 +1,5 @@
 #pragma once
 #include "IScene.h"
-#include <memory>
 #include "Camera.h"
 #include "CameraAnimator.h"
 #include "Object3d.h"
@@ -11,12 +10,10 @@
 #include "TextSprite.h"
 #include "StringUtility.h"
 #include "FieldUi.h"
-
 #include "ModelParticleManager.h"
-
 #include "TrailManager.h"
-
 #include "AudioManager.h"
+#include "PausingUI/PausingUI.h"
 
 class GameApp;
 
@@ -117,5 +114,7 @@ private:
     std::unique_ptr<TrailManager> trailManager_;
     TrailInstance* testTrail_ = nullptr; // マネージャが寿命管理するので生のポインタでOK
     TrailConfig trailConfig_;            // インスペクタ調整用
+
+	std::unique_ptr<PausingUI> pausingUI_;
 };
 
