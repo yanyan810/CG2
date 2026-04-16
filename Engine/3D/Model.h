@@ -124,8 +124,13 @@ public:
 		Matrix4x4 uvTransform;    // 64
 
 		float    shininess;       // 4
-		float    pad1[3];         // 12  -> ここで16byte揃う
+
+		float    glitterIntensity;// 4
+		float    timer;           // 4
+
+		float    pad1;         // 4  -> ここで16byte揃う
 	};
+
 	static_assert(sizeof(Material) % 16 == 0, "Material must be 16-byte aligned");
 
 

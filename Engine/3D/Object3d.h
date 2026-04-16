@@ -186,6 +186,8 @@ public:
 
 	Model* GetModel() const { return model_; }
 
+	Model::Material* GetMaterial() const { return materialData_; }
+
 
 	bool GetJointWorldMatrix(const std::string& jointName, Matrix4x4& out) const;
 

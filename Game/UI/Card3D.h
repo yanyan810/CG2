@@ -55,6 +55,8 @@ public:
 
     void SetCount(int count);
 
+    void SetGlitter(float intensity) { glitterIntensity_ = intensity; }
+
 private:
 
     std::unique_ptr<Object3d> frame_;
@@ -89,4 +91,7 @@ private:
     bool isPreview_;
 
     int count_ = 0;
+
+    float glitterIntensity_ = 0.0f;
+    float glitterTimer_ = 0.0f;
 };
