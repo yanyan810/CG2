@@ -35,6 +35,28 @@ namespace {
             stack.erase(stack.begin(), stack.begin() + (stack.size() - maxEntries));
         }
     }
+
+    template <class TKeyframe, class TValue>
+    void UpsertKeyAtTime(std::vector<TKeyframe>& keyframes, float time, const TValue& value) {
+        auto it = std::find_if(
+            keyframes.begin(),
+            keyframes.end(),
+            [time](const TKeyframe& key) {
+                return std::abs(key.time - time) < 0.001f;
+            });
+
+        if (it != keyframes.end()) {
+            it->value = value;
+        } else {
+            keyframes.push_back({ time, value });
+            std::sort(
+                keyframes.begin(),
+                keyframes.end(),
+                [](const TKeyframe& a, const TKeyframe& b) {
+                    return a.time < b.time;
+                });
+        }
+    }
 }
 
 namespace fs = std::filesystem;
@@ -238,21 +260,47 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
 #ifdef USE_IMGUI
     OutputDebugStringA("[AnimEditor] Session DrawImGui\n");
 
-    auto pollShortcutCommand = []() -> int {
+    enum class ShortcutCommand {
+        None,
+        Undo,
+        Redo,
+        Save,
+        Copy,
+        Paste,
+        SelectAll,
+    };
+
+    auto pollShortcutCommand = []() -> ShortcutCommand {
         const ImGuiIO& io = ImGui::GetIO();
         if (io.WantTextInput || !io.KeyCtrl) {
-            return 0;
+            return ShortcutCommand::None;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+            return ShortcutCommand::Save;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_C, false)) {
+            return ShortcutCommand::Copy;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+            return ShortcutCommand::Paste;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+            return ShortcutCommand::SelectAll;
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
-            return 1;
+            return ShortcutCommand::Redo;
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
-            return io.KeyShift ? 1 : -1;
+            return io.KeyShift ? ShortcutCommand::Redo : ShortcutCommand::Undo;
         }
 
-        return 0;
+        return ShortcutCommand::None;
     };
 
     if (IsCameraContext_(context)) {
@@ -282,11 +330,17 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
             DrawCameraPreviewOverlay_(layout);
         }
 
-        const int shortcutCommand = pollShortcutCommand();
-        if (shortcutCommand < 0) {
+        const ShortcutCommand shortcutCommand = pollShortcutCommand();
+        if (shortcutCommand == ShortcutCommand::Undo) {
             UndoCamera_(*cameraTarget, *cameraAnimator);
-        } else if (shortcutCommand > 0) {
+        } else if (shortcutCommand == ShortcutCommand::Redo) {
             RedoCamera_(*cameraTarget, *cameraAnimator);
+        } else if (shortcutCommand == ShortcutCommand::Save) {
+            cameraAnimator->SaveToJson(cameraAnimator->GetSaveFilepath());
+        } else if (shortcutCommand == ShortcutCommand::Copy) {
+            CopyCameraState_(*cameraTarget, *cameraAnimator);
+        } else if (shortcutCommand == ShortcutCommand::Paste) {
+            PasteCameraState_(*cameraTarget, *cameraAnimator);
         }
         return;
     }
@@ -336,17 +390,35 @@ void AnimationEditorSession::DrawImGui(const EditorContext& context) {
         DrawPreviewOverlay_(*skeleton, layout);
     }
 
-    const int shortcutCommand = pollShortcutCommand();
-    if (shortcutCommand < 0) {
+    const ShortcutCommand shortcutCommand = pollShortcutCommand();
+    if (shortcutCommand == ShortcutCommand::Undo) {
         UndoAnimation_(*target, *skeleton);
-    } else if (shortcutCommand > 0) {
+    } else if (shortcutCommand == ShortcutCommand::Redo) {
         RedoAnimation_(*target, *skeleton);
+    } else if (shortcutCommand == ShortcutCommand::Save) {
+        const Model::Skeleton& exportSkeleton = target->GetModel() ? target->GetModel()->GetSkeleton() : *skeleton;
+        ExportCurrentClip_(exportSkeleton);
+    } else if (shortcutCommand == ShortcutCommand::Copy) {
+        CopyAnimationSelection_(*skeleton);
+    } else if (shortcutCommand == ShortcutCommand::Paste) {
+        PasteAnimationSelection_(*target, *skeleton);
+    } else if (shortcutCommand == ShortcutCommand::SelectAll) {
+        jointSelectionState_.selectedIndices.clear();
+        jointSelectionState_.selectedIndices.reserve(skeleton->joints.size());
+        for (int32_t i = 0; i < static_cast<int32_t>(skeleton->joints.size()); ++i) {
+            jointSelectionState_.selectedIndices.push_back(i);
+        }
+
+        if (jointSelectionState_.activeIndex < 0 && !jointSelectionState_.selectedIndices.empty()) {
+            jointSelectionState_.activeIndex = jointSelectionState_.selectedIndices.front();
+        }
+        selectedJointIndex_ = jointSelectionState_.activeIndex;
     }
 
     HandleViewportEditing_(*target, *skeleton, layout, editorCamera);
 #else
-    (void)target;
-    (void)editorCamera;
+  //  (void)target;
+    //(void)editorCamera;
 #endif
 }
 
@@ -514,8 +586,161 @@ void AnimationEditorSession::RedoCamera_(Camera& target, CameraAnimator& animato
     TrimHistoryStack(cameraUndoStack_, kMaxHistoryEntries_);
 
     CameraHistoryEntry entry = cameraRedoStack_.back();
-    cameraRedoStack_.pop_back();
+   cameraRedoStack_.pop_back();
     RestoreCameraHistory_(entry, target, animator);
+}
+
+void AnimationEditorSession::CopyAnimationSelection_(const Model::Skeleton& skeleton) {
+    animationClipboard_.hasValue = false;
+    animationClipboard_.poses.clear();
+
+    std::vector<int32_t> sourceIndices = jointSelectionState_.selectedIndices;
+    if (sourceIndices.empty()) {
+        if (selectedJointIndex_ >= 0 &&
+            selectedJointIndex_ < static_cast<int32_t>(skeleton.joints.size()) &&
+            pose_.HasValidJoint(selectedJointIndex_)) {
+            sourceIndices.push_back(selectedJointIndex_);
+        }
+    }
+
+    if (sourceIndices.empty()) {
+        return;
+    }
+
+    animationClipboard_.poses.reserve(sourceIndices.size());
+
+    for (int32_t jointIndex : sourceIndices) {
+        if (jointIndex < 0 ||
+            jointIndex >= static_cast<int32_t>(skeleton.joints.size()) ||
+            !pose_.HasValidJoint(jointIndex)) {
+            continue;
+        }
+
+        const std::string& boneName = skeleton.joints[jointIndex].name;
+        const auto& currentPose = pose_.GetJointPose(jointIndex);
+
+        AnimationClipboard::PoseEntry entry{};
+        entry.translate = currentPose.translate;
+        entry.rotate = currentPose.rotate;
+        entry.scale = currentPose.scale;
+
+        auto animIt = clipDocument_.GetAnimation().nodeAnimations.find(boneName);
+        if (animIt != clipDocument_.GetAnimation().nodeAnimations.end()) {
+            const NodeAnimation& na = animIt->second;
+
+            auto findTranslate = std::find_if(
+                na.translate.keyframes.begin(),
+                na.translate.keyframes.end(),
+                [&](const KeyframeVector3& key) {
+                    return std::abs(key.time - editorTime_) < 0.001f;
+                });
+            if (findTranslate != na.translate.keyframes.end()) {
+                entry.translate = findTranslate->value;
+            }
+
+            auto findRotate = std::find_if(
+                na.rotate.keyframes.begin(),
+                na.rotate.keyframes.end(),
+                [&](const KeyframeQuaternion& key) {
+                    return std::abs(key.time - editorTime_) < 0.001f;
+                });
+            if (findRotate != na.rotate.keyframes.end()) {
+                entry.rotate = findRotate->value;
+            }
+
+            auto findScale = std::find_if(
+                na.scale.keyframes.begin(),
+                na.scale.keyframes.end(),
+                [&](const KeyframeVector3& key) {
+                    return std::abs(key.time - editorTime_) < 0.001f;
+                });
+            if (findScale != na.scale.keyframes.end()) {
+                entry.scale = findScale->value;
+            }
+        }
+
+        animationClipboard_.poses.push_back(entry);
+    }
+
+    animationClipboard_.hasValue = !animationClipboard_.poses.empty();
+}
+
+void AnimationEditorSession::PasteAnimationSelection_(Object3d& target, const Model::Skeleton& skeleton) {
+    if (!animationClipboard_.hasValue || animationClipboard_.poses.empty()) {
+        return;
+    }
+
+    std::vector<int32_t> targetIndices = jointSelectionState_.selectedIndices;
+    if (targetIndices.empty()) {
+        if (selectedJointIndex_ >= 0 &&
+            selectedJointIndex_ < static_cast<int32_t>(skeleton.joints.size()) &&
+            pose_.HasValidJoint(selectedJointIndex_)) {
+            targetIndices.push_back(selectedJointIndex_);
+        }
+    }
+
+    if (targetIndices.empty()) {
+        return;
+    }
+
+    PushAnimationUndo_(CaptureAnimationHistory_());
+
+    const size_t applyCount = std::min(targetIndices.size(), animationClipboard_.poses.size());
+    for (size_t i = 0; i < applyCount; ++i) {
+        const int32_t jointIndex = targetIndices[i];
+        if (jointIndex < 0 ||
+            jointIndex >= static_cast<int32_t>(skeleton.joints.size()) ||
+            !pose_.HasValidJoint(jointIndex)) {
+            continue;
+        }
+
+        const auto& entry = animationClipboard_.poses[i];
+
+        pose_.SetJointTranslate(jointIndex, entry.translate);
+        pose_.SetJointRotateQuaternion(jointIndex, entry.rotate);
+        pose_.SetJointScale(jointIndex, entry.scale);
+
+        auto& nodeAnimation = clipDocument_.GetAnimation().nodeAnimations[skeleton.joints[jointIndex].name];
+        UpsertKeyAtTime(nodeAnimation.translate.keyframes, editorTime_, entry.translate);
+        UpsertKeyAtTime(nodeAnimation.rotate.keyframes, editorTime_, entry.rotate);
+        UpsertKeyAtTime(nodeAnimation.scale.keyframes, editorTime_, entry.scale);
+    }
+
+    SetAnimationDirty_(true);
+    SampleClipAtCurrentTime_(target, skeleton);
+}
+
+void AnimationEditorSession::CopyCameraState_(Camera& target, CameraAnimator& animator) {
+    cameraClipboard_.hasValue = false;
+    cameraClipboard_.position = target.GetTranslate();
+    cameraClipboard_.rotation = target.GetRotate();
+    cameraClipboard_.fov = target.GetFovY();
+
+    for (const auto& key : animator.GetKeyframes()) {
+        if (std::abs(key.time - animator.GetCurrentTime()) < 0.001f) {
+            cameraClipboard_.position = key.pos;
+            cameraClipboard_.rotation = key.rot;
+            cameraClipboard_.fov = key.fov;
+            break;
+        }
+    }
+
+    cameraClipboard_.hasValue = true;
+}
+
+void AnimationEditorSession::PasteCameraState_(Camera& target, CameraAnimator& animator) {
+    if (!cameraClipboard_.hasValue) {
+        return;
+    }
+
+    PushCameraUndo_(CaptureCameraHistory_(animator));
+
+    target.SetTranslate(cameraClipboard_.position);
+    target.SetRotate(cameraClipboard_.rotation);
+    target.SetFovY(cameraClipboard_.fov);
+    target.Update();
+
+    animator.AddOrUpdateKeyframe(animator.GetCurrentTime());
 }
 
 void AnimationEditorSession::EnsureEditorStateInitialized_(Object3d& target, Model::Skeleton& skeleton) {
@@ -1053,6 +1278,17 @@ void AnimationEditorSession::DrawHierarchyWindow_(Model::Skeleton& skeleton, con
     ImGui::Separator();
     ImGui::TextDisabled("Select from list or click in preview");
 
+    auto isJointSelected = [&](int jointIndex) {
+        return std::find(
+            jointSelectionState_.selectedIndices.begin(),
+            jointSelectionState_.selectedIndices.end(),
+            jointIndex) != jointSelectionState_.selectedIndices.end();
+    };
+
+    auto isActiveJoint = [&](int jointIndex) {
+        return jointSelectionState_.activeIndex == jointIndex;
+    };
+
     std::function<void(int)> drawBoneNode = [&](int jointIndex) {
         if (jointIndex < 0 || jointIndex >= static_cast<int>(skeleton.joints.size())) {
             return;
@@ -1069,15 +1305,75 @@ void AnimationEditorSession::DrawHierarchyWindow_(Model::Skeleton& skeleton, con
             nodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
         }
 
-        if (jointIndex == selectedJointIndex_) {
+        const bool selected = isJointSelected(jointIndex);
+        const bool active = isActiveJoint(jointIndex);
+
+        if (selected) {
             nodeFlags |= ImGuiTreeNodeFlags_Selected;
         }
 
         ImGui::PushID(jointIndex);
+        if (active) {
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.90f, 0.55f, 0.18f, 0.85f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.98f, 0.65f, 0.22f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.82f, 0.46f, 0.12f, 1.0f));
+        } else if (selected) {
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.24f, 0.52f, 0.88f, 0.70f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.30f, 0.60f, 0.96f, 0.85f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.22f, 0.48f, 0.82f, 0.95f));
+        }
         const bool opened = ImGui::TreeNodeEx(joint.name.c_str(), nodeFlags);
+        const bool treeItemClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        if (selected) {
+            ImGui::SameLine();
+            if (active) {
+                ImGui::TextColored(ImVec4(1.0f, 0.78f, 0.30f, 1.0f), "[Active]");
+            } else {
+                ImGui::TextColored(ImVec4(0.55f, 0.78f, 1.0f, 1.0f), "[Selected]");
+            }
+        }
 
-        if (ImGui::IsItemClicked()) {
-            selectedJointIndex_ = jointIndex;
+        if (treeItemClicked) {
+            const bool ctrlPressed = ImGui::GetIO().KeyCtrl;
+
+            if (ctrlPressed) {
+                if (jointSelectionState_.selectedIndices.empty() &&
+                    selectedJointIndex_ >= 0 &&
+                    selectedJointIndex_ < static_cast<int32_t>(skeleton.joints.size())) {
+                    jointSelectionState_.selectedIndices.push_back(selectedJointIndex_);
+                    if (jointSelectionState_.activeIndex < 0) {
+                        jointSelectionState_.activeIndex = selectedJointIndex_;
+                    }
+                }
+
+                auto it = std::find(
+                    jointSelectionState_.selectedIndices.begin(),
+                    jointSelectionState_.selectedIndices.end(),
+                    jointIndex);
+
+                if (it != jointSelectionState_.selectedIndices.end()) {
+                    jointSelectionState_.selectedIndices.erase(it);
+                    if (jointSelectionState_.activeIndex == jointIndex) {
+                        jointSelectionState_.activeIndex =
+                            jointSelectionState_.selectedIndices.empty()
+                            ? -1
+                            : jointSelectionState_.selectedIndices.back();
+                    }
+                } else {
+                    jointSelectionState_.selectedIndices.push_back(jointIndex);
+                    jointSelectionState_.activeIndex = jointIndex;
+                }
+            } else {
+                jointSelectionState_.selectedIndices.clear();
+                jointSelectionState_.selectedIndices.push_back(jointIndex);
+                jointSelectionState_.activeIndex = jointIndex;
+            }
+
+            selectedJointIndex_ = jointSelectionState_.activeIndex;
+        }
+
+        if (active || selected) {
+            ImGui::PopStyleColor(3);
         }
 
         if (opened && !joint.children.empty()) {
@@ -1110,32 +1406,50 @@ void AnimationEditorSession::DrawInspectorWindow_(Object3d& target, Model::Skele
         return;
     }
 
-    if (selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int32_t>(skeleton.joints.size())) {
+    int32_t inspectorJointIndex = selectedJointIndex_;
+    if (jointSelectionState_.activeIndex >= 0 &&
+        jointSelectionState_.activeIndex < static_cast<int32_t>(skeleton.joints.size())) {
+        inspectorJointIndex = jointSelectionState_.activeIndex;
+    }
+
+    if (inspectorJointIndex < 0 || inspectorJointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
         ImGui::TextWrapped("Select a bone from Hierarchy or click a joint in the preview.");
         ImGui::End();
         return;
     }
 
-    const Model::Joint& joint = skeleton.joints[selectedJointIndex_];
-    const AnimationEditorPose::JointPose& pose = pose_.GetJointPose(selectedJointIndex_);
-    const AnimationEditorPose::JointPose& bindPose = pose_.GetBindPose(selectedJointIndex_);
+    std::vector<int32_t> targetIndices = jointSelectionState_.selectedIndices;
+    if (targetIndices.empty()) {
+        targetIndices.push_back(inspectorJointIndex);
+    }
+
+    const Model::Joint& joint = skeleton.joints[inspectorJointIndex];
+    const AnimationEditorPose::JointPose& pose = pose_.GetJointPose(inspectorJointIndex);
+    const AnimationEditorPose::JointPose& bindPose = pose_.GetBindPose(inspectorJointIndex);
 
     Vector3 translation = pose.translate;
-    Vector3 rotation = pose_.GetJointRotationEulerDeg(selectedJointIndex_);
+    Vector3 rotation = pose_.GetJointRotationEulerDeg(inspectorJointIndex);
     Vector3 scale = pose.scale;
-    const Vector3 bindRotation = pose_.GetBindRotationEulerDeg(selectedJointIndex_);
+    const Vector3 bindRotation = pose_.GetBindRotationEulerDeg(inspectorJointIndex);
 
     ImGui::Text("Bone: %s", joint.name.c_str());
+    ImGui::Text("Selected Count: %d", static_cast<int>(targetIndices.size()));
+    if (targetIndices.size() > 1) {
+        ImGui::TextColored(ImVec4(0.55f, 0.78f, 1.0f, 1.0f), "Multi-edit mode");
+        ImGui::TextDisabled("Changes apply to all selected bones.");
+    } else {
+        ImGui::TextDisabled("Single bone edit");
+    }
     ImGui::Separator();
 
     ImGui::BeginDisabled(isTestingPlay_);
 
-    if (ImGui::Button("Reset To Bind Pose", ImVec2(-1.0f, 0.0f))) {
-        PushAnimationUndo_(CaptureAnimationHistory_());
-        pose_.ResetJointToBindPose(selectedJointIndex_);
-        SetAnimationDirty_(true);
-        ApplyCurrentPoseToTarget_(target, skeleton);
-    }
+      if (ImGui::Button("Reset To Bind Pose", ImVec2(-1.0f, 0.0f))) {
+          PushAnimationUndo_(CaptureAnimationHistory_());
+          pose_.ResetJointToBindPose(inspectorJointIndex);
+          SetAnimationDirty_(true);
+          ApplyCurrentPoseToTarget_(target, skeleton);
+      }
 
     if (ImGui::Button("Add Key (All Bones)", ImVec2(-1.0f, 0.0f))) {
         PushAnimationUndo_(CaptureAnimationHistory_());
@@ -1155,31 +1469,43 @@ void AnimationEditorSession::DrawInspectorWindow_(Object3d& target, Model::Skele
     bool changed = false;
     bool editCompleted = false;
 
-    if (ImGui::InputFloat3("Position", &translation.x, "%.3f")) {
-        if (!pendingAnimationInspectorHistory_.has_value()) {
-            pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
-        }
-        pose_.SetJointTranslate(selectedJointIndex_, translation);
-        changed = true;
-    }
+      if (ImGui::InputFloat3("Position", &translation.x, "%.3f")) {
+          if (!pendingAnimationInspectorHistory_.has_value()) {
+              pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
+          }
+          for (int32_t jointIndex : targetIndices) {
+              if (jointIndex >= 0 && pose_.HasValidJoint(jointIndex)) {
+                  pose_.SetJointTranslate(jointIndex, translation);
+              }
+          }
+          changed = true;
+      }
     editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
 
-    if (ImGui::InputFloat3("Rotation", &rotation.x, "%.3f")) {
-        if (!pendingAnimationInspectorHistory_.has_value()) {
-            pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
-        }
-        pose_.SetJointRotateEulerDeg(selectedJointIndex_, rotation);
-        changed = true;
-    }
+      if (ImGui::InputFloat3("Rotation", &rotation.x, "%.3f")) {
+          if (!pendingAnimationInspectorHistory_.has_value()) {
+              pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
+          }
+          for (int32_t jointIndex : targetIndices) {
+              if (jointIndex >= 0 && pose_.HasValidJoint(jointIndex)) {
+                  pose_.SetJointRotateEulerDeg(jointIndex, rotation);
+              }
+          }
+          changed = true;
+      }
     editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
 
-    if (ImGui::InputFloat3("Scale", &scale.x, "%.3f")) {
-        if (!pendingAnimationInspectorHistory_.has_value()) {
-            pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
-        }
-        pose_.SetJointScale(selectedJointIndex_, scale);
-        changed = true;
-    }
+      if (ImGui::InputFloat3("Scale", &scale.x, "%.3f")) {
+          if (!pendingAnimationInspectorHistory_.has_value()) {
+              pendingAnimationInspectorHistory_ = CaptureAnimationHistory_();
+          }
+          for (int32_t jointIndex : targetIndices) {
+              if (jointIndex >= 0 && pose_.HasValidJoint(jointIndex)) {
+                  pose_.SetJointScale(jointIndex, scale);
+              }
+          }
+          changed = true;
+      }
     editCompleted = editCompleted || ImGui::IsItemDeactivatedAfterEdit();
 
     if (changed) {
@@ -1690,10 +2016,30 @@ void AnimationEditorSession::RecordCurrentPoseAsKeyframe_(const Model::Skeleton&
     clipDocument_.SetDuration(editorMaxDuration_);
     Animation& editedAnim = clipDocument_.GetAnimation();
 
-    const size_t jointCount = std::min(pose_.GetJointCount(), skeleton.joints.size());
-    for (size_t i = 0; i < jointCount; ++i) {
-        const std::string& boneName = skeleton.joints[i].name;
-        const auto& pose = pose_.GetJointPose(static_cast<int32_t>(i));
+    std::vector<int32_t> targetIndices = jointSelectionState_.selectedIndices;
+    if (targetIndices.empty()) {
+        if (selectedJointIndex_ >= 0 &&
+            selectedJointIndex_ < static_cast<int32_t>(skeleton.joints.size()) &&
+            pose_.HasValidJoint(selectedJointIndex_)) {
+            targetIndices.push_back(selectedJointIndex_);
+        } else {
+            const size_t jointCount = std::min(pose_.GetJointCount(), skeleton.joints.size());
+            targetIndices.reserve(jointCount);
+            for (size_t i = 0; i < jointCount; ++i) {
+                targetIndices.push_back(static_cast<int32_t>(i));
+            }
+        }
+    }
+
+    for (int32_t jointIndex : targetIndices) {
+        if (jointIndex < 0 ||
+            jointIndex >= static_cast<int32_t>(skeleton.joints.size()) ||
+            !pose_.HasValidJoint(jointIndex)) {
+            continue;
+        }
+
+        const std::string& boneName = skeleton.joints[jointIndex].name;
+        const auto& pose = pose_.GetJointPose(jointIndex);
         auto& na = editedAnim.nodeAnimations[boneName];
 
         const Vector3 safePos = pose.translate;
@@ -1759,12 +2105,10 @@ void AnimationEditorSession::RecordCurrentPoseAsKeyframe_(const Model::Skeleton&
 void AnimationEditorSession::DeleteCurrentTimeKeyframe_() {
     Animation& editedAnim = clipDocument_.GetAnimation();
 
-    for (auto& pair : editedAnim.nodeAnimations) {
-        auto& na = pair.second;
-
+    auto eraseAtCurrentTime = [&](NodeAnimation& na) {
         auto isCurrentTime = [&](const auto& k) {
             return std::abs(k.time - editorTime_) < 0.001f;
-            };
+        };
 
         na.translate.keyframes.erase(
             std::remove_if(na.translate.keyframes.begin(), na.translate.keyframes.end(), isCurrentTime),
@@ -1777,6 +2121,29 @@ void AnimationEditorSession::DeleteCurrentTimeKeyframe_() {
         na.scale.keyframes.erase(
             std::remove_if(na.scale.keyframes.begin(), na.scale.keyframes.end(), isCurrentTime),
             na.scale.keyframes.end());
+    };
+
+    if (!jointSelectionState_.selectedIndices.empty()) {
+        std::vector<std::string> selectedBoneNames;
+        selectedBoneNames.reserve(jointSelectionState_.selectedIndices.size());
+        for (int32_t jointIndex : jointSelectionState_.selectedIndices) {
+            if (jointIndex >= 0 && historyAnimationTarget_ && historyAnimationTarget_->GetSkeleton() &&
+                jointIndex < static_cast<int32_t>(historyAnimationTarget_->GetSkeleton()->joints.size())) {
+                selectedBoneNames.push_back(historyAnimationTarget_->GetSkeleton()->joints[jointIndex].name);
+            }
+        }
+
+        for (const std::string& boneName : selectedBoneNames) {
+            auto it = editedAnim.nodeAnimations.find(boneName);
+            if (it != editedAnim.nodeAnimations.end()) {
+                eraseAtCurrentTime(it->second);
+            }
+        }
+    } else {
+        for (auto& pair : editedAnim.nodeAnimations) {
+            auto& na = pair.second;
+            eraseAtCurrentTime(na);
+        }
     }
 
     OutputDebugStringA("Keyframe Deleted!\n");

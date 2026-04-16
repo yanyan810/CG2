@@ -90,7 +90,7 @@ private:
 
 	//プレビュー用
 	std::array<std::array<char, 128>, 5> debugActivatedLinesUtf8_ = { {
-	"10回復",
+					"10回復",
 "10回復",
 "10回復",
 "10回復",
@@ -99,11 +99,11 @@ private:
 		} };
 
 	std::array<std::array<char, 128>, 5> debugTurnStartLinesUtf8_ = { {
-		"",
-		"",
-		"",
-		"",
-		""
+			"10回復",
+"10回復",
+"10回復",
+"10回復",
+"10回復",
 	} };
 
 	int debugActivatedLineCount_ = 5;

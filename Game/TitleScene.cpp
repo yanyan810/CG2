@@ -144,8 +144,8 @@ void TitleScene::Update(GameApp& app, float dt) {
 	//3D更新
 	skyDome_->Update(dt);
 
-	/*if (fieldUi_) {
-		fieldUi_->SetEditCardId(debugCardId_);
+	if (fieldUi_) {
+	/*	fieldUi_->SetEditCardId(debugCardId_);
 
 		fieldUi_->SetDebugPokerPreviewVisible(showPokerPreview_);
 
@@ -153,8 +153,8 @@ void TitleScene::Update(GameApp& app, float dt) {
 		fieldUi_->SetDebugImageCardDescVisible(showDebugCardDesc_);
 		fieldUi_->SetDebugImageCardDescCard(debugDef);
 		ApplyDebugPokerPreviewData_();
-		fieldUi_->Update(app, battle_);
-	}*/
+		fieldUi_->Update(app, battle_);*/
+	}
 
 }
 
@@ -197,9 +197,9 @@ void TitleScene::Draw2D(GameApp& app) {
 	}
 
 	//デバッグ用
-	if (fieldUi_) {
-		fieldUi_->Draw(app, battle_);
-	}
+	//if (fieldUi_) {
+	//	fieldUi_->Draw(app, battle_);
+	//}
 
 	//--------------------------------------------------------
 	// 円形マスク描画
@@ -232,17 +232,65 @@ void TitleScene::DrawImGui(GameApp& app) {
 	ImGui::Separator();
 	ImGui::Text("Debug Poker Preview Text");
 
-	ImGui::DragInt("Activated Line Count", &debugActivatedLineCount_, 1.0f, 0, 5);
-	ImGui::DragInt("TurnStart Line Count", &debugTurnStartLineCount_, 1.0f, 0, 5);
+	bool previewTextChanged = false;
+
+	previewTextChanged |= ImGui::Checkbox("Show Poker Preview", &showPokerPreview_);
+
+	previewTextChanged |= ImGui::DragInt("Activated Line Count", &debugActivatedLineCount_, 1.0f, 0, 5);
+	previewTextChanged |= ImGui::DragInt("TurnStart Line Count", &debugTurnStartLineCount_, 1.0f, 0, 5);
+
+	ImGui::Separator();
+	ImGui::Text("Activated Lines");
 
 	for (int i = 0; i < 5; ++i) {
-		std::string label = "Activated Line " + std::to_string(i);
-		ImGui::InputText(label.c_str(), debugActivatedLinesUtf8_[i].data(), debugActivatedLinesUtf8_[i].size());
+		std::string label = "Activated Line " + std::to_string(i + 1);
+		previewTextChanged |= ImGui::InputText(
+			label.c_str(),
+			debugActivatedLinesUtf8_[i].data(),
+			debugActivatedLinesUtf8_[i].size()
+		);
 	}
 
+	if (ImGui::Button("Fill Activated: 10回復 x5")) {
+		for (int i = 0; i < 5; ++i) {
+			strcpy_s(debugActivatedLinesUtf8_[i].data(), debugActivatedLinesUtf8_[i].size(), "10回復");
+		}
+		debugActivatedLineCount_ = 5;
+		previewTextChanged = true;
+	}
+
+	ImGui::Separator();
+	ImGui::Text("Turn Start Lines");
+
 	for (int i = 0; i < 5; ++i) {
-		std::string label = "TurnStart Line " + std::to_string(i);
-		ImGui::InputText(label.c_str(), debugTurnStartLinesUtf8_[i].data(), debugTurnStartLinesUtf8_[i].size());
+		std::string label = "TurnStart Line " + std::to_string(i + 1);
+		previewTextChanged |= ImGui::InputText(
+			label.c_str(),
+			debugTurnStartLinesUtf8_[i].data(),
+			debugTurnStartLinesUtf8_[i].size()
+		);
+	}
+
+	if (ImGui::Button("Fill TurnStart: 10回復 x5")) {
+		for (int i = 0; i < 5; ++i) {
+			strcpy_s(debugTurnStartLinesUtf8_[i].data(), debugTurnStartLinesUtf8_[i].size(), "10回復");
+		}
+		debugTurnStartLineCount_ = 5;
+		previewTextChanged = true;
+	}
+
+	if (ImGui::Button("Clear All Preview Lines")) {
+		for (int i = 0; i < 5; ++i) {
+			debugActivatedLinesUtf8_[i][0] = '\0';
+			debugTurnStartLinesUtf8_[i][0] = '\0';
+		}
+		debugActivatedLineCount_ = 0;
+		debugTurnStartLineCount_ = 0;
+		previewTextChanged = true;
+	}
+
+	if (previewTextChanged) {
+		ApplyDebugPokerPreviewData_();
 	}
 
 	ImGui::End();
