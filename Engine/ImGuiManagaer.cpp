@@ -23,6 +23,21 @@ void ImGuiManagaer::Initialize([[maybe_unused]]WinApp* winApp, [[maybe_unused]] 
         ImGui::StyleColorsDark();
     }
 
+    ImGuiIO& io = ImGui::GetIO();
+
+    ImFontConfig fontConfig{};
+    fontConfig.OversampleH = 2;
+    fontConfig.OversampleV = 2;
+    fontConfig.PixelSnapH = false;
+
+    ImFont* jpFont = io.Fonts->AddFontFromFileTTF(
+        "resources/fonts/MPLUS1-Regular.otf",
+        18.0f,
+        &fontConfig,
+        io.Fonts->GetGlyphRangesJapanese()
+    );
+    assert(jpFont != nullptr && "Japanese font load failed");
+
     // Win32 backend（既にあればInitしない）
     if (ImGui::GetIO().BackendPlatformUserData == nullptr) {
         ImGui_ImplWin32_Init(winApp_->GetHwnd());

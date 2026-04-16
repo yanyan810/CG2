@@ -6,6 +6,7 @@
 #include "TestScene.h"
 #include "GameOverScene.h"
 #include "GameClearScene.h"
+#include "TutorialScene.h"
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
@@ -102,8 +103,10 @@ namespace {
 bool GameApp::Initialize_() {
 	OutputDebugStringA("[GameApp] Initialize START\n");
 
-	win_ = std::make_unique<WinApp>();
-	win_->Initialize();
+    TextSprite::InitFontSystem();
+
+    win_ = std::make_unique<WinApp>();
+    win_->Initialize();
 
 	dx_ = std::make_unique<DirectXCommon>();
 	dx_->Initialize(win_.get());
@@ -156,16 +159,17 @@ bool GameApp::Initialize_() {
 	Audio::GetInstance()->Initialize();
 	AudioManager::GetInstance()->LoadAllConfigs("resources/configs/audioSettings.json");
 
-	// SceneManager
-	sceneMgr_ = std::make_unique<SceneManager>();
-	sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
-	sceneMgr_->Register("DeckEdit", [] { return std::make_unique<DeckEditScene>(); });
-	sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
-	sceneMgr_->Register("Test", [] { return std::make_unique<TestScene>();  });
-	sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  });
+    // SceneManager
+    sceneMgr_ = std::make_unique<SceneManager>();
+    sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
+    sceneMgr_->Register("DeckEdit", [] { return std::make_unique<DeckEditScene>(); });
+    sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
+    sceneMgr_->Register("Test", [] { return std::make_unique<TestScene>();  }); 
+    sceneMgr_->Register("Tutorial", [] { return std::make_unique<TutorialScene>();  });
+    sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  }); 
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
 
-	sceneMgr_->Change(*this, "Game");
+    sceneMgr_->Change(*this, "Title");
 
 	// デフォルトデッキ
 	for (int i = 0; i < 2; i++) {

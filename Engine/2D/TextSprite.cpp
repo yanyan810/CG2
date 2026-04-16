@@ -13,6 +13,7 @@
 
 int TextSprite::s_nextId_ = 0;
 
+const wchar_t* kFontName = L"M PLUS 1";
 
 namespace {
 
@@ -32,12 +33,75 @@ namespace {
 
 }
 
+bool TextSprite::LoadPrivateFont_()
+{
+    if (privateFontLoaded_) {
+        return true;
+    }
+
+    if (fontFilePath_.empty()) {
+        return false;
+    }
+
+    int result = AddFontResourceExW(fontFilePath_.c_str(), FR_PRIVATE, 0);
+    if (result == 0) {
+        OutputDebugStringW((L"[TextSprite] AddFontResourceExW failed: " + fontFilePath_ + L"\n").c_str());
+        return false;
+    }
+
+    privateFontLoaded_ = true;
+    return true;
+}
+
+void TextSprite::SetFontFilePath(const std::wstring& path)
+{
+    fontFilePath_ = path;
+    privateFontLoaded_ = false;
+    RebuildTexture_();
+}
+
+void TextSprite::SetFontFaceName(const std::wstring& faceName)
+{
+    fontFaceName_ = faceName;
+    RebuildTexture_();
+}
+
+void TextSprite::SetFontSize(int size)
+{
+    fontSize_ = size;
+    RebuildTexture_();
+}
+
+void TextSprite::InitFontSystem() {
+    static bool initialized = false;
+    if (initialized) return;
+
+    AddFontResourceExW(
+        L"resources/fonts/MPLUS1-Regular.otf",
+        FR_PRIVATE,
+        0
+    );
+
+    initialized = true;
+}
+
 void TextSprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx)
 {
+
+    static bool s_fontLoaded = false;
+
+    if (!s_fontLoaded) {
+        AddFontResourceExW(L"resources/fonts/MPLUS1-Regular.otf", FR_PRIVATE, 0);
+        s_fontLoaded = true;
+    }
+
     spriteCommon_ = spriteCommon;
     dx_ = dx;
 
     textureKey_ = "__ui_text_" + std::to_string(s_nextId_++) + "__";
+
+    // 追加
+    LoadPrivateFont_();
 
     sprite_ = std::make_unique<Sprite>();
     sprite_->Initialize(spriteCommon_, dx_, textureKey_);
@@ -46,7 +110,6 @@ void TextSprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx)
 
     RebuildTexture_();
 }
-
 void TextSprite::SetText(const std::wstring& text)
 {
     if (text_ == text) {
@@ -73,6 +136,8 @@ void TextSprite::Draw()
         return;
     }
 
+    sprite_->SetColor({ 1.0f, 1.0f, 1.0f, alpha_ });
+
     sprite_->Draw();
 }
 
@@ -91,17 +156,20 @@ void TextSprite::RebuildTexture_()
     // -----------------------------
     // 1) まずフォントを作る
     // -----------------------------
+    LoadPrivateFont_();
+
     HFONT hFont = CreateFontW(
-        28, 0, 0, 0,
+        fontSize_, 0, 0, 0,
         FW_BOLD,
         FALSE, FALSE, FALSE,
         DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS,
+        OUT_TT_PRECIS,
         CLIP_DEFAULT_PRECIS,
         ANTIALIASED_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE,
-        L"Yu Gothic UI"
+        kFontName
     );
+
     if (!hFont) {
         return;
     }

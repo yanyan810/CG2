@@ -7,6 +7,7 @@
 #include "AudioManager.h"
 
 #include"CardInstance.h"
+#include "TextSprite.h"
 
 class CardDatabase;
 class WinApp;

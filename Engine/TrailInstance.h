@@ -60,9 +60,12 @@ public:
 
     void SetActive(bool active) { isActive_ = active; }
     bool IsActive() const { return isActive_; }
+    void SetIsPermanent(bool permanent) { isPermanent_ = permanent; }
+    bool IsPermanent() const { return isPermanent_; }
 
 private:
     std::deque<SwordSection> points_;
     TrailConfig config_;
     bool isActive_ = true;
+    bool isPermanent_ = false; // 追加：trueなら中身が空でも削除しない
 };

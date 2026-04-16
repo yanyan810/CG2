@@ -21,6 +21,8 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
     boostedPower_ = 0;
 
     isAlive_ = true;
+
+    particleManager_ = ModelParticleManager::GetInstance();
 }
 
 void Player::PlayAttackAnim(const Vector3& targetPos) {
@@ -64,6 +66,22 @@ void Player::Update(float dt) {
                 // 戻り・ダメージ終了で待機状態へ
                 animState_ = AnimState::Idle;
                 pos_ = basePos_;
+            }
+        }
+        if (trailInstance_) {
+            if (animState_ == AnimState::AttackForward) {
+                // 攻撃中：軌跡を出す
+                trailInstance_->SetActive(true);
+                // 毎フレーム新しい座標を覚えさせる
+                trailInstance_->Update(GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
+
+                particleManager_->Emit("sword_trail", GetWeaponTipPos(), 10);
+
+            } else {
+                // 攻撃終了後：SetActive(false) にすると TrailInstance 内で古い点から消えていく
+                trailInstance_->SetActive(false);
+                // isActive_がfalseの時も、Updateを呼ぶことで「古い点を消す」処理が進む
+                trailInstance_->Update(GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
             }
         }
     }
@@ -132,3 +150,35 @@ void Player::Damage(int damage)
     }
 }
 
+Vector3 Player::GetWeaponTipPos() {
+    // 高め（頭より上くらいまで上げる）
+    Vector3 baseOffset = { 0.0f, 2.5f, 0.0f };
+    float length = 6.0f;
+
+    float t = (animState_ == AnimState::AttackForward) ? (animTimer_ / animDuration_) : 1.0f;
+    float angle = -1.2f + (t * 2.4f);
+
+    Vector3 localTip = {
+        cosf(angle) * length,
+        baseOffset.y + sinf(angle) * 1.5f, // 少し斜めに振る
+        sinf(angle) * length
+    };
+    return Matrix4x4::TransformPos(localTip, model_->GetWorldMatrix());
+}
+
+Vector3 Player::GetWeaponBasePos() {
+    // 低め（膝くらいの高さまで下げる）
+    // TipとBaseのY座標の差が「軌跡の太さ」になります！
+    Vector3 baseOffset = { 0.0f, 0.5f, 0.0f };
+    float length = 3.0f; // 根元も少し外側に広げるとさらに太く見える
+
+    float t = (animState_ == AnimState::AttackForward) ? (animTimer_ / animDuration_) : 1.0f;
+    float angle = -1.2f + (t * 2.4f);
+
+    Vector3 localBase = {
+        cosf(angle) * length,
+        baseOffset.y,
+        sinf(angle) * length
+    };
+    return Matrix4x4::TransformPos(localBase, model_->GetWorldMatrix());
+}

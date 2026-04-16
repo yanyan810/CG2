@@ -12,7 +12,11 @@ struct Material
     float4x4 uvTransform;
 
     float shininess;
-    float3 _pad1;
+    
+    float glitterIntensity;
+    float timer;
+    
+    float _pad1;
 };
 
 struct DirectionalLight
@@ -64,6 +68,12 @@ ConstantBuffer<Camera> gCamera : register(b2);
 ConstantBuffer<PointLight> gPointLight : register(b3);
 ConstantBuffer<SpotLight> gSpotLight : register(b4);
 
+float3 ApplyGlitter(float3 baseColor, float2 uv, float intensity, float time)
+{
+    // 時間で色を点滅させる（タイマーが動いていればカード全体がチカチカするはず）
+    return baseColor + float3(sin(time * 5.0), 0, 0) * intensity;
+}
+
 // =====================
 // Pixel Shader
 // =====================
@@ -85,6 +95,8 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     output.color = gMaterial.color * tex;
 
+    output.color.rgb = ApplyGlitter(output.color.rgb, input.texcoord, gMaterial.glitterIntensity, gMaterial.timer);
+    
     if (gMaterial.enableLighting == 0)
         return output;
 
@@ -180,18 +192,21 @@ PixelShaderOutput main(VertexShaderOutput input)
     if (gMaterial.enableLighting == 11)
     {
         output.color.rgb = diffuseD + specularD;
+        output.color.rgb = ApplyGlitter(output.color.rgb, input.texcoord, gMaterial.glitterIntensity, gMaterial.timer);
         output.color.a = 1;
         return output;
     }
     if (gMaterial.enableLighting == 12)
     {
         output.color.rgb = diffuseP + specularP;
+        output.color.rgb = ApplyGlitter(output.color.rgb, input.texcoord, gMaterial.glitterIntensity, gMaterial.timer);
         output.color.a = 1;
         return output;
     }
     if (gMaterial.enableLighting == 13)
     {
         output.color.rgb = diffuseS + specularS;
+        output.color.rgb = ApplyGlitter(output.color.rgb, input.texcoord, gMaterial.glitterIntensity, gMaterial.timer);
         output.color.a = 1;
         return output;
     }
@@ -203,6 +218,8 @@ PixelShaderOutput main(VertexShaderOutput input)
         diffuseD + specularD +
         diffuseP + specularP +
         diffuseS + specularS;
+    
+    output.color.rgb = ApplyGlitter(output.color.rgb, input.texcoord, gMaterial.glitterIntensity, gMaterial.timer);
 
     output.color.a = gMaterial.color.a * tex.a;
     return output;

@@ -24,8 +24,8 @@ TrailInstance* TrailManager::CreateInstance() {
 
 void TrailManager::Update() {
     std::erase_if(instances_, [](const auto& instance) {
-        // 更新が止まって、かつ履歴がもう空（消えきった）なら削除
-        return !instance->IsActive() && instance->GetPoints().empty();
+        // 「常駐ではない」かつ「非アクティブ」かつ「空」の場合のみ削除
+        return !instance->IsPermanent() && !instance->IsActive() && instance->GetPoints().empty();
     });
 }
 

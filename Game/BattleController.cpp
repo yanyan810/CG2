@@ -630,6 +630,25 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	deck_ = prebuiltDeck_;
 	ShuffleDeck_();
 
+	if (useTutorialOpeningHand_) {
+		// 最初に引く5枚を deck の末尾に積むため、
+		// 先に同じカードがあれば軽く取り除く
+		for (const auto& fixedCard : tutorialOpeningHand_) {
+			auto it = std::find_if(deck_.begin(), deck_.end(),
+				[&](const CardInstance& c) {
+					return c.defId == fixedCard.defId;
+				});
+			if (it != deck_.end()) {
+				deck_.erase(it);
+			}
+		}
+
+		// DrawOne_ は back() を引くので、逆順で積む
+		for (auto it = tutorialOpeningHand_.rbegin(); it != tutorialOpeningHand_.rend(); ++it) {
+			deck_.push_back(*it);
+		}
+	}
+
 	hand_.clear();
 	discard_.clear();
 	field_.clear();
@@ -960,6 +979,7 @@ void BattleController::StartPlayerTurn_()
 				currentPoker_.rank
 			);
 
+			lastPokerTutorialResult_ = PokerTutorialResult::None;
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
 			pokerChoiceJustOpened_ = true;
 		}
@@ -1386,6 +1406,38 @@ void BattleController::RebuildFieldView_()
 		}
 	}
 
+	// 1. 今の役を評価
+	PokerHandResult result = EvaluatePokerHand_();
+
+	// 2. 役の強さに応じてキラキラの強さを決める
+	float intensity = 0.0f;
+	if (result.rank == PokerHandRank::None) {
+		intensity = 10.0f;
+	} else if (result.rank <= PokerHandRank::TwoPair) {
+		intensity = 10.3f;  // 弱い役：うっすら
+	} else if (result.rank <= PokerHandRank::FullHouse) {
+		intensity = 10.8f;  // 中堅の役：はっきり
+	} else {
+		intensity = 10.0f;  // 強い役：まばゆい！
+	}
+
+	// 3. 役に関係しているカードだけをハイライト（既存のマスクを利用）
+	std::array<bool, 5> mask = GetPokerHighlightMask_();
+
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		if (i < 5 && mask[i]) {
+			fieldViews_[i]->SetGlitter(intensity);
+
+			// ★応用：強い役の時は枠の色も豪華にする
+			if (result.rank >= PokerHandRank::Straight) {
+				fieldViews_[i]->SetFrameColor({ 1.0f, 0.9f, 0.2f, 1.0f }); // 金色
+			}
+		} else {
+			fieldViews_[i]->SetGlitter(0.0f);
+			fieldViews_[i]->ResetFrameColor();
+		}
+	}
+
 	fieldLayoutDirty_ = true;
 }
 
@@ -1491,9 +1543,9 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 	bool yTrig = input->IsKeyTrigger(DIK_Y);
 	bool nTrig = input->IsKeyTrigger(DIK_N);
-	bool key1Trig = input->IsKeyTrigger(DIK_1);
+	/*bool key1Trig = input->IsKeyTrigger(DIK_1);
 	bool key2Trig = input->IsKeyTrigger(DIK_2);
-	bool key3Trig = input->IsKeyTrigger(DIK_3);
+	bool key3Trig = input->IsKeyTrigger(DIK_3);*/
 
 	POINT mouse = input->GetMousePosition();
 
@@ -1550,6 +1602,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 		if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateNo)) {
 			pokerQuickPreviewVisible_ = false;
+			lastPokerTutorialResult_ = PokerTutorialResult::Skipped;
 			pokerChoiceState_ = PokerChoiceState::None;
 			return;
 		}
@@ -1605,29 +1658,30 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		} else if (PointInRect(mouse.x, mouse.y,
 			layout.effectRects[1].x, layout.effectRects[1].y,
 			layout.effectRects[1].w, layout.effectRects[1].h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
+			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
 		} else if (PointInRect(mouse.x, mouse.y,
 			layout.effectRects[2].x, layout.effectRects[2].y,
 			layout.effectRects[2].w, layout.effectRects[2].h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
+			pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
 		} else if (PointInRect(mouse.x, mouse.y,
 			layout.effectViewBoardRect.x, layout.effectViewBoardRect.y,
 			layout.effectViewBoardRect.w, layout.effectViewBoardRect.h)) {
 			pokerMouseChoice_ = PokerMouseChoice::EffectViewBoard;
 		}
 
-		if (key1Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
+		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
 			nextTurnAtkUp_ += bonus.atkUp;
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
 			pokerQuickPreviewVisible_ = false;
+			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
 			enemyWait_ = 1.0f;
 			return;
 		}
 
-		if (key2Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
+		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
 			DrawCards_(bonus.drawCount);
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
@@ -1638,11 +1692,12 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			return;
 		}
 
-		if (key3Trig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
+		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
 			pokerQuickPreviewVisible_ = false;
+			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 			cardState_ = CardInputState::ChoosingEnemyTarget;
 			pokerChoiceState_ = PokerChoiceState::None;
 			return;
@@ -2683,8 +2738,8 @@ int BattleController::GetPokerMouseChoiceIndex() const
 
 	case PokerMouseChoice::EffectBack:        return 0;
 	case PokerMouseChoice::EffectAtkUp:       return 1;
-	case PokerMouseChoice::EffectDraw:        return 2;
-	case PokerMouseChoice::EffectDamage:      return 3;
+	case PokerMouseChoice::EffectDamage:      return 2;
+	case PokerMouseChoice::EffectDraw:        return 3;
 	case PokerMouseChoice::EffectViewBoard:   return 4;
 
 	case PokerMouseChoice::ReturnFromBoard:   return 0;
@@ -2902,4 +2957,13 @@ void BattleController::UpdateHpGauges() {
 	playerBlockPredict_->SetScale({ 250.0f * predictedRatioBlock + offset,18.0f + (offset * 2.f), 1.0f });
 	playerBlockPredict_->SetPosition({ 80.f - offset,40.f - offset });
 
+}
+
+//=====================
+//チュートリアル用
+//=====================
+void BattleController::SetTutorialOpeningHand(const std::vector<CardInstance>& cards)
+{
+	tutorialOpeningHand_ = cards;
+	useTutorialOpeningHand_ = !cards.empty();
 }
