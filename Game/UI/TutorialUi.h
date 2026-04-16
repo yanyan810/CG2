@@ -24,7 +24,7 @@ public:
         const BattleController& battle);
 
 #ifdef USE_IMGUI
-    void DrawImGui();
+    void DrawImGui(TutorialManager& tutorial);
 #endif
 
     bool LoadLayout(const std::string& path);

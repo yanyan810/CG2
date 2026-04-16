@@ -1,5 +1,7 @@
 #pragma once
 #include <string>
+#include <unordered_map>
+
 class BattleController;
 
 class TutorialManager {
@@ -14,12 +16,10 @@ public:
         WaitEnemyTurn,
         ExplainPokerReady,
         ChoosePokerEffect,
-
         SkipPokerContinueTurn,
         SkipPokerEndTurn,
         SkipPokerWaitEnemyTurn,
         ViewingBoardFromPoker,
-
         EndAfterPoker,
         Finished
     };
@@ -41,7 +41,6 @@ public:
     void Initialize();
     void Reset();
     void Update(BattleController& battle);
-
     void NextStep();
 
     bool IsActive() const { return isActive_; }
@@ -51,9 +50,23 @@ public:
     TutorialStep GetStep() const { return step_; }
     FocusType GetFocusType() const;
 
+    bool LoadMessages(const std::string& path);
+
+    //文字用
+    void SetMessageForCurrentStep(const std::wstring& text);
+
+    void SetStepMessage(TutorialStep step, const std::wstring& text);
+    std::wstring GetStepMessage(TutorialStep step) const;
+
+    bool ReloadMessages();
+
 private:
     void UpdateMessage_();
     void Advance_();
+
+    static const char* StepToKey_(TutorialStep step);
+    std::wstring GetMessageFromTable_(TutorialStep step) const;
+    static std::wstring Utf8ToWString_(const std::string& s);
 
 private:
     TutorialStep step_ = TutorialStep::Intro;
@@ -62,4 +75,9 @@ private:
 
     bool sawEnemyTurn_ = false;
     bool skippedPokerOnce_ = false;
+
+    std::unordered_map<std::string, std::wstring> messageTable_;
+    std::string messagePath_ = "resources/ui/tutorial_messages.json";
+
+    std::unordered_map<int, std::wstring> overrideMessages_;
 };

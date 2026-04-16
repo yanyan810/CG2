@@ -1,7 +1,104 @@
 #include "TutorialManager.h"
 #include "BattleController.h"
+#include <fstream>
+#include <Windows.h>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+std::wstring TutorialManager::Utf8ToWString_(const std::string& s) {
+	if (s.empty()) {
+		return L"";
+	}
+
+	int sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+	if (sizeNeeded <= 0) {
+		return L"";
+	}
+
+	std::wstring result;
+	result.resize(sizeNeeded - 1);
+	MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, result.data(), sizeNeeded);
+	return result;
+}
+
+const char* TutorialManager::StepToKey_(TutorialStep step) {
+	switch (step) {
+	case TutorialStep::Intro: return "Intro";
+	case TutorialStep::HoverHand: return "HoverHand";
+	case TutorialStep::PlayCard: return "PlayCard";
+	case TutorialStep::ExplainEnergy: return "ExplainEnergy";
+	case TutorialStep::FillField: return "FillField";
+	case TutorialStep::EndPlayerTurn: return "EndPlayerTurn";
+	case TutorialStep::WaitEnemyTurn: return "WaitEnemyTurn";
+	case TutorialStep::ExplainPokerReady: return "ExplainPokerReady";
+	case TutorialStep::ChoosePokerEffect: return "ChoosePokerEffect";
+	case TutorialStep::SkipPokerContinueTurn: return "SkipPokerContinueTurn";
+	case TutorialStep::SkipPokerEndTurn: return "SkipPokerEndTurn";
+	case TutorialStep::SkipPokerWaitEnemyTurn: return "SkipPokerWaitEnemyTurn";
+	case TutorialStep::ViewingBoardFromPoker: return "ViewingBoardFromPoker";
+	case TutorialStep::EndAfterPoker: return "EndAfterPoker";
+	case TutorialStep::Finished: return "Finished";
+	default: return "";
+	}
+}
+
+bool TutorialManager::LoadMessages(const std::string& path) {
+	std::ifstream ifs(path);
+	if (!ifs.is_open()) {
+		return false;
+	}
+
+	json j;
+	ifs >> j;
+
+	messageTable_.clear();
+
+	if (!j.contains("messages") || !j["messages"].is_object()) {
+		return false;
+	}
+
+	for (auto it = j["messages"].begin(); it != j["messages"].end(); ++it) {
+		if (it.value().is_string()) {
+			messageTable_[it.key()] = Utf8ToWString_(it.value().get<std::string>());
+		}
+	}
+
+	return true;
+}
+
+std::wstring TutorialManager::GetMessageFromTable_(TutorialStep step) const {
+	const char* key = StepToKey_(step);
+	auto it = messageTable_.find(key);
+	if (it != messageTable_.end()) {
+		return it->second;
+	}
+	return L"";
+}
+
+void TutorialManager::SetMessageForCurrentStep(const std::wstring& text) {
+	message_ = text;
+}
+
+void TutorialManager::SetStepMessage(TutorialStep step, const std::wstring& text) {
+	overrideMessages_[static_cast<int>(step)] = text;
+
+	if (step_ == step) {
+		message_ = text;
+	}
+}
+
+std::wstring TutorialManager::GetStepMessage(TutorialStep step) const {
+	auto it = overrideMessages_.find(static_cast<int>(step));
+	if (it != overrideMessages_.end()) {
+		return it->second;
+	}
+
+	return L"";
+}
 
 void TutorialManager::Initialize() {
+	LoadMessages(messagePath_);
 	Reset();
 }
 
@@ -84,22 +181,24 @@ void TutorialManager::Update(BattleController& battle) {
 			return;
 		}
 
-		// 特殊効果UIが本当に閉じたら、発動したかスキップしたかを見る
+		// 特殊効果UIが閉じたら、実際の結果フラグで判定する
 		if (!battle.HasPokerChoiceUi()) {
+			auto result = battle.GetLastPokerTutorialResult();
 
-			// 発動した場合：場が消費されている
-			if (battle.GetFieldCount() == 0) {
+			if (result == BattleController::PokerTutorialResult::Activated) {
 				skippedPokerOnce_ = false;
-				sawEnemyTurn_ = !battle.IsPlayerTurn(); // もう敵ターンなら記録
+				sawEnemyTurn_ = !battle.IsPlayerTurn();
 				step_ = TutorialStep::EndAfterPoker;
-			}
-			// スキップした場合：まだ自分ターンで、場は残っている
-			else if (battle.IsPlayerTurn() && battle.GetFieldCount() == 5) {
+				battle.ClearLastPokerTutorialResult();
+				UpdateMessage_();
+				return;
+			} else if (result == BattleController::PokerTutorialResult::Skipped) {
 				skippedPokerOnce_ = true;
 				step_ = TutorialStep::SkipPokerContinueTurn;
+				battle.ClearLastPokerTutorialResult();
+				UpdateMessage_();
+				return;
 			}
-
-			UpdateMessage_();
 		}
 		break;
 
@@ -164,6 +263,19 @@ void TutorialManager::Advance_() {
 }
 
 void TutorialManager::UpdateMessage_() {
+	auto it = overrideMessages_.find(static_cast<int>(step_));
+	if (it != overrideMessages_.end() && !it->second.empty()) {
+		message_ = it->second;
+		return;
+	}
+
+	{
+		std::wstring jsonMessage = GetMessageFromTable_(step_);
+		if (!jsonMessage.empty()) {
+			message_ = jsonMessage;
+			return;
+		}
+	}
 	switch (step_) {
 	case TutorialStep::Intro:
 		message_ = L"チュートリアルです\n基本の流れを一通り確認しましょう";
@@ -224,7 +336,6 @@ void TutorialManager::UpdateMessage_() {
 	case TutorialStep::Finished:
 		message_ = L"チュートリアル完了です\n左クリックでタイトルに戻ります";
 		break;
-
 	}
 }
 
@@ -262,4 +373,12 @@ TutorialManager::FocusType TutorialManager::GetFocusType() const {
 	default:
 		return FocusType::None;
 	}
+}
+
+bool TutorialManager::ReloadMessages() {
+	bool ok = LoadMessages(messagePath_);
+	if (ok) {
+		UpdateMessage_(); // 今のstepの表示を即更新
+	}
+	return ok;
 }

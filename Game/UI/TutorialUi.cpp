@@ -14,6 +14,29 @@
 
 using json = nlohmann::json;
 
+
+static std::wstring Utf8ToWString(const std::string& s) {
+    if (s.empty()) return L"";
+
+    int size = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+    if (size <= 0) return L"";
+
+    std::wstring out(size - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, out.data(), size);
+    return out;
+}
+
+static std::string WStringToUtf8(const std::wstring& ws) {
+    if (ws.empty()) return "";
+
+    int size = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (size <= 0) return "";
+
+    std::string out(size - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, out.data(), size, nullptr, nullptr);
+    return out;
+}
+
 void TutorialUi::Initialize(GameApp& app)
 {
     bg_ = std::make_unique<Sprite>();
@@ -298,7 +321,7 @@ bool TutorialUi::LoadLayout(const std::string& path)
 }
 
 #ifdef USE_IMGUI
-void TutorialUi::DrawImGui()
+void TutorialUi::DrawImGui(TutorialManager& tutorial)
 {
     if (!ImGui::Begin("TutorialUi Layout")) {
         ImGui::End();
@@ -319,6 +342,78 @@ void TutorialUi::DrawImGui()
     ImGui::DragFloat4("handArea", &layout_.handArea.x, 1.0f);
     ImGui::DragFloat4("fieldArea", &layout_.fieldArea.x, 1.0f);
 
+    ImGui::Separator();
+    ImGui::Text("Tutorial Message Edit");
+
+    //static int editStep = 0;
+    //static bool initializedStep = false;
+
+    //if (!initializedStep) {
+    //    editStep = static_cast<int>(tutorial.GetStep());
+    //    initializedStep = true;
+    //}
+
+    //const char* stepNames[] = {
+    //    "Intro",
+    //    "HoverHand",
+    //    "PlayCard",
+    //    "ExplainEnergy",
+    //    "FillField",
+    //    "EndPlayerTurn",
+    //    "WaitEnemyTurn",
+    //    "ExplainPokerReady",
+    //    "ChoosePokerEffect",
+    //    "SkipPokerContinueTurn",
+    //    "SkipPokerEndTurn",
+    //    "SkipPokerWaitEnemyTurn",
+    //    "ViewingBoardFromPoker",
+    //    "EndAfterPoker",
+    //    "Finished"
+    //};
+
+    //ImGui::Combo("Step", &editStep, stepNames, IM_ARRAYSIZE(stepNames));
+
+    //static std::string editUtf8;
+    //static int loadedStep = -1;
+
+    //if (loadedStep != editStep) {
+    //    std::wstring src = tutorial.GetStepMessage(
+    //        static_cast<TutorialManager::TutorialStep>(editStep)
+    //    );
+
+    //    if (src.empty() && static_cast<int>(tutorial.GetStep()) == editStep) {
+    //        src = tutorial.GetMessage();
+    //    }
+
+    //    editUtf8 = WStringToUtf8(src);
+    //    loadedStep = editStep;
+    //}
+
+    //char buffer[2048]{};
+    //strncpy_s(buffer, editUtf8.c_str(), sizeof(buffer) - 1);
+
+    //if (ImGui::InputTextMultiline(
+    //    "MessageText",
+    //    buffer,
+    //    sizeof(buffer),
+    //    ImVec2(520, 140)
+    //)) {
+    //    editUtf8 = buffer;
+    //    tutorial.SetStepMessage(
+    //        static_cast<TutorialManager::TutorialStep>(editStep),
+    //        Utf8ToWString(editUtf8)
+    //    );
+    //}
+
+    //if (ImGui::Button("Apply To Current Step")) {
+    //    tutorial.SetStepMessage(
+    //        static_cast<TutorialManager::TutorialStep>(editStep),
+    //        Utf8ToWString(editUtf8)
+    //    );
+    //}
+
+    ImGui::Separator();
+
     if (ImGui::Button("Save TutorialUiLayout")) {
         SaveLayout(layoutPath_);
     }
@@ -326,6 +421,14 @@ void TutorialUi::DrawImGui()
     if (ImGui::Button("Load TutorialUiLayout")) {
         LoadLayout(layoutPath_);
     }
+
+    static std::string msgReloadResult = "none";
+
+    if (ImGui::Button("Reload Tutorial Messages")) {
+        bool ok = tutorial.ReloadMessages();
+        msgReloadResult = ok ? "Reload OK" : "Reload FAILED";
+    }
+    ImGui::Text("MessageReload: %s", msgReloadResult.c_str());
 
     ImGui::End();
 }

@@ -979,6 +979,7 @@ void BattleController::StartPlayerTurn_()
 				currentPoker_.rank
 			);
 
+			lastPokerTutorialResult_ = PokerTutorialResult::None;
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
 			pokerChoiceJustOpened_ = true;
 		}
@@ -1601,6 +1602,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 		if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateNo)) {
 			pokerQuickPreviewVisible_ = false;
+			lastPokerTutorialResult_ = PokerTutorialResult::Skipped;
 			pokerChoiceState_ = PokerChoiceState::None;
 			return;
 		}
@@ -1667,11 +1669,12 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			pokerMouseChoice_ = PokerMouseChoice::EffectViewBoard;
 		}
 
-		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
+		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
 			nextTurnAtkUp_ += bonus.atkUp;
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
 			pokerQuickPreviewVisible_ = false;
+			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 			pokerChoiceState_ = PokerChoiceState::None;
 			turn_ = TurnState::Enemy;
 			enemyWait_ = 1.0f;
@@ -1689,11 +1692,12 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			return;
 		}
 
-		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
+		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
 			pokerQuickPreviewVisible_ = false;
+			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 			cardState_ = CardInputState::ChoosingEnemyTarget;
 			pokerChoiceState_ = PokerChoiceState::None;
 			return;

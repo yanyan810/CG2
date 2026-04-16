@@ -256,8 +256,8 @@ void TutorialScene::DrawImGui(GameApp& app) {
         ImGui::End();
     }
 
-    if (tutorialUi_) {
-        tutorialUi_->DrawImGui();
+    if (tutorialUi_ && tutorial_) {
+        tutorialUi_->DrawImGui(*tutorial_);
     }
 
 #else
