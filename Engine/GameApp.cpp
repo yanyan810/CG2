@@ -103,6 +103,8 @@ namespace {
 bool GameApp::Initialize_() {
     OutputDebugStringA("[GameApp] Initialize START\n");
 
+    TextSprite::InitFontSystem();
+
     win_ = std::make_unique<WinApp>();
     win_->Initialize();
 

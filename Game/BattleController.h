@@ -60,6 +60,14 @@ public:
 		ReturnFromBoard,
 	};
 
+	//チュートリアル用
+	enum class PokerTutorialResult
+	{
+		None = 0,
+		Activated,
+		Skipped
+	};
+
 	void Initialize(GameApp& app, Camera* camera);
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
 	void Draw3D(GameApp& app);
@@ -200,13 +208,16 @@ public:
 
 	void SetTutorialOpeningHand(const std::vector<CardInstance>& cards);
 
+	PokerTutorialResult GetLastPokerTutorialResult() const { return lastPokerTutorialResult_; }
+	void ClearLastPokerTutorialResult() { lastPokerTutorialResult_ = PokerTutorialResult::None; }
+
 private:
 	//=====================
 	// チュートリアル用
 	//=====================
 	std::vector<CardInstance> tutorialOpeningHand_;
 	bool useTutorialOpeningHand_ = false;
-
+	PokerTutorialResult lastPokerTutorialResult_ = PokerTutorialResult::None;
 
 private:
 	enum class TurnState { Player, Enemy };

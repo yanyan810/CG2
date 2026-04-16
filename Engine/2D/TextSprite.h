@@ -17,13 +17,21 @@ public:
     void SetSize(const Vector3& size) { size_ = size; }
     void SetAlpha(float a) { alpha_ = a; }
 
+    // 追加
+    void SetFontFilePath(const std::wstring& path);
+    void SetFontFaceName(const std::wstring& faceName);
+    void SetFontSize(int size);
+
     void Update(const Matrix4x4& view, const Matrix4x4& proj);
     void Draw();
 
     bool HasText() const { return !text_.empty(); }
 
+    static void InitFontSystem();
+
 private:
     void RebuildTexture_();
+    bool LoadPrivateFont_();
 
 private:
     static int s_nextId_;
@@ -42,4 +50,10 @@ private:
 
     Vector2 position_{ 40.0f, 620.0f };
     Vector3 size_{ 350.0f, 120.0f, 1.0f };
+
+    // 追加
+    std::wstring fontFilePath_ = L"resources/fonts/MPLUS1-Regular.otf";
+    std::wstring fontFaceName_ = L"M PLUS 1";
+    int fontSize_ = 28;
+    bool privateFontLoaded_ = false;
 };
