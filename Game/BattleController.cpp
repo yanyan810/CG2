@@ -1405,6 +1405,38 @@ void BattleController::RebuildFieldView_()
 		}
 	}
 
+	// 1. 今の役を評価
+	PokerHandResult result = EvaluatePokerHand_();
+
+	// 2. 役の強さに応じてキラキラの強さを決める
+	float intensity = 0.0f;
+	if (result.rank == PokerHandRank::None) {
+		intensity = 10.0f;
+	} else if (result.rank <= PokerHandRank::TwoPair) {
+		intensity = 10.3f;  // 弱い役：うっすら
+	} else if (result.rank <= PokerHandRank::FullHouse) {
+		intensity = 10.8f;  // 中堅の役：はっきり
+	} else {
+		intensity = 10.0f;  // 強い役：まばゆい！
+	}
+
+	// 3. 役に関係しているカードだけをハイライト（既存のマスクを利用）
+	std::array<bool, 5> mask = GetPokerHighlightMask_();
+
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		if (i < 5 && mask[i]) {
+			fieldViews_[i]->SetGlitter(intensity);
+
+			// ★応用：強い役の時は枠の色も豪華にする
+			if (result.rank >= PokerHandRank::Straight) {
+				fieldViews_[i]->SetFrameColor({ 1.0f, 0.9f, 0.2f, 1.0f }); // 金色
+			}
+		} else {
+			fieldViews_[i]->SetGlitter(0.0f);
+			fieldViews_[i]->ResetFrameColor();
+		}
+	}
+
 	fieldLayoutDirty_ = true;
 }
 

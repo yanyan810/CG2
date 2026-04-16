@@ -305,6 +305,21 @@ void Card3D::Update(float dt)
 	if (frameColorDirty_) {
 		frame_->SetMaterialColor(frameColor_);
 	}
+
+	// キラキラ用タイマーを進める
+	glitterTimer_ += dt;
+
+	// フレーム（枠）のマテリアルを更新
+	if (frame_) {
+		// Object3dからマテリアル構造体を取得（ポインタ経由で直接書き換え）
+		auto* material = frame_->GetMaterial();
+		if (material) {
+			material->glitterIntensity = glitterIntensity_;
+			material->timer = glitterTimer_;
+		}
+	}
+
+	// 自身の更新を確定
 	frame_->Update(dt);
 
 	Vector3 artPos = pos_;
@@ -312,6 +327,15 @@ void Card3D::Update(float dt)
 	art_->SetTranslate(artPos);
 	art_->SetRotate(fixRot);
 	art_->SetScale(scale_);
+
+	if (art_) {
+		auto* material = art_->GetMaterial();
+		if (material) {
+			material->glitterIntensity = glitterIntensity_;
+			material->timer = glitterTimer_;
+		}
+	}
+
 	art_->Update(dt);
 
 	int mode = isHand_ ? 1 : 0;
@@ -437,7 +461,7 @@ void Card3D::Update(float dt)
 	transformDirty_ = false;
 	frameColorDirty_ = false;
 	hasSubmittedOnce_ = true;
-
+	
 }
 
 void Card3D::Draw()
