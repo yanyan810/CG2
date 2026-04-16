@@ -31,7 +31,7 @@ void ImGuiManagaer::Initialize([[maybe_unused]]WinApp* winApp, [[maybe_unused]] 
     fontConfig.PixelSnapH = false;
 
     ImFont* jpFont = io.Fonts->AddFontFromFileTTF(
-        "resources/fonts/MPLUS1-Regular.otf",
+        "resources/font/MPLUS1-Regular.otf",
         18.0f,
         &fontConfig,
         io.Fonts->GetGlyphRangesJapanese()
