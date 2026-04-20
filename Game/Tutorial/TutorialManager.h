@@ -60,6 +60,9 @@ public:
 
     bool ReloadMessages();
 
+    bool IsForceActivateOnly() const;
+    bool IsForceDamageOnly() const;
+
 private:
     void UpdateMessage_();
     void Advance_();

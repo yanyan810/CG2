@@ -1,0 +1,44 @@
+{
+    "battleButtonRect": {
+        "h": 120.0,
+        "w": 340.0,
+        "x": 320.0,
+        "y": 500.0
+    },
+    "battleButtonVisualPos": {
+        "x": 60.0,
+        "y": 507.0
+    },
+    "battleDescBgPos": {
+        "x": 760.0,
+        "y": 500.0
+    },
+    "battleDescText": {
+        "scale": 1.600000023841858,
+        "x": 760.0,
+        "y": 489.0
+    },
+    "titlePos": {
+        "x": 302.0,
+        "y": 80.0
+    },
+    "tutorialButtonRect": {
+        "h": 120.0,
+        "w": 340.0,
+        "x": 320.0,
+        "y": 224.0
+    },
+    "tutorialButtonVisualPos": {
+        "x": 115.0,
+        "y": 232.0
+    },
+    "tutorialDescBgPos": {
+        "x": 843.0,
+        "y": 300.0
+    },
+    "tutorialDescText": {
+        "scale": 1.600000023841858,
+        "x": 760.0,
+        "y": 205.0
+    }
+}

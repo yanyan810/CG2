@@ -166,12 +166,14 @@ void TutorialManager::Update(BattleController& battle) {
 		break;
 
 	case TutorialStep::ExplainPokerReady:
-		// 特殊効果UIが開いたら、次の説明へ自動で進む
-		if (battle.HasPokerChoiceUi()) {
+	{
+		// 特殊効果UIが開いている間はこのステップを維持
+		// 「発動する」を押して効果選択に入ったら次へ
+		if (battle.IsWaitingEffectChoice()) {
 			Advance_();
 		}
-
-		break;
+	}
+	break;
 
 	case TutorialStep::ChoosePokerEffect:
 		// 「場を見る」に入ったら、専用説明へ切り替える
@@ -234,16 +236,7 @@ void TutorialManager::Update(BattleController& battle) {
 		break;
 
 	case TutorialStep::EndAfterPoker:
-		// 発動後、敵ターンを確認して、次の自分ターンに戻ったら完了
-		if (!battle.IsPlayerTurn()) {
-			sawEnemyTurn_ = true;
-		}
-
-		if (sawEnemyTurn_ && battle.IsPlayerTurn()) {
-			step_ = TutorialStep::Finished;
-			UpdateMessage_();
-			return;
-		}
+		// 説明だけなので手動送り
 		break;
 
 	case TutorialStep::Finished:
@@ -306,11 +299,15 @@ void TutorialManager::UpdateMessage_() {
 		break;
 
 	case TutorialStep::ExplainPokerReady:
-		message_ = L"次の自分のターン開始時に\n役が成立していると\n特殊効果を発動できます";
+		message_ = L"今回は発動するを選びましょう";
 		break;
 
 	case TutorialStep::ChoosePokerEffect:
-		message_ = L"特殊効果を1つ選んで\n発動してみましょう";
+		message_ = L"ダメージを選んでみましょう";
+		break;
+
+	case TutorialStep::EndAfterPoker:
+		message_ = L"特殊効果が発動されました";
 		break;
 
 	case TutorialStep::ViewingBoardFromPoker:
@@ -329,14 +326,18 @@ void TutorialManager::UpdateMessage_() {
 		message_ = L"今は敵のターンです\n次の自分のターンになるまで\n特殊効果は再発動できません";
 		break;
 
-	case TutorialStep::EndAfterPoker:
-		message_ = L"発動したらターンが進みます\n敵のターンに入るのを確認しましょう";
-		break;
-
 	case TutorialStep::Finished:
 		message_ = L"チュートリアル完了です\n左クリックでタイトルに戻ります";
 		break;
 	}
+}
+
+bool TutorialManager::IsForceActivateOnly() const {
+	return step_ == TutorialStep::ExplainPokerReady;
+}
+
+bool TutorialManager::IsForceDamageOnly() const {
+	return step_ == TutorialStep::ChoosePokerEffect;
 }
 
 TutorialManager::FocusType TutorialManager::GetFocusType() const {

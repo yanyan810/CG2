@@ -58,6 +58,8 @@ public:
 	//数字用レイアウトのゲッター
 	const UiNumberLayout& GetUiNumberLayout() const { return numberLayout_; }
 
+	void SetForcedPokerHoverIndex(int index) { forcedPokerHoverIndex_ = index; }
+
 public:
 
 	//=======================
@@ -107,19 +109,12 @@ public:
 	void ClearDebugPokerPreviewData();
 
 private:
-	void ApplyPokerOptionImageLayout_(const BattleController& battle);
+
 	void ApplyFieldUiLayout_();
 	void SetTextScale_(TextSprite* text, float s);
 
 	bool LoadUiNumberLayout(const std::string& path);
 	bool SaveUiNumberLayout(const std::string& path) const;
-
-	std::string GetTriggerImagePath_(SubEffectTrigger trigger) const;
-	std::string GetRankImagePath_(BattleController::PokerHandRank rank) const;
-	std::string GetConditionSuffixImagePath_(const CardSubEffectDef& sub) const;
-	std::string GetEffectTypeImagePath_(const CardEffectDef& effect) const;
-	std::string GetEffectTargetImagePath_(const CardEffectDef& effect) const;
-	std::string GetEffectParticleImagePath_(const CardEffectDef& effect) const;
 
 	//カード説明のカスタムレイアウト関連
 	const UiCardDescCustomLayout& GetCardDescCustomLayout_(int cardId) const;
@@ -128,56 +123,7 @@ private:
 	const UiCustomDescImageLayout& GetCustomDescImageLayout_(int cardId) const;
 	UiCustomDescImageLayout& GetOrCreateCustomDescImageLayout_(int cardId);
 
-	//プレビュー用を画像にする
-	void UpdatePokerPreviewImageCommands_(const BattleController& battle);
-	void DrawPokerPreviewImageCommands_(const Matrix4x4& view, const Matrix4x4& proj);
-	void HidePokerPreviewImageCommands_();
-
-	void UpdatePreviewCardImageDesc_(const BattleController& battle);
-	void HidePreviewCardImageDesc_();
-	void DrawPreviewCardImageDesc_(const Matrix4x4& view, const Matrix4x4& proj);
-
-	void DrawCardDescSingleImage_(int cardId, const std::string& path);
-
-	//デバッグ用
-	void UpdatePreviewCardImageDescFromDef_(const CardDef* def, const BattleController* battle = nullptr);
-
-
 private:
-
-	struct PreviewImageCommand {
-		std::string texturePath;
-		Vector2 position{};
-		Vector3 scale{ 1.0f, 1.0f, 1.0f };
-		Vector4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
-		std::unique_ptr<Sprite> sprite;
-	};
-
-	void AddPreviewImageCommand_(
-		const std::string& texturePath,
-		float x, float y,
-		float sx = 1.0f, float sy = 1.0f,
-		Vector4 color = { 1.0f,1.0f,1.0f,1.0f });
-
-	void AddImageCommandTo_(
-		std::vector<PreviewImageCommand>& commands,
-		const std::string& texturePath,
-		float x, float y,
-		float sx, float sy,
-		Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
-
-	void AddNumberCommandsTo_(
-		std::vector<PreviewImageCommand>& commands,
-		int value,
-		float x, float y,
-		float scale,
-		float spacing);
-
-	void AddPreviewNumberCommands_(
-		int value,
-		float x, float y,
-		float scale,
-		float spacing);
 
 	//==================================
 	// UI文字と背景スプライト。頻繁に更新されるものはポインタを保持、カード説明テキストはキャッシュから都度取得。
@@ -194,11 +140,6 @@ private:
 
 	std::unique_ptr<TextSprite> clickChoiceText_;
 	std::unique_ptr<TextSprite> endTurnButtonText_;
-
-	std::unique_ptr<Sprite> pokerTitleImage_;
-	std::array<std::unique_ptr<Sprite>, 5> pokerOptionImageSprites_;
-	std::unique_ptr<Sprite> pokerInfoButtonImage_;
-	std::unique_ptr<Sprite> pokerPreviewTitleImage_;
 
 	std::unique_ptr<Sprite> deckLabelImage_; //デッキ
 	std::unique_ptr<Sprite> discardLabelImage_; //墓地
@@ -236,6 +177,7 @@ private:
 
 	bool showPokerOptions_ = false;
 	int pokerHoverIndex_ = -1;
+	int forcedPokerHoverIndex_ = -1;
 	int pokerOptionCount_ = 0;
 	bool showDescBg_ = false;
 
@@ -269,10 +211,6 @@ private:
 	// 特殊効果3択の数値表示用
 	std::array<std::array<std::unique_ptr<Sprite>, kMaxUiDigits>, 3> pokerEffectValueDigits_;
 
-	std::vector<PreviewImageCommand> previewImageCommands_;
-	std::vector<PreviewImageCommand> pokerPreviewImageCommands_;
-
-
 	//========================
 	// デバッグ用
 	//========================
@@ -292,14 +230,6 @@ private:
 
 
 	DebugPokerPreviewData debugPokerPreviewData_;
-
-	void UpdatePokerPreviewImageCommandsFromDebugData_();
-	void AddActivatedPreviewLineFromText_(
-		std::vector<PreviewImageCommand>& cmds,
-		const std::wstring& line,
-		float baseX, float baseY,
-		const UiPokerPreviewPatternSet& patterns,
-		float noneScale);
 
 private:
 	static std::wstring Utf8ToWString_(const std::string& s);
