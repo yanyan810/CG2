@@ -2,6 +2,7 @@
 #include "GameApp.h"
 #include "Input.h"
 #include "ModelParticleManager.h"
+#include "AnimationJsonSerializer.h"
 #include <random>
 #include <filesystem>
 #include <algorithm>
@@ -62,6 +63,40 @@ void GameScene::OnEnter(GameApp& app) {
 	player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
 	player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
 	player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+
+#ifndef _DEBUG
+	if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
+		struct CustomAnimationFile {
+			const char* path;
+			const char* name;
+		};
+
+		static const CustomAnimationFile kCustomAnimationFiles[] = {
+			{ "resources/CustomAnim/CustomAnim.json", "CustomAnim" },
+			{ "resources/CustomAnim/CustomAnim_attack_1.json", "CustomAnim_attack_1" },
+			{ "resources/CustomAnim/CustomAnim_attack_2.json", "CustomAnim_attack_2" },
+			{ "resources/CustomAnim/CustomAnim_attack_3.json", "CustomAnim_attack_3" },
+		};
+
+		bool loadedDefaultCustomAnim = false;
+		for (const auto& customAnimationFile : kCustomAnimationFiles) {
+			Animation animation{};
+			if (!AnimationJsonSerializer::LoadFromJson(customAnimationFile.path, animation)) {
+				continue;
+			}
+
+			player_->GetObject3d()->GetModel()->AddAnimation(customAnimationFile.name, animation);
+			if (std::string(customAnimationFile.name) == "CustomAnim") {
+				loadedDefaultCustomAnim = true;
+			}
+		}
+
+		if (loadedDefaultCustomAnim) {
+			player_->GetObject3d()->PlayAnimation("CustomAnim", true);
+		}
+	}
+#endif
+
 	animationEditTarget_ = player_ ? player_->GetObject3d() : nullptr;
 	cameraEditTarget_ = animCamera_.get();
 
