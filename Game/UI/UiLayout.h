@@ -307,6 +307,22 @@ struct UiNumberLayout {
     UiNumberRelative effectValue[3];
 };
 
+struct StageSelectLayout {
+    UiVec2 titlePos{ 470.0f, 80.0f };
+
+    UiRect tutorialButtonRect{ 320.0f, 300.0f, 340.0f, 120.0f };
+    UiRect battleButtonRect{ 320.0f, 500.0f, 340.0f, 120.0f };
+
+    UiVec2 tutorialButtonVisualPos{ 320.0f, 300.0f };
+    UiVec2 battleButtonVisualPos{ 320.0f, 500.0f };
+
+    UiVec2 tutorialDescBgPos{ 760.0f, 300.0f };
+    UiVec2 battleDescBgPos{ 760.0f, 500.0f };
+
+    UiText tutorialDescText{ 780.0f, 325.0f, 1.0f };
+    UiText battleDescText{ 780.0f, 525.0f, 1.0f };
+};
+
 inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 {
     PokerEffectChoiceLayout l{};

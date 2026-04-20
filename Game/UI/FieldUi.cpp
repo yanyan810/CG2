@@ -28,295 +28,6 @@ std::wstring FieldUi::Utf8ToWString_(const std::string& s)
 	return Utf8ToWStringLocal(s);
 }
 
-void FieldUi::AddImageCommandTo_(
-	std::vector<PreviewImageCommand>& commands,
-	const std::string& texturePath,
-	float x, float y,
-	float sx, float sy,
-	Vector4 color)
-{
-	if (texturePath.empty() || !app_) {
-		return;
-	}
-
-	PreviewImageCommand cmd;
-	cmd.texturePath = texturePath;
-	cmd.position = { x, y };
-	cmd.scale = { sx, sy, 1.0f };
-	cmd.color = color;
-
-	cmd.sprite = std::make_unique<Sprite>();
-	cmd.sprite->Initialize(app_->SpriteCom(), app_->Dx(), texturePath);
-	cmd.sprite->SetAnchorPointKeepingVisual({ 0.0f, 0.0f });
-
-	// ⭐ これが超重要
-	commands.push_back(std::move(cmd));
-}
-
-
-void FieldUi::AddPreviewImageCommand_(
-	const std::string& texturePath,
-	float x, float y,
-	float sx, float sy,
-	Vector4 color)
-{
-	AddImageCommandTo_(previewImageCommands_, texturePath, x, y, sx, sy, color);
-}
-
-void FieldUi::AddNumberCommandsTo_(
-	std::vector<PreviewImageCommand>& commands,
-	int value,
-	float x, float y,
-	float scale,
-	float spacing)
-{
-	std::string text = std::to_string(std::max(0, value));
-
-	for (int i = 0; i < static_cast<int>(text.size()); ++i) {
-		std::string path = "resources/ui/num/";
-		path += text[i];
-		path += ".png";
-
-		AddImageCommandTo_(
-			commands,
-			path,
-			x + spacing * i,
-			y,
-			scale,
-			scale,
-			{ 1,1,1,1 }
-		);
-	}
-}
-
-void FieldUi::AddPreviewNumberCommands_(
-	int value,
-	float x, float y,
-	float scale,
-	float spacing)
-{
-	std::string text = std::to_string(std::max(0, value));
-	for (int i = 0; i < static_cast<int>(text.size()); ++i) {
-		std::string path = "resources/ui/num/";
-		path += text[i];
-		path += ".png";
-
-		AddPreviewImageCommand_(
-			path,
-			x + spacing * i,
-			y,
-			scale,
-			scale,
-			{ 1.0f,1.0f,1.0f,1.0f }
-		);
-	}
-}
-
-void FieldUi::UpdatePokerPreviewImageCommands_(const BattleController& battle)
-{
-	pokerPreviewImageCommands_.clear();
-	auto& cmds = pokerPreviewImageCommands_;
-	const auto& p = pokerEffectLayout_.previewImages;
-
-	{
-		std::string rankPath = GetRankImagePath_(battle.GetCurrentPokerRankForUi());
-		AddImageCommandTo_(cmds, rankPath,
-			p.rank.x, p.rank.y,
-			p.rank.scale, p.rank.scale,
-			{ 1,1,1,1 });
-	}
-
-	AddImageCommandTo_(cmds, "resources/ui/text/attakUp.png",
-		p.atkLabel.x, p.atkLabel.y,
-		p.atkLabel.scale, p.atkLabel.scale,
-		{ 1,1,1,1 });
-
-	AddNumberCommandsTo_(cmds, battle.GetCurrentPokerBonusForUi().atkUp,
-		p.atkValue.x, p.atkValue.y,
-		p.atkValue.scale, p.atkValue.spacing);
-
-	AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
-		p.drawLabel.x, p.drawLabel.y,
-		p.drawLabel.scale, p.drawLabel.scale,
-		{ 1,1,1,1 });
-
-	AddNumberCommandsTo_(cmds, battle.GetCurrentPokerBonusForUi().drawCount,
-		p.drawValue.x, p.drawValue.y,
-		p.drawValue.scale, p.drawValue.spacing);
-
-	AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
-		p.damageLabel.x, p.damageLabel.y,
-		p.damageLabel.scale, p.damageLabel.scale,
-		{ 1,1,1,1 });
-
-	AddNumberCommandsTo_(cmds, battle.GetCurrentPokerBonusForUi().damage,
-		p.damageValue.x, p.damageValue.y,
-		p.damageValue.scale, p.damageValue.spacing);
-
-	AddImageCommandTo_(cmds, "resources/ui/text/startTurn.png",
-		p.turnStartLabel.x, p.turnStartLabel.y,
-		p.turnStartLabel.scale, p.turnStartLabel.scale,
-		{ 1,1,1,1 });
-
-	auto turnStartLines = battle.CollectSubEffectPreviewLines_(
-		SubEffectTrigger::OnTurnStartWithPoker,
-		battle.GetCurrentPokerRankForUi()
-	);
-
-	if (turnStartLines.empty()) {
-		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
-			p.turnStartNoneLabel.x, p.turnStartNoneLabel.y,
-			p.turnStartNoneLabel.scale, p.turnStartNoneLabel.scale,
-			{ 1,1,1,1 });
-	} else {
-		const int maxLines = (std::min)(static_cast<int>(turnStartLines.size()), 5);
-		for (int i = 0; i < maxLines; ++i) {
-			const auto kind = ClassifyPreviewEffectKind_(turnStartLines[i]);
-			const auto& anchor = GetPreviewEffectAnchor_(kind, p.turnStartEffectAnchors, i);
-
-			AddActivatedPreviewLineFromText_(
-				cmds,
-				turnStartLines[i],
-				anchor.x,
-				anchor.y,
-				p.turnStartPatterns,
-				p.turnStartNoneLabel.scale);
-		}
-	}
-
-	AddImageCommandTo_(cmds, "resources/ui/text/specialEffectsActivat.png",
-		p.activatedLabel.x, p.activatedLabel.y,
-		p.activatedLabel.scale, p.activatedLabel.scale,
-		{ 1,1,1,1 });
-
-	auto pokerActivatedLines = battle.CollectSubEffectPreviewLines_(
-		SubEffectTrigger::OnPokerSkillActivated,
-		battle.GetCurrentPokerRankForUi()
-	);
-
-	if (pokerActivatedLines.empty()) {
-		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
-			p.activatedNoneLabel.x, p.activatedNoneLabel.y,
-			p.activatedNoneLabel.scale, p.activatedNoneLabel.scale,
-			{ 1,1,1,1 });
-	} else {
-		const int maxLines = (std::min)(static_cast<int>(pokerActivatedLines.size()), 5);
-		for (int i = 0; i < maxLines; ++i) {
-			const auto kind = ClassifyPreviewEffectKind_(pokerActivatedLines[i]);
-			const auto& anchor = GetPreviewEffectAnchor_(kind, p.activatedEffectAnchors, i);
-
-			AddActivatedPreviewLineFromText_(
-				cmds,
-				pokerActivatedLines[i],
-				anchor.x,
-				anchor.y,
-				p.activatedPatterns,
-				p.activatedNoneLabel.scale);
-		}
-	}
-}
-
-void FieldUi::UpdatePokerPreviewImageCommandsFromDebugData_()
-{
-	pokerPreviewImageCommands_.clear();
-	auto& cmds = pokerPreviewImageCommands_;
-	const auto& p = pokerEffectLayout_.previewImages;
-	const auto& d = debugPokerPreviewData_;
-
-	// 役名
-	{
-		std::string rankPath = GetRankImagePath_(d.rank);
-		AddImageCommandTo_(cmds, rankPath,
-			p.rank.x, p.rank.y,
-			p.rank.scale, p.rank.scale,
-			{ 1,1,1,1 });
-	}
-
-	// ATK UP
-	AddImageCommandTo_(cmds, "resources/ui/text/attakUp.png",
-		p.atkLabel.x, p.atkLabel.y,
-		p.atkLabel.scale, p.atkLabel.scale,
-		{ 1,1,1,1 });
-
-	AddNumberCommandsTo_(cmds, d.atkUp,
-		p.atkValue.x, p.atkValue.y,
-		p.atkValue.scale, p.atkValue.spacing);
-
-	// Draw
-	AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
-		p.drawLabel.x, p.drawLabel.y,
-		p.drawLabel.scale, p.drawLabel.scale,
-		{ 1,1,1,1 });
-
-	AddNumberCommandsTo_(cmds, d.draw,
-		p.drawValue.x, p.drawValue.y,
-		p.drawValue.scale, p.drawValue.spacing);
-
-	// Damage
-	AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
-		p.damageLabel.x, p.damageLabel.y,
-		p.damageLabel.scale, p.damageLabel.scale,
-		{ 1,1,1,1 });
-
-	AddNumberCommandsTo_(cmds, d.damage,
-		p.damageValue.x, p.damageValue.y,
-		p.damageValue.scale, p.damageValue.spacing);
-
-	// ターン開始時
-	AddImageCommandTo_(cmds, "resources/ui/text/startTurn.png",
-		p.turnStartLabel.x, p.turnStartLabel.y,
-		p.turnStartLabel.scale, p.turnStartLabel.scale,
-		{ 1,1,1,1 });
-
-	if (d.turnStartLines.empty()) {
-		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
-			p.turnStartNoneLabel.x, p.turnStartNoneLabel.y,
-			p.turnStartNoneLabel.scale, p.turnStartNoneLabel.scale,
-			{ 1,1,1,1 });
-	} else {
-		const int maxLines = (std::min)(static_cast<int>(d.turnStartLines.size()), 5);
-		for (int i = 0; i < maxLines; ++i) {
-			const auto kind = ClassifyPreviewEffectKind_(d.turnStartLines[i]);
-			const auto& anchor = GetPreviewEffectAnchor_(kind, p.turnStartEffectAnchors, i);
-
-			AddActivatedPreviewLineFromText_(
-				cmds,
-				d.turnStartLines[i],
-				anchor.x,
-				anchor.y,
-				p.turnStartPatterns,
-				p.turnStartNoneLabel.scale);
-		}
-	}
-
-	// 特殊効果発動時
-	AddImageCommandTo_(cmds, "resources/ui/text/specialEffectsActivat.png",
-		p.activatedLabel.x, p.activatedLabel.y,
-		p.activatedLabel.scale, p.activatedLabel.scale,
-		{ 1,1,1,1 });
-
-	if (d.activatedLines.empty()) {
-		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
-			p.activatedNoneLabel.x, p.activatedNoneLabel.y,
-			p.activatedNoneLabel.scale, p.activatedNoneLabel.scale,
-			{ 1,1,1,1 });
-	} else {
-		const int maxLines = (std::min)(static_cast<int>(d.activatedLines.size()), 5);
-		for (int i = 0; i < maxLines; ++i) {
-			const auto kind = ClassifyPreviewEffectKind_(d.activatedLines[i]);
-			const auto& anchor = GetPreviewEffectAnchor_(kind, p.activatedEffectAnchors, i);
-
-			AddActivatedPreviewLineFromText_(
-				cmds,
-				d.activatedLines[i],
-				anchor.x,
-				anchor.y,
-				p.activatedPatterns,
-				p.activatedNoneLabel.scale);
-		}
-	}
-}
-
 FieldUi::PokerPreviewEffectKind FieldUi::ClassifyPreviewEffectKind_(const std::wstring& line) const
 {
 	if (line.find(L"敵単体に") != std::wstring::npos &&
@@ -367,113 +78,6 @@ const UiPokerPreviewLineAnchor& FieldUi::GetPreviewEffectAnchor_(
     }
 }
 
-void FieldUi::AddActivatedPreviewLineFromText_(
-	std::vector<PreviewImageCommand>& cmds,
-	const std::wstring& line,
-	float baseX, float baseY,
-	const UiPokerPreviewPatternSet& patterns,
-	float noneScale)
-{
-	std::wstring digits;
-	for (wchar_t ch : line) {
-		if (ch >= L'0' && ch <= L'9') {
-			digits.push_back(ch);
-		}
-	}
-
-	int value = 0;
-	if (!digits.empty()) {
-		value = std::stoi(digits);
-	}
-
-	if (line.find(L"敵単体に") != std::wstring::npos &&
-		line.find(L"ダメージ") != std::wstring::npos) {
-
-		const auto& pat = patterns.singleDamage;
-
-		AddImageCommandTo_(cmds, "resources/ui/text/enemySingle.png",
-			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-
-		AddNumberCommandsTo_(cmds, value,
-			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
-			pat.numberScale, pat.numberSpacing);
-
-		AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
-			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
-			baseY + pat.suffixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-	} else if (line.find(L"敵全体に") != std::wstring::npos &&
-		line.find(L"ダメージ") != std::wstring::npos) {
-
-		const auto& pat = patterns.allDamage;
-
-		AddImageCommandTo_(cmds, "resources/ui/text/enemyAll.png",
-			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-
-		AddNumberCommandsTo_(cmds, value,
-			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
-			pat.numberScale, pat.numberSpacing);
-
-		AddImageCommandTo_(cmds, "resources/ui/text/damage.png",
-			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
-			baseY + pat.suffixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-	} else if (line.find(L"枚引く") != std::wstring::npos) {
-
-		const auto& pat = patterns.draw;
-
-		// 数字（3など）
-		AddNumberCommandsTo_(cmds, value,
-			baseX + pat.numberOffsetX,
-			baseY + pat.numberOffsetY,
-			pat.numberScale, pat.numberSpacing);
-
-		// ドロー画像
-		AddImageCommandTo_(cmds, "resources/ui/text/draw.png",
-			baseX + pat.numberOffsetX +
-			pat.numberSpacing * static_cast<float>(digits.size()) +
-			pat.suffixOffsetX,
-			baseY + pat.suffixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-	} else if (line.find(L"回復") != std::wstring::npos) {
-
-		const auto& pat = patterns.heal;
-
-		AddImageCommandTo_(cmds, "resources/ui/text/self.png",
-			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-
-		AddNumberCommandsTo_(cmds, value,
-			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
-			pat.numberScale, pat.numberSpacing);
-
-		AddImageCommandTo_(cmds, "resources/ui/text/heal.png",
-			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
-			baseY + pat.suffixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-	} else if (line.find(L"ブロック") != std::wstring::npos) {
-
-		const auto& pat = patterns.block;
-
-		AddImageCommandTo_(cmds, "resources/ui/text/self.png",
-			baseX + pat.prefixOffsetX, baseY + pat.prefixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-
-		AddNumberCommandsTo_(cmds, value,
-			baseX + pat.numberOffsetX, baseY + pat.numberOffsetY,
-			pat.numberScale, pat.numberSpacing);
-
-		AddImageCommandTo_(cmds, "resources/ui/text/block.png",
-			baseX + pat.numberOffsetX + pat.numberSpacing * static_cast<float>(digits.size()) + pat.suffixOffsetX,
-			baseY + pat.suffixOffsetY,
-			pat.labelScale, pat.labelScale, { 1,1,1,1 });
-	} else {
-		AddImageCommandTo_(cmds, "resources/ui/text/nasi.png",
-			baseX, baseY, noneScale, noneScale, { 1,1,1,1 });
-	}
-}
 
 void FieldUi::SetTextScale_(TextSprite* text, float s)
 {
@@ -481,93 +85,6 @@ void FieldUi::SetTextScale_(TextSprite* text, float s)
 	text->SetSize({ s, s, 1.0f });
 }
 
-void FieldUi::ApplyPokerOptionImageLayout_(const BattleController& battle)
-{
-	if (pokerTitleImage_) {
-		pokerTitleImage_->SetPosition({
-			pokerEffectLayout_.titleImage.x,
-			pokerEffectLayout_.titleImage.y
-			});
-	}
-
-	if (battle.IsWaitingActivateChoice()) {
-		if (pokerOptionImageSprites_[0]) {
-			pokerOptionImageSprites_[0]->SetPosition({
-				pokerEffectLayout_.activateYesImage.x,
-				pokerEffectLayout_.activateYesImage.y
-				});
-		}
-		if (pokerOptionImageSprites_[1]) {
-			pokerOptionImageSprites_[1]->SetPosition({
-				pokerEffectLayout_.activateNoImage.x,
-				pokerEffectLayout_.activateNoImage.y
-				});
-		}
-		if (pokerOptionImageSprites_[2]) {
-			pokerOptionImageSprites_[2]->SetPosition({
-				pokerEffectLayout_.activateViewBoardImage.x,
-				pokerEffectLayout_.activateViewBoardImage.y
-				});
-		}
-	}
-
-	if (battle.IsWaitingEffectChoice()) {
-		if (pokerOptionImageSprites_[0]) {
-			pokerOptionImageSprites_[0]->SetPosition({
-				pokerEffectLayout_.backImage.x,
-				pokerEffectLayout_.backImage.y
-				});
-		}
-		if (pokerOptionImageSprites_[1]) {
-			pokerOptionImageSprites_[1]->SetPosition({
-				pokerEffectLayout_.effectImages[0].x,
-				pokerEffectLayout_.effectImages[0].y
-				});
-		}
-		if (pokerOptionImageSprites_[2]) {
-			pokerOptionImageSprites_[2]->SetPosition({
-				pokerEffectLayout_.effectImages[1].x,
-				pokerEffectLayout_.effectImages[1].y
-				});
-		}
-		if (pokerOptionImageSprites_[3]) {
-			pokerOptionImageSprites_[3]->SetPosition({
-				pokerEffectLayout_.effectImages[2].x,
-				pokerEffectLayout_.effectImages[2].y
-				});
-		}
-		if (pokerOptionImageSprites_[4]) {
-			pokerOptionImageSprites_[4]->SetPosition({
-				pokerEffectLayout_.effectViewBoardImage.x,
-				pokerEffectLayout_.effectViewBoardImage.y
-				});
-		}
-	}
-
-	if (pokerInfoButtonImage_) {
-		pokerInfoButtonImage_->SetPosition({
-			pokerEffectLayout_.infoButtonImage.x,
-			pokerEffectLayout_.infoButtonImage.y
-			});
-		pokerInfoButtonImage_->SetScale({
-			pokerEffectLayout_.infoButtonImage.scale,
-			pokerEffectLayout_.infoButtonImage.scale,
-			1.0f
-			});
-	}
-
-	if (pokerPreviewTitleImage_) {
-		pokerPreviewTitleImage_->SetPosition({
-			pokerEffectLayout_.previewPanelTitleImage.x,
-			pokerEffectLayout_.previewPanelTitleImage.y
-			});
-		pokerPreviewTitleImage_->SetScale({
-			pokerEffectLayout_.previewPanelTitleImage.scale,
-			pokerEffectLayout_.previewPanelTitleImage.scale,
-			1.0f
-			});
-	}
-}
 void FieldUi::ApplyFieldUiLayout_()
 {
 
@@ -732,13 +249,13 @@ void FieldUi::UpdatePokerEffectValueSprites_(const BattleController& battle)
 
 	const BattleController::PokerBonus bonus = battle.GetCurrentPokerBonusForUi();
 
-	// 画像の並びに合わせる
-	// effect[0] = draw
+	// 表示順に合わせる
+	// effect[0] = atkUp
 	// effect[1] = damage
-	// effect[2] = atkUp
-	int effect1Value = bonus.drawCount;
+	// effect[2] = draw
+	int effect1Value = bonus.atkUp;
 	int effect2Value = bonus.damage;
-	int effect3Value = bonus.atkUp;
+	int effect3Value = bonus.drawCount;
 
 	UpdateNumberSprites_(pokerEffectValueDigits_[0], effect1Value,
 		pokerEffectLayout_.effectImages[0].x + numberLayout_.effectValue[0].offsetX,
@@ -757,434 +274,9 @@ void FieldUi::UpdatePokerEffectValueSprites_(const BattleController& battle)
 		pokerEffectLayout_.effectImages[2].y + numberLayout_.effectValue[2].offsetY,
 		numberLayout_.effectValue[2].scale,
 		numberLayout_.effectValue[2].spacing);
-
 }
 
-std::string FieldUi::GetTriggerImagePath_(SubEffectTrigger trigger) const
-{
-	switch (trigger) {
-	case SubEffectTrigger::OnTurnStartWithPoker:
-		return "resources/ui/text/startTurn.png";
-	case SubEffectTrigger::OnPokerSkillActivated:
-		return "resources/ui/text/specialEffectsActivat.png";
-	case SubEffectTrigger::OnPlayToField:
-		return "resources/ui/text/playerField.png";
-	default:
-		return "";
-	}
-}
 
-std::string FieldUi::GetRankImagePath_(BattleController::PokerHandRank rank) const
-{
-	switch (rank) {
-	case BattleController::PokerHandRank::OnePair:            return "resources/ui/text/onePair.png";
-	case BattleController::PokerHandRank::TwoPair:            return "resources/ui/text/twoPair.png";
-	case BattleController::PokerHandRank::ThreeOfAKind:       return "resources/ui/text/threeCard.png";
-	case BattleController::PokerHandRank::Straight:           return "resources/ui/text/straightType.png";
-	case BattleController::PokerHandRank::Flush:              return "resources/ui/text/flashType.png";
-	case BattleController::PokerHandRank::FullHouse:          return "resources/ui/text/fullHouse.png";
-	case BattleController::PokerHandRank::FourOfAKind:        return "resources/ui/text/fourCard.png";
-	case BattleController::PokerHandRank::StraightFlush:      return "resources/ui/text/straightFlash.png";
-	case BattleController::PokerHandRank::RoyalStraightFlush: return "resources/ui/text/RoyalStraightFlush.png";
-	default: return "";
-	}
-}
-
-std::string FieldUi::GetConditionSuffixImagePath_(const CardSubEffectDef& sub) const
-{
-	switch (sub.condition.type) {
-	case SubEffectConditionType::ExactRank:
-	case SubEffectConditionType::RankFamily:
-		return "resources/ui/text/inTheCase.png";
-
-	case SubEffectConditionType::AtLeastRank:
-		return "resources/ui/text/inTheAboveCases.png";
-
-	default:
-		return "";
-	}
-}
-
-std::string FieldUi::GetEffectTypeImagePath_(const CardEffectDef& effect) const
-{
-	if (effect.type == "Damage" || effect.type == "DamageAll" || effect.type == "SelfDamage") {
-		return "resources/ui/text/damage.png";
-	}
-	if (effect.type == "Draw") return "resources/ui/text/draw.png";
-	if (effect.type == "Heal") return "resources/ui/text/heal.png";
-	if (effect.type == "Block") return "resources/ui/text/block.png";
-	if (effect.type == "NextTurnAtkUp") return "resources/ui/text/nextTurnATKUP.png";
-	if (effect.type == "PowerBoost")   return "resources/ui/text/power.png";
-	if (effect.type == "EnergyCharge") return "resources/ui/text/cost.png";
-	if (effect.type == "DamageByBlock") return "resources/ui/text/damage.png";
-
-	return "";
-}
-
-std::string FieldUi::GetEffectTargetImagePath_(const CardEffectDef& effect) const
-{
-	//対象あり
-	if (effect.type == "Damage")       return "resources/ui/text/enemySingle.png";
-	if (effect.type == "DamageAll")    return "resources/ui/text/enemyAll.png";
-	if (effect.type == "SelfDamage")   return "resources/ui/text/self.png";
-	if (effect.type == "Heal")         return "resources/ui/text/self.png";
-	if (effect.type == "Block")        return "resources/ui/text/self.png";
-	if (effect.type == "DamageByBlock") return "resources/ui/text/enemySingle.png";
-
-	//対象なし
-	if (effect.type == "Draw")         return "";
-	if (effect.type == "NextTurnAtkUp")return "";
-	if (effect.type == "PowerBoost")   return "";
-	if (effect.type == "EnergyCharge") return "";
-
-	return "";
-}
-
-std::string FieldUi::GetEffectParticleImagePath_(const CardEffectDef& effect) const
-{
-	// 対象あり
-	if (effect.type == "SelfDamage")   return "resources/ui/text/ha.png";
-	if (effect.type == "DamageByBlock") return "resources/ui/text/ni.png";
-
-
-	// 対象なし
-	if (effect.type == "Draw")         return "";
-	if (effect.type == "NextTurnAtkUp")return "";
-	if (effect.type == "PowerBoost")   return "";
-	if (effect.type == "EnergyCharge") return "";
-
-	return "resources/ui/text/ni.png";
-}
-
-void FieldUi::DrawCardDescSingleImage_(int cardId, const std::string& path)
-{
-	const auto& custom = GetCustomDescImageLayout_(cardId);
-
-	AddPreviewImageCommand_(
-		path,
-		custom.x,
-		custom.y,
-		custom.scaleX,
-		custom.scaleY,
-		{ 1.0f, 1.0f, 1.0f, 1.0f }
-	);
-}
-
-void FieldUi::HidePreviewCardImageDesc_()
-{
-	previewImageCommands_.clear();
-}
-
-void FieldUi::UpdatePreviewCardImageDesc_(const BattleController& battle)
-{
-	UpdatePreviewCardImageDescFromDef_(battle.GetPreviewCardDef(), &battle);
-}
-
-void FieldUi::UpdatePreviewCardImageDescFromDef_(const CardDef* def, const BattleController* battle)
-{
-	previewImageCommands_.clear();
-
-	if (!def) {
-		return;
-	}
-
-	const float baseX = layout_.cardDescText.x;
-	const float baseY = layout_.cardDescText.y;
-	const auto& custom = GetCardDescCustomLayout_(def->id);
-	const auto& img = layout_.cardDescImage;
-
-	// =========================
-// 基本効果タイトル
-// =========================
-	AddPreviewImageCommand_(
-		"resources/ui/text/basicEffect.png",
-		baseX + custom.titleBasicEffect.x,
-		baseY + custom.titleBasicEffect.y,
-		custom.titleBasicEffect.scale,
-		custom.titleBasicEffect.scale
-	);
-
-	// 特殊カード（専用画像）
-	if (def->id == 6 || def->id == 17 || def->id == 18 || def->id == 19) {
-		// 区切り線だけは通常カードと同じように出す
-		AddPreviewImageCommand_(
-			"resources/ui/white.png",
-			baseX + custom.separator.x,
-			baseY + custom.separator.y,
-			img.separatorWidth,
-			img.separatorHeight,
-			{ 1.0f, 1.0f, 1.0f, 0.75f }
-		);
-
-		if (def->id == 6) {
-			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_6.png");
-		} else if (def->id == 17) {
-			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_17.png");
-		} else if (def->id == 18) {
-			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_18.png");
-		} else if (def->id == 19) {
-			DrawCardDescSingleImage_(def->id, "resources/ui/card_desc/desc_19.png");
-		}
-		return;
-	}
-
-	// =========================
-	// 基本効果
-	// =========================
-	const int baseEffectCount = (std::min)(static_cast<int>(def->effects.size()), 3);
-	for (int i = 0; i < baseEffectCount; ++i) {
-		const auto& effect = def->effects[i];
-		const int displayValue = battle
-			? battle->GetDisplayEffectValue(effect, true)
-			: effect.value;
-		const auto& row = custom.baseRows[i];
-
-		const std::string targetPath = GetEffectTargetImagePath_(effect);
-		const std::string particlePath = GetEffectParticleImagePath_(effect);
-		const std::string effectPath = GetEffectTypeImagePath_(effect);
-
-		float cursorX = baseX + row.target.x;
-
-		const float gap = 10.0f;
-		const float targetAdvance = 170.0f;
-		const float particleAdvance = 45.0f;
-		const float effectTypeAdvance = 185.0f;
-		const float numberYOffset = -18.0f;
-
-		if (!targetPath.empty()) {
-			AddPreviewImageCommand_(
-				targetPath,
-				cursorX,
-				baseY + row.target.y,
-				row.target.scale,
-				row.target.scale
-			);
-			cursorX += targetAdvance + gap;
-		}
-
-		if (!particlePath.empty()) {
-			AddPreviewImageCommand_(
-				particlePath,
-				cursorX + row.particle.x,
-				baseY + row.particle.y,
-				row.particle.scale,
-				row.particle.scale
-			);
-			cursorX += particleAdvance + gap;
-		}
-
-		if (effect.type == "DamageByBlock") {
-			AddPreviewImageCommand_(
-				"resources/ui/text/blockCountBlue.png",
-				cursorX + row.special1.x,
-				baseY + row.special1.y,
-				row.special1.scale,
-				row.special1.scale
-			);
-
-			AddPreviewImageCommand_(
-				"resources/ui/text/x1.png",
-				cursorX + row.special2.x,
-				baseY + row.special2.y,
-				row.special2.scale,
-				row.special2.scale
-			);
-
-			cursorX += row.specialAdvance + gap;
-		} else {
-			AddPreviewNumberCommands_(
-				displayValue,
-				cursorX + row.value.x,
-				baseY + row.value.y + numberYOffset,
-				row.value.scale,
-				row.value.spacing
-			);
-
-			std::string valueText = std::to_string(std::max(0, displayValue));
-			if (!valueText.empty()) {
-				cursorX += row.value.spacing * static_cast<float>(valueText.size());
-				cursorX += gap;
-			}
-		}
-
-		if (!effectPath.empty()) {
-			AddPreviewImageCommand_(
-				effectPath,
-				cursorX + row.effectType.x,
-				baseY + row.effectType.y,
-				row.effectType.scale,
-				row.effectType.scale
-			);
-			cursorX += effectTypeAdvance + gap;
-		}
-	}
-
-	// =========================
-	// 区切り線
-	// =========================
-	AddPreviewImageCommand_(
-		"resources/ui/white.png",
-		baseX + custom.separator.x,
-		baseY + custom.separator.y,
-		img.separatorWidth,
-		img.separatorHeight,
-		{ 1.0f, 1.0f, 1.0f, 0.75f }
-	);
-
-	// =========================
-	// サブ効果
-	// =========================
-	const int subEffectCount = (std::min)(static_cast<int>(def->subEffects.size()), 3);
-	for (int i = 0; i < subEffectCount; ++i) {
-		const auto& sub = def->subEffects[i];
-		const auto& block = custom.subBlocks[i];
-
-		// trigger
-		{
-			const std::string triggerPath = GetTriggerImagePath_(sub.trigger);
-			if (!triggerPath.empty()) {
-				AddPreviewImageCommand_(
-					triggerPath,
-					baseX + block.trigger.x,
-					baseY + block.trigger.y,
-					block.trigger.scale,
-					block.trigger.scale
-				);
-			}
-		}
-
-		// rank
-		{
-			std::string rankPath;
-
-			if (sub.condition.type == SubEffectConditionType::RankFamily) {
-				if (sub.condition.family == "PairFamily") {
-					rankPath = "resources/ui/text/pairType.png";
-				} else if (sub.condition.family == "StraightFamily") {
-					rankPath = "resources/ui/text/straightType.png";
-				} else if (sub.condition.family == "FlushFamily") {
-					rankPath = "resources/ui/text/flashType.png";
-				}
-			} else {
-				// まず family系文字列を rank に入れているケースも吸収
-				if (sub.condition.rank == "PairFamily") {
-					rankPath = "resources/ui/text/pairType.png";
-				} else if (sub.condition.rank == "StraightFamily") {
-					rankPath = "resources/ui/text/straightType.png";
-				} else if (sub.condition.rank == "FlushFamily") {
-					rankPath = "resources/ui/text/flashType.png";
-				} else {
-					BattleController::PokerHandRank rank = BattleController::PokerHandRank::None;
-
-					if (sub.condition.rank == "OnePair") rank = BattleController::PokerHandRank::OnePair;
-					else if (sub.condition.rank == "TwoPair") rank = BattleController::PokerHandRank::TwoPair;
-					else if (sub.condition.rank == "ThreeOfAKind") rank = BattleController::PokerHandRank::ThreeOfAKind;
-					else if (sub.condition.rank == "Straight") rank = BattleController::PokerHandRank::Straight;
-					else if (sub.condition.rank == "Flush") rank = BattleController::PokerHandRank::Flush;
-					else if (sub.condition.rank == "FullHouse") rank = BattleController::PokerHandRank::FullHouse;
-					else if (sub.condition.rank == "FourOfAKind") rank = BattleController::PokerHandRank::FourOfAKind;
-					else if (sub.condition.rank == "StraightFlush") rank = BattleController::PokerHandRank::StraightFlush;
-					else if (sub.condition.rank == "RoyalStraightFlush") rank = BattleController::PokerHandRank::RoyalStraightFlush;
-
-					rankPath = GetRankImagePath_(rank);
-				}
-			}
-
-			if (!rankPath.empty()) {
-				AddPreviewImageCommand_(
-					rankPath,
-					baseX + block.rank.x,
-					baseY + block.rank.y,
-					block.rank.scale,
-					block.rank.scale
-				);
-			}
-		}
-
-		// suffix
-		{
-			const std::string suffixPath = GetConditionSuffixImagePath_(sub);
-			if (!suffixPath.empty()) {
-				AddPreviewImageCommand_(
-					suffixPath,
-					baseX + block.suffix.x,
-					baseY + block.suffix.y,
-					block.suffix.scale,
-					block.suffix.scale
-				);
-			}
-		}
-
-		// 効果本体
-		if (!sub.effects.empty()) {
-			const auto& effect = sub.effects[0];
-
-			const int displayValue = battle
-				? battle->GetDisplayEffectValue(effect, false)
-				: effect.value;
-
-			const std::string targetPath = GetEffectTargetImagePath_(effect);
-			const std::string particlePath = GetEffectParticleImagePath_(effect);
-			const std::string effectPath = GetEffectTypeImagePath_(effect);
-
-			if (!targetPath.empty()) {
-				AddPreviewImageCommand_(
-					targetPath,
-					baseX + block.target.x,
-					baseY + block.target.y,
-					block.target.scale,
-					block.target.scale
-				);
-			}
-
-			if (!particlePath.empty()) {
-				AddPreviewImageCommand_(
-					particlePath,
-					baseX + block.particle.x,
-					baseY + block.particle.y,
-					block.particle.scale,
-					block.particle.scale
-				);
-			}
-
-			if (effect.type == "DamageByBlock") {
-				AddPreviewImageCommand_(
-					"resources/ui/text/blockCountBlue.png",
-					baseX + block.value.x,
-					baseY + block.value.y,
-					block.value.scale,
-					block.value.scale
-				);
-
-				AddPreviewImageCommand_(
-					"resources/ui/text/x1.png",
-					baseX + block.value.x + 170.0f,
-					baseY + block.value.y,
-					block.value.scale,
-					block.value.scale
-				);
-			} else {
-				AddPreviewNumberCommands_(
-					displayValue,
-					baseX + block.value.x,
-					baseY + block.value.y,
-					block.value.scale,
-					block.value.spacing
-				);
-			}
-
-			if (!effectPath.empty()) {
-				AddPreviewImageCommand_(
-					effectPath,
-					baseX + block.effectType.x,
-					baseY + block.effectType.y,
-					block.effectType.scale,
-					block.effectType.scale
-				);
-			}
-		}
-	}
-}
 
 const UiCardDescCustomLayout& FieldUi::GetCardDescCustomLayout_(int cardId) const
 {
@@ -1365,65 +457,7 @@ void FieldUi::Initialize(GameApp& app)
 	endTurnButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	endTurnButtonBg_->SetColor({ 0.1f, 0.3f, 0.95f, 0.95f });
 
-	//==================
-	//画像文字の描画
-	//==================
-	pokerTitleImage_ = std::make_unique<Sprite>();
-	pokerTitleImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/doActivation.png");
-
-	for (int i = 0; i < 5; ++i) {
-		pokerOptionImageSprites_[i] = std::make_unique<Sprite>();
-		pokerOptionImageSprites_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/back.png");
-		pokerOptionImageSprites_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-	}
-
-	pokerInfoButtonImage_ = std::make_unique<Sprite>();
-	pokerInfoButtonImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/effectsList.png");
-
-	pokerPreviewTitleImage_ = std::make_unique<Sprite>();
-	pokerPreviewTitleImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/activatingEffect.png");
-
-	pokerTitleImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-	pokerInfoButtonImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-	pokerPreviewTitleImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-
-	for (int i = 0; i < kMaxUiDigits; ++i) {
-		deckCountDigits_[i] = std::make_unique<Sprite>();
-		deckCountDigits_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
-		deckCountDigits_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-
-		discardCountDigits_[i] = std::make_unique<Sprite>();
-		discardCountDigits_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
-		discardCountDigits_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-
-		handCountDigits_[i] = std::make_unique<Sprite>();
-		handCountDigits_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
-		handCountDigits_[i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-	}
-
-	deckLabelImage_ = std::make_unique<Sprite>();
-	deckLabelImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/deck.png");
-	deckLabelImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-
-	discardLabelImage_ = std::make_unique<Sprite>();
-	discardLabelImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/discard.png");
-	discardLabelImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-
-	handLabelImage_ = std::make_unique<Sprite>();
-	handLabelImage_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/hand.png");
-	handLabelImage_->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-
-	for (int opt = 0; opt < 3; ++opt) {
-		for (int i = 0; i < kMaxUiDigits; ++i) {
-			pokerEffectValueDigits_[opt][i] = std::make_unique<Sprite>();
-			pokerEffectValueDigits_[opt][i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/num/0.png");
-			pokerEffectValueDigits_[opt][i]->SetAnchorPointKeepingVisual({ 0.5f, 0.5f });
-		}
-	}
-
-	pokerInfoButtonBg_ = std::make_unique<Sprite>();
-	pokerInfoButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	pokerInfoButtonBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.78f });
+	
 
 	pokerTitleText_ = std::make_unique<TextSprite>();
 	pokerTitleText_->Initialize(app.SpriteCom(), app.Dx());
@@ -1639,9 +673,7 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 
 		lastPokerPreviewVisible_ = previewVisible;
 
-		// 古い画像系は止める
-		HidePokerPreviewImageCommands_();
-		HidePreviewCardImageDesc_();
+	
 
 		for (auto& option : pokerEffectValueDigits_) {
 			for (auto& d : option) {
@@ -1654,13 +686,7 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		if (battle.IsViewingBoardFromPokerUi()) {
 			pokerHoverIndex_ = battle.GetPokerMouseChoiceIndex();
 
-			if (pokerOptionImageSprites_[0]) {
-				pokerOptionImageSprites_[0]->SetTextureFilePath("resources/ui/text/back.png");
-				pokerOptionImageSprites_[0]->SetPosition({
-					pokerEffectLayout_.backImage.x,
-					pokerEffectLayout_.backImage.y
-					});
-			}
+		
 
 			activeCardDescText_ = nullptr;
 
@@ -1674,7 +700,7 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 				cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
 
 				if (useImageCardDesc_) {
-					UpdatePreviewCardImageDesc_(battle);
+				
 					newText.clear();
 				} else {
 					newText = battle.GetPreviewCardDetailText();
@@ -1684,10 +710,9 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 					}
 				}
 			} else {
-				HidePreviewCardImageDesc_();
+				
 			}
 
-			ApplyPokerOptionImageLayout_(battle);
 
 		} else if (isBattleCardPreview) {
 			activeCardDescText_ = nullptr;
@@ -1704,7 +729,7 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 				}
 
 				if (useImageCardDesc_) {
-					UpdatePreviewCardImageDesc_(battle);
+					
 					newText.clear();
 				} else {
 					newText = battle.GetPreviewCardDetailText();
@@ -1714,7 +739,7 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 					}
 				}
 			} else {
-				HidePreviewCardImageDesc_();
+			
 			}
 		} else if (battle.ShouldShowOperationUi()) {
 			newMode = DescMode::Operation;
@@ -1727,9 +752,8 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 			cardDescText_->SetPosition({ 40.0f, 520.0f });
 			cardDescText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
-			HidePreviewCardImageDesc_();
 		} else {
-			HidePreviewCardImageDesc_();
+			
 		}
 	}
 
@@ -1831,8 +855,12 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
 		clickChoiceBg_->SetScale({ 400.f,50.f,1.f });
 		break;
-	case BattleController::CardInputState::ChoosingEnemyTarget:
-		clickChoiceText_->SetText(L"左クリック : 敵を選択   右クリック : キャンセル");
+		if (battle.IsTutorialPokerTargetCancelLocked()) {
+			clickChoiceText_->SetText(L"左クリック : 敵を選択");
+		} else {
+			clickChoiceText_->SetText(L"左クリック : 敵を選択   右クリック : キャンセル");
+		}
+
 		clickChoiceBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.82f });
 		clickChoiceBg_->SetScale({ 400.f,50.f,1.f });
 		break;
@@ -1868,33 +896,7 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 			cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
 		}
 
-		UpdatePreviewCardImageDescFromDef_(debugImageCardDescCard_);
-	}
-
-	if (debugShowPokerPreview_) {
-		if (debugPokerPreviewData_.enabled) {
-			UpdatePokerPreviewImageCommandsFromDebugData_();
-		} else {
-			UpdatePokerPreviewImageCommands_(battle);
-		}
-	} else if (!battle.HasPokerChoiceUi()) {
-		HidePokerPreviewImageCommands_();
-	}
-
-}
-
-void FieldUi::DrawPreviewCardImageDesc_(const Matrix4x4& view, const Matrix4x4& proj)
-{
-	for (auto& cmd : previewImageCommands_) {
-		if (!cmd.sprite) {
-			continue;
-		}
-
-		cmd.sprite->SetPosition(cmd.position);
-		cmd.sprite->SetScale(cmd.scale);
-		cmd.sprite->SetColor(cmd.color);
-		cmd.sprite->Update(view, proj);
-		cmd.sprite->Draw();
+	
 	}
 }
 
@@ -1915,6 +917,9 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		(inputState == BattleController::CardInputState::Preview) &&
 		!battle.HasPokerChoiceUi() &&
 		!battle.IsViewingBoardFromPokerUi();
+
+	const int drawPokerHoverIndex =
+		(forcedPokerHoverIndex_ >= 0) ? forcedPokerHoverIndex_ : pokerHoverIndex_;
 
 	// ==============================
 	// ポーカーUI
@@ -1947,7 +952,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 				if (!pokerOptionBgs_[i]) continue;
 
 				pokerOptionBgs_[i]->SetColor(
-					pokerHoverIndex_ == i ?
+					drawPokerHoverIndex == i ?
 					Vector4{ 0.15f, 0.15f, 0.15f, 0.95f } :
 					Vector4{ 0.0f, 0.0f, 0.0f, 0.78f }
 				);
@@ -2007,7 +1012,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 
 			if (pokerOptionBgs_[0]) {
 				pokerOptionBgs_[0]->SetColor(
-					pokerHoverIndex_ == 0 ?
+					drawPokerHoverIndex == 0 ?
 					Vector4{ 0.18f, 0.18f, 0.18f, 0.96f } :
 					Vector4{ 0.0f, 0.0f, 0.0f, 0.78f }
 				);
@@ -2026,9 +1031,8 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 
 			for (int i = 0; i < 3; ++i) {
 				if (!pokerOptionBgs_[i + 1]) continue;
-
 				pokerOptionBgs_[i + 1]->SetColor(
-					pokerHoverIndex_ == (i + 1) ?
+					drawPokerHoverIndex == (i + 1) ?
 					Vector4{ 0.18f, 0.18f, 0.18f, 0.96f } :
 					Vector4{ 0.0f, 0.0f, 0.0f, 0.78f }
 				);
@@ -2047,7 +1051,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 
 			if (pokerOptionBgs_[4]) {
 				pokerOptionBgs_[4]->SetColor(
-					pokerHoverIndex_ == 4 ?
+					drawPokerHoverIndex == 4 ?
 					Vector4{ 0.18f, 0.18f, 0.18f, 0.96f } :
 					Vector4{ 0.0f, 0.0f, 0.0f, 0.78f }
 				);
@@ -2157,12 +1161,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 			pokerOptionBgs_[0]->Draw();
 		}
 
-		if (pokerOptionImageSprites_[0]) {
-			float scale = (pokerHoverIndex_ == 0) ? 1.12f : 1.05f;
-			pokerOptionImageSprites_[0]->SetScale({ scale, scale, 1.0f });
-			pokerOptionImageSprites_[0]->Update(view, proj);
-			pokerOptionImageSprites_[0]->Draw();
-		}
+		
 	}
 
 	if (debugShowPokerPreview_ && !showPokerOptions_) {
@@ -2180,21 +1179,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 			pokerPreviewBg_->Draw();
 		}
 
-		if (pokerPreviewTitleImage_) {
-			pokerPreviewTitleImage_->SetPosition({
-				pokerEffectLayout_.previewPanelTitleImage.x,
-				pokerEffectLayout_.previewPanelTitleImage.y
-				});
-			pokerPreviewTitleImage_->SetScale({
-				pokerEffectLayout_.previewPanelTitleImage.scale,
-				pokerEffectLayout_.previewPanelTitleImage.scale,
-				1.0f
-				});
-			pokerPreviewTitleImage_->Update(view, proj);
-			pokerPreviewTitleImage_->Draw();
-		}
-
-		DrawPokerPreviewImageCommands_(view, proj);
+	
 	}
 
 	// ==============================
@@ -2250,7 +1235,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 
 	if (useImageCardDesc_ &&
 		(battle.IsViewingBoardFromPokerUi() || isBattleCardPreview || debugImageCardDescVisible_)) {
-		DrawPreviewCardImageDesc_(view, proj);
+		
 	} else if (activeCardDescText_) {
 		activeCardDescText_->Update(view, proj);
 		activeCardDescText_->Draw();
@@ -2299,25 +1284,6 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 	if (clickChoiceText_) {
 		clickChoiceText_->Update(view, proj);
 		clickChoiceText_->Draw();
-	}
-}
-
-
-void FieldUi::HidePokerPreviewImageCommands_()
-{
-	pokerPreviewImageCommands_.clear();
-}
-
-void FieldUi::DrawPokerPreviewImageCommands_(const Matrix4x4& view, const Matrix4x4& proj)
-{
-	for (auto& cmd : pokerPreviewImageCommands_) {
-		if (!cmd.sprite) continue;
-
-		cmd.sprite->SetPosition(cmd.position);
-		cmd.sprite->SetScale(cmd.scale);
-		cmd.sprite->SetColor(cmd.color);
-		cmd.sprite->Update(view, proj);
-		cmd.sprite->Draw();
 	}
 }
 

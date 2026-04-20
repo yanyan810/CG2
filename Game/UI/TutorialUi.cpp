@@ -86,10 +86,10 @@ std::vector<UiRect> TutorialUi::ResolveFocusRects_(
         }
 
         if (battle.IsWaitingEffectChoice()) {
-            rects.push_back(poker.effectRects[0]);
+           // rects.push_back(poker.effectRects[0]);
             rects.push_back(poker.effectRects[1]);
-            rects.push_back(poker.effectRects[2]);
-            rects.push_back(poker.effectViewBoardRect);
+            //rects.push_back(poker.effectRects[2]);
+            //rects.push_back(poker.effectViewBoardRect);
             return rects;
         }
 

@@ -43,7 +43,8 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	}
 
 	// 読み込んだJSONの最大HPを、現在のHPにセットする
-	hp_ = ai_.GetMaxHP();
+	maxHp_ = ai_.GetMaxHP();
+	hp_ = maxHp_;
 
 	basePos_ = pos_;
 
@@ -155,6 +156,24 @@ void Enemy::SetLighting(const LightingParam& p)
 	model_->SetSpotLightIntensity(light_.spotIntensity);
 }
 
+//チュートリアル用にHP設定
+
+void Enemy::SetMaxHp(int maxHp, bool healToFull)
+{
+	maxHp_ = (std::max)(1, maxHp);
+
+	if (healToFull) {
+		hp_ = maxHp_;
+	} else {
+		hp_ = (std::min)(hp_, maxHp_);
+	}
+}
+
+void Enemy::SetHp(int hp)
+{
+	hp_ = (std::clamp)(hp, 0, maxHp_);
+}
+
 
 // ==========================================
 // EnemyManager
@@ -245,4 +264,20 @@ int EnemyManager::PickEnemyByMouse(int mouseX, int mouseY, const Matrix4x4& view
 		}
 	}
 	return closestIndex; // 誰もクリックされていなければ -1 を返す
+}
+
+Enemy* EnemyManager::GetEnemy(size_t index)
+{
+	if (index >= enemies_.size()) {
+		return nullptr;
+	}
+	return &enemies_[index];
+}
+
+const Enemy* EnemyManager::GetEnemy(size_t index) const
+{
+	if (index >= enemies_.size()) {
+		return nullptr;
+	}
+	return &enemies_[index];
 }
