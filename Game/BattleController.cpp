@@ -2017,6 +2017,13 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 			case CardInputState::ChoosingFieldReplace:
 			{
+				if (pendingCardView_) {
+					
+					Vector3 previewPos = { -10.f, 2.0f, 3.0 };
+					pendingCardView_->SetTransform(previewPos, { 0.0f, 0.0f, 0.0f }, { 1.f, 1.f, 1.f });
+					pendingCardView_->Update(dt); // 描画のためにUpdateを呼ぶ
+				}
+
 				int newHover = PickFieldIndexByMouse_(mouse.x, mouse.y);
 
 				if (newHover != fieldReplaceHoverIndex_) {
@@ -2373,6 +2380,7 @@ void BattleController::Draw3D(GameApp& app)
 	// 場と交換時フィルター
 	if (cardState_ == CardInputState::ChoosingFieldReplace) {
 		highlightFilter_->Draw();
+		pendingCardView_->Draw();
 	}
 
 	// 場のカード
