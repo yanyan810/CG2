@@ -1,6 +1,24 @@
 #include "Player.h"
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
+#ifndef _DEBUG
+#include <array>
+#include <random>
+#include <vector>
+#endif
+
+#ifndef _DEBUG
+namespace {
+    bool HasAnimationNamed(const Object3d* object, const char* name) {
+        if (!object || !object->GetModel()) {
+            return false;
+        }
+
+        const auto& animations = object->GetModel()->GetAnimations();
+        return animations.find(name) != animations.end();
+    }
+}
+#endif
 
 void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam) {
     model_ = std::make_unique<Object3d>();
@@ -32,6 +50,10 @@ void Player::PlayAttackAnim(const Vector3& targetPos) {
     startPos_ = basePos_;
     // 相手の位置の少し手前まで移動
     targetPos_ = Lerp(basePos_, targetPos, 0.8f);
+
+#ifndef _DEBUG
+    PlayRandomReleaseAttackAnimation_();
+#endif
 }
 
 void Player::PlayDamageAnim() {
@@ -99,6 +121,12 @@ void Player::Update(float dt) {
 
         // アニメーションの更新
         model_->Update(dt);
+
+#ifndef _DEBUG
+        if (releaseAttackAnimationPlaying_ && model_->IsAnimationFinished()) {
+            PlayReleaseIdleAnimation_();
+        }
+#endif
     }
 
     // 敵の弾などが当たったか判定するための箱（AABB）を自分の位置に合わせて更新
@@ -106,6 +134,48 @@ void Player::Update(float dt) {
     body_.max = { pos_.x + 1.0f, pos_.y + 2.0f, pos_.z + 1.0f };
     
 }
+
+#ifndef _DEBUG
+void Player::PlayReleaseIdleAnimation_() {
+    if (!HasAnimationNamed(model_.get(), "CustomAnim")) {
+        releaseAttackAnimationPlaying_ = false;
+        return;
+    }
+
+    model_->PlayAnimation("CustomAnim", true);
+    releaseAttackAnimationPlaying_ = false;
+}
+
+void Player::PlayRandomReleaseAttackAnimation_() {
+    if (!model_) {
+        return;
+    }
+
+    static std::mt19937 rng(std::random_device{}());
+    static const std::array<const char*, 3> kAttackAnimations = {
+        "CustomAnim_attack_1",
+        "CustomAnim_attack_2",
+        "CustomAnim_attack_3",
+    };
+
+    std::vector<const char*> availableAnimations;
+    availableAnimations.reserve(kAttackAnimations.size());
+    for (const char* name : kAttackAnimations) {
+        if (HasAnimationNamed(model_.get(), name)) {
+            availableAnimations.push_back(name);
+        }
+    }
+
+    if (availableAnimations.empty()) {
+        releaseAttackAnimationPlaying_ = false;
+        return;
+    }
+
+    std::uniform_int_distribution<size_t> dist(0, availableAnimations.size() - 1);
+    model_->PlayAnimation(availableAnimations[dist(rng)], false);
+    releaseAttackAnimationPlaying_ = true;
+}
+#endif
 
 void Player::Draw() {
     if (model_) {
