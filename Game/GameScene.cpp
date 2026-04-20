@@ -76,6 +76,8 @@ void GameScene::OnEnter(GameApp& app) {
 			{ "resources/CustomAnim/CustomAnim_attack_1.json", "CustomAnim_attack_1" },
 			{ "resources/CustomAnim/CustomAnim_attack_2.json", "CustomAnim_attack_2" },
 			{ "resources/CustomAnim/CustomAnim_attack_3.json", "CustomAnim_attack_3" },
+			{ "resources/CustomAnim/CustomAnim_attack_received_1.json", "CustomAnim_attack_received_1" },
+			{ "resources/CustomAnim/CustomAnim_attack_received_2.json", "CustomAnim_attack_received_2" },
 		};
 
 		bool loadedDefaultCustomAnim = false;
