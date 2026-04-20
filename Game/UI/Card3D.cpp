@@ -438,7 +438,7 @@ void Card3D::Update(float dt)
 		float digitSpacing = 0.7f;
 		float baseX = g_numberX[mode] - digitSpacing * 0.5f;
 
-		Vector3 localOffset = { 0.5f, -4.5f, 2.f };
+		Vector3 localOffset = { 0.5f, -4.5f, 1.f };
 		Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
 
 		Vector3 tensPos = {

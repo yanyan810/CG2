@@ -156,6 +156,18 @@ void DeckEditScene::Update(GameApp& app, float dt) {
         // Vector3 rot = card->GetWorldPos(); // 実際は回転プロパティが必要
         card->Update(dt);
     }
+
+
+    //================
+    //Dキーを押したとき
+    //================
+
+    bool deckEditTrig = input->IsKeyTrigger(DIK_D);
+
+    if (deckEditTrig && totalCount_ == 40) {
+		RequestChangeScene_("Game");
+        return;
+    }
 }
 
 void DeckEditScene::Draw3D(GameApp& app) {

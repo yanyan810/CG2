@@ -112,6 +112,13 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 	bool tutorialTrig = input->IsKeyTrigger(DIK_T);
 
+
+	//================
+	//Dキーを押したとき
+	//================
+
+	bool deckEditTrig = input->IsKeyTrigger(DIK_D);
+
 	//--------------------------------------------------------
 	// 状態更新
 	//--------------------------------------------------------
@@ -124,6 +131,11 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 		if (tutorialTrig) {
 			RequestChangeScene_("Tutorial");
+			return;
+		}
+
+		if (deckEditTrig) {
+			RequestChangeScene_("DeckEdit");
 			return;
 		}
 
