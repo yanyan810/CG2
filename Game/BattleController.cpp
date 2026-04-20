@@ -676,6 +676,9 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	highlightFilter_->SetPosition({ 0.0f, 0.0f });
 	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
 	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+
+	tutorialLockPokerTargetingCancel_ = false;
+
 }
 
 bool BattleController::DrawOne_()
@@ -1956,8 +1959,16 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 				// 右クリック：キャンセルして元に戻る
 				if (rTrig) {
+					if (isPokerDamageTargeting_ && tutorialLockPokerTargetingCancel_) {
+						handView_.SetFocusIndex(-1);
+						handView_.SetHoverIndex(-1);
+						handView_.SetPreviewIndex(-1);
+						return;
+					}
+
 					handView_.SetFocusIndex(-1);
 					cardState_ = CardInputState::Idle;
+
 					if (isPokerDamageTargeting_) {
 						pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice; // ポーカー選択へ戻る
 					}
@@ -2260,6 +2271,7 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
+			tutorialLockPokerTargetingCancel_ = true; // 追加
 			pokerQuickPreviewVisible_ = false;
 			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 			cardState_ = CardInputState::ChoosingEnemyTarget;

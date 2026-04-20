@@ -163,6 +163,14 @@ void TutorialScene::Update(GameApp& app, float dt) {
         );
     }
 
+    if (tutorial_ && fieldUi_) {
+        if (tutorial_->IsForceDamageOnly()) {
+            fieldUi_->SetForcedPokerHoverIndex(2); // damage
+        } else {
+            fieldUi_->SetForcedPokerHoverIndex(-1);
+        }
+    }
+
     battle_.Update(app, *fieldUi_, dt);
 
     if (tutorial_) {

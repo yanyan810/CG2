@@ -213,6 +213,7 @@ public:
 
 	void SetTutorialPokerRestriction(bool activateOnly, bool damageOnly);
 
+	bool IsTutorialPokerTargetCancelLocked() const { return tutorialLockPokerTargetingCancel_; }
 
 private:
 	//=====================
@@ -224,6 +225,7 @@ private:
 
 	bool tutorialActivateOnly_ = false;
 	bool tutorialDamageOnly_ = false;
+	bool tutorialLockPokerTargetingCancel_ = false;
 
 private:
 	enum class TurnState { Player, Enemy };
