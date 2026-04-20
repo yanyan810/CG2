@@ -165,7 +165,21 @@ void DeckEditScene::Update(GameApp& app, float dt) {
     bool deckEditTrig = input->IsKeyTrigger(DIK_D);
 
     if (deckEditTrig && totalCount_ == 40) {
-		RequestChangeScene_("Game");
+        // --- vector<int> 形式に変換 ---
+        std::vector<int> finalDeck;
+        finalDeck.reserve(40);
+        for (auto const& [id, count] : editingDeck_) {
+            for (int j = 0; j < count; ++j) {
+                finalDeck.push_back(id);
+            }
+        }
+
+        // --- GameAppに情報を渡す ---
+        app.SetDeckInstancesFromId(finalDeck);
+
+        // --- シーン遷移 ---
+        RequestChangeScene_("Game");
+
         return;
     }
 }
