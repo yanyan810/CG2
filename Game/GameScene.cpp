@@ -199,8 +199,20 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive()||pausingUI_->GetIsSceneChangeRequested()) {
-		RequestChangeScene_("Title");
+	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive() || pausingUI_->GetIsSceneChangeRequested()) {
+		battleEndTimer_--;
+	}
+
+	if (battleEndTimer_ <= 0) {
+		if (battle_.IsAllEnemiesDead()) {
+			RequestChangeScene_("GameClear");
+		}
+		if (!player_->GetIsAlive()) {
+			RequestChangeScene_("GameOver");
+		}
+		if (pausingUI_->GetIsSceneChangeRequested()) {
+			RequestChangeScene_("Title");
+		}
 	}
 
 	Input* input = app.GetInput();
@@ -484,7 +496,7 @@ void GameScene::Draw2D(GameApp& app) {
 	highlightFilter_->Update(view, proj);
 
 	if (fieldUi_) {
-		fieldUi_->Draw(app,battle_);
+		fieldUi_->Draw(app, battle_);
 	}
 
 	if (playerHpText_) {
@@ -592,15 +604,15 @@ void GameScene::DrawImGui(GameApp& app) {
 		ImGui::Begin("Battle Effects", &battleEffectsDebugVisible_);
 		static std::string targetEffect = "player_fire";
 
-	// コンボボックスで編集対象を切り替えられるようにすると更に便利
-	if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
-		if (ImGui::Selectable("player_fire")) targetEffect = "player_fire";
-		if (ImGui::Selectable("sword_trail")) targetEffect = "sword_trail";
-		ImGui::EndCombo();
-	}
-	
-	// マネージャーから指定したエフェクトの設定を編集・反映
-	particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
+		// コンボボックスで編集対象を切り替えられるようにすると更に便利
+		if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
+			if (ImGui::Selectable("player_fire")) targetEffect = "player_fire";
+			if (ImGui::Selectable("sword_trail")) targetEffect = "sword_trail";
+			ImGui::EndCombo();
+		}
+
+		// マネージャーから指定したエフェクトの設定を編集・反映
+		particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
 		ImGui::End();
 	}
 
@@ -611,7 +623,7 @@ void GameScene::DrawImGui(GameApp& app) {
 	}
 
 	AudioManager::GetInstance()->UpdateImGui();
-	
+
 	ImGui::Begin("Trail Debug");
 	if (ImGui::CollapsingHeader("Test Trail Settings")) {
 		ImGui::ColorEdit4("Start Color", &trailConfig_.startColor.x);
@@ -621,7 +633,7 @@ void GameScene::DrawImGui(GameApp& app) {
 	}
 	ImGui::End();
 
-  #endif
+#endif
 }
 
 void GameScene::DrawSkydome(GameApp& app)
@@ -638,7 +650,7 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	//particleManager_->Draw();
-	
+
 	if (trailManager_) {
 		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());
 	}
@@ -752,19 +764,19 @@ AnimationEditorSession::EditorContext GameScene::BuildEditorContext_() {
 	context.sameCameraLoopEnabled = &sameCameraLoopEnabled_;
 	context.switchToAnimation = [this]() {
 		editorTargetKind_ = EditorTargetKind::Animation;
-	};
+		};
 	context.switchToCamera = [this]() {
 		editorTargetKind_ = EditorTargetKind::Camera;
-	};
+		};
 	context.reloadCameraFiles = [this]() {
 		ReloadCameraFileList_();
-	};
+		};
 	context.loadCameraByIndex = [this](int index) {
 		LoadCameraByIndex_(index);
-	};
+		};
 	context.playRandomCamera = [this]() {
 		ChangeRandomCamera();
-	};
+		};
 
 	if (editorTargetKind_ == EditorTargetKind::Camera) {
 		context.cameraTarget = cameraEditTarget_;
