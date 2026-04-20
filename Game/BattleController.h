@@ -398,4 +398,6 @@ private:
 
 	void UpdateHpGauges();
 
+	void UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt);
+	void UpdateVisuals_(float dt);
 };
