@@ -94,6 +94,7 @@ private:
 #ifndef _DEBUG
 	void PlayReleaseIdleAnimation_();
 	void PlayRandomReleaseAttackAnimation_();
+	void PlayReleaseDamageAnimation_();
 #endif
 
 	std::unique_ptr<Object3d> model_;

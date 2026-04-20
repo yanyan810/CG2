@@ -175,6 +175,25 @@ void Player::PlayRandomReleaseAttackAnimation_() {
     model_->PlayAnimation(availableAnimations[dist(rng)], false);
     releaseAttackAnimationPlaying_ = true;
 }
+
+void Player::PlayReleaseDamageAnimation_() {
+    if (!model_) {
+        return;
+    }
+
+    const char* animationName =
+        (hp_ > (maxHp_ / 2))
+        ? "CustomAnim_attack_received_1"
+        : "CustomAnim_attack_received_2";
+
+    if (!HasAnimationNamed(model_.get(), animationName)) {
+        releaseAttackAnimationPlaying_ = false;
+        return;
+    }
+
+    model_->PlayAnimation(animationName, false);
+    releaseAttackAnimationPlaying_ = true;
+}
 #endif
 
 void Player::Draw() {
@@ -218,6 +237,10 @@ void Player::Damage(int damage)
         hp_ = 0;
         isAlive_ = false;
     }
+
+#ifndef _DEBUG
+    PlayReleaseDamageAnimation_();
+#endif
 }
 
 Vector3 Player::GetWeaponTipPos() {
