@@ -50,7 +50,7 @@ void TutorialScene::OnEnter(GameApp& app) {
         MakeTutorialCard(1, 7, CardSuit::Spade),
         MakeTutorialCard(2, 7, CardSuit::Heart),
         MakeTutorialCard(3, 3, CardSuit::Diamond),
-        MakeTutorialCard(4, 10, CardSuit::Club),
+        MakeTutorialCard(9, 7, CardSuit::Club),
         MakeTutorialCard(5, 13, CardSuit::Spade),
     };
 
@@ -58,6 +58,10 @@ void TutorialScene::OnEnter(GameApp& app) {
     battle_.SetEnemyManager(&enemyMgr_);
     battle_.SetTutorialOpeningHand(openingHand);
     battle_.Initialize(app, animCamera_.get());
+    if (Enemy* enemy = enemyMgr_.GetEnemy(0)) {
+        enemy->SetMaxHp(116+35, true);
+    }
+
 
     fieldUi_ = std::make_unique<FieldUi>();
     fieldUi_->Initialize(app);
@@ -152,6 +156,13 @@ void TutorialScene::Update(GameApp& app, float dt) {
     enemyMgr_.UpdateCamera(animCamera_.get());
     enemyMgr_.Update(dt);
 
+    if (tutorial_) {
+        battle_.SetTutorialPokerRestriction(
+            tutorial_->IsForceActivateOnly(),
+            tutorial_->IsForceDamageOnly()
+        );
+    }
+
     battle_.Update(app, *fieldUi_, dt);
 
     if (tutorial_) {
@@ -175,7 +186,8 @@ void TutorialScene::Update(GameApp& app, float dt) {
 
             if (step == Step::Intro ||
                 step == Step::ExplainEnergy ||
-                step == Step::SkipPokerContinueTurn) {
+                step == Step::SkipPokerContinueTurn ||
+                step == Step::EndAfterPoker) {
                 tutorial_->NextStep();
             } else if (step == Step::Finished) {
                 if (state_ == State::Idle) {

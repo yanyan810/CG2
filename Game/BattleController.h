@@ -211,6 +211,9 @@ public:
 	PokerTutorialResult GetLastPokerTutorialResult() const { return lastPokerTutorialResult_; }
 	void ClearLastPokerTutorialResult() { lastPokerTutorialResult_ = PokerTutorialResult::None; }
 
+	void SetTutorialPokerRestriction(bool activateOnly, bool damageOnly);
+
+
 private:
 	//=====================
 	// チュートリアル用
@@ -218,6 +221,9 @@ private:
 	std::vector<CardInstance> tutorialOpeningHand_;
 	bool useTutorialOpeningHand_ = false;
 	PokerTutorialResult lastPokerTutorialResult_ = PokerTutorialResult::None;
+
+	bool tutorialActivateOnly_ = false;
+	bool tutorialDamageOnly_ = false;
 
 private:
 	enum class TurnState { Player, Enemy };
@@ -359,6 +365,10 @@ private:
 
 	PokerBonus GetPokerBonus_(PokerHandRank rank) const;
 	void ConsumeFieldCards_();
+
+	void HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool yTrig, bool nTrig);
+	void HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool nTrig);
+	void HandlePokerViewBoard_(FieldUi& fieldUi, POINT mouse, bool lTrig, float dt);
 
 	PokerHandRank ParsePokerRankString_(const std::string& s) const;
 	bool IsRankAtLeast_(PokerHandRank a, PokerHandRank b) const;
