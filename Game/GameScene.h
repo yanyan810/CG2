@@ -116,5 +116,7 @@ private:
     TrailConfig trailConfig_;            // インスペクタ調整用
 
 	std::unique_ptr<PausingUI> pausingUI_;
+
+    int battleEndTimer_ = 180;
 };
 

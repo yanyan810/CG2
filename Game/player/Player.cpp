@@ -108,7 +108,7 @@ void Player::Update(float dt) {
 }
 
 void Player::Draw() {
-    if (model_) {
+    if (model_&&isAlive_) {
         model_->Draw();
     }
 }
