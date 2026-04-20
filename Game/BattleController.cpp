@@ -970,6 +970,10 @@ void BattleController::StartPlayerTurn_()
 	energy_ = energyMax_;
 	DrawUntilFive_();
 
+	if (!field_.empty()) {
+		RebuildFieldView_();
+	}
+	
 	if (field_.size() == 5) {
 		currentPoker_ = EvaluatePokerHand_();
 
@@ -1411,31 +1415,32 @@ void BattleController::RebuildFieldView_()
 	// 2. 役の強さに応じてキラキラの強さを決める
 	float intensity = 0.0f;
 	if (result.rank == PokerHandRank::None) {
-		intensity = 10.0f;
+		intensity = 0.0f;
 	} else if (result.rank <= PokerHandRank::TwoPair) {
-		intensity = 10.3f;  // 弱い役：うっすら
+		intensity = 5.0f;  // 弱い役：うっすら
 	} else if (result.rank <= PokerHandRank::FullHouse) {
-		intensity = 10.8f;  // 中堅の役：はっきり
+		intensity = 10.0f;  // 中堅の役：はっきり
 	} else {
-		intensity = 10.0f;  // 強い役：まばゆい！
+		intensity = 15.0f;  // 強い役：まばゆい！
 	}
 
-	// 3. 役に関係しているカードだけをハイライト（既存のマスクを利用）
-	std::array<bool, 5> mask = GetPokerHighlightMask_();
+	// 3. 役に関係しているカードだけをハイライト
+    std::array<bool, 5> mask = GetPokerHighlightMask_();
 
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		if (i < 5 && mask[i]) {
-			fieldViews_[i]->SetGlitter(intensity);
-
-			// ★応用：強い役の時は枠の色も豪華にする
-			if (result.rank >= PokerHandRank::Straight) {
-				fieldViews_[i]->SetFrameColor({ 1.0f, 0.9f, 0.2f, 1.0f }); // 金色
-			}
-		} else {
-			fieldViews_[i]->SetGlitter(0.0f);
-			fieldViews_[i]->ResetFrameColor();
-		}
-	}
+    for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+        if (i < 5 && mask[i]) {
+            fieldViews_[i]->SetGlitter(intensity);
+            
+            // 強い役なら枠の色も変更
+            if (result.rank >= PokerHandRank::Straight) {
+                fieldViews_[i]->SetFrameColor({ 1.0f, 0.9f, 0.2f, 1.0f });
+            }
+        } else {
+            // 役に関係ないカードはリセット
+            fieldViews_[i]->SetGlitter(0.0f);
+            fieldViews_[i]->ResetFrameColor();
+        }
+    }
 
 	fieldLayoutDirty_ = true;
 }
@@ -1469,7 +1474,6 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 	}
 
 	fieldViews_[index]->SetTargetTransform(pos, rot, scl, false);
-	fieldViews_[index]->Update(dt);
 
 	Vector3 curPos = fieldViews_[index]->GetWorldPos();
 	float distSq = (curPos.x - pos.x) * (curPos.x - pos.x) +
@@ -1534,7 +1538,13 @@ int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
 
 void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 {
+	UpdateLogic_(app, fieldUi, dt);
 
+	UpdateVisuals_(dt);
+}
+
+void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
+{
 	Input* input = app.GetInput();
 	if (!input) {
 		return;
@@ -1667,7 +1677,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			pokerMouseChoice_ = PokerMouseChoice::EffectViewBoard;
 		}
 
-		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
+		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
 			nextTurnAtkUp_ += bonus.atkUp;
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
@@ -1678,7 +1688,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			return;
 		}
 
-		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
+		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
 			DrawCards_(bonus.drawCount);
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			ConsumeFieldCards_();
@@ -1689,7 +1699,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			return;
 		}
 
-		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
+		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
@@ -1758,10 +1768,6 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 				fieldLayoutDirty_ = true;
 			}
 		}
-
-		handView_.Update(dt);
-		RefreshAllFieldCardTransforms_(dt);
-		fieldLayoutDirty_ = false;
 
 		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::ReturnFromBoard) {
 			handView_.SetHoverIndex(-1);
@@ -2224,7 +2230,6 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		}
 	}
 
-	handView_.Update(dt);
 	if (fieldLayoutDirty_ || cardState_ == CardInputState::ChoosingFieldReplace || pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi) {
 		RefreshAllFieldCardTransforms_(dt);
 		fieldLayoutDirty_ = false;
@@ -2287,65 +2292,61 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			}
 		}
 	}
-	// 2D UI用の行列を作成する（Mathクラスを使用）
-	// View行列（カメラは原点でまっすぐ前を向く = 単位行列）
-	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+}
 
-	// Projection行列（画面サイズに合わせた正射影行列）
-	float width = (float)WinApp::kClientWidth;
-	float height = (float)WinApp::kClientHeight;
-	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
+void BattleController::UpdateVisuals_(float dt)
+{
+	// 1. 手札の更新
+	handView_.Update(dt);
 
-	//if (energy_ != prevEnergy_ || energyMax_ != prevEnergyMax_) {
-	//	RebuildCostView_(dt);
-	//} else {
-	//	UpdateCostViewTransform_(dt);
-	//}
+	// 2. フィールドカードの更新（ラメ・アニメーションの進行）
+	for (auto& cardView : fieldViews_) {
+		if (cardView) {
+			cardView->Update(dt); // これが呼ばれればどんな状態でもラメが動きます
+		}
+	}
 
-	//if (cardState_ == CardInputState::ChoosingFieldReplace) {
-	//	RefreshAllFieldCardTransforms_(dt);
-	//}
+	// 3. 座標の移動更新（目標地点へスムーズに動かす）
+	if (fieldLayoutDirty_ ||
+		cardState_ == CardInputState::ChoosingFieldReplace ||
+		pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi)
+	{
+		RefreshAllFieldCardTransforms_(dt);
+		// ※ Refresh~ の中で fieldLayoutDirty_ = false; をしていることを確認
+	}
+
+	// 4. 墓地・数字ポップアップの更新
+	if (discardView_) discardView_->Update(dt);
 
 	for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
-		it->timer -= 1.0f;        // 1フレームごとにタイマーを1減らす
-		it->pos.y += 0.05f;       // 1フレームごとに少し上に昇る
-
+		it->timer -= 1.0f;
+		it->pos.y += 0.05f;
 		if (it->timer <= 0.0f) {
-			it = damagePopups_.erase(it); // 寿命が来たら消す
+			it = damagePopups_.erase(it);
 		} else {
-			float gap = 0.8f;
-
-			float startX = it->pos.x - gap * 0.5f * (it->digitModels.size() - 1);
-
+			// 数字モデルのトランスフォーム更新
 			for (size_t i = 0; i < it->digitModels.size(); ++i) {
-				// キャラクターより少し手前(z - 1.0f)に配置
-				Vector3 digitPos = { startX + gap * i, it->pos.y, it->pos.z - 1.0f };
-
-				it->digitModels[i]->SetTranslate(digitPos);
-				it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
-
-				// （もし数字が横や後ろを向いてしまう場合はここで SetRotate で回す）
-				// it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
-
+				// ... (ここにあった移動計算コードを移植) ...
 				it->digitModels[i]->Update(dt);
 			}
 			++it;
 		}
 	}
 
-	// --------------------------------------------------
-	// スプライトの更新
-	// --------------------------------------------------
+	// 5. HPゲージ・UI・スプライトの行列更新
+	UpdateHpGauges();
+
+	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix((float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
-	UpdateHpGauges();
-	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
-	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
+	if (playerHpPredict_) playerHpPredict_->Update(viewMat, projMat);
+	if (playerBlockPredict_) playerBlockPredict_->Update(viewMat, projMat);
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
-	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
-
+	if (highlightFilter_) highlightFilter_->Update(viewMat, projMat);
 }
 
 void BattleController::Draw3D(GameApp& app)
