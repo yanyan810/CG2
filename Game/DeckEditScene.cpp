@@ -62,13 +62,15 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	countText_->SetSize({ 1.f, 1.f, 1.f });
 	countText_->SetPosition({ 1050.0f, 50.0f });
 	countText_->SetText(L"0 / 40");
-}
 
-void DeckEditScene::RecalculateTotal() {
-	totalCount_ = 0;
-	for (auto const& [id, count] : editingDeck_) {
-		totalCount_ += count;
-	}
+	controlHintText_ = std::make_unique<TextSprite>();
+	controlHintText_->Initialize(app.SpriteCom(), app.Dx());
+	controlHintText_->SetFontSize(30);
+	controlHintText_->SetSize({ 1.f, 1.f, 1.f });
+	controlHintText_->SetPosition({ 1000.0f, 200.0f });
+	controlHintText_->SetText(L"カードを\n\n左クリック : 1枚追加\n右クリック : 1枚削除\n\nできます");
+
+	scrollY_ = kInitialScrollY;
 }
 
 void DeckEditScene::OnExit(GameApp& app) {
@@ -82,10 +84,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 	input->SetWheel(0);
 
 	// デッキの枚数が40枚ちょうどかどうか
-	bool isDeckValid = (totalCount_ == 40);
-
-	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
-	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
+	isDeckValid_ = (totalCount_ == 40);
 
 	POINT mouse = input->GetMousePosition();
 	Vector2 mousePos = { (float)mouse.x, (float)mouse.y };
@@ -96,7 +95,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		countText_->SetText(countStr);
 
 		// 40枚ちょうどなら緑、それ以外は白
-		if (isDeckValid) {
+		if (isDeckValid_) {
 			countText_->SetColor({ 1.0f, 1.0f, 1.0f }); // 白
 		} else {
 			countText_->SetColor({ 1.0f, 0.0f, 0.0f }); // 赤
@@ -105,7 +104,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		
 	}
 
-	if (changeSceneButtonBg_->IsMouseOver(mousePos)&&isDeckValid) {
+	if (changeSceneButtonBg_->IsMouseOver(mousePos)&&isDeckValid_) {
 
 		changeSceneButtonBg_->SetColor({ 0.f, 0.5f, 0.5f, 0.8f });
 		// スプライトがクリックされたか判定
@@ -128,7 +127,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 			return;
 		}
 	} else {
-		if (isDeckValid) {
+		if (isDeckValid_) {
 			// 40枚揃っているがマウスが乗っていない
 			changeSceneButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f });
 		} else {
@@ -137,20 +136,16 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		}
 	}
 
-	// テキストスプライトも更新（行列計算など）
-	changeSceneButtonText_->Update(view, proj);
-	changeSceneButtonBg_->Update(view, proj);
-	if (!isDeckValid) {
-		warningText_->Update(view, proj);
-	}
-	countText_->Update(view, proj);
+	// ---  スプライトの更新 ---
+	UpdateSprites();
 
 	// --- 2. スクロール量の更新 ---
 	float scrollSpeed = 1.0f; // ホイール1目盛りあたりの移動量（調整してください）
 
 	if (wheel != 0) {
-
 		scrollY_ -= (static_cast<float>(wheel) / 120.0f) * scrollSpeed;
+		scrollY_ = std::clamp(scrollY_, kMinScrollY, kMaxScrollY);
+
 	}
 
 	int index = 0;
@@ -296,6 +291,9 @@ void DeckEditScene::Draw2D(GameApp& app) {
 	// 40枚ないときだけ警告を表示
 	if (totalCount_ < 40 && warningText_) {
 		warningText_->Draw();
+	}
+	if (controlHintText_) {
+		controlHintText_->Draw();
 	}
 }
 
@@ -472,4 +470,33 @@ int DeckEditScene::PickCardIndex(GameApp& app) {
 		}
 	}
 	return -1;
+}
+
+void DeckEditScene::RecalculateTotal() {
+	totalCount_ = 0;
+	for (auto const& [id, count] : editingDeck_) {
+		totalCount_ += count;
+	}
+}
+
+void DeckEditScene::UpdateSprites() {
+
+	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
+
+	if(changeSceneButtonBg_) {
+		changeSceneButtonBg_->Update(view, proj);
+	}
+	if (changeSceneButtonText_) {
+		changeSceneButtonText_->Update(view, proj);
+	}
+	if (warningText_ && !isDeckValid_) {
+		warningText_->Update(view, proj);
+	}
+	if (countText_) {
+		countText_->Update(view, proj);
+	}
+	if (controlHintText_) {
+		controlHintText_->Update(view, proj);
+	}
 }

@@ -25,13 +25,11 @@ public:
 private:
     std::unique_ptr<Camera> camera_;
 
-    // カードID -> 枚数 の管理
-    std::map<int, int> editingDeck_;
-    int totalCount_ = 0;
+	CardDatabase* cardDB_ = nullptr; // カードデータベースへのポインタ
 
-    CardDatabase* cardDB_ = nullptr;
-
-    // --- 3D表示用 ---
+	std::map<int, int> editingDeck_; // カードIDと枚数のマップ
+	int totalCount_ = 0;             // デッキ内のカードの合計枚数
+;
     std::vector<std::unique_ptr<Card3D>> cardModels_;
 
     // レイアウト計算用の定数
@@ -41,18 +39,23 @@ private:
     const float kCardSpacingY = 2.f; // カードの間の立幅
     const int kCardsPerRow = 4;
 
-    void RebuildCardModels(GameApp& app); // モデルを再生成する関数
-    // 内部計算用
-    void RecalculateTotal();
-
-    // どのインデックスがクリックされたか
-    int PickCardIndex(GameApp& app);
-
     float scrollY_ = 0.0f;
+    const float kInitialScrollY = 2.0f; // 最初のスクロール量
+    const float kMaxScrollY = 8.0f;    // 上限 (カードリストの長さに応じて調整)
+    const float kMinScrollY = 2.0f;
+
+    bool isDeckValid_ = false;
 
     std::unique_ptr<Sprite> changeSceneButtonBg_;  
     std::unique_ptr<TextSprite> changeSceneButtonText_;
     std::unique_ptr<TextSprite> warningText_;
     std::unique_ptr<TextSprite> countText_;
+	std::unique_ptr<TextSprite> controlHintText_;
 
+
+    void RebuildCardModels(GameApp& app);
+    void RecalculateTotal();
+    void UpdateSprites();
+
+    int PickCardIndex(GameApp& app);
 };
