@@ -149,6 +149,10 @@ private:
 	std::unique_ptr<TextSprite> pokerInfoButtonText_;
 	std::array<std::unique_ptr<TextSprite>, 5> pokerOptionTexts_;
 
+	std::unique_ptr<TextSprite> deckLabelText_;
+	std::unique_ptr<TextSprite> discardLabelText_;
+	std::unique_ptr<TextSprite> handLabelText_;
+
 	bool useImageCardDesc_ = false;
 
 	//ui用の背景スプライト
@@ -250,5 +254,20 @@ public:
 private:
 
 	bool tutorialInputLocked_ = false;
+
+private:
+
+	struct UiCountTextLayout {
+		float offsetX = 80.0f;   // ラベルからの横距離
+		float offsetY = 0.0f;    // 微調整
+		float scale = 0.5f;
+	};
+
+	UiCountTextLayout deckCountTextLayout_ = { 103.0f, 0.0f, 1.3f };
+	UiCountTextLayout discardCountTextLayout_ = { 83.0f, 0.0f, 1.3f };
+	UiCountTextLayout handCountTextLayout_ = { 89.0f, 0.0f, 1.3f };
+
+
+public:
 
 };

@@ -262,7 +262,8 @@ void TutorialScene::Update(GameApp& app, float dt) {
                 step == Step::UiDeckCount ||
                 step == Step::UiEnemyIntentDamage ||
                 step == Step::UiEnemyNextAction ||
-                step == Step::UiFinished) {
+                step == Step::UiFinished ||
+                step == Step::ExplainCardAll) {
                 tutorial_->NextStep();
             } else if (step == Step::Finished) {
                 if (state_ == State::Idle) {

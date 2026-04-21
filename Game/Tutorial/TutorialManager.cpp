@@ -257,6 +257,20 @@ void TutorialManager::Update(BattleController& battle) {
 }
 
 void TutorialManager::Advance_() {
+	// HoverHand の次は個別説明を飛ばして一括説明へ
+	if (step_ == TutorialStep::HoverHand) {
+		step_ = TutorialStep::ExplainCardAll;
+		UpdateMessage_();
+		return;
+	}
+
+	// ExplainCardAll の次は PlayCard
+	if (step_ == TutorialStep::ExplainCardAll) {
+		step_ = TutorialStep::PlayCard;
+		UpdateMessage_();
+		return;
+	}
+
 	step_ = static_cast<TutorialStep>(static_cast<int>(step_) + 1);
 
 	// 不要ステップ飛ばす
@@ -423,6 +437,9 @@ TutorialManager::FocusType TutorialManager::GetFocusType() const {
 	case TutorialStep::WaitEnemyTurn:
 	case TutorialStep::SkipPokerWaitEnemyTurn:
 	case TutorialStep::EndAfterPoker:
+		return FocusType::None;
+
+	case TutorialStep::ExplainCardAll:
 		return FocusType::None;
 
 	case TutorialStep::ChoosePokerEffect:
