@@ -85,6 +85,8 @@ public:
 
 	void	Initialize(WinApp* winApp);
 
+	void ToggleFullscreen();
+
 	//描画前処理
 	void PreDraw();
 	//描画後処理

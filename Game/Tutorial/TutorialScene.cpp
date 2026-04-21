@@ -210,17 +210,28 @@ void TutorialScene::Update(GameApp& app, float dt) {
         }
     }
 
+    bool imguiCapturingMouse = false;
+#ifdef USE_IMGUI
+    ImGuiIO& io = ImGui::GetIO();
+    imguiCapturingMouse =
+        io.WantCaptureMouse ||
+        io.WantCaptureKeyboard ||
+        ImGui::IsAnyItemActive() ||
+        ImGui::IsAnyItemHovered();
+#endif
+
     bool lockGameplayInput = false;
     if (tutorial_) {
         lockGameplayInput = tutorial_->IsGameplayInputLocked();
     }
 
+    // ImGui操作中もゲーム側入力を止める
+    lockGameplayInput = lockGameplayInput || imguiCapturingMouse;
+
     battle_.SetTutorialInputLocked(lockGameplayInput);
     if (fieldUi_) {
         fieldUi_->SetTutorialInputLocked(lockGameplayInput);
     }
-
-    battle_.Update(app, *fieldUi_, dt);
 
     if (tutorial_) {
         bool nextTutorial = false;
@@ -228,12 +239,6 @@ void TutorialScene::Update(GameApp& app, float dt) {
         if (input->IsKeyTrigger(DIK_N)) {
             nextTutorial = true;
         }
-
-        bool imguiCapturingMouse = false;
-#ifdef USE_IMGUI
-        ImGuiIO& io = ImGui::GetIO();
-        imguiCapturingMouse = io.WantCaptureMouse || ImGui::IsAnyItemActive();
-#endif
 
         const bool blockTutorialClick =
             battle_.HasPokerChoiceUi() ||
@@ -280,6 +285,8 @@ void TutorialScene::Update(GameApp& app, float dt) {
     if (fieldUi_) {
         fieldUi_->Update(app, battle_);
     }
+
+    battle_.Update(app, *fieldUi_, dt);
 
     if (tutorialUi_ && tutorial_ && fieldUi_) {
         tutorialUi_->Update(app, *tutorial_, battle_, *fieldUi_);
@@ -372,7 +379,22 @@ void TutorialScene::Draw2D(GameApp& app) {
     }
 
     if (tutorialUi_ && tutorial_) {
-        tutorialUi_->Draw(app, *tutorial_, battle_);
+        if (tutorial_->GetStep() == TutorialManager::TutorialStep::ExplainCardAll) {
+            // 1. 暗転オーバーレイを描画 (2D)
+            app.SpriteCom()->SetGraphicsPipelineState();
+            tutorialUi_->DrawDimOverlay(app);
+
+            // 2. 深度バッファをクリアして、3Dのプレビューカードを手前に再描画
+            app.Dx()->ClearDepthBuffer();
+            battle_.DrawPreviewCard3D(app);
+
+            // 3. その上にチュートリアルの文字や矢印を描画 (2D)
+            app.SpriteCom()->SetGraphicsPipelineState();
+            tutorialUi_->Draw(app, *tutorial_, battle_);
+        } else {
+            // 通常の描画
+            tutorialUi_->Draw(app, *tutorial_, battle_);
+        }
     }
 
     // 円形マスク描画

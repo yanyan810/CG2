@@ -51,6 +51,12 @@ void TutorialUi::Initialize(GameApp& app)
     darkOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
     darkOverlay_->SetColor({ 0.0f, 0.0f, 0.0f, 0.45f });
 
+    dimOverlay_ = std::make_unique<Sprite>();
+    dimOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    dimOverlay_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });
+    dimOverlay_->SetPosition({ 0.0f, 0.0f });
+    dimOverlay_->SetScale({ 1280.0f, 720.0f, 1.0f });
+
     for (auto& frame : focusFrames_) {
         frame = std::make_unique<Sprite>();
         frame->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -59,14 +65,15 @@ void TutorialUi::Initialize(GameApp& app)
         frame->SetScale({ 0.0f, 0.0f, 1.0f });
     }
 
-	// ガイド用の円と矢印、説明ボックスを初期化
-    guideCircle_ = std::make_unique<Sprite>();
-    guideCircle_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    guideCircle_->SetColor({ 1.0f, 1.0f, 0.2f, 0.30f });
+    for (int i = 0; i < 3; ++i) {
+        guideCircles_[i] = std::make_unique<Sprite>();
+        guideCircles_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+        guideCircles_[i]->SetColor({ 1.0f, 1.0f, 0.2f, 0.30f });
 
-    guideArrow_ = std::make_unique<Sprite>();
-    guideArrow_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    guideArrow_->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
+        guideArrows_[i] = std::make_unique<Sprite>();
+        guideArrows_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+        guideArrows_[i]->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
+    }
 
     for (int i = 0; i < 3; ++i) {
         guideBoxBgs_[i] = std::make_unique<Sprite>();
@@ -258,10 +265,15 @@ void TutorialUi::Update(GameApp& app,
     focusBlink_ += 0.05f;
     float blink = 0.08f + (sinf(focusBlink_) * 0.5f + 0.5f) * 0.10f;
 
-    bg_->SetPosition({ layout_.messageBg.x, layout_.messageBg.y });
+    float offsetY = 0.0f;
+    if (tutorial.GetStep() == TutorialManager::TutorialStep::ExplainCardAll) {
+        offsetY = layout_.explainCardMessageOffsetY;
+    }
+
+    bg_->SetPosition({ layout_.messageBg.x, layout_.messageBg.y + offsetY });
     bg_->SetScale({ layout_.messageBg.w, layout_.messageBg.h, 1.0f });
 
-    text_->SetPosition({ layout_.messageText.x, layout_.messageText.y });
+    text_->SetPosition({ layout_.messageText.x, layout_.messageText.y + offsetY });
     text_->SetText(prevText_);
 
     darkOverlay_->SetPosition({ layout_.darkOverlay.x, layout_.darkOverlay.y });
@@ -288,35 +300,40 @@ void TutorialUi::Update(GameApp& app,
 }
 
 void TutorialUi::DrawGuideCircle_(
+    int index,
     const GuideCircleLayout& layout,
     const Matrix4x4& view,
     const Matrix4x4& proj)
 {
-    if (!guideCircle_) {
+    if (index < 0 || index >= 3 || !guideCircles_[index]) {
         return;
     }
 
-    guideCircle_->SetPosition({ layout.center.x, layout.center.y });
-    guideCircle_->SetScale({ layout.size.x, layout.size.y, 1.0f });
-    guideCircle_->SetColor(layout.color);
-    guideCircle_->Update(view, proj);
-    guideCircle_->Draw();
+    guideCircles_[index]->SetPosition({ layout.center.x, layout.center.y });
+    guideCircles_[index]->SetScale({ layout.size.x, layout.size.y, 1.0f });
+    guideCircles_[index]->SetColor(layout.color);
+    guideCircles_[index]->Update(view, proj);
+    guideCircles_[index]->Draw();
 }
 
 void TutorialUi::DrawGuideArrow_(
+    int index,
     const GuideArrowLayout& layout,
     const Matrix4x4& view,
     const Matrix4x4& proj)
 {
-    if (!guideArrow_) {
+    if (index < 0 || index >= 3 || !guideArrows_[index]) {
         return;
     }
 
-    guideArrow_->SetPosition({ layout.rect.x, layout.rect.y });
-    guideArrow_->SetScale({ layout.rect.w, layout.rect.h, 1.0f });
-    guideArrow_->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
-    guideArrow_->Update(view, proj);
-    guideArrow_->Draw();
+    guideArrows_[index]->SetPosition({ layout.rect.x, layout.rect.y });
+
+    const float sx = layout.flipX ? -layout.rect.w : layout.rect.w;
+    guideArrows_[index]->SetScale({ sx, layout.rect.h, 1.0f });
+
+    guideArrows_[index]->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
+    guideArrows_[index]->Update(view, proj);
+    guideArrows_[index]->Draw();
 }
 
 void TutorialUi::DrawGuideBox_(
@@ -359,13 +376,13 @@ void TutorialUi::DrawCardGuide_(
         return;
     }
 
-    DrawGuideCircle_(cardGuideLayout_.costCircle, view, proj);
-    DrawGuideCircle_(cardGuideLayout_.suitCircle, view, proj);
-    DrawGuideCircle_(cardGuideLayout_.numberCircle, view, proj);
+    DrawGuideCircle_(0, cardGuideLayout_.costCircle, view, proj);
+    DrawGuideCircle_(1, cardGuideLayout_.suitCircle, view, proj);
+    DrawGuideCircle_(2, cardGuideLayout_.numberCircle, view, proj);
 
-    DrawGuideArrow_(cardGuideLayout_.costArrow, view, proj);
-    DrawGuideArrow_(cardGuideLayout_.suitArrow, view, proj);
-    DrawGuideArrow_(cardGuideLayout_.numberArrow, view, proj);
+    DrawGuideArrow_(0, cardGuideLayout_.costArrow, view, proj);
+    DrawGuideArrow_(1, cardGuideLayout_.suitArrow, view, proj);
+    DrawGuideArrow_(2, cardGuideLayout_.numberArrow, view, proj);
 
     DrawGuideBox_(0, cardGuideLayout_.costBox,
         L"この数字が\nカードの使用コストです",
@@ -380,8 +397,19 @@ void TutorialUi::DrawCardGuide_(
         view, proj);
 }
 
+void TutorialUi::DrawDimOverlay(GameApp& app)
+{
+	if (!dimOverlay_) return;
+
+	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix((float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+	
+	dimOverlay_->Update(viewMat, projMat);
+	dimOverlay_->Draw();
+}
+
 void TutorialUi::Draw(GameApp& app,
-    const TutorialManager& tutorial,
+    TutorialManager& tutorial,
     const BattleController& battle)
 {
     (void)app;
@@ -426,6 +454,41 @@ void TutorialUi::Draw(GameApp& app,
     }
 }
 
+void TutorialUi::DrawDebugCardGuide(GameApp& app)
+{
+    Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+    Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
+        0, 0,
+        float(WinApp::kClientWidth),
+        float(WinApp::kClientHeight),
+        0, 100
+    );
+
+    if (!cardGuideLayout_.enable) {
+        return;
+    }
+
+    DrawGuideCircle_(0, cardGuideLayout_.costCircle, view, proj);
+    DrawGuideCircle_(1, cardGuideLayout_.suitCircle, view, proj);
+    DrawGuideCircle_(2, cardGuideLayout_.numberCircle, view, proj);
+
+    DrawGuideArrow_(0, cardGuideLayout_.costArrow, view, proj);
+    DrawGuideArrow_(1, cardGuideLayout_.suitArrow, view, proj);
+    DrawGuideArrow_(2, cardGuideLayout_.numberArrow, view, proj);
+
+    DrawGuideBox_(0, cardGuideLayout_.costBox,
+        L"この数字が\nカードの使用コストです",
+        view, proj);
+
+    DrawGuideBox_(1, cardGuideLayout_.suitBox,
+        L"このマークで\nポーカー役を作ります",
+        view, proj);
+
+    DrawGuideBox_(2, cardGuideLayout_.numberBox,
+        L"この数字が\nポーカーの数字です",
+        view, proj);
+}
+
 bool TutorialUi::SaveLayout(const std::string& path) const
 {
     json j;
@@ -442,8 +505,16 @@ bool TutorialUi::SaveLayout(const std::string& path) const
         dst["y"] = v.y;
         };
 
+    auto writeVec4 = [](json& dst, const Vector4& v) {
+        dst["x"] = v.x;
+        dst["y"] = v.y;
+        dst["z"] = v.z;
+        dst["w"] = v.w;
+        };
+
     writeRect(j["messageBg"], layout_.messageBg);
     writeVec2(j["messageText"], layout_.messageText);
+    j["explainCardMessageOffsetY"] = layout_.explainCardMessageOffsetY;
     writeRect(j["darkOverlay"], layout_.darkOverlay);
     writeRect(j["handArea"], layout_.handArea);
     writeRect(j["fieldArea"], layout_.fieldArea);
@@ -455,6 +526,43 @@ bool TutorialUi::SaveLayout(const std::string& path) const
     writeRect(j["playerIncomingDamageArea"], layout_.playerIncomingDamageArea);
     writeRect(j["enemyNextActionArea"], layout_.enemyNextActionArea);
 
+    j["cardGuide"]["enable"] = cardGuideLayout_.enable;
+
+    writeVec2(j["cardGuide"]["costCircle"]["center"], cardGuideLayout_.costCircle.center);
+    writeVec2(j["cardGuide"]["costCircle"]["size"], cardGuideLayout_.costCircle.size);
+    writeVec4(j["cardGuide"]["costCircle"]["color"], cardGuideLayout_.costCircle.color);
+
+    writeVec2(j["cardGuide"]["suitCircle"]["center"], cardGuideLayout_.suitCircle.center);
+    writeVec2(j["cardGuide"]["suitCircle"]["size"], cardGuideLayout_.suitCircle.size);
+    writeVec4(j["cardGuide"]["suitCircle"]["color"], cardGuideLayout_.suitCircle.color);
+
+    writeVec2(j["cardGuide"]["numberCircle"]["center"], cardGuideLayout_.numberCircle.center);
+    writeVec2(j["cardGuide"]["numberCircle"]["size"], cardGuideLayout_.numberCircle.size);
+    writeVec4(j["cardGuide"]["numberCircle"]["color"], cardGuideLayout_.numberCircle.color);
+
+    writeRect(j["cardGuide"]["costBox"]["bg"], cardGuideLayout_.costBox.bg);
+    writeVec2(j["cardGuide"]["costBox"]["textPos"], cardGuideLayout_.costBox.textPos);
+    j["cardGuide"]["costBox"]["textScale"] = cardGuideLayout_.costBox.textScale;
+    writeVec4(j["cardGuide"]["costBox"]["color"], cardGuideLayout_.costBox.color);
+
+    writeRect(j["cardGuide"]["suitBox"]["bg"], cardGuideLayout_.suitBox.bg);
+    writeVec2(j["cardGuide"]["suitBox"]["textPos"], cardGuideLayout_.suitBox.textPos);
+    j["cardGuide"]["suitBox"]["textScale"] = cardGuideLayout_.suitBox.textScale;
+    writeVec4(j["cardGuide"]["suitBox"]["color"], cardGuideLayout_.suitBox.color);
+
+    writeRect(j["cardGuide"]["numberBox"]["bg"], cardGuideLayout_.numberBox.bg);
+    writeVec2(j["cardGuide"]["numberBox"]["textPos"], cardGuideLayout_.numberBox.textPos);
+    j["cardGuide"]["numberBox"]["textScale"] = cardGuideLayout_.numberBox.textScale;
+    writeVec4(j["cardGuide"]["numberBox"]["color"], cardGuideLayout_.numberBox.color);
+
+    writeRect(j["cardGuide"]["costArrow"]["rect"], cardGuideLayout_.costArrow.rect);
+    j["cardGuide"]["costArrow"]["flipX"] = cardGuideLayout_.costArrow.flipX;
+
+    writeRect(j["cardGuide"]["suitArrow"]["rect"], cardGuideLayout_.suitArrow.rect);
+    j["cardGuide"]["suitArrow"]["flipX"] = cardGuideLayout_.suitArrow.flipX;
+
+    writeRect(j["cardGuide"]["numberArrow"]["rect"], cardGuideLayout_.numberArrow.rect);
+    j["cardGuide"]["numberArrow"]["flipX"] = cardGuideLayout_.numberArrow.flipX;
 
     std::ofstream ofs(path);
     if (!ofs.is_open()) {
@@ -487,8 +595,16 @@ bool TutorialUi::LoadLayout(const std::string& path)
         v.y = src.value("y", v.y);
         };
 
+    auto readVec4 = [](const json& src, Vector4& v) {
+        v.x = src.value("x", v.x);
+        v.y = src.value("y", v.y);
+        v.z = src.value("z", v.z);
+        v.w = src.value("w", v.w);
+        };
+
     if (j.contains("messageBg")) readRect(j["messageBg"], layout_.messageBg);
     if (j.contains("messageText")) readVec2(j["messageText"], layout_.messageText);
+    layout_.explainCardMessageOffsetY = j.value("explainCardMessageOffsetY", layout_.explainCardMessageOffsetY);
     if (j.contains("darkOverlay")) readRect(j["darkOverlay"], layout_.darkOverlay);
     if (j.contains("handArea")) readRect(j["handArea"], layout_.handArea);
     if (j.contains("fieldArea")) readRect(j["fieldArea"], layout_.fieldArea);
@@ -502,6 +618,75 @@ bool TutorialUi::LoadLayout(const std::string& path)
     }
     if (j.contains("enemyNextActionArea")) {
         readRect(j["enemyNextActionArea"], layout_.enemyNextActionArea);
+    }
+
+    if (j.contains("cardGuide")) {
+        const json& g = j["cardGuide"];
+
+        cardGuideLayout_.enable = g.value("enable", cardGuideLayout_.enable);
+
+        if (g.contains("costCircle")) {
+            const json& n = g["costCircle"];
+            if (n.contains("center")) readVec2(n["center"], cardGuideLayout_.costCircle.center);
+            if (n.contains("size")) readVec2(n["size"], cardGuideLayout_.costCircle.size);
+            if (n.contains("color")) readVec4(n["color"], cardGuideLayout_.costCircle.color);
+        }
+
+        if (g.contains("suitCircle")) {
+            const json& n = g["suitCircle"];
+            if (n.contains("center")) readVec2(n["center"], cardGuideLayout_.suitCircle.center);
+            if (n.contains("size")) readVec2(n["size"], cardGuideLayout_.suitCircle.size);
+            if (n.contains("color")) readVec4(n["color"], cardGuideLayout_.suitCircle.color);
+        }
+
+        if (g.contains("numberCircle")) {
+            const json& n = g["numberCircle"];
+            if (n.contains("center")) readVec2(n["center"], cardGuideLayout_.numberCircle.center);
+            if (n.contains("size")) readVec2(n["size"], cardGuideLayout_.numberCircle.size);
+            if (n.contains("color")) readVec4(n["color"], cardGuideLayout_.numberCircle.color);
+        }
+
+        if (g.contains("costBox")) {
+            const json& n = g["costBox"];
+            if (n.contains("bg")) readRect(n["bg"], cardGuideLayout_.costBox.bg);
+            if (n.contains("textPos")) readVec2(n["textPos"], cardGuideLayout_.costBox.textPos);
+            cardGuideLayout_.costBox.textScale = n.value("textScale", cardGuideLayout_.costBox.textScale);
+            if (n.contains("color")) readVec4(n["color"], cardGuideLayout_.costBox.color);
+        }
+
+        if (g.contains("suitBox")) {
+            const json& n = g["suitBox"];
+            if (n.contains("bg")) readRect(n["bg"], cardGuideLayout_.suitBox.bg);
+            if (n.contains("textPos")) readVec2(n["textPos"], cardGuideLayout_.suitBox.textPos);
+            cardGuideLayout_.suitBox.textScale = n.value("textScale", cardGuideLayout_.suitBox.textScale);
+            if (n.contains("color")) readVec4(n["color"], cardGuideLayout_.suitBox.color);
+        }
+
+        if (g.contains("numberBox")) {
+            const json& n = g["numberBox"];
+            if (n.contains("bg")) readRect(n["bg"], cardGuideLayout_.numberBox.bg);
+            if (n.contains("textPos")) readVec2(n["textPos"], cardGuideLayout_.numberBox.textPos);
+            cardGuideLayout_.numberBox.textScale = n.value("textScale", cardGuideLayout_.numberBox.textScale);
+            if (n.contains("color")) readVec4(n["color"], cardGuideLayout_.numberBox.color);
+        }
+
+        if (g.contains("costArrow")) {
+            const json& n = g["costArrow"];
+            if (n.contains("rect")) readRect(n["rect"], cardGuideLayout_.costArrow.rect);
+            cardGuideLayout_.costArrow.flipX = n.value("flipX", cardGuideLayout_.costArrow.flipX);
+        }
+
+        if (g.contains("suitArrow")) {
+            const json& n = g["suitArrow"];
+            if (n.contains("rect")) readRect(n["rect"], cardGuideLayout_.suitArrow.rect);
+            cardGuideLayout_.suitArrow.flipX = n.value("flipX", cardGuideLayout_.suitArrow.flipX);
+        }
+
+        if (g.contains("numberArrow")) {
+            const json& n = g["numberArrow"];
+            if (n.contains("rect")) readRect(n["rect"], cardGuideLayout_.numberArrow.rect);
+            cardGuideLayout_.numberArrow.flipX = n.value("flipX", cardGuideLayout_.numberArrow.flipX);
+        }
     }
 
     return true;
@@ -519,6 +704,7 @@ void TutorialUi::DrawImGui(TutorialManager& tutorial)
     ImGui::Text("Message");
     ImGui::DragFloat4("messageBg", &layout_.messageBg.x, 1.0f);
     ImGui::DragFloat2("messageText", &layout_.messageText.x, 1.0f);
+    ImGui::DragFloat("explainCardMessageOffsetY", &layout_.explainCardMessageOffsetY, 1.0f);
 
     ImGui::Separator();
     ImGui::Text("Overlay");
@@ -539,9 +725,74 @@ void TutorialUi::DrawImGui(TutorialManager& tutorial)
     ImGui::DragFloat4("enemyNextActionArea", &layout_.enemyNextActionArea.x, 1.0f);
 
     ImGui::Separator();
-    ImGui::Text("Tutorial Message Edit");
+    ImGui::Text("Card Guide");
+    ImGui::Checkbox("cardGuide enable", &cardGuideLayout_.enable);
+
+    if (ImGui::TreeNode("Cost Circle")) {
+        ImGui::DragFloat2("costCircle center", &cardGuideLayout_.costCircle.center.x, 1.0f);
+        ImGui::DragFloat2("costCircle size", &cardGuideLayout_.costCircle.size.x, 1.0f, 1.0f, 1000.0f);
+        ImGui::ColorEdit4("costCircle color", &cardGuideLayout_.costCircle.color.x);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Suit Circle")) {
+        ImGui::DragFloat2("suitCircle center", &cardGuideLayout_.suitCircle.center.x, 1.0f);
+        ImGui::DragFloat2("suitCircle size", &cardGuideLayout_.suitCircle.size.x, 1.0f, 1.0f, 1000.0f);
+        ImGui::ColorEdit4("suitCircle color", &cardGuideLayout_.suitCircle.color.x);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Number Circle")) {
+        ImGui::DragFloat2("numberCircle center", &cardGuideLayout_.numberCircle.center.x, 1.0f);
+        ImGui::DragFloat2("numberCircle size", &cardGuideLayout_.numberCircle.size.x, 1.0f, 1.0f, 1000.0f);
+        ImGui::ColorEdit4("numberCircle color", &cardGuideLayout_.numberCircle.color.x);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Cost Box")) {
+        ImGui::DragFloat4("costBox bg", &cardGuideLayout_.costBox.bg.x, 1.0f);
+        ImGui::DragFloat2("costBox textPos", &cardGuideLayout_.costBox.textPos.x, 1.0f);
+        ImGui::DragFloat("costBox textScale", &cardGuideLayout_.costBox.textScale, 0.01f, 0.1f, 5.0f);
+        ImGui::ColorEdit4("costBox color", &cardGuideLayout_.costBox.color.x);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Suit Box")) {
+        ImGui::DragFloat4("suitBox bg", &cardGuideLayout_.suitBox.bg.x, 1.0f);
+        ImGui::DragFloat2("suitBox textPos", &cardGuideLayout_.suitBox.textPos.x, 1.0f);
+        ImGui::DragFloat("suitBox textScale", &cardGuideLayout_.suitBox.textScale, 0.01f, 0.1f, 5.0f);
+        ImGui::ColorEdit4("suitBox color", &cardGuideLayout_.suitBox.color.x);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Number Box")) {
+        ImGui::DragFloat4("numberBox bg", &cardGuideLayout_.numberBox.bg.x, 1.0f);
+        ImGui::DragFloat2("numberBox textPos", &cardGuideLayout_.numberBox.textPos.x, 1.0f);
+        ImGui::DragFloat("numberBox textScale", &cardGuideLayout_.numberBox.textScale, 0.01f, 0.1f, 5.0f);
+        ImGui::ColorEdit4("numberBox color", &cardGuideLayout_.numberBox.color.x);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Cost Arrow")) {
+        ImGui::DragFloat4("costArrow rect", &cardGuideLayout_.costArrow.rect.x, 1.0f);
+        ImGui::Checkbox("costArrow flipX", &cardGuideLayout_.costArrow.flipX);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Suit Arrow")) {
+        ImGui::DragFloat4("suitArrow rect", &cardGuideLayout_.suitArrow.rect.x, 1.0f);
+        ImGui::Checkbox("suitArrow flipX", &cardGuideLayout_.suitArrow.flipX);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Number Arrow")) {
+        ImGui::DragFloat4("numberArrow rect", &cardGuideLayout_.numberArrow.rect.x, 1.0f);
+        ImGui::Checkbox("numberArrow flipX", &cardGuideLayout_.numberArrow.flipX);
+        ImGui::TreePop();
+    }
 
     ImGui::Separator();
+    ImGui::Text("Tutorial Message Edit");
 
     if (ImGui::Button("Save TutorialUiLayout")) {
         SaveLayout(layoutPath_);

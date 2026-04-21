@@ -19,6 +19,7 @@ public:
 
     void Update(float dt);
     void Draw();
+    void DrawPreviewCard();
 
     void Clear();
     void AddCard(const CardInstance& inst);

@@ -536,6 +536,7 @@ void DirectXCommon::SwapChainSpawn() {
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // 描画対象として使う
 	swapChainDesc.BufferCount = 2;                   // ダブルバッファ            // ウィンドウモードで起動
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // フリップ後は破棄
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	//コマンドキュー,ウィンドウハンドル,設定を渡して生成する
 	Microsoft::WRL::ComPtr<IDXGISwapChain1> tempSwapChain;
 	hr = dxgiFactory_->CreateSwapChainForHwnd(
@@ -547,6 +548,13 @@ void DirectXCommon::SwapChainSpawn() {
 	assert(SUCCEEDED(hr));
 
 
+}
+
+void DirectXCommon::ToggleFullscreen() {
+	if (!swapChain) return;
+	BOOL isFullscreen = FALSE;
+	swapChain->GetFullscreenState(&isFullscreen, nullptr);
+	swapChain->SetFullscreenState(!isFullscreen, nullptr);
 }
 
 
