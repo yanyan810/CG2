@@ -59,6 +59,51 @@ void TutorialUi::Initialize(GameApp& app)
         frame->SetScale({ 0.0f, 0.0f, 1.0f });
     }
 
+	// ガイド用の円と矢印、説明ボックスを初期化
+    guideCircle_ = std::make_unique<Sprite>();
+    guideCircle_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    guideCircle_->SetColor({ 1.0f, 1.0f, 0.2f, 0.30f });
+
+    guideArrow_ = std::make_unique<Sprite>();
+    guideArrow_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    guideArrow_->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
+
+    for (int i = 0; i < 3; ++i) {
+        guideBoxBgs_[i] = std::make_unique<Sprite>();
+        guideBoxBgs_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+        guideBoxBgs_[i]->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
+
+        guideBoxTexts_[i] = std::make_unique<TextSprite>();
+        guideBoxTexts_[i]->Initialize(app.SpriteCom(), app.Dx());
+        guideBoxTexts_[i]->SetSize({ 1.0f, 1.0f, 1.0f });
+    }
+
+    // 仮配置
+    cardGuideLayout_.costCircle.center = { 895.0f, 290.0f };
+    cardGuideLayout_.costCircle.size = { 90.0f, 90.0f };
+
+    cardGuideLayout_.suitCircle.center = { 1010.0f, 345.0f };
+    cardGuideLayout_.suitCircle.size = { 100.0f, 100.0f };
+
+    cardGuideLayout_.numberCircle.center = { 1015.0f, 520.0f };
+    cardGuideLayout_.numberCircle.size = { 100.0f, 100.0f };
+
+    cardGuideLayout_.costBox.bg = { 180.0f, 220.0f, 290.0f, 100.0f };
+    cardGuideLayout_.costBox.textPos = { 210.0f, 245.0f };
+    cardGuideLayout_.costBox.textScale = 0.9f;
+
+    cardGuideLayout_.suitBox.bg = { 1140.0f, 285.0f, 290.0f, 100.0f };
+    cardGuideLayout_.suitBox.textPos = { 1170.0f, 310.0f };
+    cardGuideLayout_.suitBox.textScale = 0.9f;
+
+    cardGuideLayout_.numberBox.bg = { 1140.0f, 470.0f, 290.0f, 100.0f };
+    cardGuideLayout_.numberBox.textPos = { 1170.0f, 495.0f };
+    cardGuideLayout_.numberBox.textScale = 0.9f;
+
+    cardGuideLayout_.costArrow.rect = { 470.0f, 260.0f, 330.0f, 10.0f };
+    cardGuideLayout_.suitArrow.rect = { 1045.0f, 335.0f, 90.0f, 10.0f };
+    cardGuideLayout_.numberArrow.rect = { 1045.0f, 520.0f, 90.0f, 10.0f };
+
     LoadLayout(layoutPath_);
 }
 
@@ -242,6 +287,99 @@ void TutorialUi::Update(GameApp& app,
     }
 }
 
+void TutorialUi::DrawGuideCircle_(
+    const GuideCircleLayout& layout,
+    const Matrix4x4& view,
+    const Matrix4x4& proj)
+{
+    if (!guideCircle_) {
+        return;
+    }
+
+    guideCircle_->SetPosition({ layout.center.x, layout.center.y });
+    guideCircle_->SetScale({ layout.size.x, layout.size.y, 1.0f });
+    guideCircle_->SetColor(layout.color);
+    guideCircle_->Update(view, proj);
+    guideCircle_->Draw();
+}
+
+void TutorialUi::DrawGuideArrow_(
+    const GuideArrowLayout& layout,
+    const Matrix4x4& view,
+    const Matrix4x4& proj)
+{
+    if (!guideArrow_) {
+        return;
+    }
+
+    guideArrow_->SetPosition({ layout.rect.x, layout.rect.y });
+    guideArrow_->SetScale({ layout.rect.w, layout.rect.h, 1.0f });
+    guideArrow_->SetColor({ 1.0f, 1.0f, 1.0f, 0.95f });
+    guideArrow_->Update(view, proj);
+    guideArrow_->Draw();
+}
+
+void TutorialUi::DrawGuideBox_(
+    int index,
+    const GuideBoxLayout& layout,
+    const std::wstring& text,
+    const Matrix4x4& view,
+    const Matrix4x4& proj)
+{
+    if (index < 0 || index >= 3) {
+        return;
+    }
+    if (!guideBoxBgs_[index] || !guideBoxTexts_[index]) {
+        return;
+    }
+
+    guideBoxBgs_[index]->SetPosition({ layout.bg.x, layout.bg.y });
+    guideBoxBgs_[index]->SetScale({ layout.bg.w, layout.bg.h, 1.0f });
+    guideBoxBgs_[index]->SetColor(layout.color);
+    guideBoxBgs_[index]->Update(view, proj);
+    guideBoxBgs_[index]->Draw();
+
+    guideBoxTexts_[index]->SetText(text);
+    guideBoxTexts_[index]->SetPosition({ layout.textPos.x, layout.textPos.y });
+    guideBoxTexts_[index]->SetSize({ layout.textScale, layout.textScale, 1.0f });
+    guideBoxTexts_[index]->Update(view, proj);
+    guideBoxTexts_[index]->Draw();
+}
+
+void TutorialUi::DrawCardGuide_(
+    const TutorialManager& tutorial,
+    const Matrix4x4& view,
+    const Matrix4x4& proj)
+{
+    if (tutorial.GetStep() != TutorialManager::TutorialStep::ExplainCardAll) {
+        return;
+    }
+
+    if (!cardGuideLayout_.enable) {
+        return;
+    }
+
+    DrawGuideCircle_(cardGuideLayout_.costCircle, view, proj);
+    DrawGuideCircle_(cardGuideLayout_.suitCircle, view, proj);
+    DrawGuideCircle_(cardGuideLayout_.numberCircle, view, proj);
+
+    DrawGuideArrow_(cardGuideLayout_.costArrow, view, proj);
+    DrawGuideArrow_(cardGuideLayout_.suitArrow, view, proj);
+    DrawGuideArrow_(cardGuideLayout_.numberArrow, view, proj);
+
+    DrawGuideBox_(0, cardGuideLayout_.costBox,
+        L"この数字が\nカードの使用コストです",
+        view, proj);
+
+    DrawGuideBox_(1, cardGuideLayout_.suitBox,
+        L"このマークで\nポーカー役を作ります",
+        view, proj);
+
+    DrawGuideBox_(2, cardGuideLayout_.numberBox,
+        L"この数字が\nポーカーの数字です",
+        view, proj);
+}
+
 void TutorialUi::Draw(GameApp& app,
     const TutorialManager& tutorial,
     const BattleController& battle)
@@ -273,6 +411,8 @@ void TutorialUi::Draw(GameApp& app,
         frame->Update(view, proj);
         frame->Draw();
     }
+
+    DrawCardGuide_(tutorial, view, proj);
 
     if (bg_) {
         bg_->Update(view, proj);

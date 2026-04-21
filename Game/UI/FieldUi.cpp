@@ -101,27 +101,42 @@ void FieldUi::ApplyFieldUiLayout_()
 		deckCountBg_->SetPosition({ layout_.deckBg.x, layout_.deckBg.y });
 		deckCountBg_->SetScale({ layout_.deckBg.w, layout_.deckBg.h, 1.0f });
 	}
-	if (deckCountText_) {
-		deckCountText_->SetPosition({ layout_.deckText.x, layout_.deckText.y });
-		SetTextScale_(deckCountText_.get(), layout_.deckText.scale);
+
+	// デッキ
+	if (deckCountText_ && deckLabelText_) {
+		deckCountText_->SetPosition({
+			layout_.deckLabelImage.x + deckCountTextLayout_.offsetX,
+			layout_.deckLabelImage.y + deckCountTextLayout_.offsetY
+			});
+		SetTextScale_(deckCountText_.get(), deckCountTextLayout_.scale);
 	}
 
 	if (discardCountBg_) {
 		discardCountBg_->SetPosition({ layout_.discardBg.x, layout_.discardBg.y });
 		discardCountBg_->SetScale({ layout_.discardBg.w, layout_.discardBg.h, 1.0f });
 	}
-	if (discardCountText_) {
-		discardCountText_->SetPosition({ layout_.discardText.x, layout_.discardText.y });
-		SetTextScale_(discardCountText_.get(), layout_.discardText.scale);
+
+	// 墓地
+	if (discardCountText_ && discardLabelText_) {
+		discardCountText_->SetPosition({
+			layout_.discardLabelImage.x + discardCountTextLayout_.offsetX,
+			layout_.discardLabelImage.y + discardCountTextLayout_.offsetY
+			});
+		SetTextScale_(discardCountText_.get(), discardCountTextLayout_.scale);
 	}
 
 	if (handCountBg_) {
 		handCountBg_->SetPosition({ layout_.handBg.x, layout_.handBg.y });
 		handCountBg_->SetScale({ layout_.handBg.w, layout_.handBg.h, 1.0f });
 	}
-	if (handCountText_) {
-		handCountText_->SetPosition({ layout_.handText.x, layout_.handText.y });
-		SetTextScale_(handCountText_.get(), layout_.handText.scale);
+	
+	// 手札
+	if (handCountText_ && handLabelText_) {
+		handCountText_->SetPosition({
+			layout_.handLabelImage.x + handCountTextLayout_.offsetX,
+			layout_.handLabelImage.y + handCountTextLayout_.offsetY
+			});
+		SetTextScale_(handCountText_.get(), handCountTextLayout_.scale);
 	}
 
 	if (fieldCountBg_) {
@@ -180,6 +195,21 @@ void FieldUi::ApplyFieldUiLayout_()
 	if (handLabelImage_) {
 		handLabelImage_->SetPosition({ layout_.handLabelImage.x, layout_.handLabelImage.y });
 		handLabelImage_->SetScale({ layout_.handLabelImage.scale, layout_.handLabelImage.scale, 1.0f });
+	}
+
+	if (deckLabelText_) {
+		deckLabelText_->SetPosition({ layout_.deckLabelImage.x, layout_.deckLabelImage.y });
+		SetTextScale_(deckLabelText_.get(), layout_.deckLabelImage.scale);
+	}
+
+	if (discardLabelText_) {
+		discardLabelText_->SetPosition({ layout_.discardLabelImage.x, layout_.discardLabelImage.y });
+		SetTextScale_(discardLabelText_.get(), layout_.discardLabelImage.scale);
+	}
+
+	if (handLabelText_) {
+		handLabelText_->SetPosition({ layout_.handLabelImage.x, layout_.handLabelImage.y });
+		SetTextScale_(handLabelText_.get(), layout_.handLabelImage.scale);
 	}
 
 	for (auto& [id, sprite] : cardDescSpriteCache_) {
@@ -388,6 +418,18 @@ void FieldUi::Initialize(GameApp& app)
 	fieldCountBg_ = std::make_unique<Sprite>();
 	fieldCountBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	fieldCountBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.45f });
+
+	deckLabelText_ = std::make_unique<TextSprite>();
+	deckLabelText_->Initialize(app.SpriteCom(), app.Dx());
+	deckLabelText_->SetText(L"デッキ :");
+
+	discardLabelText_ = std::make_unique<TextSprite>();
+	discardLabelText_->Initialize(app.SpriteCom(), app.Dx());
+	discardLabelText_->SetText(L"墓地 :");
+
+	handLabelText_ = std::make_unique<TextSprite>();
+	handLabelText_->Initialize(app.SpriteCom(), app.Dx());
+	handLabelText_->SetText(L"手札 :");
 
 
 	for (int i = 0; i < 5; ++i) {
@@ -849,6 +891,16 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		costText_->SetText(battle.GetEnergyText());
 	}
 
+	if (deckCountText_) {
+		deckCountText_->SetText(std::to_wstring(battle.GetDeckCount()));
+	}
+	if (discardCountText_) {
+		discardCountText_->SetText(std::to_wstring(battle.GetDiscardCount()));
+	}
+	if (handCountText_) {
+		handCountText_->SetText(std::to_wstring(battle.GetHandCount()));
+	}
+
 	switch (inputState) {
 	case BattleController::CardInputState::Preview:
 		clickChoiceText_->SetText(L"左クリック : カード決定 右クリック : キャンセル");
@@ -1262,14 +1314,30 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		fieldCountText_->Draw();
 	}
 
-	for (auto& s : deckCountDigits_) {
-		if (s) { s->Update(view, proj); s->Draw(); }
+	if (deckLabelText_) {
+		deckLabelText_->Update(view, proj);
+		deckLabelText_->Draw();
 	}
-	for (auto& s : discardCountDigits_) {
-		if (s) { s->Update(view, proj); s->Draw(); }
+	if (discardLabelText_) {
+		discardLabelText_->Update(view, proj);
+		discardLabelText_->Draw();
 	}
-	for (auto& s : handCountDigits_) {
-		if (s) { s->Update(view, proj); s->Draw(); }
+	if (handLabelText_) {
+		handLabelText_->Update(view, proj);
+		handLabelText_->Draw();
+	}
+
+	if (deckCountText_) {
+		deckCountText_->Update(view, proj);
+		deckCountText_->Draw();
+	}
+	if (discardCountText_) {
+		discardCountText_->Update(view, proj);
+		discardCountText_->Draw();
+	}
+	if (handCountText_) {
+		handCountText_->Update(view, proj);
+		handCountText_->Draw();
 	}
 
 	if (turnText_) {
@@ -1507,6 +1575,30 @@ void FieldUi::DrawImGui()
 		ImGui::SameLine();
 		if (ImGui::Button("Load FieldUiLayout")) {
 			LoadFieldUiLayout(layoutPath_);
+			ApplyFieldUiLayout_();
+		}
+
+		ImGui::Separator();
+		ImGui::Text("=== Count Text Layout ===");
+
+		bool countChanged = false;
+
+		// デッキ
+		ImGui::Text("Deck");
+		countChanged |= ImGui::DragFloat2("Deck Offset", &deckCountTextLayout_.offsetX, 1.0f);
+		countChanged |= ImGui::DragFloat("Deck Scale", &deckCountTextLayout_.scale, 0.01f, 0.1f, 5.0f);
+
+		// 墓地
+		ImGui::Text("Discard");
+		countChanged |= ImGui::DragFloat2("Discard Offset", &discardCountTextLayout_.offsetX, 1.0f);
+		countChanged |= ImGui::DragFloat("Discard Scale", &discardCountTextLayout_.scale, 0.01f, 0.1f, 5.0f);
+
+		// 手札
+		ImGui::Text("Hand");
+		countChanged |= ImGui::DragFloat2("Hand Offset", &handCountTextLayout_.offsetX, 1.0f);
+		countChanged |= ImGui::DragFloat("Hand Scale", &handCountTextLayout_.scale, 0.01f, 0.1f, 5.0f);
+
+		if (countChanged) {
 			ApplyFieldUiLayout_();
 		}
 
