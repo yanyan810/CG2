@@ -38,7 +38,20 @@ void Input::Initialize(WinApp* winApp) {
 void Input::UpdateMouseDelta() {
     POINT currentMousePos;
     GetCursorPos(&currentMousePos);
-    ScreenToClient(winApp_->GetHwnd(), &currentMousePos);
+    HWND hwnd = winApp_->GetHwnd();
+    ScreenToClient(hwnd, &currentMousePos);
+
+    // ウィンドウがリサイズ（最大化など）された時のために、
+    // 実際のウィンドウサイズからゲーム内解像度(1280x720)への比率でマウス座標を補正する
+    RECT rect;
+    GetClientRect(hwnd, &rect);
+    float clientW = static_cast<float>(rect.right - rect.left);
+    float clientH = static_cast<float>(rect.bottom - rect.top);
+
+    if (clientW > 0.0f && clientH > 0.0f) {
+        currentMousePos.x = static_cast<LONG>((currentMousePos.x / clientW) * WinApp::kClientWidth);
+        currentMousePos.y = static_cast<LONG>((currentMousePos.y / clientH) * WinApp::kClientHeight);
+    }
 
     mousePos_ = currentMousePos;
 
