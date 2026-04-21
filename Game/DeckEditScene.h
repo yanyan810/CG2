@@ -8,6 +8,9 @@
 
 #include "CardDatabase.h"
 
+#include "Sprite.h"
+#include "TextSprite.h"
+
 class Card3D;
 
 class DeckEditScene : public IScene {
@@ -46,4 +49,10 @@ private:
     int PickCardIndex(GameApp& app);
 
     float scrollY_ = 0.0f;
+
+    std::unique_ptr<Sprite> changeSceneButtonBg_;  
+    std::unique_ptr<TextSprite> changeSceneButtonText_;
+    std::unique_ptr<TextSprite> warningText_;
+    std::unique_ptr<TextSprite> countText_;
+
 };

@@ -108,6 +108,8 @@ void TextSprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx)
     sprite_->SetPosition(position_);
     sprite_->SetScale({ 1.0f, 1.0f, 1.0f });
 
+	color_ = { 1.0f, 1.0f, 1.0f };
+
     RebuildTexture_();
 }
 void TextSprite::SetText(const std::wstring& text)
@@ -136,7 +138,7 @@ void TextSprite::Draw()
         return;
     }
 
-    sprite_->SetColor({ 1.0f, 1.0f, 1.0f, alpha_ });
+    sprite_->SetColor({color_.x, color_.y, color_.z, alpha_ });
 
     sprite_->Draw();
 }
