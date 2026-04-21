@@ -74,6 +74,13 @@ void Player::PlayAttackAnim(const Vector3& targetPos) {
 void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
     if (attackList_.empty()) return;
 
+    animState_ = AnimState::AttackForward;
+    animTimer_ = 0.0f;
+    animDuration_ = 0.2f; // 0.2秒で突進
+    startPos_ = basePos_;
+    // 相手の位置の少し手前まで移動
+    targetPos_ = Lerp(basePos_, targetPos, 0.8f);
+
     // --- ランダム選択のロジックを追加 ---
     int index = moveIndex;
     // indexが-1、または範囲外の場合はランダムに決定する
