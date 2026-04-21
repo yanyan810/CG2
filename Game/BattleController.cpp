@@ -1664,9 +1664,6 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 	bool yTrig = input->IsKeyTrigger(DIK_Y);
 	bool nTrig = input->IsKeyTrigger(DIK_N);
-	/*bool key1Trig = input->IsKeyTrigger(DIK_1);
-	bool key2Trig = input->IsKeyTrigger(DIK_2);
-	bool key3Trig = input->IsKeyTrigger(DIK_3);*/
 
 	POINT mouse = input->GetMousePosition();
 
@@ -1675,6 +1672,18 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	bool lRel = input->IsMouseReleased(0);
 
 	bool rTrig = input->IsMouseTrigger(1);
+
+	// ---------------------------------
+	// チュートリアル中のUI説明では
+	// ゲームプレイ入力だけ無効化する
+	// ---------------------------------
+	if (tutorialInputLocked_) {
+		yTrig = false;
+		nTrig = false;
+		lTrig = false;
+		lRel = false;
+		rTrig = false;
+	}
 
 	pokerMouseChoice_ = PokerMouseChoice::None;
 
@@ -1703,6 +1712,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	}
 
 	bool enterTrig = input->IsKeyTrigger(DIK_RETURN);
+	if (tutorialInputLocked_) {
+		enterTrig = false;
+	}
+
 	operationUiVisible_ = input->IsKeyPressed(DIK_TAB);
 
 	bool endTurnButtonClicked = false;
@@ -2024,16 +2037,20 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					if (hoverIndex >= 0) {
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
-						//nextTurnAtkUp_ = 0;
 						if (isPokerDamageTargeting_) {
 							ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
-							// 選んだ敵に向かって突進＆ダメージ！
 							if (pendingDamage_ > 0) {
 								SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
 							}
 
+							// ここで初めて「発動完了」
+							lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 
-							// ポーカー役での攻撃だった場合
+							isPokerDamageTargeting_ = false;
+							tutorialLockPokerTargetingCancel_ = false;
+							pendingDamage_ = 0;
+
+
 							ConsumeFieldCards_();
 							cardState_ = CardInputState::Idle;
 							turn_ = TurnState::Enemy;
@@ -2392,9 +2409,12 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
-			tutorialLockPokerTargetingCancel_ = true; // 追加
+			tutorialLockPokerTargetingCancel_ = true;
 			pokerQuickPreviewVisible_ = false;
-			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
+
+			// ここではまだ発動完了にしない
+			lastPokerTutorialResult_ = PokerTutorialResult::None;
+
 			cardState_ = CardInputState::ChoosingEnemyTarget;
 			pokerChoiceState_ = PokerChoiceState::None;
 			return;
@@ -2464,7 +2484,10 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 		isPokerDamageTargeting_ = true;
 		pokerQuickPreviewVisible_ = false;
-		lastPokerTutorialResult_ = PokerTutorialResult::Activated;
+
+		// ここではまだ確定しない
+		lastPokerTutorialResult_ = PokerTutorialResult::None;
+
 		cardState_ = CardInputState::ChoosingEnemyTarget;
 		pokerChoiceState_ = PokerChoiceState::None;
 		return;

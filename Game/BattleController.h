@@ -215,6 +215,11 @@ public:
 
 	bool IsTutorialPokerTargetCancelLocked() const { return tutorialLockPokerTargetingCancel_; }
 
+	// チュートリアルで、カードのドラッグやプレビューを一切できなくする（カードをクリックして効果を発動するだけの段階などで使う）
+	void SetTutorialInputLocked(bool locked) { tutorialInputLocked_ = locked; }
+	bool IsTutorialInputLocked() const { return tutorialInputLocked_; }
+
+
 private:
 	//=====================
 	// チュートリアル用
@@ -226,6 +231,8 @@ private:
 	bool tutorialActivateOnly_ = false;
 	bool tutorialDamageOnly_ = false;
 	bool tutorialLockPokerTargetingCancel_ = false;
+
+	bool tutorialInputLocked_ = false;
 
 private:
 	enum class TurnState { Player, Enemy };

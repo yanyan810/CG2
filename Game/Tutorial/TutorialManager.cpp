@@ -38,6 +38,15 @@ const char* TutorialManager::StepToKey_(TutorialStep step) {
 	case TutorialStep::SkipPokerWaitEnemyTurn: return "SkipPokerWaitEnemyTurn";
 	case TutorialStep::ViewingBoardFromPoker: return "ViewingBoardFromPoker";
 	case TutorialStep::EndAfterPoker: return "EndAfterPoker";
+	case TutorialStep::UiPlayerHp: return "UiPlayerHp";
+	case TutorialStep::UiEnemyHp: return "UiEnemyHp";
+	case TutorialStep::UiTurnText: return "UiTurnText";
+	case TutorialStep::UiHand: return "UiHand";
+	case TutorialStep::UiField: return "UiField";
+	case TutorialStep::UiRoleText: return "UiRoleText";
+	case TutorialStep::UiEndTurn: return "UiEndTurn";
+	case TutorialStep::UiDeckCount: return "UiDeckCount";
+	case TutorialStep::UiFinished: return "UiFinished";
 	case TutorialStep::Finished: return "Finished";
 	default: return "";
 	}
@@ -248,11 +257,16 @@ void TutorialManager::Update(BattleController& battle) {
 }
 
 void TutorialManager::Advance_() {
-	if (step_ == TutorialStep::Finished) {
-		return;
+	step_ = static_cast<TutorialStep>(static_cast<int>(step_) + 1);
+
+	// 不要ステップ飛ばす
+	if (step_ == TutorialStep::SkipPokerContinueTurn ||
+		step_ == TutorialStep::SkipPokerEndTurn ||
+		step_ == TutorialStep::SkipPokerWaitEnemyTurn) {
+		step_ = TutorialStep::EndAfterPoker;
 	}
 
-	step_ = static_cast<TutorialStep>(static_cast<int>(step_) + 1);
+	UpdateMessage_();
 }
 
 void TutorialManager::UpdateMessage_() {
@@ -271,7 +285,7 @@ void TutorialManager::UpdateMessage_() {
 	}
 	switch (step_) {
 	case TutorialStep::Intro:
-		message_ = L"チュートリアルです\n基本の流れを一通り確認しましょう";
+		message_ = L"チュートリアルです\nまずは画面の見方から確認しましょう\nクリックで次へ進みます";
 		break;
 
 	case TutorialStep::HoverHand:
@@ -280,6 +294,10 @@ void TutorialManager::UpdateMessage_() {
 
 	case TutorialStep::PlayCard:
 		message_ = L"カードを1枚使って\n場に出してみましょう";
+		break;
+
+	case TutorialStep::ExplainCardAll:
+		message_ = L"カードにはコスト・マーク・数字があります\n丸で示している場所を確認しましょう";
 		break;
 
 	case TutorialStep::ExplainEnergy:
@@ -307,7 +325,7 @@ void TutorialManager::UpdateMessage_() {
 		break;
 
 	case TutorialStep::EndAfterPoker:
-		message_ = L"特殊効果が発動されました";
+		message_ = L"敵を倒しました！\nチュートリアルはこれで終了です\n左クリックでタイトルに戻ります";
 		break;
 
 	case TutorialStep::ViewingBoardFromPoker:
@@ -325,6 +343,51 @@ void TutorialManager::UpdateMessage_() {
 	case TutorialStep::SkipPokerWaitEnemyTurn:
 		message_ = L"今は敵のターンです\n次の自分のターンになるまで\n特殊効果は再発動できません";
 		break;
+		
+	case TutorialStep::UiPlayerHp:
+		message_ = L"左上があなたのHPです\n0になると負けになります";
+		break;
+
+	case TutorialStep::UiEnemyIntentDamage:
+		message_ = L"この赤い表示がある場合は予告ダメージです\n次の敵ターンで受けるダメージです";
+		break;
+
+	case TutorialStep::UiEnemyHp:
+		message_ = L"右上が敵のHPです\n0にすると勝ちです";
+		break;
+
+	case TutorialStep::UiEnemyNextAction:
+		message_ = L"この赤い四角は敵の次の行動です\n何をしてくるかの目印になります";
+		break;
+
+	case TutorialStep::UiTurnText:
+		message_ = L"上中央には今のターンが表示されます\n自分のターンか確認しましょう";
+		break;
+
+	case TutorialStep::UiHand:
+		message_ = L"下に並んでいるのが手札です\nここからカードを選びます";
+		break;
+
+	case TutorialStep::UiField:
+		message_ = L"中央が場です\nここにカードを出して役を作ります";
+		break;
+
+	case TutorialStep::UiRoleText:
+		message_ = L"ここに現在の役が表示されます\n5枚そろうと判定されます";
+		break;
+
+	case TutorialStep::UiEndTurn:
+		message_ = L"行動が終わったら\n右の End Turn を押します";
+		break;
+
+	case TutorialStep::UiDeckCount:
+		message_ = L"左下は残り枚数の表示です\n残りが少ないと選択肢も減ります";
+		break;
+
+	case TutorialStep::UiFinished:
+		message_ = L"UIの説明は以上です\n左クリックで先へ進みましょう";
+		break;
+
 
 	case TutorialStep::Finished:
 		message_ = L"チュートリアル完了です\n左クリックでタイトルに戻ります";
@@ -348,7 +411,7 @@ TutorialManager::FocusType TutorialManager::GetFocusType() const {
 	case TutorialStep::PlayCard:
 	case TutorialStep::FillField:
 	case TutorialStep::ExplainPokerReady:
-		return FocusType::FieldArea;
+		return FocusType::None;
 
 	case TutorialStep::ExplainEnergy:
 		return FocusType::EnergyArea;
@@ -360,7 +423,7 @@ TutorialManager::FocusType TutorialManager::GetFocusType() const {
 	case TutorialStep::WaitEnemyTurn:
 	case TutorialStep::SkipPokerWaitEnemyTurn:
 	case TutorialStep::EndAfterPoker:
-		return FocusType::EnemyTurnArea;
+		return FocusType::None;
 
 	case TutorialStep::ChoosePokerEffect:
 		return FocusType::None;
@@ -370,6 +433,39 @@ TutorialManager::FocusType TutorialManager::GetFocusType() const {
 
 	case TutorialStep::SkipPokerContinueTurn:
 		return FocusType::PokerViewBoardButtonArea;
+
+	case TutorialStep::UiPlayerHp:
+		return FocusType::PlayerHpArea;
+
+	case TutorialStep::UiEnemyHp:
+		return FocusType::EnemyHpArea;
+
+	case TutorialStep::UiTurnText:
+		return FocusType::TurnTextArea;
+
+	case TutorialStep::UiHand:
+		return FocusType::HandArea;
+
+	case TutorialStep::UiField:
+		return FocusType::FieldArea;
+
+	case TutorialStep::UiRoleText:
+		return FocusType::RoleTextArea;
+
+	case TutorialStep::UiEndTurn:
+		return FocusType::EndTurnButtonArea;
+
+	case TutorialStep::UiDeckCount:
+		return FocusType::DeckCountArea;
+
+	case TutorialStep::UiFinished:
+		return FocusType::None;
+
+	case TutorialStep::UiEnemyIntentDamage:
+		return FocusType::PlayerIncomingDamageArea;
+
+	case TutorialStep::UiEnemyNextAction:
+		return FocusType::EnemyNextActionArea;
 
 	default:
 		return FocusType::None;
@@ -382,4 +478,41 @@ bool TutorialManager::ReloadMessages() {
 		UpdateMessage_(); // 今のstepの表示を即更新
 	}
 	return ok;
+}
+
+bool TutorialManager::IsUiExplanationStep() const {
+	switch (step_) {
+	case TutorialStep::UiPlayerHp:
+	case TutorialStep::UiEnemyHp:
+	case TutorialStep::UiTurnText:
+	case TutorialStep::UiHand:
+	case TutorialStep::UiField:
+	case TutorialStep::UiRoleText:
+	case TutorialStep::UiEndTurn:
+	case TutorialStep::UiDeckCount:
+	case TutorialStep::UiEnemyIntentDamage:
+	case TutorialStep::UiEnemyNextAction:
+	case TutorialStep::UiFinished:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool TutorialManager::IsGameplayInputLocked() const {
+	// UI説明中はゲーム側入力を止める
+	if (IsUiExplanationStep()) {
+		return true;
+	}
+
+	// 説明だけ読む系も必要ならここに追加
+	switch (step_) {
+	case TutorialStep::Intro:
+	case TutorialStep::ExplainEnergy:
+	case TutorialStep::SkipPokerContinueTurn:
+	case TutorialStep::EndAfterPoker:
+		return true;
+	default:
+		return false;
+	}
 }
