@@ -48,7 +48,7 @@ public:
 
 	const PokerEffectChoiceLayout& GetPokerEffectChoiceLayout() const { return pokerEffectLayout_; }
 
-    const FieldUiLayout& GetFieldUiLayout() const { return layout_; }
+	const FieldUiLayout& GetFieldUiLayout() const { return layout_; }
 
 	void UpdateNumberSprites_(std::array<std::unique_ptr<Sprite>, kMaxUiDigits>& digits,
 		int value, float x, float y, float scale, float spacing);
@@ -152,24 +152,24 @@ private:
 	bool useImageCardDesc_ = false;
 
 	//ui用の背景スプライト
-    std::unique_ptr<Sprite>     turnTextBg_;
-    std::unique_ptr<Sprite>     costTextBg_;
-    std::unique_ptr<Sprite> cardDescBg_;
-    std::unique_ptr<Sprite> deckCountBg_;
-    std::unique_ptr<Sprite> discardCountBg_;
-    std::unique_ptr<Sprite> handCountBg_;
-    std::unique_ptr<Sprite> fieldCountBg_;
-    std::unique_ptr<Sprite> pokerOptionBgs_[5];
-    std::unique_ptr<Sprite> modalOverlayBg_;
-    std::unique_ptr<Sprite> pokerPreviewBg_;
-    std::unique_ptr<Sprite> pokerActivateDescBg_;
-    std::unique_ptr<Sprite> pokerEffectDescBg_;
+	std::unique_ptr<Sprite>     turnTextBg_;
+	std::unique_ptr<Sprite>     costTextBg_;
+	std::unique_ptr<Sprite> cardDescBg_;
+	std::unique_ptr<Sprite> deckCountBg_;
+	std::unique_ptr<Sprite> discardCountBg_;
+	std::unique_ptr<Sprite> handCountBg_;
+	std::unique_ptr<Sprite> fieldCountBg_;
+	std::unique_ptr<Sprite> pokerOptionBgs_[5];
+	std::unique_ptr<Sprite> modalOverlayBg_;
+	std::unique_ptr<Sprite> pokerPreviewBg_;
+	std::unique_ptr<Sprite> pokerActivateDescBg_;
+	std::unique_ptr<Sprite> pokerEffectDescBg_;
 	std::unique_ptr<Sprite> clickChoiceBg_;
 	std::unique_ptr<Sprite> pokerInfoButtonBg_;
-    std::unique_ptr<Sprite> endTurnButtonBg_;
+	std::unique_ptr<Sprite> endTurnButtonBg_;
 
-    std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
-    TextSprite* activeCardDescText_ = nullptr;
+	std::unordered_map<int, std::unique_ptr<TextSprite>> cardDescSpriteCache_;
+	TextSprite* activeCardDescText_ = nullptr;
 
 	//キャッシュ用メンバ
 	std::wstring lastPokerPreviewText_;
@@ -239,5 +239,16 @@ private:
 	GameApp* app_ = nullptr;
 
 	Vector2 debugPosition_ = {};
+
+public:
+
+
+	void SetTutorialInputLocked(bool locked) { tutorialInputLocked_ = locked; }
+	bool IsTutorialInputLocked() const { return tutorialInputLocked_; }
+
+
+private:
+
+	bool tutorialInputLocked_ = false;
 
 };

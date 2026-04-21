@@ -6,9 +6,30 @@ class BattleController;
 
 class TutorialManager {
 public:
+
+
     enum class TutorialStep {
         Intro,
+
+        UiPlayerHp,
+        UiEnemyIntentDamage,
+        UiEnemyHp,
+        UiEnemyNextAction,
+        UiTurnText,
+        UiHand,
+        UiField,
+        UiRoleText,
+        UiEndTurn,
+        UiDeckCount,
+        UiFinished,
+
         HoverHand,
+
+        ExplainCardCost,
+        ExplainCardSuit,
+        ExplainCardNumber,
+        ExplainCardAll,
+
         PlayCard,
         ExplainEnergy,
         FillField,
@@ -21,6 +42,7 @@ public:
         SkipPokerWaitEnemyTurn,
         ViewingBoardFromPoker,
         EndAfterPoker,
+
         Finished
     };
 
@@ -34,7 +56,16 @@ public:
         PokerEffectChoiceArea,
         PokerBackButtonArea,
         PokerViewBoardButtonArea,
-        EnemyTurnArea
+        EnemyTurnArea,
+
+        PlayerHpArea,
+        EnemyHpArea,
+        TurnTextArea,
+        RoleTextArea,
+        DeckCountArea,
+
+        PlayerIncomingDamageArea,
+        EnemyNextActionArea
     };
 
 public:
@@ -62,6 +93,10 @@ public:
 
     bool IsForceActivateOnly() const;
     bool IsForceDamageOnly() const;
+
+	// UI説明ステップかどうか（UI説明ステップなら、UIの操作を制限する）
+    bool IsUiExplanationStep() const;
+    bool IsGameplayInputLocked() const;
 
 private:
     void UpdateMessage_();

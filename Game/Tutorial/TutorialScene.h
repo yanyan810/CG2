@@ -1,6 +1,8 @@
 #pragma once
 #include "IScene.h"
 #include <memory>
+#include "TextSprite.h"
+#include "Sprite.h"
 #include <vector>
 
 #include "Camera.h"
@@ -54,6 +56,15 @@ private:
 
     std::unique_ptr<TutorialManager> tutorial_;
     std::unique_ptr<TutorialUi> tutorialUi_;
+
+    std::unique_ptr<TextSprite> playerHpText_;
+    std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
+
+    std::unique_ptr<Sprite> powerBoostBg_;
+    std::unique_ptr<TextSprite> powerBoostText_;
+
+    std::unique_ptr<Sprite> blockBg_;
+    std::unique_ptr<TextSprite> blockText_;
 
     bool prevEsc_ = false;
 
