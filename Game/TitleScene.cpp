@@ -4,15 +4,11 @@
 #include "Camera.h"
 #include "WinApp.h"
 #include "TextureManager.h"
+#include "TutorialManager.h"
+#include "Card3D.h"
+#include "CardDatabase.h"
 
-static std::wstring Utf8ToWStringLocal_Title(const std::string& s)
-{
-	if (s.empty()) return L"";
-	int size = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-	std::wstring out(size - 1, L'\0');
-	MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, out.data(), size);
-	return out;
-}
+
 
 //------------------------------------------------------------
 // シーン開始時の初期化
@@ -27,7 +23,7 @@ void TitleScene::OnEnter(GameApp& app) {
 	// カメラ作成
 	//--------------------------------------------------------
 	camera_ = std::make_unique<Camera>();
-	camera_->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
 	camera_->SetRotate({ 0.0f, 0.0f, 0.0f });
 	app.ObjCom()->SetDefaultCamera(camera_.get());
 
@@ -53,23 +49,24 @@ void TitleScene::OnEnter(GameApp& app) {
 	bg_->SetScale({ 1.0f, 1.0f, 1.0f });
 
 	//--------------------------------------------------------
-	// Press Space画像
+	// Title Logo画像
 	//--------------------------------------------------------
-	pressStart_ = std::make_unique<Sprite>();
-	pressStart_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/char/pressSpace.png");
-	pressStart_->SetAnchorPoint({ 0.0f, 0.0f });
+	titleLogo_ = std::make_unique<Sprite>();
+	titleLogo_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/resonance_title.png");
+	titleLogo_->SetAnchorPoint({ 0.0f, 0.0f });
+	titleLogo_->SetPosition({ 150.0f, 100.0f }); // あとでImGuiで調整可能
+	titleLogo_->SetScale({ 1.0f, 1.0f, 1.0f });
+
+	//--------------------------------------------------------
+	// Click Start画像
+	//--------------------------------------------------------
+	clickStart_ = std::make_unique<Sprite>();
+	clickStart_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/clickStart.png");
+	clickStart_->SetAnchorPoint({ 0.0f, 0.0f });
 
 	// 位置はあとで調整しやすいように中央下寄りに置く
-	pressStart_->SetPosition({ 430.0f, 560.0f });
-	pressStart_->SetScale({ 1.0f, 1.0f, 1.0f });
-
-	//カード慣例を先に読む
-	battle_.Preload(app);
-
-	fieldUi_ = std::make_unique<FieldUi>();
-	fieldUi_->Initialize(app);
-
-	ApplyDebugPokerPreviewData_();
+	clickStart_->SetPosition({ 430.0f, 560.0f });
+	clickStart_->SetScale({ 1.0f, 1.0f, 1.0f });
 
 	//AudioManager::GetInstance()->PlayBGM("machi");
 
@@ -79,7 +76,8 @@ void TitleScene::OnEnter(GameApp& app) {
 // シーン終了時の解放
 //------------------------------------------------------------
 void TitleScene::OnExit(GameApp&) {
-	pressStart_.reset();
+	clickStart_.reset();
+	titleLogo_.reset();
 	bg_.reset();
 	camera_.reset();
 }
@@ -102,21 +100,19 @@ void TitleScene::Update(GameApp& app, float dt) {
 	}
 
 	//--------------------------------------------------------
-	// SPACEの押した瞬間
+	// クリックの瞬間 (左または右)
 	//--------------------------------------------------------
-	bool spaceTrig = input->IsKeyTrigger(DIK_SPACE);
-
-	//================
-	//Tキーを押したとき
-	//================
+	bool clickTrig = input->IsMouseTrigger(0) || input->IsMouseTrigger(1);
+	
+	// 画面内をクリックしたか判定
+	bool isInsideWindow = false;
+	POINT mousePos = input->GetMousePosition();
+	if (mousePos.x >= 0 && mousePos.x < WinApp::kClientWidth && 
+		mousePos.y >= 0 && mousePos.y < WinApp::kClientHeight) {
+		isInsideWindow = true;
+	}
 
 	bool tutorialTrig = input->IsKeyTrigger(DIK_T);
-
-
-	//================
-	//Dキーを押したとき
-	//================
-
 	bool deckEditTrig = input->IsKeyTrigger(DIK_D);
 
 	//--------------------------------------------------------
@@ -124,8 +120,8 @@ void TitleScene::Update(GameApp& app, float dt) {
 	//--------------------------------------------------------
 	switch (state_) {
 	case State::Idle:
-		// 入力待ち中にSPACEで閉じ演出へ
-		if (spaceTrig) {
+		// 画面内をクリックしたら閉じ演出へ
+		if (clickTrig && isInsideWindow) {
 			state_ = State::ExitClose;
 		}
 
@@ -155,19 +151,6 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 	//3D更新
 	skyDome_->Update(dt);
-
-	if (fieldUi_) {
-	/*	fieldUi_->SetEditCardId(debugCardId_);
-
-		fieldUi_->SetDebugPokerPreviewVisible(showPokerPreview_);
-
-		const CardDef* debugDef = battle_.FindCardDef(debugCardId_);
-		fieldUi_->SetDebugImageCardDescVisible(showDebugCardDesc_);
-		fieldUi_->SetDebugImageCardDescCard(debugDef);
-		ApplyDebugPokerPreviewData_();
-		fieldUi_->Update(app, battle_);*/
-	}
-
 }
 
 //------------------------------------------------------------
@@ -175,7 +158,6 @@ void TitleScene::Update(GameApp& app, float dt) {
 //------------------------------------------------------------
 void TitleScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
-
 }
 
 //------------------------------------------------------------
@@ -201,17 +183,20 @@ void TitleScene::Draw2D(GameApp& app) {
 	}
 
 	//--------------------------------------------------------
-	// Press Space描画
+	// Title Logo描画
 	//--------------------------------------------------------
-	if (pressStart_) {
-		pressStart_->Update(view, proj);
-		pressStart_->Draw();
+	if (titleLogo_) {
+		titleLogo_->Update(view, proj);
+		titleLogo_->Draw();
 	}
 
-	//デバッグ用
-	//if (fieldUi_) {
-	//	fieldUi_->Draw(app, battle_);
-	//}
+	//--------------------------------------------------------
+	// Click Start描画
+	//--------------------------------------------------------
+	if (clickStart_) {
+		clickStart_->Update(view, proj);
+		clickStart_->Draw();
+	}
 
 	//--------------------------------------------------------
 	// 円形マスク描画
@@ -224,95 +209,6 @@ void TitleScene::Draw2D(GameApp& app) {
 //------------------------------------------------------------
 void TitleScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
-	ImGui::Begin("Title Debug");
-	ImGui::Text("Simple Title Scene");
-	ImGui::Text("SPACE : Start Game");
-	ImGui::Text("ESC   : Quit");
-	ImGui::SliderFloat("Circle", &circle_, 0.0f, 1.0f);
-	ImGui::SliderFloat("Softness", &softness_, 0.0f, 1.0f);
-
-	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-		1000.0f / ImGui::GetIO().Framerate,
-		ImGui::GetIO().Framerate);
-
-	ImGui::Separator();
-	ImGui::Checkbox("Show Debug Card Desc", &showDebugCardDesc_);
-	ImGui::DragInt("Debug Card ID", &debugCardId_, 1.0f, 1, 999);
-
-	ImGui::Checkbox("Show Poker Preview", &showPokerPreview_);
-
-	ImGui::Separator();
-	ImGui::Text("Debug Poker Preview Text");
-
-	bool previewTextChanged = false;
-
-	previewTextChanged |= ImGui::Checkbox("Show Poker Preview", &showPokerPreview_);
-
-	previewTextChanged |= ImGui::DragInt("Activated Line Count", &debugActivatedLineCount_, 1.0f, 0, 5);
-	previewTextChanged |= ImGui::DragInt("TurnStart Line Count", &debugTurnStartLineCount_, 1.0f, 0, 5);
-
-	ImGui::Separator();
-	ImGui::Text("Activated Lines");
-
-	for (int i = 0; i < 5; ++i) {
-		std::string label = "Activated Line " + std::to_string(i + 1);
-		previewTextChanged |= ImGui::InputText(
-			label.c_str(),
-			debugActivatedLinesUtf8_[i].data(),
-			debugActivatedLinesUtf8_[i].size()
-		);
-	}
-
-	if (ImGui::Button("Fill Activated: 10回復 x5")) {
-		for (int i = 0; i < 5; ++i) {
-			strcpy_s(debugActivatedLinesUtf8_[i].data(), debugActivatedLinesUtf8_[i].size(), "10回復");
-		}
-		debugActivatedLineCount_ = 5;
-		previewTextChanged = true;
-	}
-
-	ImGui::Separator();
-	ImGui::Text("Turn Start Lines");
-
-	for (int i = 0; i < 5; ++i) {
-		std::string label = "TurnStart Line " + std::to_string(i + 1);
-		previewTextChanged |= ImGui::InputText(
-			label.c_str(),
-			debugTurnStartLinesUtf8_[i].data(),
-			debugTurnStartLinesUtf8_[i].size()
-		);
-	}
-
-	if (ImGui::Button("Fill TurnStart: 10回復 x5")) {
-		for (int i = 0; i < 5; ++i) {
-			strcpy_s(debugTurnStartLinesUtf8_[i].data(), debugTurnStartLinesUtf8_[i].size(), "10回復");
-		}
-		debugTurnStartLineCount_ = 5;
-		previewTextChanged = true;
-	}
-
-	if (ImGui::Button("Clear All Preview Lines")) {
-		for (int i = 0; i < 5; ++i) {
-			debugActivatedLinesUtf8_[i][0] = '\0';
-			debugTurnStartLinesUtf8_[i][0] = '\0';
-		}
-		debugActivatedLineCount_ = 0;
-		debugTurnStartLineCount_ = 0;
-		previewTextChanged = true;
-	}
-
-	if (previewTextChanged) {
-		ApplyDebugPokerPreviewData_();
-	}
-
-	ImGui::End();
-
-	if (fieldUi_) {
-		fieldUi_->DrawImGui();
-	}
-
-	//battle_.DrawImGui();
-
 #else
 	(void)app;
 #endif
@@ -332,40 +228,4 @@ void TitleScene::DrawPostEffect3D(GameApp& app)
 void TitleScene::DrawPostEffect2D(GameApp& app)
 {
 
-}
-
-
-//プレビュー用デバッグ
-void TitleScene::ApplyDebugPokerPreviewData_()
-{
-	if (!fieldUi_) {
-		return;
-	}
-
-	FieldUi::DebugPokerPreviewData debugPreview{};
-	debugPreview.enabled = true;
-	debugPreview.rank = BattleController::PokerHandRank::ThreeOfAKind;
-	debugPreview.atkUp = 7;
-	debugPreview.draw = 2;
-	debugPreview.damage = 25;
-
-	debugPreview.turnStartLines.clear();
-	for (int i = 0; i < debugTurnStartLineCount_ && i < 5; ++i) {
-		if (debugTurnStartLinesUtf8_[i][0] != '\0') {
-			debugPreview.turnStartLines.push_back(
-				Utf8ToWStringLocal_Title(debugTurnStartLinesUtf8_[i].data())
-			);
-		}
-	}
-
-	debugPreview.activatedLines.clear();
-	for (int i = 0; i < debugActivatedLineCount_ && i < 5; ++i) {
-		if (debugActivatedLinesUtf8_[i][0] != '\0') {
-			debugPreview.activatedLines.push_back(
-				Utf8ToWStringLocal_Title(debugActivatedLinesUtf8_[i].data())
-			);
-		}
-	}
-
-	fieldUi_->SetDebugPokerPreviewData(debugPreview);
 }

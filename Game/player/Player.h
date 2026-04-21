@@ -149,9 +149,9 @@ private:
 
 	ParticleEmitterConfig attackEffectConfig_;
 
-#ifndef _DEBUG
+//#ifndef _DEBUG
 	bool releaseAttackAnimationPlaying_ = false;
-#endif
+//#endif
 
 	bool isRecordingTrail_ = false;
 

@@ -475,6 +475,7 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 struct TutorialUiLayout {
     UiRect messageBg;
     UiVec2 messageText;
+    float explainCardMessageOffsetY = 550.0f;
 
     UiRect darkOverlay;
 
@@ -499,6 +500,7 @@ inline TutorialUiLayout MakeDefaultTutorialUiLayout()
 
     l.messageBg = { 20.0f, 52.0f, 900.0f, 140.0f };
     l.messageText = { 40.0f, 80.0f };
+    l.explainCardMessageOffsetY = 550.0f;
 
     l.darkOverlay = { 0.0f, 0.0f, 1280.0f, 720.0f };
 

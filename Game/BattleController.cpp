@@ -2578,6 +2578,7 @@ void BattleController::Draw3D(GameApp& app)
 
 	// 手札
 	handView_.Draw();
+	handView_.DrawPreviewCard();
 
 	// ダメージポップアップ
 	for (auto& popup : damagePopups_) {
@@ -2601,6 +2602,14 @@ void BattleController::Draw3D(GameApp& app)
 		highlightFilter_->Draw();
 	}
 
+}
+
+void BattleController::DrawPreviewCard3D(GameApp& app) {
+	app.ObjCom()->SetGraphicsPipelineState();
+	if (cardState_ == CardInputState::Preview && pendingCardView_) {
+		pendingCardView_->Draw();
+	}
+	handView_.DrawPreviewCard();
 }
 
 void BattleController::Draw2D(GameApp& app)

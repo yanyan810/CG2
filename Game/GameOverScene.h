@@ -40,7 +40,7 @@ private:
     bool prevEnter_ = false;
 
     // 遷移先（SceneManager のキーに合わせて調整）
-    const char* kNextRetry_ = "Game";   // ← TitleSceneのSPACE遷移と同じ
+    const char* kNextRetry_ = "StageSelect";   // ← TitleSceneのSPACE遷移と同じ
     const char* kNextTitle_ = "Title";  // ←あなたのTitleのキー名に合わせて
 
     // 表示物

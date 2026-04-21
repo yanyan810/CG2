@@ -173,8 +173,6 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
 
 
-	sceneMgr_->Change(*this, "Title");
-
 	// デフォルトデッキ
 	for (int i = 0; i < 2; i++) {
 		deckInstances_.push_back(MakeCardInstance(9));
@@ -201,6 +199,8 @@ bool GameApp::Initialize_() {
 
 	cardDB_ = std::make_unique<CardDatabase>();
 	cardDB_->LoadFromJson("resources/cards/cards.json");
+
+	sceneMgr_->Change(*this, "Title");
 
 
 	OutputDebugStringA("[GameApp] Initialize END\n");
@@ -338,6 +338,9 @@ void GameApp::WarmupAssets_() {
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text/heal.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text/block.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text/nextTurnATKUP.png");
+
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/resonance_title.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/clickStart.png");
 
 	TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_6.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/card_desc/desc_17.png");

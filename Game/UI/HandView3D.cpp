@@ -232,8 +232,22 @@ void HandView3D::Update(float dt)
 
 void HandView3D::Draw()
 {
-    for (auto& c : cards_) c->Draw();
+    for (int i = 0; i < (int)cards_.size(); ++i) {
+        if (i != previewIndex_ && i != focusIndex_) {
+            cards_[i]->Draw();
+        }
+    }
     for (auto& c : discardingCards_) c->Draw();
+}
+
+void HandView3D::DrawPreviewCard()
+{
+    if (previewIndex_ >= 0 && previewIndex_ < (int)cards_.size()) {
+        cards_[previewIndex_]->Draw();
+    }
+    if (focusIndex_ >= 0 && focusIndex_ < (int)cards_.size()) {
+        cards_[focusIndex_]->Draw();
+    }
 }
 
 int HandView3D::PickIndexByMouse(int mouseX, int mouseY,

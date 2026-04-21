@@ -18,9 +18,11 @@
 #include "FieldUi.h"
 
 #include "BattleController.h"
+#include "TutorialUi.h"
 
 class Particle;
 class Camera;
+class Card3D;
 
 class TitleScene : public IScene {
 public:
@@ -64,7 +66,8 @@ private:
 	// 2D表示用スプライト
 	//--------------------------------------------------------
 	std::unique_ptr<Sprite> bg_;          // 背景画像
-	std::unique_ptr<Sprite> pressStart_;  // Press Space画像
+	std::unique_ptr<Sprite> titleLogo_;   // resonance_title画像
+	std::unique_ptr<Sprite> clickStart_;  // clickStart画像
 
 	//--------------------------------------------------------
 	// 円形マスク演出用
@@ -77,38 +80,6 @@ private:
 	//--------------------------------------------------------
 	const char* kNextScene_ = "StageSelect";
 
-	//先読み
-	BattleController battle_;
 
-	std::unique_ptr<FieldUi> fieldUi_;
-
-	//カード番号
-	int debugCardId_ = 9;
-	bool showDebugCardDesc_ = true;
-
-	bool showPokerPreview_ = true;
-
-	//プレビュー用
-	std::array<std::array<char, 128>, 5> debugActivatedLinesUtf8_ = { {
-					"10回復",
-"10回復",
-"10回復",
-"10回復",
-"10回復",
-
-		} };
-
-	std::array<std::array<char, 128>, 5> debugTurnStartLinesUtf8_ = { {
-			"10回復",
-"10回復",
-"10回復",
-"10回復",
-"10回復",
-	} };
-
-	int debugActivatedLineCount_ = 5;
-	int debugTurnStartLineCount_ = 5;
-
-	void ApplyDebugPokerPreviewData_();
 
 };

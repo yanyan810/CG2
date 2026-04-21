@@ -20,8 +20,12 @@ public:
         const FieldUi& fieldUi);
 
     void Draw(GameApp& app,
-        const TutorialManager& tutorial,
+        TutorialManager& tutorial,
         const BattleController& battle);
+
+    void DrawDimOverlay(GameApp& app);
+
+    void DrawDebugCardGuide(GameApp& app);
 
 #ifdef USE_IMGUI
     void DrawImGui(TutorialManager& tutorial);
@@ -75,6 +79,8 @@ private:
     std::unique_ptr<TextSprite> text_;
     std::unique_ptr<Sprite> darkOverlay_;
 
+    std::unique_ptr<Sprite> dimOverlay_;
+
     std::array<std::unique_ptr<Sprite>, kMaxFocusFrames> focusFrames_;
 
     float textAlpha_ = 0.0f;
@@ -86,8 +92,8 @@ private:
 
     CardGuideLayout cardGuideLayout_{};
 
-    std::unique_ptr<Sprite> guideCircle_;
-    std::unique_ptr<Sprite> guideArrow_;
+    std::array<std::unique_ptr<Sprite>, 3> guideCircles_;
+    std::array<std::unique_ptr<Sprite>, 3> guideArrows_;
 
     std::array<std::unique_ptr<Sprite>, 3> guideBoxBgs_;
     std::array<std::unique_ptr<TextSprite>, 3> guideBoxTexts_;
@@ -106,11 +112,13 @@ private:
         const Matrix4x4& proj);
 
     void DrawGuideCircle_(
+        int index,
         const GuideCircleLayout& layout,
         const Matrix4x4& view,
         const Matrix4x4& proj);
 
     void DrawGuideArrow_(
+        int index,
         const GuideArrowLayout& layout,
         const Matrix4x4& view,
         const Matrix4x4& proj);
