@@ -39,11 +39,12 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	changeSceneButtonBg_->SetPosition({ 1025.f, 600.f }); // 画面右下あたり
 	changeSceneButtonBg_->SetScale({ 175.f, 100.f, 1.0f });
 	changeSceneButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f }); // 暗めのグレー
+	changeSceneButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f }); // 暗めのグレー
 
 	// 「ここを押して」テキスト
 	changeSceneButtonText_ = std::make_unique<TextSprite>();
 	changeSceneButtonText_->Initialize(app.SpriteCom(), app.Dx());
-	changeSceneButtonText_->SetText(L"戦う！");
+	changeSceneButtonText_->SetText(L"保存して戻る");
 	changeSceneButtonText_->SetFontSize(24);
 	changeSceneButtonText_->SetSize({ 1.f, 1.f, 1.f });
 	changeSceneButtonText_->SetPosition({ 1060.0f, 620.0f });
@@ -122,7 +123,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 			app.SetDeckInstancesFromId(finalDeck);
 
 			// --- シーン遷移 ---
-			RequestChangeScene_("Game");
+			RequestChangeScene_("StageSelect");
 
 			return;
 		}
