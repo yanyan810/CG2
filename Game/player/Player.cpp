@@ -20,7 +20,14 @@ namespace {
 }
 #endif
 
-void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam) {
+void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam,
+    ModelParticleManager* particleMgr, TrailManager* trailMgr) {
+    // 参照を保持（EffectSequencer初期化用）
+    objCommon_ = objCommon;
+    dx_ = dx;
+    camera_ = cam;
+    trailMgr_ = trailMgr;
+
     model_ = std::make_unique<Object3d>();
     model_->Initialize(objCommon, dx);
     model_->SetCamera(cam);
@@ -40,7 +47,15 @@ void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* ca
 
     isAlive_ = true;
 
-    particleManager_ = ModelParticleManager::GetInstance();
+    particleManager_ = particleMgr ? particleMgr : ModelParticleManager::GetInstance();
+
+    // EffectSequencerの初期化
+    effectSequencer_.Initialize(objCommon, dx, cam, particleManager_, trailMgr);
+
+    // 攻撃エフェクト関連の初期化
+    attackEffectTimer_ = 0.0f;
+    effectFired_ = false;
+    currentAttackIndex_ = -1;
 }
 
 void Player::PlayAttackAnim(const Vector3& targetPos) {
@@ -54,6 +69,42 @@ void Player::PlayAttackAnim(const Vector3& targetPos) {
 #ifndef _DEBUG
     PlayRandomReleaseAttackAnimation_();
 #endif
+}
+
+void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
+    if (attackList_.empty()) return;
+
+    // --- ランダム選択のロジックを追加 ---
+    int index = moveIndex;
+    // indexが-1、または範囲外の場合はランダムに決定する
+    if (index < 0 || index >= static_cast<int>(attackList_.size())) {
+        index = Rand(0, static_cast<int>(attackList_.size()) - 1);
+    }
+
+    // エフェクト連動のセットアップ
+    attackTargetPos_ = targetPos;
+    attackEffectTimer_ = 0.0f;
+    effectFired_ = false;
+    currentAttackIndex_ = index; // 決定したインデックスを保持
+
+    // 選択された技のデータを取得
+    const AttackMove& move = attackList_[index];
+
+    // エフェクトプロファイルをJSONから読み込む
+    EffectProfile profile;
+    if (!move.effectJSON.empty()) {
+        if (EffectSequencer::LoadProfile(move.effectJSON, profile)) {
+            // プロファイルに fireDelay などの設定が含まれていることを確認
+            effectSequencer_.SetProfile(profile);
+        }
+    }
+
+    // アニメーションの再生
+    if (!move.animationName.empty() && model_) {
+        // model_内のアニメーション存在チェックを簡略化して確実に再生
+        model_->PlayAnimation(move.animationName, false);
+        releaseAttackAnimationPlaying_ = true;
+    }
 }
 
 void Player::PlayDamageAnim() {
@@ -88,6 +139,8 @@ void Player::Update(float dt) {
                 // 戻り・ダメージ終了で待機状態へ
                 animState_ = AnimState::Idle;
                 pos_ = basePos_;
+                // 攻撃終了時にエフェクト関連もリセット
+                currentAttackIndex_ = -1;
             }
         }
         if (trailInstance_) {
@@ -97,8 +150,6 @@ void Player::Update(float dt) {
                 // 毎フレーム新しい座標を覚えさせる
                 trailInstance_->Update(GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
 
-                particleManager_->Emit("sword_trail", GetWeaponTipPos(), 10);
-
             } else {
                 // 攻撃終了後：SetActive(false) にすると TrailInstance 内で古い点から消えていく
                 trailInstance_->SetActive(false);
@@ -107,6 +158,32 @@ void Player::Update(float dt) {
             }
         }
     }
+
+    // === 攻撃エフェクトの遅延発射処理 ===
+    if (currentAttackIndex_ >= 0 && currentAttackIndex_ < static_cast<int>(attackList_.size())) {
+        attackEffectTimer_ += dt;
+
+        const AttackMove& move = attackList_[currentAttackIndex_];
+
+        // fireDelayを超えた瞬間に一度だけFire
+        if (!effectFired_ && attackEffectTimer_ >= move.fireDelay) {
+            effectFired_ = true;
+
+            // 発射座標：プレイヤーの手の位置（前方1.0m程度）
+            Vector3 fireStartPos = pos_ + Vector3{ 0.0f, 1.2f, 1.0f };
+            // ターゲット座標：攻撃対象の座標（いなければ前方5.0m程度）
+            Vector3 fireTargetPos = attackTargetPos_;
+            if (fireTargetPos.x == 0.0f && fireTargetPos.y == 0.0f && fireTargetPos.z == 0.0f) {
+                // ターゲットがない場合は前方5.0m
+                fireTargetPos = pos_ + Vector3{ 0.0f, 1.0f, 5.0f };
+            }
+
+            effectSequencer_.Fire(effectSequencer_.GetProfile(), fireStartPos, fireTargetPos);
+        }
+    }
+
+    // EffectSequencerの更新
+    effectSequencer_.Update(dt);
 
     // 赤点滅（フラッシュ）の計算
     if (flashTimer_ > 0.0f) {
@@ -200,6 +277,9 @@ void Player::Draw() {
     if (model_&&isAlive_) {
         model_->Draw();
     }
+
+    // EffectSequencerの描画
+    effectSequencer_.Draw();
 }
 
 void Player::SetSpawnPos(const Vector3& p) {

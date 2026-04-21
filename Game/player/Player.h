@@ -1,11 +1,21 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <vector>
 #include "Vector3.h"
 #include "AABB.h"
 #include "Object3d.h"
 #include "ModelParticleManager.h"
 #include "AnimationEditorSession.h"
 #include "TrailManager.h"
+#include "EffectSequencer.h"
+
+// 攻撃技の定義構造体
+struct AttackMove {
+	std::string animationName;  // 再生するアニメーション名
+	std::string effectJSON;     // 読み込むエフェクトのJSONファイル名
+	float fireDelay = 0.0f;     // アニメーション開始からエフェクト発射までの遅延時間（秒）
+};
 
 class Object3dCommon;
 class DirectXCommon;
@@ -17,7 +27,8 @@ public:
 	~Player() = default;
 
 	// 初期化
-	void Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam);
+	void Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam,
+		ModelParticleManager* particleMgr = nullptr, TrailManager* trailMgr = nullptr);
 
 	// 毎フレームの更新（WASD入力などは受け取らず、アニメーションだけ進める）
 	void Update(float dt);
@@ -39,6 +50,8 @@ public:
 
 	// 動きのトリガー関数
 	void PlayAttackAnim(const Vector3& targetPos);
+	// 攻撃技インデックスを指定して攻撃（attackList_から選択）
+	void PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex = 0);
 	void PlayDamageAnim();
 	int GetHP() const { return hp_; }
 
@@ -74,6 +87,14 @@ public:
 
 	// アニメーションエディタの描画
 	Object3d* GetObject3d() const { return model_.get(); }
+
+	// 攻撃技リストへのアクセス
+	std::vector<AttackMove>& GetAttackList() { return attackList_; }
+	const std::vector<AttackMove>& GetAttackList() const { return attackList_; }
+	void AddAttackMove(const AttackMove& move) { attackList_.push_back(move); }
+
+	// EffectSequencerへのアクセス
+	EffectSequencer& GetEffectSequencer() { return effectSequencer_; }
 	void DrawAnimationEditorImGui(Camera* editorCamera);
 
 	// 軌跡のための座標取得
@@ -142,5 +163,19 @@ private:
 	const float kWeaponLength = 2.0f;
 	const Vector3 kWeaponOffset = { 0.0f, 1.2f, 0.0f }; // モデルの手に合わせる
 
-	ModelParticleManager* particleManager_;
+	ModelParticleManager* particleManager_ = nullptr;
+
+	// === 攻撃エフェクト連動 ===
+	std::vector<AttackMove> attackList_;       // 使用可能な技のリスト
+	EffectSequencer effectSequencer_;           // プレイヤー専用のシーケンサー
+	float attackEffectTimer_ = 0.0f;            // 現在の攻撃アニメーション経過時間
+	bool effectFired_ = false;                  // エフェクト二重発射防止フラグ
+	int currentAttackIndex_ = -1;              // 現在実行中の攻撃技インデックス
+	Vector3 attackTargetPos_{};                 // 攻撃対象の座標
+
+	// EffectSequencer初期化用の参照保持
+	Object3dCommon* objCommon_ = nullptr;
+	DirectXCommon* dx_ = nullptr;
+	Camera* camera_ = nullptr;
+	TrailManager* trailMgr_ = nullptr;
 };

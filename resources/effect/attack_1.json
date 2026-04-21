@@ -1,0 +1,24 @@
+{
+    "projectile": {
+        "modelPath": "sphere/sphere.obj",
+        "scale": [0.1, 0.5, 0.1],
+        "rotationSpeed": [0.0, 0.0, 10.0]
+    },
+    "flyParticle": "Vacuum_Fly",
+    "hitParticle": "Vacuum_Hit",
+    "trail": {
+        "startColor": [0.0, 0.8, 1.0, 1.0],
+        "endColor": [0.0, 0.4, 1.0, 0.0],
+        "maxPoints": 50,
+        "interpolationSteps": 4,
+        "tipOffset": [0.0, 0.2, 0.0],
+        "baseOffset": [0.0, -0.2, 0.0]
+    },
+    "fireDelay": 0.1,
+    "isRemote": false,
+    "duration": 0.3,
+    "hitDuration": 0.4,
+    "flyParticleCount": 10,
+    "hitParticleCount": 30,
+    "enableTrail": true
+}

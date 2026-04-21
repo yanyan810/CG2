@@ -222,7 +222,8 @@ void ModelParticleManager::RegisterEffect(const std::string& effectName, const s
 void ModelParticleManager::Emit(const std::string& effectName, const Vector3& position, uint32_t count) {
     // 登録されているか確認
     if (effectLibrary_.find(effectName) == effectLibrary_.end()) {
-        return; // 見つからなければ何もしない
+        // 未登録の場合はデフォルトのJSON名で自動登録を試みて継続する
+        RegisterEffect(effectName, effectName + ".json");
     }
 
     // 設定を取り出し、座標をセット
