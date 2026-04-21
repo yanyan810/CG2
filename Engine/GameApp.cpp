@@ -8,6 +8,7 @@
 #include "GameClearScene.h"
 #include "TutorialScene.h"
 #include "StageSelectScene.h"
+#include "BattleController.h"
 
 
 #include "WinApp.h"
@@ -199,6 +200,10 @@ bool GameApp::Initialize_() {
 
 	cardDB_ = std::make_unique<CardDatabase>();
 	cardDB_->LoadFromJson("resources/cards/cards.json");
+
+	// 事前にカードなどの全アセットを読み込んでおく（画面遷移時のカクつき防止）
+	BattleController dummyBattle;
+	dummyBattle.Preload(*this);
 
 	sceneMgr_->Change(*this, "Title");
 
