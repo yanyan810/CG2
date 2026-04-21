@@ -475,7 +475,7 @@ void Card3D::Draw()
 	if (suitObj_ && isPreview_ == false) suitObj_->Draw();
 	if (hasTensDigit_ && numberObjTens_ && isPreview_ == false) numberObjTens_->Draw();
 	if (numberObjOnes_ && isPreview_ == false) numberObjOnes_->Draw();
-	if (countObj_) countObj_->Draw();
+	if (countObj_ && isPreview_ == true) countObj_->Draw();
 
 }
 void Card3D::SetFrameColor(const Vector4& color)

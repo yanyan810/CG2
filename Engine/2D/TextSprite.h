@@ -21,6 +21,7 @@ public:
     void SetFontFilePath(const std::wstring& path);
     void SetFontFaceName(const std::wstring& faceName);
     void SetFontSize(int size);
+	void SetColor(const Vector3& color) { color_ = color; }
 
     void Update(const Matrix4x4& view, const Matrix4x4& proj);
     void Draw();
@@ -56,4 +57,6 @@ private:
     std::wstring fontFaceName_ = L"M PLUS 1";
     int fontSize_ = 28;
     bool privateFontLoaded_ = false;
+
+	Vector3 color_ = { 1.0f, 1.0f, 1.0f }; // 白
 };
