@@ -198,6 +198,7 @@ void GameScene::OnEnter(GameApp& app) {
 	particleManager_ = ModelParticleManager::GetInstance();
 	particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
 	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
+	particleManager_->RegisterEffect("fireExplosive", "fireExplosive.json");
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 
@@ -212,6 +213,13 @@ void GameScene::OnEnter(GameApp& app) {
 
 	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
 	//AudioManager::GetInstance()->PlayBGM("neppuu");
+
+	// エフェクトシーケンサーの初期化
+	effectSequencer_ = std::make_unique<EffectSequencer>();
+	effectSequencer_->Initialize(
+		app.ObjCom(), app.Dx(), animCamera_.get(),
+		particleManager_, trailManager_.get()
+	);
 
 	pausingUI_ = std::make_unique<PausingUI>();
 	pausingUI_->Initialize(app);
@@ -479,6 +487,11 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	//particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
+	// エフェクトシーケンサーの更新
+	if (effectSequencer_) {
+		effectSequencer_->Update(dt);
+	}
+
 	// 最後に1回だけDispatch
 	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
 }
@@ -670,6 +683,18 @@ void GameScene::DrawImGui(GameApp& app) {
 	}
 	ImGui::End();
 
+	// エフェクトシーケンサーエディター
+	if (effectSequencer_) {
+		// デフォルトの発射位置と着弾位置（プレイヤー → 最初の敵）
+		Vector3 startPos = player_ ? player_->GetPos() + Vector3(0, 1.0f, 0) : Vector3{ -7.0f, 1.0f, 15.0f };
+		Vector3 targetPos = { 7.0f, 1.0f, 15.0f }; // デフォルト敵位置
+		if (enemyMgr_.GetEnemies().size() > 0) {
+			const auto& firstEnemy = enemyMgr_.GetEnemies()[0];
+			targetPos = firstEnemy.GetPos() + Vector3(0, 1.0f, 0);
+		}
+		effectSequencer_->DrawImGuiEditor(startPos, targetPos);
+	}
+
 #endif
 }
 
@@ -686,7 +711,12 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	//particleManager_->Draw();
+	particleManager_->Draw();
+
+	// エフェクトシーケンサーの弾を描画
+	if (effectSequencer_) {
+		effectSequencer_->Draw();
+	}
 
 	if (trailManager_) {
 		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());

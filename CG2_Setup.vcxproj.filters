@@ -95,6 +95,7 @@
     <ClCompile Include="Game\UI\TutorialUi.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
     <ClCompile Include="Game\StageSelectScene.cpp" />
+    <ClCompile Include="Engine\EffectSequencer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
@@ -192,6 +193,7 @@
     <ClInclude Include="Game\UI\TutorialUi.h" />
     <ClInclude Include="Game\Tutorial\TutorialScene.h" />
     <ClInclude Include="Game\StageSelectScene.h" />
+    <ClInclude Include="Engine\EffectSequencer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />

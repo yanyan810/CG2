@@ -1,0 +1,48 @@
+{
+    "duration": 0.5,
+    "enableTrail": false,
+    "flyParticle": "player_fire",
+    "flyParticleCount": 5,
+    "hitDuration": 0.5,
+    "hitParticle": "fireExplosive",
+    "hitParticleCount": 200,
+    "projectile": {
+        "modelPath": "sphere/sphere.obj",
+        "rotationSpeed": [
+            0.0,
+            5.0,
+            0.0
+        ],
+        "scale": [
+            0.30000001192092896,
+            0.30000001192092896,
+            0.30000001192092896
+        ]
+    },
+    "trail": {
+        "baseOffset": [
+            0.0,
+            -0.30000001192092896,
+            0.0
+        ],
+        "endColor": [
+            0.5,
+            0.0,
+            1.0,
+            0.0
+        ],
+        "interpolationSteps": 6,
+        "maxPoints": 100,
+        "startColor": [
+            0.5,
+            0.0,
+            1.0,
+            1.0
+        ],
+        "tipOffset": [
+            0.0,
+            0.30000001192092896,
+            0.0
+        ]
+    }
+}

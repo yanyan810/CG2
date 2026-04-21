@@ -10,7 +10,8 @@ struct Particle
     float4 endColor;
     float endScale;
     uint isActive;
-    float2 padding0; // ← ここを追加
+    uint easingType;   // 0=Linear, 1=EaseIn, 2=EaseOut
+    uint isBillboard;  // 0=OFF, 1=ON
     float3 rotate;
     float padding1;
     float3 angularVelocity;
@@ -43,6 +44,8 @@ struct GlobalConfig
 struct SceneConfig
 {
     float4x4 viewProjection;
+    float3 cameraPosition;  // ビルボード用カメラ位置
+    float scenePadding;
 };
 
 ConstantBuffer<GlobalConfig> gConfig : register(b0);
@@ -99,6 +102,41 @@ float4x4 MakeAffineMatrix(float3 scale, float3 rotate, float3 translate)
     return mul(mScale, mul(mRotate, mTranslate));
 }
 
+// --- 新機能: イージング関数 ---
+float ApplyEasing(float t, uint easingType)
+{
+    if (easingType == 1) // EaseIn (二次)
+        return t * t;
+    if (easingType == 2) // EaseOut (二次)
+        return 1.0 - (1.0 - t) * (1.0 - t);
+    return t; // Linear
+}
+
+// --- 新機能: ビルボード行列生成 ---
+float4x4 MakeBillboardMatrix(float3 scale, float3 position, float3 cameraPos)
+{
+    float3 forward = normalize(cameraPos - position);
+    
+    // forward がほぼ上方向の場合の対策
+    float3 up = float3(0, 1, 0);
+    if (abs(dot(forward, up)) > 0.999)
+    {
+        up = float3(0, 0, 1);
+    }
+    
+    float3 right = normalize(cross(up, forward));
+    up = cross(forward, right);
+    
+    float4x4 billboard =
+    {
+        right.x * scale.x,   right.y * scale.x,   right.z * scale.x,   0,
+        up.x * scale.y,      up.y * scale.y,      up.z * scale.y,      0,
+        forward.x * scale.z, forward.y * scale.z, forward.z * scale.z, 0,
+        position.x,          position.y,          position.z,          1
+    };
+    return billboard;
+}
+
 [numthreads(1024, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -123,18 +161,33 @@ void main(uint3 DTid : SV_DispatchThreadID)
     }
 
     // 4. 物理挙動の計算
-    float t = p.currentTime / p.lifeTime;
+    float rawT = p.currentTime / p.lifeTime;
+    // --- 新機能: イージング適用 ---
+    float t = ApplyEasing(rawT, p.easingType);
     p.velocity += p.acceleration * gConfig.deltaTime;
     p.position += p.velocity * gConfig.deltaTime;
     p.rotate += p.angularVelocity * gConfig.deltaTime;
 
-    // 5. 演出パラメータ計算
+    // 5. 演出パラメータ計算（イージング適用済みのtを使用）
     float currentScale = lerp(p.startScale, p.endScale, t);
     float4 currentColor = lerp(p.startColor, p.endColor, t);
-    currentColor.a *= (1.0f - t);
+    currentColor.a *= (1.0f - rawT); // フェードアウトは rawT で
 
     // 6. 行列生成
-    float4x4 world = MakeAffineMatrix(float3(currentScale, currentScale, currentScale), p.rotate, p.position);
+    // --- 新機能: ビルボード制御 ---
+    float4x4 world;
+    if (p.isBillboard == 1)
+    {
+        world = MakeBillboardMatrix(
+            float3(currentScale, currentScale, currentScale),
+            p.position,
+            gScene.cameraPosition
+        );
+    }
+    else
+    {
+        world = MakeAffineMatrix(float3(currentScale, currentScale, currentScale), p.rotate, p.position);
+    }
     
     // --- ここからが「間接描画」のための重要処理 ---
 

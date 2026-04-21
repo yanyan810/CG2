@@ -213,6 +213,10 @@ void ModelParticleManager::RegisterEffect(const std::string& effectName, const s
     ParticleEmitterConfig config;
     LoadFromJson(jsonPath, config);
     effectLibrary_[effectName] = config;
+
+    // --- 新機能: エフェクトごとのモデル読み込み ---
+    ModelManager::GetInstance()->LoadModel(config.modelPath);
+    effectModels_[effectName] = ModelManager::GetInstance()->FindModel(config.modelPath);
 }
 
 void ModelParticleManager::Emit(const std::string& effectName, const Vector3& position, uint32_t count) {
@@ -263,6 +267,9 @@ void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
         uploadData[i].endColor = particles[i].endColor;
         uploadData[i].rotate = particles[i].transform.rotate;
         uploadData[i].isActive = 1;
+        // --- 新機能: イージングタイプとビルボードフラグを転送 ---
+        uploadData[i].easingType = static_cast<uint32_t>(particles[i].easingType);
+        uploadData[i].isBillboard = particles[i].isBillboard ? 1 : 0;
     }
 
     // ★ 修正：Stagingバッファの「freeIndex_」番目の位置に書き込む
@@ -288,8 +295,33 @@ void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
 ModelParticleManager::Particle ModelParticleManager::MakeParticle(const ParticleEmitterConfig& config) {
     Particle particle;
 
-    // 初期座標を少しバラけさせる
-    particle.transform.translate = Rand(config.position - Vector3(0.1f, 0.1f, 0.1f), config.position + Vector3(0.1f, 0.1f, 0.1f));
+    // --- 新機能: エミッター形状に応じた初期座標の決定 ---
+    switch (config.emitterShape) {
+    case EmitterShape::Sphere: {
+        // 球体内のランダム位置
+        Vector3 dir = RandomUnitVector();
+        float radius = Rand(0.0f, config.shapeSize.x);
+        particle.transform.translate = config.position + dir * radius;
+        break;
+    }
+    case EmitterShape::Box: {
+        // ボックス内のランダム位置
+        particle.transform.translate = Rand(
+            config.position - config.shapeSize,
+            config.position + config.shapeSize
+        );
+        break;
+    }
+    case EmitterShape::Point:
+    default: {
+        // 点発生（従来通り少しバラけさせる）
+        particle.transform.translate = Rand(
+            config.position - Vector3(0.1f, 0.1f, 0.1f),
+            config.position + Vector3(0.1f, 0.1f, 0.1f)
+        );
+        break;
+    }
+    }
 
     // 初速度と加速度
     Vector3 dir = RandomUnitVector();
@@ -314,6 +346,10 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     particle.startColor = config.startColor;
     particle.endColor = config.endColor;
 
+    // --- 新機能: イージングタイプとビルボード ---
+    particle.easingType = config.easingType;
+    particle.isBillboard = config.isBillboard;
+
     return particle;
 }
 
@@ -335,6 +371,8 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
     computeConfigData_->deltaTime = deltaTime;
     computeConfigData_->maxParticles = kMaxInstance;
     computeSceneData_->viewProjection = camera->GetViewMatrix() * camera->GetProjectionMatrix();
+    // --- 新機能: ビルボード用カメラ位置 ---
+    computeSceneData_->cameraPosition = camera->GetTranslate();
     
     // ★ ここが重要！ SRV/UAV管理用のディスクリプタヒープをセットする
     ID3D12DescriptorHeap* ppHeaps[] = { srvManager_->GetDescriptorHeap() };
@@ -422,6 +460,44 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     changed |= ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
     changed |= ImGui::DragFloat("Start Scale", &editingConfig.startScale, 0.01f);
     changed |= ImGui::DragFloat("End Scale", &editingConfig.endScale, 0.01f);
+
+    // --- 新機能: エミッター形状 ---
+    ImGui::Separator();
+    ImGui::Text("Emitter Shape");
+    const char* shapeNames[] = { "Point", "Sphere", "Box" };
+    int currentShape = static_cast<int>(editingConfig.emitterShape);
+    if (ImGui::Combo("Shape", &currentShape, shapeNames, IM_ARRAYSIZE(shapeNames))) {
+        editingConfig.emitterShape = static_cast<EmitterShape>(currentShape);
+        changed = true;
+    }
+    if (editingConfig.emitterShape != EmitterShape::Point) {
+        changed |= ImGui::DragFloat3("Shape Size", &editingConfig.shapeSize.x, 0.01f);
+    }
+
+    // --- 新機能: イージングタイプ ---
+    ImGui::Separator();
+    ImGui::Text("Easing");
+    const char* easingNames[] = { "Linear", "EaseIn", "EaseOut" };
+    int currentEasing = static_cast<int>(editingConfig.easingType);
+    if (ImGui::Combo("Easing Type", &currentEasing, easingNames, IM_ARRAYSIZE(easingNames))) {
+        editingConfig.easingType = static_cast<EasingType>(currentEasing);
+        changed = true;
+    }
+
+    // --- 新機能: ビルボード ---
+    ImGui::Separator();
+    changed |= ImGui::Checkbox("Billboard", &editingConfig.isBillboard);
+
+    // --- 新機能: モデルパス ---
+    ImGui::Separator();
+    static char modelPathBuf[128] = "";
+    if (modelPathBuf[0] == '\0') {
+        strncpy_s(modelPathBuf, editingConfig.modelPath.c_str(), sizeof(modelPathBuf) - 1);
+    }
+    if (ImGui::InputText("Model Path", modelPathBuf, IM_ARRAYSIZE(modelPathBuf))) {
+        editingConfig.modelPath = modelPathBuf;
+        changed = true;
+    }
 
     // ★ リアルタイム反映：値が変わったら即座に Library を上書き
     if (changed) {
