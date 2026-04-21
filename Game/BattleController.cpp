@@ -6,6 +6,8 @@
 #include "DirectXCommon.h"
 #include <array>
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <set>
 #include <random>
 
@@ -13,6 +15,70 @@
 #include"Enemy.h"
 
 #include "FieldUi.h"
+
+namespace {
+	float sPokerGlowRainbowTime = 0.0f;
+
+	Vector4 HsvToRgb_(float hue, float saturation, float value)
+	{
+		hue = std::fmod(hue, 360.0f);
+		if (hue < 0.0f) {
+			hue += 360.0f;
+		}
+
+		const float c = value * saturation;
+		const float x = c * (1.0f - std::abs(std::fmod(hue / 60.0f, 2.0f) - 1.0f));
+		const float m = value - c;
+
+		float r = 0.0f;
+		float g = 0.0f;
+		float b = 0.0f;
+
+		if (hue < 60.0f) {
+			r = c; g = x; b = 0.0f;
+		} else if (hue < 120.0f) {
+			r = x; g = c; b = 0.0f;
+		} else if (hue < 180.0f) {
+			r = 0.0f; g = c; b = x;
+		} else if (hue < 240.0f) {
+			r = 0.0f; g = x; b = c;
+		} else if (hue < 300.0f) {
+			r = x; g = 0.0f; b = c;
+		} else {
+			r = c; g = 0.0f; b = x;
+		}
+
+		return { r + m, g + m, b + m, 1.0f };
+	}
+
+	Vector4 GetPokerFrameColor_(BattleController::PokerHandRank rank, float time)
+	{
+		switch (rank) {
+		case BattleController::PokerHandRank::OnePair:
+		case BattleController::PokerHandRank::TwoPair:
+			return { 1.0f, 0.85f, 0.20f, 1.0f };
+
+		case BattleController::PokerHandRank::ThreeOfAKind:
+		case BattleController::PokerHandRank::Straight:
+		case BattleController::PokerHandRank::Flush:
+			return { 0.25f, 0.95f, 0.35f, 1.0f };
+
+		case BattleController::PokerHandRank::FullHouse:
+			return { 0.25f, 0.60f, 1.0f, 1.0f };
+
+		case BattleController::PokerHandRank::FourOfAKind:
+		case BattleController::PokerHandRank::StraightFlush:
+			return { 1.0f, 0.25f, 0.20f, 1.0f };
+
+		case BattleController::PokerHandRank::RoyalStraightFlush:
+			return HsvToRgb_(time * 120.0f, 0.9f, 1.0f);
+
+		case BattleController::PokerHandRank::None:
+		default:
+			return { 1.0f, 1.0f, 1.0f, 1.0f };
+		}
+	}
+}
 
 //===============================
 //役
@@ -167,6 +233,35 @@ BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
 	} else {
 		result.rank = PokerHandRank::None;
 		result.power = 0;
+	}
+
+	{
+		const char* rankName = "None";
+		switch (result.rank) {
+		case PokerHandRank::OnePair: rankName = "OnePair"; break;
+		case PokerHandRank::TwoPair: rankName = "TwoPair"; break;
+		case PokerHandRank::ThreeOfAKind: rankName = "ThreeOfAKind"; break;
+		case PokerHandRank::Straight: rankName = "Straight"; break;
+		case PokerHandRank::Flush: rankName = "Flush"; break;
+		case PokerHandRank::FullHouse: rankName = "FullHouse"; break;
+		case PokerHandRank::FourOfAKind: rankName = "FourOfAKind"; break;
+		case PokerHandRank::StraightFlush: rankName = "StraightFlush"; break;
+		case PokerHandRank::RoyalStraightFlush: rankName = "RoyalStraightFlush"; break;
+		case PokerHandRank::None:
+		default:
+			break;
+		}
+
+		char buf[256];
+		std::snprintf(
+			buf,
+			sizeof(buf),
+			"[PokerEval] straight=%d flush=%d royal=%d rank=%s\n",
+			isStraight ? 1 : 0,
+			isFlush ? 1 : 0,
+			isRoyal ? 1 : 0,
+			rankName);
+		OutputDebugStringA(buf);
 	}
 
 	return result;
@@ -1406,11 +1501,6 @@ void BattleController::RebuildFieldView_()
 
 		fieldViews_[i]->SetTargetTransform(pos, rot, scl, false);
 
-		if (i < 5 && highlightMask[i]) {
-			fieldViews_[i]->SetFrameColor({ 1.0f, 0.85f, 0.2f, 1.0f });
-		} else {
-			fieldViews_[i]->ResetFrameColor();
-		}
 	}
 
 	// 1. 今の役を評価
@@ -1436,17 +1526,18 @@ void BattleController::RebuildFieldView_()
             fieldViews_[i]->SetGlitter(intensity);
             
             // 強い役なら枠の色も変更
-            if (result.rank >= PokerHandRank::Straight) {
-                fieldViews_[i]->SetFrameColor({ 1.0f, 0.9f, 0.2f, 1.0f });
+            if (result.rank != PokerHandRank::None) {
+                // final frame color is applied in RefreshAllFieldCardTransforms_()
             }
         } else {
             // 役に関係ないカードはリセット
             fieldViews_[i]->SetGlitter(0.0f);
-            fieldViews_[i]->ResetFrameColor();
+            // final frame color is applied in RefreshAllFieldCardTransforms_()
         }
     }
 
 	fieldLayoutDirty_ = true;
+	RefreshAllFieldCardTransforms_(0.0f);
 }
 
 void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float dt)
@@ -1490,12 +1581,29 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 
 void BattleController::RefreshAllFieldCardTransforms_(float dt)
 {
+	sPokerGlowRainbowTime += dt;
+
 	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
 		const bool hovered =
 			(cardState_ == CardInputState::ChoosingFieldReplace && i == fieldReplaceHoverIndex_) ||
 			(pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi && i == fieldReplaceHoverIndex_);
 
 		UpdateFieldCardTransform_(i, hovered, dt);
+	}
+
+	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
+	const PokerHandResult visualPoker = EvaluatePokerHand_();
+	const Vector4 frameColor = GetPokerFrameColor_(visualPoker.rank, sPokerGlowRainbowTime);
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		if (!fieldViews_[i]) {
+			continue;
+		}
+
+		if (i < 5 && highlightMask[i] && visualPoker.rank != PokerHandRank::None) {
+			fieldViews_[i]->SetFrameColor(frameColor);
+		} else {
+			fieldViews_[i]->ResetFrameColor();
+		}
 	}
 }
 
