@@ -1,0 +1,16 @@
+{
+    "startColor": [0.9, 1.0, 1.0, 0.8],
+    "endColor": [0.6, 0.8, 1.0, 0.0],
+    "speedMin": 0.01,
+    "speedMax": 0.1,
+    "lifeTimeMin": 0.4,
+    "lifeTimeMax": 0.6,
+    "gravity": [0.0, 0.0, 0.0],
+    "startScale": 1.5,
+    "endScale": 0.8,
+    "emitterShape": 2,
+    "shapeSize": [1.5, 0.2, 0.1],
+    "easingType": 2,
+    "isBillboard": true,
+    "modelPath": "triangleParticle.obj"
+}

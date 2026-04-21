@@ -199,6 +199,17 @@ void GameScene::OnEnter(GameApp& app) {
 	particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
 	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
 	particleManager_->RegisterEffect("fireExplosive", "fireExplosive.json");
+	particleManager_->RegisterEffect("particle_image", "0.json");
+	
+	particleManager_->RegisterEffect("Vacuum_Fly", "Vacuum_Fly.json");
+	particleManager_->RegisterEffect("Vacuum_Hit", "Vacuum_Hit.json");
+	
+	particleManager_->RegisterEffect("Flare_Fly", "Flare_Fly.json");
+	particleManager_->RegisterEffect("Flare_Hit", "Flare_Hit.json");
+	
+	particleManager_->RegisterEffect("Air_Fly", "Air_Fly.json");
+	particleManager_->RegisterEffect("Air_Hit", "Air_Hit.json");
+
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 
@@ -214,12 +225,25 @@ void GameScene::OnEnter(GameApp& app) {
 	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
 	//AudioManager::GetInstance()->PlayBGM("neppuu");
 
-	// エフェクトシーケンサーの初期化
+	// エフェクトシーケンサーの初期化（GameScene用）
 	effectSequencer_ = std::make_unique<EffectSequencer>();
 	effectSequencer_->Initialize(
 		app.ObjCom(), app.Dx(), animCamera_.get(),
 		particleManager_, trailManager_.get()
 	);
+
+	// プレイヤーのEffectSequencerを再初期化（TrailManager/particleManagerが揃った後）
+	if (player_) {
+		player_->GetEffectSequencer().Initialize(
+			app.ObjCom(), app.Dx(), animCamera_.get(),
+			particleManager_, trailManager_.get()
+		);
+
+		// デフォルトの攻撃技を登録（JSONファイル名は実際のファイルに合わせて変更）
+		player_->AddAttackMove({ "CustomAnim_attack_1", "attack_1.json", 0.1f });
+		player_->AddAttackMove({ "CustomAnim_attack_2", "attack_2.json", 0.15f });
+		player_->AddAttackMove({ "CustomAnim_attack_3", "attack_3.json", 0.2f });
+	}
 
 	pausingUI_ = std::make_unique<PausingUI>();
 	pausingUI_->Initialize(app);
@@ -485,7 +509,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
 	trailManager_->Update();
 
-	//particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
+	//particleManager_->Emit("particle_image", Vector3(0, 0.0f, 0), 10);
 
 	// エフェクトシーケンサーの更新
 	if (effectSequencer_) {

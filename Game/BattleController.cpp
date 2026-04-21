@@ -910,7 +910,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			if (enemyMgr_ && player_) {
 				int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
 
-				player_->PlayAttackAnim(player_->GetPos());
+				player_->PlayAttackAnimWithEffect(player_->GetPos(), -1);
 
 				int hitCount = 0;
 				for (auto& e : enemyMgr_->GetEnemies()) {
@@ -2824,7 +2824,7 @@ void BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)
 		return;
 	}
 
-	player_->PlayAttackAnim(enemy.GetPos());
+	player_->PlayAttackAnimWithEffect(enemy.GetPos(), -1);
 	enemy.TriggerHitFlash(0.2f);
 	enemy.PlayDamageAnim();
 	enemy.Damage(damage);
