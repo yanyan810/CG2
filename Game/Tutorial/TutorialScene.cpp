@@ -50,7 +50,7 @@ void TutorialScene::OnEnter(GameApp& app) {
         MakeTutorialCard(1, 7, CardSuit::Spade),
         MakeTutorialCard(2, 7, CardSuit::Heart),
         MakeTutorialCard(3, 3, CardSuit::Diamond),
-        MakeTutorialCard(4, 10, CardSuit::Club),
+        MakeTutorialCard(9, 7, CardSuit::Club),
         MakeTutorialCard(5, 13, CardSuit::Spade),
     };
 
@@ -58,9 +58,52 @@ void TutorialScene::OnEnter(GameApp& app) {
     battle_.SetEnemyManager(&enemyMgr_);
     battle_.SetTutorialOpeningHand(openingHand);
     battle_.Initialize(app, animCamera_.get());
+    if (Enemy* enemy = enemyMgr_.GetEnemy(0)) {
+        enemy->SetMaxHp(141, true);
+    }
+
 
     fieldUi_ = std::make_unique<FieldUi>();
     fieldUi_->Initialize(app);
+
+    // プレイヤーHP数字
+    playerHpText_ = std::make_unique<TextSprite>();
+    playerHpText_->Initialize(app.SpriteCom(), app.Dx());
+    playerHpText_->SetSize({ 1.0f, 1.0f, 1.0f });
+    playerHpText_->SetPosition({ 140.0f, 12.5f });
+
+    // 敵HP数字
+    for (int i = 0; i < 3; i++) {
+        auto text = std::make_unique<TextSprite>();
+        text->Initialize(app.SpriteCom(), app.Dx());
+        text->SetSize({ 1.0f, 1.0f, 1.0f });
+        text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
+        enemyHpTexts_.push_back(std::move(text));
+    }
+
+    // パワーブースト
+    powerBoostBg_ = std::make_unique<Sprite>();
+    powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    powerBoostBg_->SetPosition({ 95.0f, 60.0f });
+    powerBoostBg_->SetScale({ 32.0f, 32.0f, 1.0f });
+    powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+
+    powerBoostText_ = std::make_unique<TextSprite>();
+    powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
+    powerBoostText_->SetSize({ 1.f, 1.f, 0.5f });
+    powerBoostText_->SetPosition({ 88.f, 40.f });
+
+    // ブロック
+    blockBg_ = std::make_unique<Sprite>();
+    blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    blockBg_->SetPosition({ 145.0f, 60.0f });
+    blockBg_->SetScale({ 32.0f, 32.0f, 1.0f });
+    blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
+
+    blockText_ = std::make_unique<TextSprite>();
+    blockText_->Initialize(app.SpriteCom(), app.Dx());
+    blockText_->SetSize({ 1.f, 1.f, 0.5f });
+    blockText_->SetPosition({ 138.f, 40.f });
 
     tutorial_ = std::make_unique<TutorialManager>();
     tutorial_->Initialize();
@@ -152,6 +195,31 @@ void TutorialScene::Update(GameApp& app, float dt) {
     enemyMgr_.UpdateCamera(animCamera_.get());
     enemyMgr_.Update(dt);
 
+    if (tutorial_) {
+        battle_.SetTutorialPokerRestriction(
+            tutorial_->IsForceActivateOnly(),
+            tutorial_->IsForceDamageOnly()
+        );
+    }
+
+    if (tutorial_ && fieldUi_) {
+        if (tutorial_->IsForceDamageOnly()) {
+            fieldUi_->SetForcedPokerHoverIndex(2); // damage
+        } else {
+            fieldUi_->SetForcedPokerHoverIndex(-1);
+        }
+    }
+
+    bool lockGameplayInput = false;
+    if (tutorial_) {
+        lockGameplayInput = tutorial_->IsGameplayInputLocked();
+    }
+
+    battle_.SetTutorialInputLocked(lockGameplayInput);
+    if (fieldUi_) {
+        fieldUi_->SetTutorialInputLocked(lockGameplayInput);
+    }
+
     battle_.Update(app, *fieldUi_, dt);
 
     if (tutorial_) {
@@ -161,9 +229,16 @@ void TutorialScene::Update(GameApp& app, float dt) {
             nextTutorial = true;
         }
 
+        bool imguiCapturingMouse = false;
+#ifdef USE_IMGUI
+        ImGuiIO& io = ImGui::GetIO();
+        imguiCapturingMouse = io.WantCaptureMouse || ImGui::IsAnyItemActive();
+#endif
+
         const bool blockTutorialClick =
             battle_.HasPokerChoiceUi() ||
-            battle_.IsViewingBoardFromPokerUi();
+            battle_.IsViewingBoardFromPokerUi() ||
+            imguiCapturingMouse;
 
         if (input->IsMouseTrigger(0) && !blockTutorialClick) {
             nextTutorial = true;
@@ -175,11 +250,23 @@ void TutorialScene::Update(GameApp& app, float dt) {
 
             if (step == Step::Intro ||
                 step == Step::ExplainEnergy ||
-                step == Step::SkipPokerContinueTurn) {
+                step == Step::SkipPokerContinueTurn ||
+                step == Step::EndAfterPoker ||
+                step == Step::UiPlayerHp ||
+                step == Step::UiEnemyHp ||
+                step == Step::UiTurnText ||
+                step == Step::UiHand ||
+                step == Step::UiField ||
+                step == Step::UiRoleText ||
+                step == Step::UiEndTurn ||
+                step == Step::UiDeckCount ||
+                step == Step::UiEnemyIntentDamage ||
+                step == Step::UiEnemyNextAction ||
+                step == Step::UiFinished) {
                 tutorial_->NextStep();
             } else if (step == Step::Finished) {
                 if (state_ == State::Idle) {
-                    nextSceneName_ = "Title";
+                    nextSceneName_ = "StageSelect";
                     state_ = State::ExitClose;
                 }
                 return;
@@ -196,6 +283,30 @@ void TutorialScene::Update(GameApp& app, float dt) {
     if (tutorialUi_ && tutorial_ && fieldUi_) {
         tutorialUi_->Update(app, *tutorial_, battle_, *fieldUi_);
     }
+
+    if (playerHpText_) {
+        playerHpText_->SetText(battle_.GetPlayerHpTexts());
+    }
+
+    if (powerBoostText_) {
+        powerBoostText_->SetText(battle_.GetPlayerPowerBoostText());
+    }
+
+    if (blockText_) {
+        blockText_->SetText(battle_.GetPlayerBlockText());
+    }
+
+    std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
+
+    for (size_t i = 0; i < enemyHpTexts_.size(); i++) {
+        if (i < hpData.size()) {
+            enemyHpTexts_[i]->SetText(hpData[i]);
+            enemyHpTexts_[i]->SetPosition({ 1025.0f, 10.0f + (i * 30.0f) });
+        } else {
+            enemyHpTexts_[i]->SetText(L"");
+        }
+    }
+
 }
 
 void TutorialScene::Draw3D(GameApp& app) {
@@ -215,10 +326,48 @@ void TutorialScene::Draw3D(GameApp& app) {
 void TutorialScene::Draw2D(GameApp& app) {
     app.SpriteCom()->SetGraphicsPipelineState();
 
+    Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+    Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
+        0, 0,
+        float(WinApp::kClientWidth),
+        float(WinApp::kClientHeight),
+        0, 100
+    );
+
     battle_.Draw2D(app);
 
     if (fieldUi_) {
         fieldUi_->Draw(app, battle_);
+    }
+
+    if (playerHpText_) {
+        playerHpText_->Update(view, proj);
+        playerHpText_->Draw();
+    }
+
+    if (powerBoostBg_) {
+        powerBoostBg_->Update(view, proj);
+        powerBoostBg_->Draw();
+    }
+    if (powerBoostText_) {
+        powerBoostText_->Update(view, proj);
+        powerBoostText_->Draw();
+    }
+
+    if (blockBg_) {
+        blockBg_->Update(view, proj);
+        blockBg_->Draw();
+    }
+    if (blockText_) {
+        blockText_->Update(view, proj);
+        blockText_->Draw();
+    }
+
+    for (auto& text : enemyHpTexts_) {
+        if (text) {
+            text->Update(view, proj);
+            text->Draw();
+        }
     }
 
     if (tutorialUi_ && tutorial_) {

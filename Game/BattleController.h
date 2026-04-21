@@ -211,6 +211,15 @@ public:
 	PokerTutorialResult GetLastPokerTutorialResult() const { return lastPokerTutorialResult_; }
 	void ClearLastPokerTutorialResult() { lastPokerTutorialResult_ = PokerTutorialResult::None; }
 
+	void SetTutorialPokerRestriction(bool activateOnly, bool damageOnly);
+
+	bool IsTutorialPokerTargetCancelLocked() const { return tutorialLockPokerTargetingCancel_; }
+
+	// チュートリアルで、カードのドラッグやプレビューを一切できなくする（カードをクリックして効果を発動するだけの段階などで使う）
+	void SetTutorialInputLocked(bool locked) { tutorialInputLocked_ = locked; }
+	bool IsTutorialInputLocked() const { return tutorialInputLocked_; }
+
+
 private:
 	//=====================
 	// チュートリアル用
@@ -218,6 +227,12 @@ private:
 	std::vector<CardInstance> tutorialOpeningHand_;
 	bool useTutorialOpeningHand_ = false;
 	PokerTutorialResult lastPokerTutorialResult_ = PokerTutorialResult::None;
+
+	bool tutorialActivateOnly_ = false;
+	bool tutorialDamageOnly_ = false;
+	bool tutorialLockPokerTargetingCancel_ = false;
+
+	bool tutorialInputLocked_ = false;
 
 private:
 	enum class TurnState { Player, Enemy };
@@ -360,6 +375,10 @@ private:
 	PokerBonus GetPokerBonus_(PokerHandRank rank) const;
 	void ConsumeFieldCards_();
 
+	void HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool yTrig, bool nTrig);
+	void HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool nTrig);
+	void HandlePokerViewBoard_(FieldUi& fieldUi, POINT mouse, bool lTrig, float dt);
+
 	PokerHandRank ParsePokerRankString_(const std::string& s) const;
 	bool IsRankAtLeast_(PokerHandRank a, PokerHandRank b) const;
 	bool IsRankInFamily_(PokerHandRank rank, const std::string& family) const;
@@ -398,4 +417,6 @@ private:
 
 	void UpdateHpGauges();
 
+	void UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt);
+	void UpdateVisuals_(float dt);
 };

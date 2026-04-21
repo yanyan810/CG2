@@ -91,6 +91,12 @@ public:
 	}
 
 private:
+#ifndef _DEBUG
+	void PlayReleaseIdleAnimation_();
+	void PlayRandomReleaseAttackAnimation_();
+	void PlayReleaseDamageAnimation_();
+#endif
+
 	std::unique_ptr<Object3d> model_;
 
 	Vector3 pos_{ 0.0f, 0.0f, 0.0f };
@@ -121,6 +127,10 @@ private:
 	bool isAlive_ = true;
 
 	ParticleEmitterConfig attackEffectConfig_;
+
+#ifndef _DEBUG
+	bool releaseAttackAnimationPlaying_ = false;
+#endif
 
 	bool isRecordingTrail_ = false;
 

@@ -14,6 +14,7 @@
 #include "TrailManager.h"
 #include "AudioManager.h"
 #include "PausingUI/PausingUI.h"
+#include "EffectSequencer.h"
 
 class GameApp;
 
@@ -116,6 +117,9 @@ private:
     TrailConfig trailConfig_;            // インスペクタ調整用
 
 	std::unique_ptr<PausingUI> pausingUI_;
+
+	// エフェクトシーケンサー（攻撃エフェクトエディター）
+	std::unique_ptr<EffectSequencer> effectSequencer_;
 
     int battleEndTimer_ = 180;
 };

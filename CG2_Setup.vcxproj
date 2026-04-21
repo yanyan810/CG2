@@ -169,6 +169,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\EffectSequencer.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorPose.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorSession.cpp" />
     <ClCompile Include="Engine\3D\AnimationClipDocument.cpp" />
@@ -226,6 +227,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\ImGuiManagaer.cpp" />
     <ClCompile Include="Engine\GameApp.cpp" />
     <ClCompile Include="Game\GameScene.cpp" />
+    <ClCompile Include="Game\StageSelectScene.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialManager.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
@@ -327,6 +329,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\EffectSequencer.h" />
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
     <ClInclude Include="Engine\3D\AnimationEditorSession.h" />
     <ClInclude Include="Engine\3D\AnimationClipDocument.h" />
@@ -405,6 +408,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\SceneManager.h" />
     <ClInclude Include="Engine\GameApp.h" />
     <ClInclude Include="Game\GameScene.h" />
+    <ClInclude Include="Game\StageSelectScene.h" />
     <ClInclude Include="Game\TitleScene.h" />
     <ClInclude Include="Game\player\PlayerCombo.h" />
     <ClInclude Include="Game\player\Player.h" />

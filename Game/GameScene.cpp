@@ -2,6 +2,7 @@
 #include "GameApp.h"
 #include "Input.h"
 #include "ModelParticleManager.h"
+#include "AnimationJsonSerializer.h"
 #include <random>
 #include <filesystem>
 #include <algorithm>
@@ -62,6 +63,42 @@ void GameScene::OnEnter(GameApp& app) {
 	player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
 	player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
 	player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+
+#ifndef _DEBUG
+	if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
+		struct CustomAnimationFile {
+			const char* path;
+			const char* name;
+		};
+
+		static const CustomAnimationFile kCustomAnimationFiles[] = {
+			{ "resources/CustomAnim/CustomAnim.json", "CustomAnim" },
+			{ "resources/CustomAnim/CustomAnim_attack_1.json", "CustomAnim_attack_1" },
+			{ "resources/CustomAnim/CustomAnim_attack_2.json", "CustomAnim_attack_2" },
+			{ "resources/CustomAnim/CustomAnim_attack_3.json", "CustomAnim_attack_3" },
+			{ "resources/CustomAnim/CustomAnim_attack_received_1.json", "CustomAnim_attack_received_1" },
+			{ "resources/CustomAnim/CustomAnim_attack_received_2.json", "CustomAnim_attack_received_2" },
+		};
+
+		bool loadedDefaultCustomAnim = false;
+		for (const auto& customAnimationFile : kCustomAnimationFiles) {
+			Animation animation{};
+			if (!AnimationJsonSerializer::LoadFromJson(customAnimationFile.path, animation)) {
+				continue;
+			}
+
+			player_->GetObject3d()->GetModel()->AddAnimation(customAnimationFile.name, animation);
+			if (std::string(customAnimationFile.name) == "CustomAnim") {
+				loadedDefaultCustomAnim = true;
+			}
+		}
+
+		if (loadedDefaultCustomAnim) {
+			player_->GetObject3d()->PlayAnimation("CustomAnim", true);
+		}
+	}
+#endif
+
 	animationEditTarget_ = player_ ? player_->GetObject3d() : nullptr;
 	cameraEditTarget_ = animCamera_.get();
 
@@ -161,6 +198,7 @@ void GameScene::OnEnter(GameApp& app) {
 	particleManager_ = ModelParticleManager::GetInstance();
 	particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
 	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
+	particleManager_->RegisterEffect("fireExplosive", "fireExplosive.json");
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 
@@ -175,6 +213,13 @@ void GameScene::OnEnter(GameApp& app) {
 
 	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
 	//AudioManager::GetInstance()->PlayBGM("neppuu");
+
+	// エフェクトシーケンサーの初期化
+	effectSequencer_ = std::make_unique<EffectSequencer>();
+	effectSequencer_->Initialize(
+		app.ObjCom(), app.Dx(), animCamera_.get(),
+		particleManager_, trailManager_.get()
+	);
 
 	pausingUI_ = std::make_unique<PausingUI>();
 	pausingUI_->Initialize(app);
@@ -442,6 +487,11 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	//particleManager_->Emit("player_fire", player_->GetPos() + Vector3(0, 1.0f, 0), 100);
 
+	// エフェクトシーケンサーの更新
+	if (effectSequencer_) {
+		effectSequencer_->Update(dt);
+	}
+
 	// 最後に1回だけDispatch
 	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
 }
@@ -633,6 +683,18 @@ void GameScene::DrawImGui(GameApp& app) {
 	}
 	ImGui::End();
 
+	// エフェクトシーケンサーエディター
+	if (effectSequencer_) {
+		// デフォルトの発射位置と着弾位置（プレイヤー → 最初の敵）
+		Vector3 startPos = player_ ? player_->GetPos() + Vector3(0, 1.0f, 0) : Vector3{ -7.0f, 1.0f, 15.0f };
+		Vector3 targetPos = { 7.0f, 1.0f, 15.0f }; // デフォルト敵位置
+		if (enemyMgr_.GetEnemies().size() > 0) {
+			const auto& firstEnemy = enemyMgr_.GetEnemies()[0];
+			targetPos = firstEnemy.GetPos() + Vector3(0, 1.0f, 0);
+		}
+		effectSequencer_->DrawImGuiEditor(startPos, targetPos);
+	}
+
 #endif
 }
 
@@ -649,7 +711,12 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	//particleManager_->Draw();
+	particleManager_->Draw();
+
+	// エフェクトシーケンサーの弾を描画
+	if (effectSequencer_) {
+		effectSequencer_->Draw();
+	}
 
 	if (trailManager_) {
 		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());

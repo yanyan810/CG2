@@ -307,6 +307,22 @@ struct UiNumberLayout {
     UiNumberRelative effectValue[3];
 };
 
+struct StageSelectLayout {
+    UiVec2 titlePos{ 470.0f, 80.0f };
+
+    UiRect tutorialButtonRect{ 320.0f, 300.0f, 340.0f, 120.0f };
+    UiRect battleButtonRect{ 320.0f, 500.0f, 340.0f, 120.0f };
+
+    UiVec2 tutorialButtonVisualPos{ 320.0f, 300.0f };
+    UiVec2 battleButtonVisualPos{ 320.0f, 500.0f };
+
+    UiVec2 tutorialDescBgPos{ 760.0f, 300.0f };
+    UiVec2 battleDescBgPos{ 760.0f, 500.0f };
+
+    UiText tutorialDescText{ 780.0f, 325.0f, 1.0f };
+    UiText battleDescText{ 780.0f, 525.0f, 1.0f };
+};
+
 inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 {
     PokerEffectChoiceLayout l{};
@@ -465,6 +481,16 @@ struct TutorialUiLayout {
     // FieldUiに専用rectがないものだけ持つ
     UiRect handArea;
     UiRect fieldArea;
+
+    UiRect playerHpArea;
+    UiRect enemyHpArea;
+    UiRect turnTextArea;
+    UiRect roleTextArea;
+    UiRect deckCountArea;
+
+    UiRect playerIncomingDamageArea;
+    UiRect enemyNextActionArea;
+
 };
 
 inline TutorialUiLayout MakeDefaultTutorialUiLayout()
@@ -480,5 +506,16 @@ inline TutorialUiLayout MakeDefaultTutorialUiLayout()
     l.handArea = { 170.0f, 560.0f, 950.0f, 140.0f };
     l.fieldArea = { 200.0f, 330.0f, 900.0f, 190.0f };
 
+    l.playerHpArea = { 120.0f, 100.0f, 420.0f, 80.0f };
+    l.enemyHpArea = { 1540.0f, 100.0f, 380.0f, 80.0f };
+    l.turnTextArea = { 860.0f, 80.0f, 420.0f, 120.0f };
+    l.roleTextArea = { 900.0f, 530.0f, 360.0f, 120.0f };
+    l.deckCountArea = { 80.0f, 700.0f, 340.0f, 140.0f };
+
+    l .playerHpArea = { 80.0f, 30.0f, 251.0f, 29.0f };
+    l.playerIncomingDamageArea = { 320.0f, 20.0f, 90.0f, 60.0f };
+
+    l.enemyHpArea = { 997.0f, 30.0f, 208.0f, 31.0f };
+    l.enemyNextActionArea = { 930.0f, 18.0f, 80.0f, 70.0f };
     return l;
 }

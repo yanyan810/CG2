@@ -86,10 +86,10 @@ std::vector<UiRect> TutorialUi::ResolveFocusRects_(
         }
 
         if (battle.IsWaitingEffectChoice()) {
-            rects.push_back(poker.effectRects[0]);
+           // rects.push_back(poker.effectRects[0]);
             rects.push_back(poker.effectRects[1]);
-            rects.push_back(poker.effectRects[2]);
-            rects.push_back(poker.effectViewBoardRect);
+            //rects.push_back(poker.effectRects[2]);
+            //rects.push_back(poker.effectViewBoardRect);
             return rects;
         }
 
@@ -147,8 +147,36 @@ std::vector<UiRect> TutorialUi::ResolveFocusRects_(
         }
         break;
 
+    case Focus::PlayerHpArea:
+        rects.push_back(layout_.playerHpArea);
+        break;
+
+    case Focus::EnemyHpArea:
+        rects.push_back(layout_.enemyHpArea);
+        break;
+
+    case Focus::TurnTextArea:
+        rects.push_back(layout_.turnTextArea);
+        break;
+
+    case Focus::RoleTextArea:
+        rects.push_back(layout_.roleTextArea);
+        break;
+
+    case Focus::DeckCountArea:
+        rects.push_back(layout_.deckCountArea);
+        break;
+
     case Focus::EnemyTurnArea:
         rects.push_back(field.turnBg);
+        break;
+
+    case Focus::PlayerIncomingDamageArea:
+        rects.push_back(layout_.playerIncomingDamageArea);
+        break;
+
+    case Focus::EnemyNextActionArea:
+        rects.push_back(layout_.enemyNextActionArea);
         break;
 
     default:
@@ -279,6 +307,14 @@ bool TutorialUi::SaveLayout(const std::string& path) const
     writeRect(j["darkOverlay"], layout_.darkOverlay);
     writeRect(j["handArea"], layout_.handArea);
     writeRect(j["fieldArea"], layout_.fieldArea);
+    writeRect(j["playerHpArea"], layout_.playerHpArea);
+    writeRect(j["enemyHpArea"], layout_.enemyHpArea);
+    writeRect(j["turnTextArea"], layout_.turnTextArea);
+    writeRect(j["roleTextArea"], layout_.roleTextArea);
+    writeRect(j["deckCountArea"], layout_.deckCountArea);
+    writeRect(j["playerIncomingDamageArea"], layout_.playerIncomingDamageArea);
+    writeRect(j["enemyNextActionArea"], layout_.enemyNextActionArea);
+
 
     std::ofstream ofs(path);
     if (!ofs.is_open()) {
@@ -316,6 +352,17 @@ bool TutorialUi::LoadLayout(const std::string& path)
     if (j.contains("darkOverlay")) readRect(j["darkOverlay"], layout_.darkOverlay);
     if (j.contains("handArea")) readRect(j["handArea"], layout_.handArea);
     if (j.contains("fieldArea")) readRect(j["fieldArea"], layout_.fieldArea);
+    if (j.contains("playerHpArea")) readRect(j["playerHpArea"], layout_.playerHpArea);
+    if (j.contains("enemyHpArea")) readRect(j["enemyHpArea"], layout_.enemyHpArea);
+    if (j.contains("turnTextArea")) readRect(j["turnTextArea"], layout_.turnTextArea);
+    if (j.contains("roleTextArea")) readRect(j["roleTextArea"], layout_.roleTextArea);
+    if (j.contains("deckCountArea")) readRect(j["deckCountArea"], layout_.deckCountArea);
+    if (j.contains("playerIncomingDamageArea")) {
+        readRect(j["playerIncomingDamageArea"], layout_.playerIncomingDamageArea);
+    }
+    if (j.contains("enemyNextActionArea")) {
+        readRect(j["enemyNextActionArea"], layout_.enemyNextActionArea);
+    }
 
     return true;
 }
@@ -342,75 +389,17 @@ void TutorialUi::DrawImGui(TutorialManager& tutorial)
     ImGui::DragFloat4("handArea", &layout_.handArea.x, 1.0f);
     ImGui::DragFloat4("fieldArea", &layout_.fieldArea.x, 1.0f);
 
+    ImGui::DragFloat4("playerHpArea", &layout_.playerHpArea.x, 1.0f);
+    ImGui::DragFloat4("enemyHpArea", &layout_.enemyHpArea.x, 1.0f);
+    ImGui::DragFloat4("turnTextArea", &layout_.turnTextArea.x, 1.0f);
+    ImGui::DragFloat4("roleTextArea", &layout_.roleTextArea.x, 1.0f);
+    ImGui::DragFloat4("deckCountArea", &layout_.deckCountArea.x, 1.0f);
+
+    ImGui::DragFloat4("playerIncomingDamageArea", &layout_.playerIncomingDamageArea.x, 1.0f);
+    ImGui::DragFloat4("enemyNextActionArea", &layout_.enemyNextActionArea.x, 1.0f);
+
     ImGui::Separator();
     ImGui::Text("Tutorial Message Edit");
-
-    //static int editStep = 0;
-    //static bool initializedStep = false;
-
-    //if (!initializedStep) {
-    //    editStep = static_cast<int>(tutorial.GetStep());
-    //    initializedStep = true;
-    //}
-
-    //const char* stepNames[] = {
-    //    "Intro",
-    //    "HoverHand",
-    //    "PlayCard",
-    //    "ExplainEnergy",
-    //    "FillField",
-    //    "EndPlayerTurn",
-    //    "WaitEnemyTurn",
-    //    "ExplainPokerReady",
-    //    "ChoosePokerEffect",
-    //    "SkipPokerContinueTurn",
-    //    "SkipPokerEndTurn",
-    //    "SkipPokerWaitEnemyTurn",
-    //    "ViewingBoardFromPoker",
-    //    "EndAfterPoker",
-    //    "Finished"
-    //};
-
-    //ImGui::Combo("Step", &editStep, stepNames, IM_ARRAYSIZE(stepNames));
-
-    //static std::string editUtf8;
-    //static int loadedStep = -1;
-
-    //if (loadedStep != editStep) {
-    //    std::wstring src = tutorial.GetStepMessage(
-    //        static_cast<TutorialManager::TutorialStep>(editStep)
-    //    );
-
-    //    if (src.empty() && static_cast<int>(tutorial.GetStep()) == editStep) {
-    //        src = tutorial.GetMessage();
-    //    }
-
-    //    editUtf8 = WStringToUtf8(src);
-    //    loadedStep = editStep;
-    //}
-
-    //char buffer[2048]{};
-    //strncpy_s(buffer, editUtf8.c_str(), sizeof(buffer) - 1);
-
-    //if (ImGui::InputTextMultiline(
-    //    "MessageText",
-    //    buffer,
-    //    sizeof(buffer),
-    //    ImVec2(520, 140)
-    //)) {
-    //    editUtf8 = buffer;
-    //    tutorial.SetStepMessage(
-    //        static_cast<TutorialManager::TutorialStep>(editStep),
-    //        Utf8ToWString(editUtf8)
-    //    );
-    //}
-
-    //if (ImGui::Button("Apply To Current Step")) {
-    //    tutorial.SetStepMessage(
-    //        static_cast<TutorialManager::TutorialStep>(editStep),
-    //        Utf8ToWString(editUtf8)
-    //    );
-    //}
 
     ImGui::Separator();
 

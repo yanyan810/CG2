@@ -37,7 +37,7 @@ public:
         }
     }
     int GetHP() const { return hp_; }
-    int GetMaxHP() const { return ai_.GetMaxHP(); }
+    int GetMaxHP() const { return maxHp_; }
     void SetHighlight(bool enable) { isHighlighted_ = enable; }
     void Heal(int value) {
         hp_ += value;
@@ -70,6 +70,17 @@ public:
         }
         return 0;
     }
+
+public:
+
+    //チュートリアル用
+    void SetMaxHp(int maxHp, bool healToFull = true);
+    void SetHp(int hp);
+   // int GetTutorialMaxHp() const { return maxHp_; }
+
+private:
+
+    int maxHp_=150;
 
 private:
     Object3dCommon* objCommon_ = nullptr;
@@ -127,6 +138,12 @@ public:
             enemy.SetCamera(camera);
         }
     }
+
+public:
+
+    //チュートリアル用
+    Enemy* GetEnemy(size_t index);
+    const Enemy* GetEnemy(size_t index) const;
 
 private:
     Camera* camera_ = nullptr;

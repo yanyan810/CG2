@@ -71,7 +71,7 @@ ConstantBuffer<SpotLight> gSpotLight : register(b4);
 float3 ApplyGlitter(float3 baseColor, float2 uv, float intensity, float time)
 {
     // 時間で色を点滅させる（タイマーが動いていればカード全体がチカチカするはず）
-    return baseColor + float3(sin(time * 5.0), 0, 0) * intensity;
+    return baseColor;
 }
 
 // =====================

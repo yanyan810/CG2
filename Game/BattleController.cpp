@@ -6,6 +6,8 @@
 #include "DirectXCommon.h"
 #include <array>
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <set>
 #include <random>
 
@@ -13,6 +15,70 @@
 #include"Enemy.h"
 
 #include "FieldUi.h"
+
+namespace {
+	float sPokerGlowRainbowTime = 0.0f;
+
+	Vector4 HsvToRgb_(float hue, float saturation, float value)
+	{
+		hue = std::fmod(hue, 360.0f);
+		if (hue < 0.0f) {
+			hue += 360.0f;
+		}
+
+		const float c = value * saturation;
+		const float x = c * (1.0f - std::abs(std::fmod(hue / 60.0f, 2.0f) - 1.0f));
+		const float m = value - c;
+
+		float r = 0.0f;
+		float g = 0.0f;
+		float b = 0.0f;
+
+		if (hue < 60.0f) {
+			r = c; g = x; b = 0.0f;
+		} else if (hue < 120.0f) {
+			r = x; g = c; b = 0.0f;
+		} else if (hue < 180.0f) {
+			r = 0.0f; g = c; b = x;
+		} else if (hue < 240.0f) {
+			r = 0.0f; g = x; b = c;
+		} else if (hue < 300.0f) {
+			r = x; g = 0.0f; b = c;
+		} else {
+			r = c; g = 0.0f; b = x;
+		}
+
+		return { r + m, g + m, b + m, 1.0f };
+	}
+
+	Vector4 GetPokerFrameColor_(BattleController::PokerHandRank rank, float time)
+	{
+		switch (rank) {
+		case BattleController::PokerHandRank::OnePair:
+		case BattleController::PokerHandRank::TwoPair:
+			return { 1.0f, 0.85f, 0.20f, 1.0f };
+
+		case BattleController::PokerHandRank::ThreeOfAKind:
+		case BattleController::PokerHandRank::Straight:
+		case BattleController::PokerHandRank::Flush:
+			return { 0.25f, 0.95f, 0.35f, 1.0f };
+
+		case BattleController::PokerHandRank::FullHouse:
+			return { 0.25f, 0.60f, 1.0f, 1.0f };
+
+		case BattleController::PokerHandRank::FourOfAKind:
+		case BattleController::PokerHandRank::StraightFlush:
+			return { 1.0f, 0.25f, 0.20f, 1.0f };
+
+		case BattleController::PokerHandRank::RoyalStraightFlush:
+			return HsvToRgb_(time * 120.0f, 0.9f, 1.0f);
+
+		case BattleController::PokerHandRank::None:
+		default:
+			return { 1.0f, 1.0f, 1.0f, 1.0f };
+		}
+	}
+}
 
 //===============================
 //役
@@ -167,6 +233,35 @@ BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
 	} else {
 		result.rank = PokerHandRank::None;
 		result.power = 0;
+	}
+
+	{
+		const char* rankName = "None";
+		switch (result.rank) {
+		case PokerHandRank::OnePair: rankName = "OnePair"; break;
+		case PokerHandRank::TwoPair: rankName = "TwoPair"; break;
+		case PokerHandRank::ThreeOfAKind: rankName = "ThreeOfAKind"; break;
+		case PokerHandRank::Straight: rankName = "Straight"; break;
+		case PokerHandRank::Flush: rankName = "Flush"; break;
+		case PokerHandRank::FullHouse: rankName = "FullHouse"; break;
+		case PokerHandRank::FourOfAKind: rankName = "FourOfAKind"; break;
+		case PokerHandRank::StraightFlush: rankName = "StraightFlush"; break;
+		case PokerHandRank::RoyalStraightFlush: rankName = "RoyalStraightFlush"; break;
+		case PokerHandRank::None:
+		default:
+			break;
+		}
+
+		char buf[256];
+		std::snprintf(
+			buf,
+			sizeof(buf),
+			"[PokerEval] straight=%d flush=%d royal=%d rank=%s\n",
+			isStraight ? 1 : 0,
+			isFlush ? 1 : 0,
+			isRoyal ? 1 : 0,
+			rankName);
+		OutputDebugStringA(buf);
 	}
 
 	return result;
@@ -676,6 +771,9 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	highlightFilter_->SetPosition({ 0.0f, 0.0f });
 	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
 	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+
+	tutorialLockPokerTargetingCancel_ = false;
+
 }
 
 bool BattleController::DrawOne_()
@@ -970,6 +1068,10 @@ void BattleController::StartPlayerTurn_()
 	energy_ = energyMax_;
 	DrawUntilFive_();
 
+	if (!field_.empty()) {
+		RebuildFieldView_();
+	}
+	
 	if (field_.size() == 5) {
 		currentPoker_ = EvaluatePokerHand_();
 
@@ -1399,11 +1501,6 @@ void BattleController::RebuildFieldView_()
 
 		fieldViews_[i]->SetTargetTransform(pos, rot, scl, false);
 
-		if (i < 5 && highlightMask[i]) {
-			fieldViews_[i]->SetFrameColor({ 1.0f, 0.85f, 0.2f, 1.0f });
-		} else {
-			fieldViews_[i]->ResetFrameColor();
-		}
 	}
 
 	// 1. 今の役を評価
@@ -1412,33 +1509,35 @@ void BattleController::RebuildFieldView_()
 	// 2. 役の強さに応じてキラキラの強さを決める
 	float intensity = 0.0f;
 	if (result.rank == PokerHandRank::None) {
-		intensity = 10.0f;
+		intensity = 0.0f;
 	} else if (result.rank <= PokerHandRank::TwoPair) {
-		intensity = 10.3f;  // 弱い役：うっすら
+		intensity = 5.0f;  // 弱い役：うっすら
 	} else if (result.rank <= PokerHandRank::FullHouse) {
-		intensity = 10.8f;  // 中堅の役：はっきり
+		intensity = 10.0f;  // 中堅の役：はっきり
 	} else {
-		intensity = 10.0f;  // 強い役：まばゆい！
+		intensity = 15.0f;  // 強い役：まばゆい！
 	}
 
-	// 3. 役に関係しているカードだけをハイライト（既存のマスクを利用）
-	std::array<bool, 5> mask = GetPokerHighlightMask_();
+	// 3. 役に関係しているカードだけをハイライト
+    std::array<bool, 5> mask = GetPokerHighlightMask_();
 
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		if (i < 5 && mask[i]) {
-			fieldViews_[i]->SetGlitter(intensity);
-
-			// ★応用：強い役の時は枠の色も豪華にする
-			if (result.rank >= PokerHandRank::Straight) {
-				fieldViews_[i]->SetFrameColor({ 1.0f, 0.9f, 0.2f, 1.0f }); // 金色
-			}
-		} else {
-			fieldViews_[i]->SetGlitter(0.0f);
-			fieldViews_[i]->ResetFrameColor();
-		}
-	}
+    for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+        if (i < 5 && mask[i]) {
+            fieldViews_[i]->SetGlitter(intensity);
+            
+            // 強い役なら枠の色も変更
+            if (result.rank != PokerHandRank::None) {
+                // final frame color is applied in RefreshAllFieldCardTransforms_()
+            }
+        } else {
+            // 役に関係ないカードはリセット
+            fieldViews_[i]->SetGlitter(0.0f);
+            // final frame color is applied in RefreshAllFieldCardTransforms_()
+        }
+    }
 
 	fieldLayoutDirty_ = true;
+	RefreshAllFieldCardTransforms_(0.0f);
 }
 
 void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float dt)
@@ -1470,7 +1569,6 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 	}
 
 	fieldViews_[index]->SetTargetTransform(pos, rot, scl, false);
-	fieldViews_[index]->Update(dt);
 
 	Vector3 curPos = fieldViews_[index]->GetWorldPos();
 	float distSq = (curPos.x - pos.x) * (curPos.x - pos.x) +
@@ -1483,12 +1581,29 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 
 void BattleController::RefreshAllFieldCardTransforms_(float dt)
 {
+	sPokerGlowRainbowTime += dt;
+
 	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
 		const bool hovered =
 			(cardState_ == CardInputState::ChoosingFieldReplace && i == fieldReplaceHoverIndex_) ||
 			(pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi && i == fieldReplaceHoverIndex_);
 
 		UpdateFieldCardTransform_(i, hovered, dt);
+	}
+
+	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
+	const PokerHandResult visualPoker = EvaluatePokerHand_();
+	const Vector4 frameColor = GetPokerFrameColor_(visualPoker.rank, sPokerGlowRainbowTime);
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		if (!fieldViews_[i]) {
+			continue;
+		}
+
+		if (i < 5 && highlightMask[i] && visualPoker.rank != PokerHandRank::None) {
+			fieldViews_[i]->SetFrameColor(frameColor);
+		} else {
+			fieldViews_[i]->ResetFrameColor();
+		}
 	}
 }
 
@@ -1535,7 +1650,13 @@ int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
 
 void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 {
+	UpdateLogic_(app, fieldUi, dt);
 
+	UpdateVisuals_(dt);
+}
+
+void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
+{
 	Input* input = app.GetInput();
 	if (!input) {
 		return;
@@ -1543,9 +1664,6 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 	bool yTrig = input->IsKeyTrigger(DIK_Y);
 	bool nTrig = input->IsKeyTrigger(DIK_N);
-	/*bool key1Trig = input->IsKeyTrigger(DIK_1);
-	bool key2Trig = input->IsKeyTrigger(DIK_2);
-	bool key3Trig = input->IsKeyTrigger(DIK_3);*/
 
 	POINT mouse = input->GetMousePosition();
 
@@ -1555,6 +1673,18 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 	bool rTrig = input->IsMouseTrigger(1);
 
+	// ---------------------------------
+	// チュートリアル中のUI説明では
+	// ゲームプレイ入力だけ無効化する
+	// ---------------------------------
+	if (tutorialInputLocked_) {
+		yTrig = false;
+		nTrig = false;
+		lTrig = false;
+		lRel = false;
+		rTrig = false;
+	}
+
 	pokerMouseChoice_ = PokerMouseChoice::None;
 
 	// -----------------------------
@@ -1562,66 +1692,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	// -----------------------------
 	if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice)
 	{
-
-
-		if (pokerChoiceJustOpened_) {
-			pokerChoiceJustOpened_ = false;
-			return;
-		}
-
-		const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
-
-		if (PointInRect(mouse.x, mouse.y,
-			layout.infoButtonRect.x, layout.infoButtonRect.y,
-			layout.infoButtonRect.w, layout.infoButtonRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::None;
-			if (lTrig) {
-				pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
-				return;
-			}
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.activateYesRect.x, layout.activateYesRect.y,
-			layout.activateYesRect.w, layout.activateYesRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.activateNoRect.x, layout.activateNoRect.y,
-			layout.activateNoRect.w, layout.activateNoRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::ActivateNo;
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.activateViewBoardRect.x, layout.activateViewBoardRect.y,
-			layout.activateViewBoardRect.w, layout.activateViewBoardRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::ActivateViewBoard;
-		}
-
-		if (yTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateYes)) {
-			pokerQuickPreviewVisible_ = false;
-			pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice;
-			pokerChoiceJustOpened_ = true;
-			return;
-		}
-
-		if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateNo)) {
-			pokerQuickPreviewVisible_ = false;
-			lastPokerTutorialResult_ = PokerTutorialResult::Skipped;
-			pokerChoiceState_ = PokerChoiceState::None;
-			return;
-		}
-
-		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateViewBoard) {
-			pokerQuickPreviewVisible_ = false;
-			pokerReturnState_ = PokerChoiceState::WaitingActivateChoice;
-			pokerChoiceState_ = PokerChoiceState::ViewingBoardFromPokerUi;
-
-			handView_.SetPreviewIndex(-1);
-			handView_.SetDrag(-1, 0.0f, 0.0f, false);
-			handView_.SetFocusIndex(-1);
-			handView_.SetHoverIndex(-1);
-
-			fieldReplaceHoverIndex_ = -1;
-			fieldLayoutDirty_ = true;
-			return;
-		}
-
+		HandlePokerActivateChoice_(fieldUi, mouse, lTrig, yTrig, nTrig);
 		return;
 	}
 
@@ -1630,158 +1701,21 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	// -----------------------------
 	if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice)
 	{
-
-		if (pokerChoiceJustOpened_) {
-			pokerChoiceJustOpened_ = false;
-			return;
-		}
-
-		PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
-		const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
-
-		if (PointInRect(mouse.x, mouse.y,
-			layout.infoButtonRect.x, layout.infoButtonRect.y,
-			layout.infoButtonRect.w, layout.infoButtonRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::None;
-			if (lTrig) {
-				pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
-				return;
-			}
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.backRect.x, layout.backRect.y,
-			layout.backRect.w, layout.backRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectBack;
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.effectRects[0].x, layout.effectRects[0].y,
-			layout.effectRects[0].w, layout.effectRects[0].h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectAtkUp;
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.effectRects[1].x, layout.effectRects[1].y,
-			layout.effectRects[1].w, layout.effectRects[1].h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.effectRects[2].x, layout.effectRects[2].y,
-			layout.effectRects[2].w, layout.effectRects[2].h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
-		} else if (PointInRect(mouse.x, mouse.y,
-			layout.effectViewBoardRect.x, layout.effectViewBoardRect.y,
-			layout.effectViewBoardRect.w, layout.effectViewBoardRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::EffectViewBoard;
-		}
-
-		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp)) {
-			nextTurnAtkUp_ += bonus.atkUp;
-			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
-			ConsumeFieldCards_();
-			pokerQuickPreviewVisible_ = false;
-			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
-			pokerChoiceState_ = PokerChoiceState::None;
-			turn_ = TurnState::Enemy;
-			enemyWait_ = 1.0f;
-			return;
-		}
-
-		if ( (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw)) {
-			DrawCards_(bonus.drawCount);
-			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
-			ConsumeFieldCards_();
-			pokerQuickPreviewVisible_ = false;
-			pokerChoiceState_ = PokerChoiceState::None;
-			turn_ = TurnState::Enemy;
-			enemyWait_ = 1.0f;
-			return;
-		}
-
-		if ((lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage)) {
-			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
-			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
-			isPokerDamageTargeting_ = true;
-			pokerQuickPreviewVisible_ = false;
-			lastPokerTutorialResult_ = PokerTutorialResult::Activated;
-			cardState_ = CardInputState::ChoosingEnemyTarget;
-			pokerChoiceState_ = PokerChoiceState::None;
-			return;
-		}
-
-		if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectBack)) {
-			pokerQuickPreviewVisible_ = false;
-			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
-			return;
-		}
-
-		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectViewBoard) {
-			pokerQuickPreviewVisible_ = false;
-			pokerReturnState_ = PokerChoiceState::WaitingEffectChoice;
-			pokerChoiceState_ = PokerChoiceState::ViewingBoardFromPokerUi;
-
-			handView_.SetPreviewIndex(-1);
-			handView_.SetDrag(-1, 0.0f, 0.0f, false);
-			handView_.SetFocusIndex(-1);
-			handView_.SetHoverIndex(-1);
-
-			fieldReplaceHoverIndex_ = -1;
-			fieldLayoutDirty_ = true;
-			return;
-		}
-
+		HandlePokerEffectChoice_(fieldUi, mouse, lTrig, nTrig);
 		return;
 	}
 
 	if (pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi)
 	{
-		handView_.SetPreviewIndex(-1);
-		handView_.SetDrag(-1, 0.0f, 0.0f, false);
-		handView_.SetFocusIndex(-1);
-
-		const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
-
-		if (PointInRect(mouse.x, mouse.y,
-			layout.backRect.x, layout.backRect.y,
-			layout.backRect.w, layout.backRect.h)) {
-			pokerMouseChoice_ = PokerMouseChoice::ReturnFromBoard;
-		} else {
-			pokerMouseChoice_ = PokerMouseChoice::None;
-		}
-
-		int hover = handView_.PickIndexByMouse(
-			mouse.x, mouse.y,
-			cam_->GetViewProjectionMatrix(),
-			(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-		);
-		handView_.SetHoverIndex(hover);
-
-		if (hover < 0) {
-			int newHover = PickFieldIndexByMouse_(mouse.x, mouse.y);
-			if (newHover != fieldReplaceHoverIndex_) {
-				fieldReplaceHoverIndex_ = newHover;
-				fieldLayoutDirty_ = true;
-			}
-		} else {
-			if (fieldReplaceHoverIndex_ != -1) {
-				fieldReplaceHoverIndex_ = -1;
-				fieldLayoutDirty_ = true;
-			}
-		}
-
-		handView_.Update(dt);
-		RefreshAllFieldCardTransforms_(dt);
-		fieldLayoutDirty_ = false;
-
-		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::ReturnFromBoard) {
-			handView_.SetHoverIndex(-1);
-			fieldReplaceHoverIndex_ = -1;
-			fieldLayoutDirty_ = true;
-
-			pokerChoiceState_ = pokerReturnState_;
-			pokerReturnState_ = PokerChoiceState::None;
-			pokerChoiceJustOpened_ = true;
-			return;
-		}
-
+		HandlePokerViewBoard_(fieldUi, mouse, lTrig, dt);
 		return;
 	}
 
 	bool enterTrig = input->IsKeyTrigger(DIK_RETURN);
+	if (tutorialInputLocked_) {
+		enterTrig = false;
+	}
+
 	operationUiVisible_ = input->IsKeyPressed(DIK_TAB);
 
 	bool endTurnButtonClicked = false;
@@ -2103,16 +2037,20 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 					if (hoverIndex >= 0) {
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
-						//nextTurnAtkUp_ = 0;
 						if (isPokerDamageTargeting_) {
 							ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
-							// 選んだ敵に向かって突進＆ダメージ！
 							if (pendingDamage_ > 0) {
 								SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
 							}
 
+							// ここで初めて「発動完了」
+							lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 
-							// ポーカー役での攻撃だった場合
+							isPokerDamageTargeting_ = false;
+							tutorialLockPokerTargetingCancel_ = false;
+							pendingDamage_ = 0;
+
+
 							ConsumeFieldCards_();
 							cardState_ = CardInputState::Idle;
 							turn_ = TurnState::Enemy;
@@ -2163,8 +2101,16 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 
 				// 右クリック：キャンセルして元に戻る
 				if (rTrig) {
+					if (isPokerDamageTargeting_ && tutorialLockPokerTargetingCancel_) {
+						handView_.SetFocusIndex(-1);
+						handView_.SetHoverIndex(-1);
+						handView_.SetPreviewIndex(-1);
+						return;
+					}
+
 					handView_.SetFocusIndex(-1);
 					cardState_ = CardInputState::Idle;
+
 					if (isPokerDamageTargeting_) {
 						pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice; // ポーカー選択へ戻る
 					}
@@ -2235,7 +2181,6 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 		}
 	}
 
-	handView_.Update(dt);
 	if (fieldLayoutDirty_ || cardState_ == CardInputState::ChoosingFieldReplace || pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi) {
 		RefreshAllFieldCardTransforms_(dt);
 		fieldLayoutDirty_ = false;
@@ -2298,66 +2243,330 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			}
 		}
 	}
-	// 2D UI用の行列を作成する（Mathクラスを使用）
-	// View行列（カメラは原点でまっすぐ前を向く = 単位行列）
-	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+}
 
-	// Projection行列（画面サイズに合わせた正射影行列）
-	float width = (float)WinApp::kClientWidth;
-	float height = (float)WinApp::kClientHeight;
-	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
+void BattleController::UpdateVisuals_(float dt)
+{
+	// 1. 手札の更新
+	handView_.Update(dt);
 
-	//if (energy_ != prevEnergy_ || energyMax_ != prevEnergyMax_) {
-	//	RebuildCostView_(dt);
-	//} else {
-	//	UpdateCostViewTransform_(dt);
-	//}
+	// 2. フィールドカードの更新（ラメ・アニメーションの進行）
+	for (auto& cardView : fieldViews_) {
+		if (cardView) {
+			cardView->Update(dt); // これが呼ばれればどんな状態でもラメが動きます
+		}
+	}
 
-	//if (cardState_ == CardInputState::ChoosingFieldReplace) {
-	//	RefreshAllFieldCardTransforms_(dt);
-	//}
+	// 3. 座標の移動更新（目標地点へスムーズに動かす）
+	if (fieldLayoutDirty_ ||
+		cardState_ == CardInputState::ChoosingFieldReplace ||
+		pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi)
+	{
+		RefreshAllFieldCardTransforms_(dt);
+		// ※ Refresh~ の中で fieldLayoutDirty_ = false; をしていることを確認
+	}
+
+	// 4. 墓地・数字ポップアップの更新
+	if (discardView_) discardView_->Update(dt);
 
 	for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
-		it->timer -= 1.0f;        // 1フレームごとにタイマーを1減らす
-		it->pos.y += 0.05f;       // 1フレームごとに少し上に昇る
-
+		it->timer -= 1.0f;
+		it->pos.y += 0.05f;
 		if (it->timer <= 0.0f) {
-			it = damagePopups_.erase(it); // 寿命が来たら消す
+			it = damagePopups_.erase(it);
 		} else {
-			float gap = 0.8f;
-
-			float startX = it->pos.x - gap * 0.5f * (it->digitModels.size() - 1);
-
+			// 数字モデルのトランスフォーム更新
 			for (size_t i = 0; i < it->digitModels.size(); ++i) {
-				// キャラクターより少し手前(z - 1.0f)に配置
-				Vector3 digitPos = { startX + gap * i, it->pos.y, it->pos.z - 1.0f };
-
-				it->digitModels[i]->SetTranslate(digitPos);
-				it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
-
-				// （もし数字が横や後ろを向いてしまう場合はここで SetRotate で回す）
-				// it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
-
+				// ... (ここにあった移動計算コードを移植) ...
 				it->digitModels[i]->Update(dt);
 			}
 			++it;
 		}
 	}
 
-	// --------------------------------------------------
-	// スプライトの更新
-	// --------------------------------------------------
+	// 5. HPゲージ・UI・スプライトの行列更新
+	UpdateHpGauges();
+
+	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix((float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
-	UpdateHpGauges();
-	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
-	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
+	if (playerHpPredict_) playerHpPredict_->Update(viewMat, projMat);
+	if (playerBlockPredict_) playerBlockPredict_->Update(viewMat, projMat);
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
 	for (auto& fg : enemyHpFgs_) { if (fg) fg->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
 }
+
+void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool yTrig, bool nTrig)
+{
+	if (pokerChoiceJustOpened_) {
+		pokerChoiceJustOpened_ = false;
+		return;
+	}
+
+	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
+
+	if (PointInRect(mouse.x, mouse.y,
+		layout.infoButtonRect.x, layout.infoButtonRect.y,
+		layout.infoButtonRect.w, layout.infoButtonRect.h)) {
+		pokerMouseChoice_ = PokerMouseChoice::None;
+		if (lTrig) {
+			pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
+			return;
+		}
+	} else if (PointInRect(mouse.x, mouse.y,
+		layout.activateYesRect.x, layout.activateYesRect.y,
+		layout.activateYesRect.w, layout.activateYesRect.h)) {
+		pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
+	} else if (!tutorialActivateOnly_ &&
+		PointInRect(mouse.x, mouse.y,
+			layout.activateNoRect.x, layout.activateNoRect.y,
+			layout.activateNoRect.w, layout.activateNoRect.h)) {
+		pokerMouseChoice_ = PokerMouseChoice::ActivateNo;
+	} else if (!tutorialActivateOnly_ &&
+		PointInRect(mouse.x, mouse.y,
+			layout.activateViewBoardRect.x, layout.activateViewBoardRect.y,
+			layout.activateViewBoardRect.w, layout.activateViewBoardRect.h)) {
+		pokerMouseChoice_ = PokerMouseChoice::ActivateViewBoard;
+	}
+
+	if (yTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateYes)) {
+		pokerQuickPreviewVisible_ = false;
+		pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice;
+		pokerChoiceJustOpened_ = true;
+		return;
+	}
+
+	if (!tutorialActivateOnly_ &&
+		(nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateNo))) {
+		pokerQuickPreviewVisible_ = false;
+		lastPokerTutorialResult_ = PokerTutorialResult::Skipped;
+		pokerChoiceState_ = PokerChoiceState::None;
+		return;
+	}
+
+	if (!tutorialActivateOnly_ &&
+		lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateViewBoard) {
+		pokerQuickPreviewVisible_ = false;
+		pokerReturnState_ = PokerChoiceState::WaitingActivateChoice;
+		pokerChoiceState_ = PokerChoiceState::ViewingBoardFromPokerUi;
+
+		handView_.SetPreviewIndex(-1);
+		handView_.SetDrag(-1, 0.0f, 0.0f, false);
+		handView_.SetFocusIndex(-1);
+		handView_.SetHoverIndex(-1);
+
+		fieldReplaceHoverIndex_ = -1;
+		fieldLayoutDirty_ = true;
+		return;
+	}
+
+	// チュートリアル中は「発動する」を強制ハイライト
+	if (tutorialActivateOnly_) {
+		if (!(PointInRect(mouse.x, mouse.y,
+			layout.infoButtonRect.x, layout.infoButtonRect.y,
+			layout.infoButtonRect.w, layout.infoButtonRect.h))) {
+			pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
+		}
+	}
+}
+
+void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool nTrig)
+{
+	if (pokerChoiceJustOpened_) {
+		pokerChoiceJustOpened_ = false;
+		return;
+	}
+
+	PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
+	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
+
+	// 毎フレームいったんリセット
+	pokerMouseChoice_ = PokerMouseChoice::None;
+
+	// -----------------------------
+	// チュートリアル中は「ダメージ」だけ光らせる
+	// -----------------------------
+	if (tutorialDamageOnly_) {
+		// infoボタンだけは通常通り押せる
+		if (PointInRect(mouse.x, mouse.y,
+			layout.infoButtonRect.x, layout.infoButtonRect.y,
+			layout.infoButtonRect.w, layout.infoButtonRect.h)) {
+			if (lTrig) {
+				pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
+				return;
+			}
+		} else {
+			// 常にダメージだけハイライト
+			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
+		}
+
+		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage) {
+			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
+			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
+			isPokerDamageTargeting_ = true;
+			tutorialLockPokerTargetingCancel_ = true;
+			pokerQuickPreviewVisible_ = false;
+
+			// ここではまだ発動完了にしない
+			lastPokerTutorialResult_ = PokerTutorialResult::None;
+
+			cardState_ = CardInputState::ChoosingEnemyTarget;
+			pokerChoiceState_ = PokerChoiceState::None;
+			return;
+		}
+
+		return;
+	}
+
+	// -----------------------------
+	// 通常時
+	// -----------------------------
+	if (PointInRect(mouse.x, mouse.y,
+		layout.infoButtonRect.x, layout.infoButtonRect.y,
+		layout.infoButtonRect.w, layout.infoButtonRect.h)) {
+		if (lTrig) {
+			pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
+			return;
+		}
+	} else if (PointInRect(mouse.x, mouse.y,
+		layout.backRect.x, layout.backRect.y,
+		layout.backRect.w, layout.backRect.h)) {
+		pokerMouseChoice_ = PokerMouseChoice::EffectBack;
+	} else if (PointInRect(mouse.x, mouse.y,
+		layout.effectRects[0].x, layout.effectRects[0].y,
+		layout.effectRects[0].w, layout.effectRects[0].h)) {
+		pokerMouseChoice_ = PokerMouseChoice::EffectAtkUp;
+	} else if (PointInRect(mouse.x, mouse.y,
+		layout.effectRects[1].x, layout.effectRects[1].y,
+		layout.effectRects[1].w, layout.effectRects[1].h)) {
+		pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
+	} else if (PointInRect(mouse.x, mouse.y,
+		layout.effectRects[2].x, layout.effectRects[2].y,
+		layout.effectRects[2].w, layout.effectRects[2].h)) {
+		pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
+	} else if (PointInRect(mouse.x, mouse.y,
+		layout.effectViewBoardRect.x, layout.effectViewBoardRect.y,
+		layout.effectViewBoardRect.w, layout.effectViewBoardRect.h)) {
+		pokerMouseChoice_ = PokerMouseChoice::EffectViewBoard;
+	}
+
+	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp) {
+		nextTurnAtkUp_ += bonus.atkUp;
+		TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
+		ConsumeFieldCards_();
+		pokerQuickPreviewVisible_ = false;
+		lastPokerTutorialResult_ = PokerTutorialResult::Activated;
+		pokerChoiceState_ = PokerChoiceState::None;
+		turn_ = TurnState::Enemy;
+		enemyWait_ = 1.0f;
+		return;
+	}
+
+	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw) {
+		DrawCards_(bonus.drawCount);
+		TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
+		ConsumeFieldCards_();
+		pokerQuickPreviewVisible_ = false;
+		lastPokerTutorialResult_ = PokerTutorialResult::Activated;
+		pokerChoiceState_ = PokerChoiceState::None;
+		turn_ = TurnState::Enemy;
+		enemyWait_ = 1.0f;
+		return;
+	}
+
+	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage) {
+		TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
+		pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
+		isPokerDamageTargeting_ = true;
+		pokerQuickPreviewVisible_ = false;
+
+		// ここではまだ確定しない
+		lastPokerTutorialResult_ = PokerTutorialResult::None;
+
+		cardState_ = CardInputState::ChoosingEnemyTarget;
+		pokerChoiceState_ = PokerChoiceState::None;
+		return;
+	}
+
+	if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectBack)) {
+		pokerQuickPreviewVisible_ = false;
+		pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
+		return;
+	}
+
+	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectViewBoard) {
+		pokerQuickPreviewVisible_ = false;
+		pokerReturnState_ = PokerChoiceState::WaitingEffectChoice;
+		pokerChoiceState_ = PokerChoiceState::ViewingBoardFromPokerUi;
+
+		handView_.SetPreviewIndex(-1);
+		handView_.SetDrag(-1, 0.0f, 0.0f, false);
+		handView_.SetFocusIndex(-1);
+		handView_.SetHoverIndex(-1);
+
+		fieldReplaceHoverIndex_ = -1;
+		fieldLayoutDirty_ = true;
+		return;
+	}
+}
+
+void BattleController::HandlePokerViewBoard_(FieldUi& fieldUi, POINT mouse, bool lTrig, float dt)
+{
+	handView_.SetPreviewIndex(-1);
+	handView_.SetDrag(-1, 0.0f, 0.0f, false);
+	handView_.SetFocusIndex(-1);
+
+	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
+
+	if (PointInRect(mouse.x, mouse.y,
+		layout.backRect.x, layout.backRect.y,
+		layout.backRect.w, layout.backRect.h)) {
+		pokerMouseChoice_ = PokerMouseChoice::ReturnFromBoard;
+	} else {
+		pokerMouseChoice_ = PokerMouseChoice::None;
+	}
+
+	int hover = handView_.PickIndexByMouse(
+		mouse.x, mouse.y,
+		cam_->GetViewProjectionMatrix(),
+		(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
+	);
+	handView_.SetHoverIndex(hover);
+
+	if (hover < 0) {
+		int newHover = PickFieldIndexByMouse_(mouse.x, mouse.y);
+		if (newHover != fieldReplaceHoverIndex_) {
+			fieldReplaceHoverIndex_ = newHover;
+			fieldLayoutDirty_ = true;
+		}
+	} else {
+		if (fieldReplaceHoverIndex_ != -1) {
+			fieldReplaceHoverIndex_ = -1;
+			fieldLayoutDirty_ = true;
+		}
+	}
+
+	handView_.Update(dt);
+	RefreshAllFieldCardTransforms_(dt);
+	fieldLayoutDirty_ = false;
+
+	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::ReturnFromBoard) {
+		handView_.SetHoverIndex(-1);
+		fieldReplaceHoverIndex_ = -1;
+		fieldLayoutDirty_ = true;
+
+		pokerChoiceState_ = pokerReturnState_;
+		pokerReturnState_ = PokerChoiceState::None;
+		pokerChoiceJustOpened_ = true;
+		return;
+	}
+}
+
 
 void BattleController::Draw3D(GameApp& app)
 {
@@ -2974,4 +3183,9 @@ void BattleController::SetTutorialOpeningHand(const std::vector<CardInstance>& c
 {
 	tutorialOpeningHand_ = cards;
 	useTutorialOpeningHand_ = !cards.empty();
+}
+
+void BattleController::SetTutorialPokerRestriction(bool activateOnly, bool damageOnly) {
+	tutorialActivateOnly_ = activateOnly;
+	tutorialDamageOnly_ = damageOnly;
 }
