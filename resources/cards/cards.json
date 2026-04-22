@@ -142,7 +142,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Durandal.png",
-      "desc": "敵単体に5ダメージを与える。5のブロックを獲得する",
+      "desc": "敵単体に5ダメージを与える。\n5のブロックを獲得する",
       "effects": [
         { "type": "Damage", "value": 5 },
         { "type": "Block", "value": 5 }
@@ -203,7 +203,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/FlashBang.png",
-      "desc": "パワーを1獲得する。コストを1回復する",
+      "desc": "パワーを1獲得する。\nコストを1回復する",
       "effects": [
         { "type": "PowerBoost", "value": 1 },
         { "type": "EnergyCharge", "value": 1 }
@@ -252,7 +252,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/LowCostRecovery.png",
-      "desc": "手札にある1コストのカードx1体力を回復",
+      "desc": "手札にある1コストのカードx1回復",
       "effects": [
         { "type": "HealByLowCostInHand", "value": 1 }
       ]
@@ -264,7 +264,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Vampire.png",
-      "desc": "このターン中、ダメージを与えるたびに1回復",
+      "desc": "このターン中\nダメージを与えるたびに1回復",
       "effects": [
         { "type": "VampireBuff", "value": 1 }
       ]

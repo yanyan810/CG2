@@ -220,6 +220,10 @@ public:
 	void SetTutorialInputLocked(bool locked) { tutorialInputLocked_ = locked; }
 	bool IsTutorialInputLocked() const { return tutorialInputLocked_; }
 
+	// チュートリアルでターン終了ボタンを押せなくする
+	void SetTutorialEndTurnLocked(bool locked) { tutorialEndTurnLocked_ = locked; }
+	bool IsTutorialEndTurnLocked() const { return tutorialEndTurnLocked_; }
+
 
 private:
 	//=====================
@@ -234,6 +238,7 @@ private:
 	bool tutorialLockPokerTargetingCancel_ = false;
 
 	bool tutorialInputLocked_ = false;
+	bool tutorialEndTurnLocked_ = false;
 
 private:
 	enum class TurnState { Player, Enemy };

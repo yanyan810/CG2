@@ -426,6 +426,7 @@ void BattleController::RebuildCostView_(float dt)
 		obj->Initialize(objCom_, dx_);
 
 		obj->SetModel(path);
+		obj->SetCamera(cam_);
 
 		costDigitModels_.push_back(std::move(obj));
 	}
@@ -1298,7 +1299,39 @@ std::wstring BattleController::GetPreviewCardDetailText() const
 		return L"";
 	}
 
-	return Utf8ToWString(def->desc);
+	std::wstring text = L"基本効果:\n";
+	if (!def->desc.empty()) {
+		text += Utf8ToWString(def->desc);
+	} else {
+		text += L"なし";
+	}
+
+	if (!def->subEffects.empty()) {
+		text += L"\n\n";
+		for (size_t i = 0; i < def->subEffects.size(); ++i) {
+			const auto& sub = def->subEffects[i];
+			if (i > 0) {
+				text += L"\n\n";
+			}
+			
+			std::wstring triggerText = GetSubEffectTriggerText_(sub.trigger);
+			if (!triggerText.empty()) {
+				text += triggerText + L"\n";
+			}
+			
+			std::wstring conditionText = GetSubEffectConditionText_(sub);
+			if (!conditionText.empty()) {
+				text += conditionText + L"\n";
+			}
+
+			for (size_t j = 0; j < sub.effects.size(); ++j) {
+				if (j > 0) text += L"\n";
+				text += GetEffectValueText_(sub.effects[j]);
+			}
+		}
+	}
+
+	return text;
 }
 
 
@@ -1702,7 +1735,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 	if (turn_ == TurnState::Player &&
 		cardState_ == CardInputState::Idle &&
-		pokerChoiceState_ == PokerChoiceState::None) {
+		pokerChoiceState_ == PokerChoiceState::None &&
+		!tutorialEndTurnLocked_) {
 
 		const auto& ui = fieldUi.GetFieldUiLayout();
 
@@ -2255,8 +2289,17 @@ void BattleController::UpdateVisuals_(float dt)
 			it = damagePopups_.erase(it);
 		} else {
 			// 数字モデルのトランスフォーム更新
+			const float gap = 0.8f;
+			const int count = static_cast<int>(it->digitModels.size());
+			const float startX = -gap * 0.5f * (count - 1);
 			for (size_t i = 0; i < it->digitModels.size(); ++i) {
-				// ... (ここにあった移動計算コードを移植) ...
+				Vector3 digitPos = it->pos;
+				digitPos.x += startX + gap * i;
+				digitPos.z -= 1.0f; // 手前に表示させる
+				
+				it->digitModels[i]->SetTranslate(digitPos);
+				it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
+				it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
 				it->digitModels[i]->Update(dt);
 			}
 			++it;
@@ -2851,6 +2894,7 @@ void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isP
 
 			obj->Initialize(objCom_, dx_);
 			obj->SetModel(path);
+			obj->SetCamera(cam_);
 
 			p.digitModels.push_back(std::move(obj));
 		}
