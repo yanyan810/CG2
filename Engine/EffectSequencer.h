@@ -53,6 +53,7 @@ struct TrailProfile {
 	uint32_t interpolationSteps = 6;
 	Vector3 tipOffset = { 0.0f, 0.3f, 0.0f };
 	Vector3 baseOffset = { 0.0f, -0.3f, 0.0f };
+	float lifetime = 0.5f; // 各頂点の生存時間
 
 	nlohmann::json ToJson() const {
 		return nlohmann::json{
@@ -61,7 +62,8 @@ struct TrailProfile {
 			{"maxPoints", maxPoints},
 			{"interpolationSteps", interpolationSteps},
 			{"tipOffset", {tipOffset.x, tipOffset.y, tipOffset.z}},
-			{"baseOffset", {baseOffset.x, baseOffset.y, baseOffset.z}}
+			{"baseOffset", {baseOffset.x, baseOffset.y, baseOffset.z}},
+			{"lifetime", lifetime}
 		};
 	}
 
@@ -80,6 +82,7 @@ struct TrailProfile {
 		if (j.contains("baseOffset")) {
 			baseOffset = { j["baseOffset"][0], j["baseOffset"][1], j["baseOffset"][2] };
 		}
+		lifetime = j.value("lifetime", lifetime);
 	}
 };
 

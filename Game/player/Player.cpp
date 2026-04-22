@@ -110,7 +110,9 @@ void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
     if (!move.animationName.empty() && model_) {
         // model_内のアニメーション存在チェックを簡略化して確実に再生
         model_->PlayAnimation(move.animationName, false);
+#ifndef _DEBUG
         releaseAttackAnimationPlaying_ = true;
+#endif
     }
 }
 
@@ -155,13 +157,13 @@ void Player::Update(float dt) {
                 // 攻撃中：軌跡を出す
                 trailInstance_->SetActive(true);
                 // 毎フレーム新しい座標を覚えさせる
-                trailInstance_->Update(GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
+                trailInstance_->Update(dt, GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
 
             } else {
                 // 攻撃終了後：SetActive(false) にすると TrailInstance 内で古い点から消えていく
                 trailInstance_->SetActive(false);
                 // isActive_がfalseの時も、Updateを呼ぶことで「古い点を消す」処理が進む
-                trailInstance_->Update(GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
+                trailInstance_->Update(dt, GetWeaponTipPos(), GetWeaponBasePos(), trailConfig_);
             }
         }
     }

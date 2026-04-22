@@ -13,7 +13,7 @@ public:
     // インスタンスの生成
     TrailInstance* CreateInstance();
 
-    void Update();
+    void Update(float deltaTime);
     
     // 全インスタンスの描画
     void DrawAll(const Matrix4x4& viewProjection);
