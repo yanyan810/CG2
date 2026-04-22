@@ -22,7 +22,17 @@ TrailInstance* TrailManager::CreateInstance() {
     return instances_.back().get();
 }
 
-void TrailManager::Update() {
+void TrailManager::Update(float deltaTime) {
+    // 非アクティブなインスタンスについても、頂点の寿命を削るためにUpdateを呼ぶ
+    // (アクティブなものは各所有者(EffectSequencer等)が座標付きでUpdateを呼んでいるはず)
+    for (auto& instance : instances_) {
+        if (!instance->IsActive()) {
+            // 非アクティブ時は座標を更新せず、時間だけ進める
+            // (既存の頂点座標は維持され、寿命が来たら消える)
+            instance->Update(deltaTime, { 0,0,0 }, { 0,0,0 }, instance->GetConfig());
+        }
+    }
+
     std::erase_if(instances_, [](const auto& instance) {
         // 「常駐ではない」かつ「非アクティブ」かつ「空」の場合のみ削除
         return !instance->IsPermanent() && !instance->IsActive() && instance->GetPoints().empty();

@@ -116,6 +116,7 @@ void EffectSequencer::UpdateFiring(float dt) {
 			trailConfig.endColor = profile_.trail.endColor;
 			trailConfig.maxPoints = profile_.trail.maxPoints;
 			trailConfig.interpolationSteps = profile_.trail.interpolationSteps;
+			trailConfig.lifetime = profile_.trail.lifetime;
 			trail_->SetConfig(trailConfig);
 		}
 	}
@@ -176,7 +177,8 @@ void EffectSequencer::UpdateFlying(float dt) {
 		trailConfig.endColor = profile_.trail.endColor;
 		trailConfig.maxPoints = profile_.trail.maxPoints;
 		trailConfig.interpolationSteps = profile_.trail.interpolationSteps;
-		trail_->Update(tipPos, basePos, trailConfig);
+		trailConfig.lifetime = profile_.trail.lifetime;
+		trail_->Update(dt, tipPos, basePos, trailConfig);
 	}
 
 	// ターゲット到達判定
@@ -351,6 +353,7 @@ void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vect
 
 		ImGui::DragFloat3("Tip Offset", &editingProfile_.trail.tipOffset.x, 0.01f);
 		ImGui::DragFloat3("Base Offset", &editingProfile_.trail.baseOffset.x, 0.01f);
+		ImGui::DragFloat("Lifetime", &editingProfile_.trail.lifetime, 0.01f, 0.1f, 5.0f);
 	}
 
 	if (ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {

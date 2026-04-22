@@ -507,7 +507,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
-	trailManager_->Update();
+	trailManager_->Update(dt);
 
 	//particleManager_->Emit("particle_image", Vector3(0, 0.0f, 0), 10);
 
