@@ -1298,39 +1298,9 @@ std::wstring BattleController::GetPreviewCardDetailText() const
 		return L"";
 	}
 
-	std::wstring text;
-	text += L"基本効果:\n\n";
-	text += GetBaseEffectSummaryText_(*def);
-
-	if (!def->subEffects.empty()) {
-		const CardSubEffectDef& sub = def->subEffects[0];
-
-		text += L"\n\n------------------------\n\n";
-
-		const std::wstring triggerText = GetSubEffectTriggerText_(sub.trigger);
-		if (!triggerText.empty()) {
-			text += triggerText + L"\n\n";
-		}
-
-		const std::wstring condText = GetSubEffectConditionText_(sub);
-		if (!condText.empty()) {
-			text += condText + L"\n\n";
-		}
-
-		if (!sub.effects.empty()) {
-			for (size_t i = 0; i < sub.effects.size(); ++i) {
-				if (i > 0) {
-					text += L"\n";
-				}
-				text += GetEffectValueText_(sub.effects[i]);
-			}
-		} else {
-			text += L"効果なし";
-		}
-	}
-
-	return text;
+	return Utf8ToWString(def->desc);
 }
+
 
 std::vector<std::wstring> BattleController::CollectSubEffectPreviewLines_(
 	SubEffectTrigger trigger,

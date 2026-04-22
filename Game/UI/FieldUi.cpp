@@ -728,7 +728,15 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		if (battle.IsViewingBoardFromPokerUi()) {
 			pokerHoverIndex_ = battle.GetPokerMouseChoiceIndex();
 
-		
+			// 「戻る」テキストの設定
+			if (pokerOptionTexts_[0]) {
+				pokerOptionTexts_[0]->SetText(L"戻る");
+				pokerOptionTexts_[0]->SetPosition({
+					pokerEffectLayout_.backText.x,
+					pokerEffectLayout_.backText.y
+				});
+				SetTextScale_(pokerOptionTexts_[0].get(), pokerEffectLayout_.backText.scale);
+			}
 
 			activeCardDescText_ = nullptr;
 
@@ -742,7 +750,6 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 				cardDescBg_->SetScale({ layout_.cardDescBg.w, layout_.cardDescBg.h, 1.0f });
 
 				if (useImageCardDesc_) {
-				
 					newText.clear();
 				} else {
 					newText = battle.GetPreviewCardDetailText();
@@ -1213,7 +1220,11 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 			pokerOptionBgs_[0]->Draw();
 		}
 
-		
+		// 「戻る」テキストの描画
+		if (pokerOptionTexts_[0]) {
+			pokerOptionTexts_[0]->Update(view, proj);
+			pokerOptionTexts_[0]->Draw();
+		}
 	}
 
 	if (debugShowPokerPreview_ && !showPokerOptions_) {
