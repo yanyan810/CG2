@@ -115,7 +115,7 @@ void TutorialScene::OnEnter(GameApp& app) {
     state_ = State::EnterOpen;
     circle_ = 0.0f;
     softness_ = 0.6f;
-    nextSceneName_ = "Title";
+    nextSceneName_ = "StageSelect";
     prevEsc_ = false;
 }
 void TutorialScene::OnExit(GameApp& app) {
@@ -168,7 +168,7 @@ void TutorialScene::Update(GameApp& app, float dt) {
     bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
     if (currEsc && !prevEsc_) {
         if (state_ == State::Idle) {
-            nextSceneName_ = "Title";
+            nextSceneName_ = "StageSelect";
             state_ = State::ExitClose;
         }
         return;

@@ -129,6 +129,15 @@ void TutorialManager::Update(BattleController& battle) {
 		return;
 	}
 
+	// 指定したステップのときのみターン終了ボタンを押せるようにする
+	if (step_ == TutorialStep::EndPlayerTurn || 
+		step_ == TutorialStep::SkipPokerEndTurn || 
+		step_ == TutorialStep::Finished) {
+		battle.SetTutorialEndTurnLocked(false);
+	} else {
+		battle.SetTutorialEndTurnLocked(true);
+	}
+
 	switch (step_) {
 	case TutorialStep::Intro:
 		// 説明だけなので手動送り
