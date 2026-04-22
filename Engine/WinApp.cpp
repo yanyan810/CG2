@@ -82,7 +82,7 @@ void WinApp::Initialize() {
 
 	 hwnd = CreateWindow(
 		wc.lpszClassName, //ウィンドウクラス名
-		L"Resonance", //ウィンドウ名
+		L"3127_Resonance", //ウィンドウ名
 		WS_OVERLAPPEDWINDOW, //ウィンドウスタイル
 		CW_USEDEFAULT, //x座標
 		CW_USEDEFAULT, //y座標

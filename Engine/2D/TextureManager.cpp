@@ -138,8 +138,13 @@ void TextureManager::LoadTextureFromMemory(const std::string& key, const uint8_t
 {
     if (key.empty()) return;
 
+    uint32_t existingSrvIndex = 0;
+    bool hasExisting = false;
+
     // 同じキーの再生成を許可
     if (textureDatas_.contains(key)) {
+        existingSrvIndex = textureDatas_[key].srvIndex;
+        hasExisting = true;
         textureDatas_.erase(key);
     }
 
@@ -167,7 +172,12 @@ void TextureManager::LoadTextureFromMemory(const std::string& key, const uint8_t
     tex.resource = dx_->CreateTextureResource(tex.metadata);
     dx_->UploadTextureData(tex.resource, mipImages);
 
-    tex.srvIndex = srvManager_->Allocate();
+    if (hasExisting) {
+        tex.srvIndex = existingSrvIndex;
+    } else {
+        tex.srvIndex = srvManager_->Allocate();
+    }
+
     tex.srvHandleCPU = srvManager_->GetCPUDescriptionHandle(tex.srvIndex);
     tex.srvHandleGPU = srvManager_->GetGPUDescriptionHandle(tex.srvIndex);
 
