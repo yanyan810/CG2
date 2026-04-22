@@ -360,6 +360,7 @@ void GameApp::WarmupAssets_() {
 	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/title_stage_select.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/button_tutorial.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/button_battle.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/button_deckEdit.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/desc_bg.png");
 
 	// モデル初回読み込み
