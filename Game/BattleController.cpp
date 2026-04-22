@@ -1485,8 +1485,6 @@ void BattleController::RebuildFieldView_()
 		fieldViews_.push_back(std::move(card));
 	}
 
-	std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
-
 	const float y = -5.0f;
 	const float z = 5.0f;
 	const float gap = 5.0f;
@@ -1504,15 +1502,20 @@ void BattleController::RebuildFieldView_()
 	}
 
 	// 1. 今の役を評価
-	PokerHandResult result = EvaluatePokerHand_();
+if (field_.size() == 5) {
+	currentPoker_ = EvaluatePokerHand_();
+} else {
+	currentPoker_.rank = PokerHandRank::None;
+	currentPoker_.power = 0;
+}
 
 	// 2. 役の強さに応じてキラキラの強さを決める
 	float intensity = 0.0f;
-	if (result.rank == PokerHandRank::None) {
+	if (currentPoker_.rank == PokerHandRank::None) {
 		intensity = 0.0f;
-	} else if (result.rank <= PokerHandRank::TwoPair) {
+	} else if (currentPoker_.rank <= PokerHandRank::TwoPair) {
 		intensity = 5.0f;  // 弱い役：うっすら
-	} else if (result.rank <= PokerHandRank::FullHouse) {
+	} else if (currentPoker_.rank <= PokerHandRank::FullHouse) {
 		intensity = 10.0f;  // 中堅の役：はっきり
 	} else {
 		intensity = 15.0f;  // 強い役：まばゆい！
@@ -1526,7 +1529,7 @@ void BattleController::RebuildFieldView_()
             fieldViews_[i]->SetGlitter(intensity);
             
             // 強い役なら枠の色も変更
-            if (result.rank != PokerHandRank::None) {
+            if (currentPoker_.rank != PokerHandRank::None) {
                 // final frame color is applied in RefreshAllFieldCardTransforms_()
             }
         } else {
@@ -1591,15 +1594,21 @@ void BattleController::RefreshAllFieldCardTransforms_(float dt)
 		UpdateFieldCardTransform_(i, hovered, dt);
 	}
 
+	if (field_.size() == 5) {
+		currentPoker_ = EvaluatePokerHand_();
+	} else {
+		currentPoker_.rank = PokerHandRank::None;
+		currentPoker_.power = 0;
+	}
+
 	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
-	const PokerHandResult visualPoker = EvaluatePokerHand_();
-	const Vector4 frameColor = GetPokerFrameColor_(visualPoker.rank, sPokerGlowRainbowTime);
+	const Vector4 frameColor = GetPokerFrameColor_(currentPoker_.rank, sPokerGlowRainbowTime);
 	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
 		if (!fieldViews_[i]) {
 			continue;
 		}
 
-		if (i < 5 && highlightMask[i] && visualPoker.rank != PokerHandRank::None) {
+		if (i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None) {
 			fieldViews_[i]->SetFrameColor(frameColor);
 		} else {
 			fieldViews_[i]->ResetFrameColor();
