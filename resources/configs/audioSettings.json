@@ -29,6 +29,66 @@
         "maxConcurrency": 5,
         "volume": 1.0
     },
+    "SE_Heal": {
+        "filePath": "resources/audio/SE/heal.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_Fireball": {
+        "filePath": "resources/audio/SE/fireball.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_StrongAttack": {
+        "filePath": "resources/audio/SE/strong_attack.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_NormalAttack": {
+        "filePath": "resources/audio/SE/normal_attack.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_PoisonDamage": {
+        "filePath": "resources/audio/SE/poison_damage.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_SoundLogo": {
+        "filePath": "resources/audio/SE/sound_logo.mp3",
+        "loop": false,
+        "maxConcurrency": 1,
+        "volume": 1.0
+    },
+    "SE_Pop": {
+        "filePath": "resources/audio/SE/pop.mp3",
+        "loop": false,
+        "maxConcurrency": 8,
+        "volume": 1.0
+    },
+    "SE_CardFlick": {
+        "filePath": "resources/audio/SE/card_flick.mp3",
+        "loop": false,
+        "maxConcurrency": 8,
+        "volume": 1.0
+    },
+    "SE_CardPlay": {
+        "filePath": "resources/audio/SE/card_play.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_Tap": {
+        "filePath": "resources/audio/SE/tap.mp3",
+        "loop": false,
+        "maxConcurrency": 8,
+        "volume": 1.0
+    },
     "machi": {
         "filePath": "resources/audio/BGM/machi.mp3",
         "loop": true,

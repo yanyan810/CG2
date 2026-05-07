@@ -6,6 +6,7 @@
 
 #include"CardInstance.h"
 #include"Card3D.h"
+#include "AudioManager.h"
 
 void DeckEditScene::OnEnter(GameApp& app) {
 	camera_ = std::make_unique<Camera>();
@@ -123,6 +124,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 			app.SetDeckInstancesFromId(finalDeck);
 
 			// --- シーン遷移 ---
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			RequestChangeScene_("StageSelect");
 
 			return;
@@ -219,6 +221,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 			if (leftClick) {
 				if (currentCount < 4 && totalCount_ < 40) {
 					editingDeck_[cardId]++;
+					AudioManager::GetInstance()->PlaySE("SE_CardFlick");
 
 					// --- 演出 ---
 					// 1. 現在の値を「強制的に」大きくする (SetTransform)
@@ -230,6 +233,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 			} else if (rightClick) {
 				if (currentCount > 0) {
 					editingDeck_[cardId]--;
+					AudioManager::GetInstance()->PlaySE("SE_CardFlick");
 
 					// 1. 現在の値を「強制的に」小さくする
 					cardModels_[idx]->SetTransform(currentPos, baseRot, { 0.1f, 0.1f, 0.1f });
@@ -268,6 +272,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		app.SetDeckInstancesFromId(finalDeck);
 
 		// --- シーン遷移 ---
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
 		RequestChangeScene_("Game");
 
 		return;
@@ -397,6 +402,7 @@ void DeckEditScene::DrawImGui(GameApp& app) {
 		app.SetDeckInstancesFromId(finalDeck);
 
 		// --- シーン遷移 ---
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
 		RequestChangeScene_("Game");
 	}
 
