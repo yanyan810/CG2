@@ -304,119 +304,124 @@ void DeckEditScene::Draw2D(GameApp& app) {
 }
 
 void DeckEditScene::DrawImGui(GameApp& app) {
-	ImGui::Begin("Deck Editor");
+	//ImGui::Begin("Deck Editor");
 
-	if (changeSceneButtonBg_) {
-		if (ImGui::CollapsingHeader("Button Background", ImGuiTreeNodeFlags_DefaultOpen)) {
-			// 座標
-			Vector2 pos = changeSceneButtonBg_->GetPosition();
-			float posArr[2] = { pos.x, pos.y };
-			if (ImGui::DragFloat2("BG Position", posArr, 1.0f)) {
-				changeSceneButtonBg_->SetPosition({ posArr[0], posArr[1] });
-			}
+	//if (changeSceneButtonBg_) {
+	//	if (ImGui::CollapsingHeader("Button Background", ImGuiTreeNodeFlags_DefaultOpen)) {
+	//		// 座標
+	//		Vector2 pos = changeSceneButtonBg_->GetPosition();
+	//		float posArr[2] = { pos.x, pos.y };
+	//		if (ImGui::DragFloat2("BG Position", posArr, 1.0f)) {
+	//			changeSceneButtonBg_->SetPosition({ posArr[0], posArr[1] });
+	//		}
 
-			// サイズ (Scale)
-			Vector3 scl = changeSceneButtonBg_->GetScale();
-			float sclArr[2] = { scl.x, scl.y };
-			if (ImGui::DragFloat2("BG Scale", sclArr, 1.0f)) {
-				changeSceneButtonBg_->SetScale({ sclArr[0], sclArr[1], 1.0f });
-			}
+	//		// サイズ (Scale)
+	//		Vector3 scl = changeSceneButtonBg_->GetScale();
+	//		float sclArr[2] = { scl.x, scl.y };
+	//		if (ImGui::DragFloat2("BG Scale", sclArr, 1.0f)) {
+	//			changeSceneButtonBg_->SetScale({ sclArr[0], sclArr[1], 1.0f });
+	//		}
 
-			// 色（透明度も調整可能）
-			Vector4 color = changeSceneButtonBg_->GetColor();
-			float colArr[4] = { color.x, color.y, color.z, color.w };
-			if (ImGui::ColorEdit4("BG Color", colArr)) {
-				changeSceneButtonBg_->SetColor({ colArr[0], colArr[1], colArr[2], colArr[3] });
-			}
-		}
-	}
+	//		// 色（透明度も調整可能）
+	//		Vector4 color = changeSceneButtonBg_->GetColor();
+	//		float colArr[4] = { color.x, color.y, color.z, color.w };
+	//		if (ImGui::ColorEdit4("BG Color", colArr)) {
+	//			changeSceneButtonBg_->SetColor({ colArr[0], colArr[1], colArr[2], colArr[3] });
+	//		}
+	//	}
+	//}
 
-	// 現在の合計枚数表示
-	if (totalCount_ == 40) {
-		ImGui::TextColored(ImVec4(0, 1, 0, 1), "Total: %d / 40 (OK!)", totalCount_);
-	} else {
-		ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Total: %d / 40 (Need exactly 40)", totalCount_);
-	}
+	//// 現在の合計枚数表示
+	//if (totalCount_ == 40) {
+	//	ImGui::TextColored(ImVec4(0, 1, 0, 1), "Total: %d / 40 (OK!)", totalCount_);
+	//} else {
+	//	ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Total: %d / 40 (Need exactly 40)", totalCount_);
+	//}
 
 
-	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-		1000.0f / ImGui::GetIO().Framerate,
-		ImGui::GetIO().Framerate);
+	//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+	//	1000.0f / ImGui::GetIO().Framerate,
+	//	ImGui::GetIO().Framerate);
 
-	ImGui::Separator();
+	//ImGui::Separator();
 
-	// カードリストをもとに表示
-	ImGui::BeginChild("CardList", ImVec2(0, -50), true);
+	//// カードリストをもとに表示
+	//ImGui::BeginChild("CardList", ImVec2(0, -50), true);
 
-	// 仮にID 1〜100までループ（実際はCardDatabaseの中身に合わせて調整）
-	for (int i = 1; i <= 20; ++i) {
-		auto cardDef = cardDB_->Find(i);
-		if (!cardDef) continue;
+	//// 仮にID 1〜100までループ（実際はCardDatabaseの中身に合わせて調整）
+	//for (int i = 1; i <= 30; ++i) {
+	//	auto cardDef = cardDB_->Find(i);
+	//	if (!cardDef) continue;
 
-		int currentCount = editingDeck_[cardDef->id];
+	//	int currentCount = editingDeck_[cardDef->id];
 
-		ImGui::PushID(cardDef->id);
-		ImGui::Text("%-15s [%d/4]", cardDef->name.c_str(), currentCount);
-		ImGui::SameLine(ImGui::GetWindowWidth() - 100);
+	//	ImGui::PushID(cardDef->id);
+	//	ImGui::Text("%-15s [%d/4]", cardDef->name.c_str(), currentCount);
+	//	ImGui::SameLine(ImGui::GetWindowWidth() - 100);
 
-		// 重複4枚制限
-		if (currentCount >= 4) ImGui::BeginDisabled();
-		if (ImGui::Button("+")) {
-			RecalculateTotal();
-			if (totalCount_ < 40) {
-				editingDeck_[cardDef->id]++;
-				RecalculateTotal();
-			}
+	//	// 重複4枚制限
+	//	if (currentCount >= 4) ImGui::BeginDisabled();
+	//	if (ImGui::Button("+")) {
+	//		RecalculateTotal();
+	//		if (totalCount_ < 40) {
+	//			editingDeck_[cardDef->id]++;
+	//			RecalculateTotal();
+	//		}
 
-		}
-		if (currentCount >= 4) ImGui::EndDisabled();
+	//	}
+	//	if (currentCount >= 4) ImGui::EndDisabled();
 
-		ImGui::SameLine();
+	//	ImGui::SameLine();
 
-		if (currentCount <= 0) ImGui::BeginDisabled();
-		if (ImGui::Button("-")) {
-			editingDeck_[cardDef->id]--;
-			RecalculateTotal();
-		}
-		if (currentCount <= 0) ImGui::EndDisabled();
+	//	if (currentCount <= 0) ImGui::BeginDisabled();
+	//	if (ImGui::Button("-")) {
+	//		editingDeck_[cardDef->id]--;
+	//		RecalculateTotal();
+	//	}
+	//	if (currentCount <= 0) ImGui::EndDisabled();
 
-		ImGui::PopID();
-	}
-	ImGui::EndChild();
+	//	ImGui::PopID();
+	//}
+	//ImGui::EndChild();
 
-	// 下部の決定ボタン
-	bool canSave = (totalCount_ == 40);
-	if (!canSave) ImGui::BeginDisabled();
+	//// 下部の決定ボタン
+	//bool canSave = (totalCount_ == 40);
+	//if (!canSave) ImGui::BeginDisabled();
 
-	if (ImGui::Button("Save and Go to Battle", ImVec2(-1, 40))) {
-		// --- vector<int> 形式に変換 ---
-		std::vector<int> finalDeck;
-		finalDeck.reserve(40);
-		for (auto const& [id, count] : editingDeck_) {
-			for (int j = 0; j < count; ++j) {
-				finalDeck.push_back(id);
-			}
-		}
+	//if (ImGui::Button("Save and Go to Battle", ImVec2(-1, 40))) {
+	//	// --- vector<int> 形式に変換 ---
+	//	std::vector<int> finalDeck;
+	//	finalDeck.reserve(40);
+	//	for (auto const& [id, count] : editingDeck_) {
+	//		for (int j = 0; j < count; ++j) {
+	//			finalDeck.push_back(id);
+	//		}
+	//	}
 
-		// --- GameAppに情報を渡す ---
-		app.SetDeckInstancesFromId(finalDeck);
+	//	// --- GameAppに情報を渡す ---
+	//	app.SetDeckInstancesFromId(finalDeck);
 
-		// --- シーン遷移 ---
-		AudioManager::GetInstance()->PlaySE("SE_Tap");
-		RequestChangeScene_("Game");
-	}
+	//	// --- シーン遷移 ---
+	//	RequestChangeScene_("Game");
+	//}
 
-	if (!canSave) ImGui::EndDisabled();
+	//if (!canSave) ImGui::EndDisabled();
 
-	ImGui::End();
+	//ImGui::End();
 }
 
 void DeckEditScene::RebuildCardModels(GameApp& app) {
+
 	cardModels_.clear();
 
 	// データベースにあるカードを順番に並べる（例：ID 1〜20）
 	int index = 0;
-	for (int i = 1; i <= 20; ++i) {
+	for (int i = 1; i <= 30; ++i) {
+
+		if (i == 20) {
+
+		}
+
 		const CardDef* def = cardDB_->Find(i);
 		if (!def) continue;
 

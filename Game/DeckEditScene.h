@@ -37,11 +37,11 @@ private:
     const float kCardStartY = 1.5; // カードの最初の座標
     const float kCardSpacingX = 1.5f;// カードの間の横幅
     const float kCardSpacingY = 2.f; // カードの間の立幅
-    const int kCardsPerRow = 4;
+    const int kCardsPerRow = 4;      
 
     float scrollY_ = 0.0f;
     const float kInitialScrollY = 2.0f; // 最初のスクロール量
-    const float kMaxScrollY = 8.0f;    // 上限 (カードリストの長さに応じて調整)
+    float kMaxScrollY = 20.0f;    // 上限 (カードリストの長さに応じて調整)
     const float kMinScrollY = 2.0f;
 
     bool isDeckValid_ = false;
