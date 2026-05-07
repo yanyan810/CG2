@@ -10,6 +10,7 @@
 
 #include <d3d12.h>
 #include <cassert>
+#include <cmath>
 
 void TestScene::OnEnter(GameApp& app) {
   //  TextureManager::GetInstance()->LoadTexture("resources/uvChecker.png");
@@ -143,6 +144,45 @@ void TestScene::OnEnter(GameApp& app) {
     skyDome_->SetShininess(1.0f);                // 影響しないけど保険
     skyDome_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
 
+    normalCube_ = std::make_unique<Object3d>();
+    normalCube_->Initialize(app.ObjCom(), app.Dx());
+    normalCube_->SetCamera(camera_.get());
+    normalCube_->SetModel("cube/cube.obj");
+    normalCube_->SetTranslate({ -8.0f, 0.0f, 10.0f });
+    normalCube_->SetScale({ 2.0f, 2.0f, 2.0f });
+    normalCube_->SetEnableLighting(0);
+    normalCube_->SetMaterialColor({ 0.2f, 0.9f, 1.0f, 1.0f });
+    normalCube_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    postCube_ = std::make_unique<Object3d>();
+    postCube_->Initialize(app.ObjCom(), app.Dx());
+    postCube_->SetCamera(camera_.get());
+    postCube_->SetModel("cube/cube.obj");
+    postCube_->SetTranslate({ 0.0f, 0.0f, 10.0f });
+    postCube_->SetScale({ 2.0f, 2.0f, 2.0f });
+    postCube_->SetEnableLighting(0);
+    postCube_->SetMaterialColor({ 1.0f, 0.25f, 0.75f, 1.0f });
+    postCube_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    postTeapot_ = std::make_unique<Object3d>();
+    postTeapot_->Initialize(app.ObjCom(), app.Dx());
+    postTeapot_->SetCamera(camera_.get());
+    postTeapot_->SetModel("teapot.obj");
+    postTeapot_->SetTranslate({ 8.0f, 0.0f, 10.0f });
+    postTeapot_->SetScale({ 0.8f, 0.8f, 0.8f });
+    postTeapot_->SetEnableLighting(0);
+    postTeapot_->SetMaterialColor({ 1.0f, 0.85f, 0.2f, 1.0f });
+    postTeapot_->SetBlendMode(Object3dCommon::BlendMode::kBlendModeNone);
+
+    auto& postParam = app.ObjectPost()->GetParam();
+    postParam.threshold = 0.0f;
+    postParam.intensity = 1.35f;
+    postParam.chromAbAmount = 0.02f;
+    postParam.distortionAmount = 0.004f;
+    postParam.noiseIntensity = 0.02f;
+    postParam.scanlineIntensity = 0.0f;
+    postParam.glitchAmount = 0.0f;
+    postParam.dissolveAmount = -1.0f;
 
 }
 
@@ -150,6 +190,9 @@ void TestScene::OnExit(GameApp& /*app*/) {
     spotMarker_.reset();
     pointMarker_.reset();
     skyDome_.reset();
+    postTeapot_.reset();
+    postCube_.reset();
+    normalCube_.reset();
     ground_.reset();
     playTxst_.reset();
 
@@ -167,6 +210,26 @@ void TestScene::Update(GameApp& app, float dt) {
     ground_->Update(dt);
 
     skyDome_->Update(dt);
+    demoTimer_ += dt;
+
+    if (normalCube_) {
+        normalCube_->SetRotate({ 0.0f, demoTimer_ * 0.8f, 0.0f });
+        normalCube_->Update(dt);
+    }
+    if (postCube_) {
+        postCube_->SetRotate({ demoTimer_ * 0.5f, demoTimer_ * 1.2f, 0.0f });
+        postCube_->Update(dt);
+    }
+    if (postTeapot_) {
+        postTeapot_->SetRotate({ 0.0f, -demoTimer_ * 0.7f, 0.0f });
+        postTeapot_->Update(dt);
+    }
+
+    auto& postParam = app.ObjectPost()->GetParam();
+    //postParam.intensity = 1.35f + std::sinf(demoTimer_ * 2.0f) * 0.25f;
+    //postParam.chromAbAmount = 0.018f;
+    //postParam.distortionAmount = 0.003f + std::sinf(demoTimer_ * 1.5f) * 0.0015f;
+    //postParam.noiseIntensity = 0.02f;
 
     if (player_) {
         //player_->Update(dt, *input_, enemyMgr_);
@@ -320,6 +383,16 @@ void TestScene::Update(GameApp& app, float dt) {
     ImGui::End();
 #endif
 
+#ifdef USE_IMGUI
+    ImGui::Begin("Object Post Demo");
+    ImGui::Checkbox("Enable Object Post", &enableObjectPostDemo_);
+    ImGui::DragFloat("Bloom Intensity", &postParam.intensity, 0.01f, 0.0f);
+    ImGui::DragFloat("Chromatic Aberration", &postParam.chromAbAmount, 0.001f, 0.0f);
+    ImGui::DragFloat("Wave Distortion", &postParam.distortionAmount, 0.001f, 0.0f);
+    ImGui::DragFloat("Noise", &postParam.noiseIntensity, 0.001f, 0.0f);
+    ImGui::End();
+#endif
+
 
 
 }
@@ -333,11 +406,22 @@ void TestScene::Draw3D(GameApp& app) {
 
     if (ground_) ground_->Draw();
     if (skyDome_) skyDome_->Draw();
+    if (normalCube_) normalCube_->Draw();
     if (drawPointMarker_ && pointMarker_) pointMarker_->Draw();
     if (drawSpotMarker_ && spotMarker_) spotMarker_->Draw();
     if (player_) player_->Draw();
 
     enemyMgr_.Draw();
+
+    if (enableObjectPostDemo_) {
+        app.BeginObjectPostEffect();
+        if (postCube_) postCube_->Draw();
+        if (postTeapot_) postTeapot_->Draw();
+        app.EndObjectPostEffect();
+    } else {
+        if (postCube_) postCube_->Draw();
+        if (postTeapot_) postTeapot_->Draw();
+    }
 }
 
 void TestScene::Draw2D(GameApp& app) {

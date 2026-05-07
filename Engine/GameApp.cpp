@@ -47,6 +47,7 @@ int GameApp::Run() {
 		sceneMgr_->Update(*this, dt);
 
 		bloom_->Update();
+		objectPostEffect_->Update();
 
 		dx_->PreDraw();
 		srv_->PreDraw();
@@ -122,6 +123,9 @@ bool GameApp::Initialize_() {
 
 	bloom_ = std::make_unique<Bloom>();
 	bloom_->Initialize(dx_.get(), srv_.get(), rtv_.get());
+
+	objectPostEffect_ = std::make_unique<ObjectPostEffect>();
+	objectPostEffect_->Initialize(dx_.get(), srv_.get(), rtv_.get());
 
 	spriteCommon_ = std::make_unique<SpriteCommon>();
 	spriteCommon_->Initialize(dx_.get());
@@ -277,6 +281,14 @@ void GameApp::Draw() {
 #ifdef USE_IMGUI
 	DrawImGui();
 #endif
+}
+
+void GameApp::BeginObjectPostEffect() {
+	objectPostEffect_->BeginCapture();
+}
+
+void GameApp::EndObjectPostEffect() {
+	objectPostEffect_->EndCapture();
 }
 
 void GameApp::WarmupAssets_() {

@@ -934,10 +934,11 @@ void DirectXCommon::SetRenderTargetNoDepth(
 }
 
 void DirectXCommon::ClearRenderTarget(
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle,
+	const float clearColor[4]
 ) {
-	float clearColor[4] = { 0, 0, 0, 1 };
-	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	const float defaultClearColor[4] = { 0, 0, 0, 1 };
+	commandList->ClearRenderTargetView(rtvHandle, clearColor ? clearColor : defaultClearColor, 0, nullptr);
 }
 
 void DirectXCommon::ClearDepthBuffer() {
@@ -1006,6 +1007,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 		case Bloom_BlurH:      pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl"; break;
 		case Bloom_BlurV:      pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl"; break;
 		case Bloom_Composite:  pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl"; break;
+		case ObjectPost_Composite: pso.psFilePath_ = L"resources/shaders/ObjectPostComposite.PS.hlsl"; break;
 		}
 		break;
 	case kTrail:
@@ -1073,6 +1075,14 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
 			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		} else if (pso.postEffectType_ == ObjectPost_Composite) {
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
 		} else {
 			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
 		}
@@ -1176,6 +1186,8 @@ void DirectXCommon::CreateShader()
 	blurVPSO.postEffectType_ = Bloom_BlurV;
 	conpositePSO.shaderType_ = kPostEffect;
 	conpositePSO.postEffectType_ = Bloom_Composite;
+	objectCompositePSO.shaderType_ = kPostEffect;
+	objectCompositePSO.postEffectType_ = ObjectPost_Composite;
 	downsamplePSO.shaderType_ = kPostEffect;
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
@@ -1188,6 +1200,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(blurHPSO);
 	CreateShaderCommon(blurVPSO);
 	CreateShaderCommon(conpositePSO);
+	CreateShaderCommon(objectCompositePSO);
 	CreateShaderCommon(downsamplePSO);
 	CreateShaderCommon(psoModelParticle_);
 	CreateShaderCommon(trailPSO);
