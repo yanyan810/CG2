@@ -29,6 +29,7 @@ enum PostEffectType {
 	Bloom_BlurH,
 	Bloom_BlurV,
 	Bloom_Composite,
+	ObjectPost_Composite,
 };
 
 class DirectXCommon
@@ -77,6 +78,9 @@ public:
 			break;
 		case Bloom_Composite:
 			return conpositePSO;
+			break;
+		case ObjectPost_Composite:
+			return objectCompositePSO;
 			break;
 		}
 		return bloomPSO;
@@ -273,6 +277,7 @@ private:
 	PSO blurHPSO;
 	PSO blurVPSO;
 	PSO conpositePSO;
+	PSO objectCompositePSO;
 	PSO trailPSO;
 	PSO computeParticlePSO;
 	ShaderType shaderType_;
@@ -284,7 +289,7 @@ private:
 		void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 		void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 
-		void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
+		void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle, const float clearColor[4] = nullptr);
 
 		void ClearDepthBuffer();
 

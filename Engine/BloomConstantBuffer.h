@@ -1,5 +1,6 @@
 #pragma once
 #include "DirectXCommon.h"
+#include "Vector3.h"
 
 struct BloomParam
 {
@@ -19,6 +20,11 @@ struct BloomParam
 	float borderSharp; // 枠の角の鋭さ (20.0 くらい)
 	float glitchAmount; // 追加：グリッチの強さ（0.0 ~ 0.1くらい）
 	float padding; // paddingを調節して16バイト境界に合わせる
+	float dissolveAmount; // 0.0で表示、1.0で消える。0未満で無効
+	float dissolveEdgeWidth;
+	float dissolveEdgeIntensity;
+	float dissolveNoiseScale;
+	Vector4 dissolveEdgeColor;
 };
 
 

@@ -68,12 +68,16 @@ private:
 	std::unique_ptr<Sprite> bg_;          // 背景画像
 	std::unique_ptr<Sprite> titleLogo_;   // resonance_title画像
 	std::unique_ptr<Sprite> clickStart_;  // clickStart画像
+	std::unique_ptr<Sprite> dissolveFade_; // 起動時のディソルブ用黒スプライト
 
 	//--------------------------------------------------------
 	// 円形マスク演出用
 	//--------------------------------------------------------
 	float circle_ = 1.0f;     // 1.0 = 全開, 0.0 = 完全に閉じる
 	float softness_ = 0.6f;
+	float openingDissolveTimer_ = 0.0f;
+	float openingDissolveDuration_ = 2.0f;
+	bool openingDissolveDone_ = false;
 
 	//--------------------------------------------------------
 	// 遷移先
