@@ -6,7 +6,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Attack!.png",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
       "desc": "敵単体に1ダメージ",
       "effects": [
         { "type": "Damage", "value": 1 }
@@ -18,7 +18,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Fire.png",
+      "artTex": "resources/cards/art/Utility/FireBall.png",
       "desc": "敵単体に10ダメージ",
       "effects": [
         { "type": "Damage", "value": 10 }
@@ -30,7 +30,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/BloodyVengeance.png",
+      "artTex": "resources/cards/art/Utility/BloodyVengeance.png",
       "desc": "敵単体に2ダメージ与えて、自身は1ダメージ食らう",
       "effects": [
         { "type": "SelfDamage", "value": 1 },
@@ -43,7 +43,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/PowerShot.png",
+      "artTex": "resources/cards/art/Utility/PowerShot.png",
       "desc": "敵単体に10ダメージ与えてカードを1枚引く",
       "effects": [
         { "type": "Damage", "value": 10 },
@@ -56,7 +56,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Crush.png",
+      "artTex": "resources/cards/art/Utility/Crush.png",
       "desc": "敵全体に２ダメージ",
       "effects": [
         { "type": "DamageAll", "value": 2 }
@@ -80,7 +80,7 @@
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/CrescentMoon.png",
+      "artTex": "resources/cards/art/Utility/CrescentMoon.png",
       "desc": "敵単体に3ダメージ与える。現在のターン数が奇数ならさらに3ダメージ与える",
       "effects": [
         { "type": "DamageCrescent", "value": 3 }
@@ -92,7 +92,7 @@
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/OverClock.png",
+      "artTex": "resources/cards/art/Utility/OverClock.png",
       "desc": "敵単体に2ダメージを与える。これを二回行う",
       "effects": [
         { "type": "Damage", "value": 2 },
@@ -105,7 +105,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/ShieldBash.png",
+      "artTex": "resources/cards/art/Utility/ShieldBash.png",
       "desc": "敵単体にブロック数x1ダメージ与える",
       "effects": [
         { "type": "DamageByBlock", "value": 1 }
@@ -117,7 +117,7 @@
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/GaeBolg.png",
+      "artTex": "resources/cards/art/Utility/GaeBolg.png",
       "desc": "敵単体に1ダメージ与える。特殊効果発動時、スリーカードなら敵単体に100ダメージ与える",
       "effects": [
         { "type": "Damage", "value": 1 }
@@ -141,7 +141,7 @@
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Durandal.png",
+      "artTex": "resources/cards/art/Utility/Durandal.png",
       "desc": "敵単体に5ダメージを与える。\n5のブロックを獲得する",
       "effects": [
         { "type": "Damage", "value": 5 },
@@ -154,7 +154,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/QuickDraw.png",
+      "artTex": "resources/cards/art/Utility/QuickDraw.png",
       "desc": "2枚引く",
       "effects": [
         { "type": "Draw", "value": 2 }
@@ -166,7 +166,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/TakeABreak.png",
+      "artTex": "resources/cards/art/Utility/TakeABreak.png",
       "desc": "体力を3回復する",
       "effects": [
         { "type": "Heal", "value": 3 }
@@ -178,7 +178,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Blocking.png",
+      "artTex": "resources/cards/art/Utility/Blocking.png",
       "desc": "ブロックを5獲得する",
       "effects": [
         { "type": "Block", "value": 5 }
@@ -190,7 +190,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Doping.png",
+      "artTex": "resources/cards/art/Utility/Doping.png",
       "desc": "パワーを2獲得する",
       "effects": [
         { "type": "PowerBoost", "value": 2 }
@@ -202,7 +202,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/FlashBang.png",
+      "artTex": "resources/cards/art/Utility/FlashBang.png",
       "desc": "パワーを1獲得する。\nコストを1回復する",
       "effects": [
         { "type": "PowerBoost", "value": 1 },
@@ -215,7 +215,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/RuneStone.png",
+      "artTex": "resources/cards/art/Utility/RuneStone.png",
       "desc": "ブロックを2獲得する",
       "effects": [
         { "type": "Block", "value": 2 }
@@ -239,7 +239,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Convert.png",
+      "artTex": "resources/cards/art/Utility/Convert.png",
       "desc": "シールドの値分体力を回復",
       "effects": [
         { "type": "HealByBlock", "value": 1 }
@@ -251,7 +251,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/LowCostRecovery.png",
+      "artTex": "resources/cards/art/Utility/LowCostRecovery.png",
       "desc": "手札にある1コストのカードx1回復",
       "effects": [
         { "type": "HealByLowCostInHand", "value": 1 }
@@ -263,7 +263,7 @@
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Vampire.png",
+      "artTex": "resources/cards/art/Utility/Vampire.png",
       "desc": "このターン中\nダメージを与えるたびに1回復",
       "effects": [
         { "type": "VampireBuff", "value": 1 }
@@ -275,7 +275,7 @@
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/ChainHeal.png",
+      "artTex": "resources/cards/art/Utility/ChainHeal.png",
       "desc": "体力を１回復する",
       "effects": [
         { "type": "Heal", "value": 1 }
