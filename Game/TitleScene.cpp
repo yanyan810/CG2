@@ -19,6 +19,8 @@ void TitleScene::OnEnter(GameApp& app) {
 	state_ = State::Idle;
 	circle_ = 1.0f;
 	softness_ = 0.6f;
+	openingDissolveTimer_ = 0.0f;
+	openingDissolveDone_ = false;
 
 	//--------------------------------------------------------
 	// カメラ作成
@@ -69,7 +71,24 @@ void TitleScene::OnEnter(GameApp& app) {
 	clickStart_->SetPosition({ 430.0f, 560.0f });
 	clickStart_->SetScale({ 1.0f, 1.0f, 1.0f });
 
+
 	AudioManager::GetInstance()->PlaySE("SE_SoundLogo");
+
+	//--------------------------------------------------------
+	// 起動時ディソルブ用の黒い全面スプライト
+	//--------------------------------------------------------
+	dissolveFade_ = std::make_unique<Sprite>();
+	dissolveFade_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	dissolveFade_->SetAnchorPoint({ 0.0f, 0.0f });
+	dissolveFade_->SetPosition({ 0.0f, 0.0f });
+	const DirectX::TexMetadata& whiteMeta =
+		TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
+	dissolveFade_->SetScale({
+		float(WinApp::kClientWidth) / float(whiteMeta.width),
+		float(WinApp::kClientHeight) / float(whiteMeta.height),
+		1.0f
+		});
+	dissolveFade_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
 
 	//AudioManager::GetInstance()->PlayBGM("machi");
 
@@ -79,6 +98,7 @@ void TitleScene::OnEnter(GameApp& app) {
 // シーン終了時の解放
 //------------------------------------------------------------
 void TitleScene::OnExit(GameApp&) {
+	dissolveFade_.reset();
 	clickStart_.reset();
 	titleLogo_.reset();
 	bg_.reset();
@@ -117,6 +137,28 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 	bool tutorialTrig = input->IsKeyTrigger(DIK_T);
 	bool deckEditTrig = input->IsKeyTrigger(DIK_D);
+	bool objectPostTestTrig = input->IsKeyTrigger(DIK_O);
+
+	if (!openingDissolveDone_) {
+		openingDissolveTimer_ += dt;
+		if (openingDissolveTimer_ >= openingDissolveDuration_) {
+			openingDissolveTimer_ = openingDissolveDuration_;
+			openingDissolveDone_ = true;
+		}
+
+		auto& param = app.ObjectPost()->GetParam();
+		param.dissolveAmount = openingDissolveTimer_ / openingDissolveDuration_;
+		param.dissolveEdgeWidth = 0.09f;
+		param.dissolveEdgeIntensity = 2.6f;
+		param.dissolveNoiseScale = 34.0f;
+		param.dissolveEdgeColor = { 0.10f, 0.95f, 1.0f, 1.0f };
+		param.intensity = 1.0f;
+		param.chromAbAmount = 0.004f;
+		param.distortionAmount = 0.0015f;
+		param.noiseIntensity = 0.0f;
+	} else {
+		app.ObjectPost()->GetParam().dissolveAmount = -1.0f;
+	}
 
 	//--------------------------------------------------------
 	// 状態更新
@@ -138,6 +180,11 @@ void TitleScene::Update(GameApp& app, float dt) {
 		if (deckEditTrig) {
 			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			RequestChangeScene_("DeckEdit");
+			return;
+		}
+
+		if (objectPostTestTrig) {
+			RequestChangeScene_("Test");
 			return;
 		}
 
@@ -202,6 +249,19 @@ void TitleScene::Draw2D(GameApp& app) {
 	if (clickStart_) {
 		clickStart_->Update(view, proj);
 		clickStart_->Draw();
+	}
+
+	//--------------------------------------------------------
+	// 起動時ディソルブフェード
+	//--------------------------------------------------------
+	if (!openingDissolveDone_ && dissolveFade_) {
+		dissolveFade_->Update(view, proj);
+
+		app.BeginObjectPostEffect();
+		dissolveFade_->Draw();
+		app.EndObjectPostEffect();
+
+		app.SpriteCom()->SetGraphicsPipelineState();
 	}
 
 	//--------------------------------------------------------

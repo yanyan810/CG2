@@ -72,9 +72,9 @@ void Root::InitializeForPostEffect()
 	Parameters_[0].Descriptor.ShaderRegister = 0; // b0
 	Parameters_[0].Descriptor.RegisterSpace = 0;
 
-	// -------- RootParameter 1 : SRV DescriptorTable (SceneRT)
+	// -------- RootParameter 1 : SRV DescriptorTable (Scene/Object RT)
 	descriptorRange_[0].BaseShaderRegister = 0; // t0
-	descriptorRange_[0].NumDescriptors = 2;     // ★ 修正
+	descriptorRange_[0].NumDescriptors = 1;
 	descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange_[0].OffsetInDescriptorsFromTableStart =
 		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -85,8 +85,21 @@ void Root::InitializeForPostEffect()
 	Parameters_[1].DescriptorTable.pDescriptorRanges = descriptorRange_;
 	Parameters_[1].DescriptorTable.NumDescriptorRanges = 1;
 
+	// -------- RootParameter 2 : SRV DescriptorTable (Bloom RT)
+	descriptorRange_[1].BaseShaderRegister = 1; // t1
+	descriptorRange_[1].NumDescriptors = 1;
+	descriptorRange_[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange_[1].OffsetInDescriptorsFromTableStart =
+		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	Parameters_[2].ParameterType =
+		D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	Parameters_[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	Parameters_[2].DescriptorTable.pDescriptorRanges = &descriptorRange_[1];
+	Parameters_[2].DescriptorTable.NumDescriptorRanges = 1;
+
 	descriptionSignature_.pParameters = Parameters_;
-	descriptionSignature_.NumParameters = 2;
+	descriptionSignature_.NumParameters = 3;
 
 	// -------- Static Sampler (s0)
 	staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

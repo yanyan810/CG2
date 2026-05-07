@@ -47,6 +47,11 @@ private:
     std::unique_ptr<Object3d> ground_;
 
     std::unique_ptr<Object3d> skyDome_;
+    std::unique_ptr<Object3d> normalCube_;
+    std::unique_ptr<Object3d> postCube_;
+    std::unique_ptr<Object3d> postTeapot_;
+    float demoTimer_ = 0.0f;
+    bool enableObjectPostDemo_ = true;
 
     // ===== Lighting params =====
     LightingParam light_;

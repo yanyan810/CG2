@@ -16,7 +16,8 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float3 color = sceneTex.Sample(samp, input.uv).rgb;
+    float4 source = sceneTex.Sample(samp, input.uv);
+    float3 color = source.rgb;
 
     // 1. 輝度を計算
     float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
@@ -39,5 +40,5 @@ float4 main(PSInput input) : SV_TARGET
     // 閾値を大きく超えたピクセルは「強く」光るようになります。
     float3 extractColor = color * contribution;
 
-    return float4(extractColor, 1.0f);
+    return float4(extractColor, source.a * saturate(contribution));
 }
