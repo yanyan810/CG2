@@ -7,6 +7,7 @@
 #include "SpriteCommon.h"
 #include "Object3dCommon.h"
 #include "Matrix4x4.h"
+#include "AudioManager.h"
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -142,6 +143,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 	}
 
 	if (input->IsKeyTrigger(DIK_ESCAPE)) {
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
 		RequestChangeScene_("Title");
 		return;
 	}
@@ -165,6 +167,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		selectIndex_ = hoverIndex_;
 
 		if (input->IsMouseTrigger(0)) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			RequestChangeScene_(stageItems_[selectIndex_].sceneName.c_str());
 			return;
 		}
@@ -186,6 +189,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 	}
 
 	if (input->IsKeyTrigger(DIK_RETURN) || input->IsKeyTrigger(DIK_SPACE)) {
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
 		RequestChangeScene_(stageItems_[selectIndex_].sceneName.c_str());
 		return;
 	}

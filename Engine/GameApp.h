@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "SpriteCommon.h"
 #include "Bloom.h"
+#include "ObjectPostEffect.h"
 #include "AudioManager.h"
 
 #include"CardInstance.h"
@@ -38,6 +39,7 @@ public:
     ImGuiManagaer* ImGui() const { return imgui_.get(); }
 
     SkinningCommon* SkinCom() { return skinCom_.get(); }
+    ObjectPostEffect* ObjectPost() const { return objectPostEffect_.get(); }
 
     SceneManager& Scenes() { return *sceneMgr_; }
 
@@ -47,6 +49,8 @@ public:
     void Draw2D();
     void DrawImGui();
     void Draw();
+    void BeginObjectPostEffect();
+    void EndObjectPostEffect();
 
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }
@@ -79,6 +83,7 @@ private:
     std::unique_ptr<SkinningCommon> skinCom_;
 
     std::unique_ptr<Bloom> bloom_;
+    std::unique_ptr<ObjectPostEffect> objectPostEffect_;
     std::unique_ptr<RtvManager> rtv_;
 
     std::vector<CardInstance> deckInstances_;

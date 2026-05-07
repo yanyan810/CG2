@@ -15,6 +15,7 @@
 #include"Enemy.h"
 
 #include "FieldUi.h"
+#include "AudioManager.h"
 
 namespace {
 	float sPokerGlowRainbowTime = 0.0f;
@@ -367,6 +368,59 @@ namespace {
 			CP_UTF8, 0, s.c_str(), -1, result.data(), sizeNeeded
 		);
 		return result;
+	}
+
+	void PlaySE_(const char* soundId)
+	{
+		AudioManager::GetInstance()->PlaySE(soundId);
+	}
+
+	const char* GetAttackSeIdForCard_(const CardDef& def)
+	{
+		const std::string& name = def.name;
+		if (name == "Fireball") {
+			return "SE_Fireball";
+		}
+		if (name == "Attack!" || name == "BloodyVengeance") {
+			return "SE_NormalAttack";
+		}
+		if (name == "Power Shot" ||
+			name == "Crush" ||
+			name == "CrescentMoon" ||
+			name == "OverClock" ||
+			name == "ShieldBash" ||
+			name == "GaeBolg" ||
+			name == "Durandal") {
+			return "SE_StrongAttack";
+		}
+
+		bool hasDamage = false;
+		for (const auto& effect : def.effects) {
+			if (effect.type == "DamageAll" ||
+				effect.type == "DamageCrescent" ||
+				effect.type == "DamageByBlock") {
+				return "SE_StrongAttack";
+			}
+			if (effect.type == "Damage") {
+				hasDamage = true;
+			}
+		}
+
+		return hasDamage ? "SE_NormalAttack" : nullptr;
+	}
+
+	void PlayAttackSEForCard_(const CardDef& def)
+	{
+		if (const char* soundId = GetAttackSeIdForCard_(def)) {
+			PlaySE_(soundId);
+		}
+	}
+
+	void PlayHealSEIfHpIncreased_(Player* player, int beforeHp)
+	{
+		if (player && player->GetHP() > beforeHp) {
+			PlaySE_("SE_Heal");
+		}
 	}
 
 }
@@ -927,7 +981,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 
 				if (hitCount > 0 && player_->GetVampireHeal() > 0) {
+					int beforeHp = player_->GetHP();
 					player_->Heal(player_->GetVampireHeal() * hitCount);
+					PlayHealSEIfHpIncreased_(player_, beforeHp);
 				}
 
 				//if (applyAttackBuff) {
@@ -944,13 +1000,17 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "Heal") {
 			if (player_) {
+				int beforeHp = player_->GetHP();
 				player_->Heal(effect.value);
+				PlayHealSEIfHpIncreased_(player_, beforeHp);
 			}
 
 		} else if (effect.type == "HealByBlock") {
 			if (player_) {
 				int healAmount = player_->GetBlock() * effect.value; // ブロック数 × 倍率
+				int beforeHp = player_->GetHP();
 				player_->Heal(healAmount);
+				PlayHealSEIfHpIncreased_(player_, beforeHp);
 			}
 		} else if (effect.type == "HealByLowCostInHand") {
 			if (player_) {
@@ -964,7 +1024,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 				int healAmount = count * effect.value;
 				if (healAmount > 0) {
+					int beforeHp = player_->GetHP();
 					player_->Heal(healAmount);
+					PlayHealSEIfHpIncreased_(player_, beforeHp);
 				}
 			}
 		} else if (effect.type == "VampireBuff") {
@@ -1085,6 +1147,7 @@ void BattleController::StartPlayerTurn_()
 			lastPokerTutorialResult_ = PokerTutorialResult::None;
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
 			pokerChoiceJustOpened_ = true;
+			PlaySE_("SE_Pop");
 		}
 	}
 	if (enemyMgr_) {
@@ -1845,6 +1908,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					handView_.SetDrag(-1, 0, 0, false);
 
 					if (dragDy_ <= -threshold) {
+						PlaySE_("SE_CardFlick");
 						cardState_ = CardInputState::Preview;
 						handView_.SetPreviewIndex(selectedIndex_);
 					} else {
@@ -1911,6 +1975,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								return;
 							}
 							energy_ -= def->cost;
+							PlaySE_("SE_CardPlay");
+							PlayAttackSEForCard_(*def);
 							auto usedCardView = handView_.ExtractCardAt(idx);
 							hand_.erase(hand_.begin() + idx);
 							//handView_.Rebuild(hand_);
@@ -1981,6 +2047,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				if (lTrig) {
 					int replaceIndex = fieldReplaceHoverIndex_;
 					if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
+						PlaySE_("SE_CardFlick");
 						if (fieldViews_[replaceIndex]) {
 							handView_.AddDiscardingCard(std::move(fieldViews_[replaceIndex]));
 						}
@@ -2011,6 +2078,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				if (rTrig) {
 					if (hasPendingCard_) {
+						PlaySE_("SE_CardFlick");
 						discard_.push_back(pendingCard_);
 					}
 					if (pendingCardView_) {
@@ -2051,6 +2119,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
 						if (isPokerDamageTargeting_) {
+							PlaySE_("SE_StrongAttack");
 							ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
 							if (pendingDamage_ > 0) {
 								SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
@@ -2077,6 +2146,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 							// コストを消費して手札から消す
 							energy_ -= def->cost;
+							PlaySE_("SE_CardPlay");
+							PlayAttackSEForCard_(*def);
 							auto usedCardView = handView_.ExtractCardAt(idx);
 							hand_.erase(hand_.begin() + idx);
 
@@ -2861,7 +2932,9 @@ void BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)
 	enemy.Damage(damage);
 
 	if (player_->GetVampireHeal() > 0) {
+		int beforeHp = player_->GetHP();
 		player_->Heal(player_->GetVampireHeal());
+		PlayHealSEIfHpIncreased_(player_, beforeHp);
 	}
 }
 

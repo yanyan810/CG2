@@ -2,6 +2,7 @@
 
 #include"GameApp.h"
 #include"selection/SelectionState.h"
+#include "AudioManager.h"
 
 void PausingUI::Initialize(GameApp& app) {
     // 全状態共通の背景
@@ -16,6 +17,7 @@ void PausingUI::Update(GameApp& app, Input* input) {
     if (input->IsKeyTrigger(DIK_TAB)) {
         isPaused_ = !isPaused_;
         if (isPaused_) {
+            AudioManager::GetInstance()->PlaySE("SE_Pop");
             // ポーズ開始時に初期ステートへ
             ChangeState(std::make_unique<SelectionState>(), app);
         }

@@ -26,6 +26,7 @@
     <ClCompile Include="Engine\2D\TextSprite.cpp" />
     <ClCompile Include="Engine\Bloom.cpp" />
     <ClCompile Include="Engine\BloomConstantBuffer.cpp" />
+    <ClCompile Include="Engine\ObjectPostEffect.cpp" />
     <ClCompile Include="Engine\ModelParticleManager.cpp" />
     <ClCompile Include="Engine\PostEffect.cpp" />
     <ClCompile Include="Engine\RenderTexture.cpp" />
@@ -109,6 +110,7 @@
     <ClInclude Include="Engine\2D\TextSprite.h" />
     <ClInclude Include="Engine\Bloom.h" />
     <ClInclude Include="Engine\BloomConstantBuffer.h" />
+    <ClInclude Include="Engine\ObjectPostEffect.h" />
     <ClInclude Include="Engine\ModelParticleManager.h" />
     <ClInclude Include="Engine\PostEffect.h" />
     <ClInclude Include="Engine\RenderTexture.h" />
