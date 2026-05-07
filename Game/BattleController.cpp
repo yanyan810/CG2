@@ -1,9 +1,12 @@
 #include "BattleController.h"
+#include <nlohmann/json.hpp>
+#include <fstream>
 #include "GameApp.h"
 #include "WinApp.h"
 #include <Windows.h>
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
+#include "MathStruct.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -772,6 +775,10 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	highlightFilter_->SetPosition({ 0.0f, 0.0f });
 	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
 	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+
+	propManager_ = std::make_unique<PropManager>();
+	propManager_->Initialize(objCom_, dx_, cam_);
+	propManager_->LoadFromJson("resources/configs/sceneProps.json");
 
 	tutorialLockPokerTargetingCancel_ = false;
 
@@ -1738,13 +1745,30 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		pokerChoiceState_ == PokerChoiceState::None &&
 		!tutorialEndTurnLocked_) {
 
-		const auto& ui = fieldUi.GetFieldUiLayout();
+		endTurnButtonHovered_ = false;
 
-		endTurnButtonHovered_ = PointInRect(
-			mouse.x, mouse.y,
-			ui.endTurnBg.x, ui.endTurnBg.y,
-			ui.endTurnBg.w, ui.endTurnBg.h
-		);
+		if (propManager_) {
+			Matrix4x4 vp = cam_->GetViewProjectionMatrix();
+			for (const auto& prop : propManager_->GetProps()) {
+				// Scene Editorで付けた名前が "Button" のものを探す
+				if (prop.name == "Button" || prop.name == "EndTurnButton") {
+					Vector4 clip = MulRowVec4Mat4({ prop.pos.x, prop.pos.y, prop.pos.z, 1.0f }, vp);
+					if (clip.w > 0.0f) {
+						float sx = (clip.x / clip.w + 1.0f) * 0.5f * WinApp::kClientWidth;
+						float sy = (1.0f - clip.y / clip.w) * 0.5f * WinApp::kClientHeight;
+						
+						// モデルのスケールに応じて当たり判定の半径を計算（適度に大きめ）
+						float radius = 60.0f * prop.scale.x; 
+						float dx = mouse.x - sx;
+						float dy = mouse.y - sy;
+						if (dx * dx + dy * dy <= radius * radius) {
+							endTurnButtonHovered_ = true;
+							break;
+						}
+					}
+				}
+			}
+		}
 
 		if (endTurnButtonHovered_ && lTrig) {
 			endTurnButtonClicked = true;
@@ -2321,6 +2345,9 @@ void BattleController::UpdateVisuals_(float dt)
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
+	if (propManager_) {
+		propManager_->Update(dt);
+	}
 }
 
 void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool yTrig, bool nTrig)
@@ -2620,6 +2647,10 @@ void BattleController::Draw3D(GameApp& app)
 		c->Draw();
 	}
 
+	if (propManager_) {
+		propManager_->Draw3D();
+	}
+
 	if (cardState_ == CardInputState::ChoosingEnemyTarget) {
 		highlightFilter_->Draw();
 	}
@@ -2754,6 +2785,11 @@ void BattleController::DrawImGui()
 		ImGui::Text("Enemy Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
 	} else {
 		ImGui::Text("Enemy: null");
+	}
+
+	ImGui::Separator();
+	if (propManager_) {
+		propManager_->DrawImGui();
 	}
 
 	ImGui::Separator();
@@ -3221,3 +3257,4 @@ void BattleController::SetTutorialPokerRestriction(bool activateOnly, bool damag
 	tutorialActivateOnly_ = activateOnly;
 	tutorialDamageOnly_ = damageOnly;
 }
+

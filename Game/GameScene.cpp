@@ -404,9 +404,51 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (camera_) {
+		int windowW = WinApp::kClientWidth;
+		int windowH = WinApp::kClientHeight;
+		int fieldHeight = windowH - static_cast<int>(windowH * splitRatio_);
+		camera_->SetAspect((float)windowW / fieldHeight);
+
+		// FOVと角度の補正 (元のサイズ感を維持しつつ見切れないようにする)
+		float origFovY = 0.45f;
+		float zoomRatio = ((float)fieldHeight / windowH) / fieldCameraZoom_;
+		float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
+		camera_->SetFovY(newFovY);
+
+		// 少し下を向けてカードが見切れないようにする
+		Vector3 rot = camera_->GetRotate();
+		rot.x = 0.15f + fieldCameraRotXOffset_;
+		camera_->SetRotate(rot);
+
+		Matrix4x4 shiftField = Matrix4x4::MakeIdentity4x4();
+		shiftField.m[1][1] = 1.0f - splitRatio_;
+		shiftField.m[3][1] = -splitRatio_;
+		camera_->SetProjectionShift(shiftField);
+
 		camera_->Update();     // 固定カメラの更新
 	}
 	if (animCamera_) {
+		int windowW = WinApp::kClientWidth;
+		int windowH = WinApp::kClientHeight;
+		int battleHeight = static_cast<int>(windowH * splitRatio_);
+		animCamera_->SetAspect((float)windowW / battleHeight);
+
+		// FOVと角度の補正
+		float origFovY = 0.45f;
+		float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+		float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
+		animCamera_->SetFovY(newFovY);
+
+		// 少し上を向けてキャラクターの頭が見切れないようにする
+		Vector3 rot = animCamera_->GetRotate();
+		rot.x += battleCameraRotXOffset_;
+		animCamera_->SetRotate(rot);
+
+		Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
+		shiftBattle.m[1][1] = splitRatio_;
+		shiftBattle.m[3][1] = 1.0f - splitRatio_;
+		animCamera_->SetProjectionShift(shiftBattle);
+
 		animCamera_->Update(); // 動くカメラの更新
 	}
 
@@ -522,20 +564,32 @@ void GameScene::Update(GameApp& app, float dt) {
 
 
 void GameScene::Draw3D(GameApp& app) {
-	app.Dx()->SetBackBuffer();   // RTV + DSV を再バインド
-	app.Dx()->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+	app.Dx()->SetBackBuffer();
 
+	int windowW = WinApp::kClientWidth;
+	int windowH = WinApp::kClientHeight;
+	int battleHeight = static_cast<int>(windowH * splitRatio_);
+
+	app.Dx()->SetViewport(0, 0, windowW, windowH);
+
+	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	if (player_) player_->Draw();
+	enemyMgr_.Draw();
 
-	// 敵以外のモデルにFilterを書ける
+	// 敵以外のモデルにFilterを書ける (バトル画面側)
 	if (battle_.GetNowCardInputState() == BattleController::CardInputState::ChoosingEnemyTarget) {
 		highlightFilter_->Draw();
 	}
 
+	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+	app.ObjCom()->SetGraphicsPipelineState();
+
 	battle_.Draw3D(app);
-	enemyMgr_.Draw();
+
+	// 最後にビューポートを元に戻す（2D描画等のため）
+	app.Dx()->SetViewport(windowW, windowH);
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -610,6 +664,15 @@ void GameScene::DrawImGui(GameApp& app) {
 	ImGui::Checkbox("Inspector", &editorWindows.inspector);
 	ImGui::Checkbox("Timeline", &editorWindows.timeline);
 	ImGui::Checkbox("Preview", &editorWindows.preview);
+	ImGui::End();
+
+	ImGui::Begin("Camera Setup");
+	ImGui::SliderFloat("CameraBlend", &cameraBlend_, 0.0f, 1.0f);
+	ImGui::SliderFloat("Split Ratio", &splitRatio_, 0.1f, 0.9f);
+	ImGui::SliderFloat("Field Camera Zoom", &fieldCameraZoom_, 0.1f, 3.0f);
+	ImGui::SliderFloat("Field Camera RotX Offset", &fieldCameraRotXOffset_, -0.5f, 0.5f);
+	ImGui::SliderFloat("Battle Camera Zoom", &battleCameraZoom_, 0.1f, 3.0f);
+	ImGui::SliderFloat("Battle Camera RotX Offset", &battleCameraRotXOffset_, -0.5f, 0.5f);
 	ImGui::End();
 
 	ImGui::Begin("Battle Debug", &battleDebugVisible_);
@@ -724,14 +787,25 @@ void GameScene::DrawImGui(GameApp& app) {
 
 void GameScene::DrawSkydome(GameApp& app)
 {
+	int windowW = WinApp::kClientWidth;
+	int windowH = WinApp::kClientHeight;
+	int battleHeight = static_cast<int>(windowH * splitRatio_);
+	app.Dx()->SetViewport(0, 0, windowW, windowH);
+	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	if (skyDome_) skyDome_->Draw();
 
+	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
 
 void GameScene::DrawPostEffect3D(GameApp& app)
 {
+	int windowW = WinApp::kClientWidth;
+	int windowH = WinApp::kClientHeight;
+	app.Dx()->SetViewport(0, 0, windowW, windowH);
+	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 
 	app.ObjCom()->SetGraphicsPipelineState();
 

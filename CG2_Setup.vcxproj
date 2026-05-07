@@ -227,6 +227,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\ImGuiManagaer.cpp" />
     <ClCompile Include="Engine\GameApp.cpp" />
     <ClCompile Include="Game\GameScene.cpp" />
+    <ClCompile Include="Game\PropManager.cpp" />
     <ClCompile Include="Game\StageSelectScene.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialManager.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
@@ -408,6 +409,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\SceneManager.h" />
     <ClInclude Include="Engine\GameApp.h" />
     <ClInclude Include="Game\GameScene.h" />
+    <ClInclude Include="Game\PropManager.h" />
     <ClInclude Include="Game\StageSelectScene.h" />
     <ClInclude Include="Game\TitleScene.h" />
     <ClInclude Include="Game\player\PlayerCombo.h" />

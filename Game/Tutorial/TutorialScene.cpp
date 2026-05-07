@@ -57,7 +57,7 @@ void TutorialScene::OnEnter(GameApp& app) {
     battle_.SetPlayer(player_.get());
     battle_.SetEnemyManager(&enemyMgr_);
     battle_.SetTutorialOpeningHand(openingHand);
-    battle_.Initialize(app, animCamera_.get());
+    battle_.Initialize(app, camera_.get());
     if (Enemy* enemy = enemyMgr_.GetEnemy(0)) {
         enemy->SetMaxHp(141, true);
     }
@@ -178,7 +178,49 @@ void TutorialScene::Update(GameApp& app, float dt) {
     if (cameraAnim_) {
         cameraAnim_->Update(dt);
     }
+    if (camera_) {
+        int windowW = WinApp::kClientWidth;
+        int windowH = WinApp::kClientHeight;
+        int fieldHeight = windowH - static_cast<int>(windowH * splitRatio_);
+        camera_->SetAspect((float)windowW / fieldHeight);
+
+        float origFovY = 0.45f;
+        float zoomRatio = ((float)fieldHeight / windowH) / fieldCameraZoom_;
+        float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
+        camera_->SetFovY(newFovY);
+
+        Vector3 rot = camera_->GetRotate();
+        rot.x = 0.15f + fieldCameraRotXOffset_;
+        camera_->SetRotate(rot);
+
+        Matrix4x4 shiftField = Matrix4x4::MakeIdentity4x4();
+        shiftField.m[1][1] = 1.0f - splitRatio_;
+        shiftField.m[3][1] = -splitRatio_;
+        camera_->SetProjectionShift(shiftField);
+
+        camera_->Update();
+    }
+
     if (animCamera_) {
+        int windowW = WinApp::kClientWidth;
+        int windowH = WinApp::kClientHeight;
+        int battleHeight = static_cast<int>(windowH * splitRatio_);
+        animCamera_->SetAspect((float)windowW / battleHeight);
+
+        float origFovY = 0.45f;
+        float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+        float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
+        animCamera_->SetFovY(newFovY);
+
+        Vector3 rot = animCamera_->GetRotate();
+        rot.x += battleCameraRotXOffset_;
+        animCamera_->SetRotate(rot);
+
+        Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
+        shiftBattle.m[1][1] = splitRatio_;
+        shiftBattle.m[3][1] = 1.0f - splitRatio_;
+        animCamera_->SetProjectionShift(shiftBattle);
+
         animCamera_->Update();
     }
 
@@ -319,16 +361,24 @@ void TutorialScene::Update(GameApp& app, float dt) {
 
 void TutorialScene::Draw3D(GameApp& app) {
     app.Dx()->SetBackBuffer();
-    app.Dx()->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 
+    int windowW = WinApp::kClientWidth;
+    int windowH = WinApp::kClientHeight;
+    int battleHeight = static_cast<int>(windowH * splitRatio_);
+
+    app.Dx()->SetViewport(0, 0, windowW, windowH);
+    app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
     app.ObjCom()->SetGraphicsPipelineState();
 
     if (player_) {
         player_->Draw();
     }
+    enemyMgr_.Draw();
+
+    app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+    app.ObjCom()->SetGraphicsPipelineState();
 
     battle_.Draw3D(app);
-    enemyMgr_.Draw();
 }
 
 void TutorialScene::Draw2D(GameApp& app) {
@@ -428,6 +478,14 @@ void TutorialScene::DrawImGui(GameApp& app) {
         ImGui::End();
     }
 
+    ImGui::Begin("Camera Setup (Tutorial)");
+    ImGui::SliderFloat("Split Ratio", &splitRatio_, 0.1f, 0.9f);
+    ImGui::SliderFloat("Field Camera Zoom", &fieldCameraZoom_, 0.1f, 3.0f);
+    ImGui::SliderFloat("Field Camera RotX Offset", &fieldCameraRotXOffset_, -0.5f, 0.5f);
+    ImGui::SliderFloat("Battle Camera Zoom", &battleCameraZoom_, 0.1f, 3.0f);
+    ImGui::SliderFloat("Battle Camera RotX Offset", &battleCameraRotXOffset_, -0.5f, 0.5f);
+    ImGui::End();
+
     if (tutorialUi_ && tutorial_) {
         tutorialUi_->DrawImGui(*tutorial_);
     }
@@ -438,10 +496,17 @@ void TutorialScene::DrawImGui(GameApp& app) {
 }
 
 void TutorialScene::DrawSkydome(GameApp& app) {
+    int windowW = WinApp::kClientWidth;
+    int windowH = WinApp::kClientHeight;
+    int battleHeight = static_cast<int>(windowH * splitRatio_);
+    app.Dx()->SetViewport(0, 0, windowW, windowH);
+    app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+
     app.ObjCom()->SetGraphicsPipelineState();
     if (skyDome_) {
         skyDome_->Draw();
     }
+    app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
 
 void TutorialScene::DrawPostEffect3D(GameApp& app) {

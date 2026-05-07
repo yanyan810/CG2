@@ -843,11 +843,8 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 		}
 	}
 
-	showEndTurnButton_ =
-		battle.IsPlayerTurn() &&
-		!battle.HasPokerChoiceUi() &&
-		!battle.IsViewingBoardFromPokerUi() &&
-		!battle.IsPlayerTargeting();
+	// 2DのEndTurnボタンは隠す（3Dのプロップを使用するため）
+	showEndTurnButton_ = false;
 
 	endTurnHovered_ = battle.IsEndTurnButtonHovered();
 

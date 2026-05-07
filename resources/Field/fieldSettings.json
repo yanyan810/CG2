@@ -1,0 +1,33 @@
+{
+    "fieldPlaneLightColor": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+    ],
+    "fieldPlaneLightDir": [
+        -0.029999999329447746,
+        -0.27000001072883606,
+        0.14000000059604645
+    ],
+    "fieldPlaneLightIntensity": 1.0,
+    "fieldPlanePos": [
+        0.0,
+        -12.199999809265137,
+        27.0
+    ],
+    "fieldPlaneRot": [
+        -1.340000033378601,
+        0.0,
+        0.0
+    ],
+    "fieldPlaneScl": [
+        1.0,
+        1.0,
+        1.0
+    ],
+    "fieldPlaneUvScale": [
+        2.299999952316284,
+        1.0
+    ]
+}
