@@ -7,6 +7,7 @@
 #include "TutorialManager.h"
 #include "Card3D.h"
 #include "CardDatabase.h"
+#include "AudioManager.h"
 
 
 
@@ -68,6 +69,8 @@ void TitleScene::OnEnter(GameApp& app) {
 	clickStart_->SetPosition({ 430.0f, 560.0f });
 	clickStart_->SetScale({ 1.0f, 1.0f, 1.0f });
 
+	AudioManager::GetInstance()->PlaySE("SE_SoundLogo");
+
 	//AudioManager::GetInstance()->PlayBGM("machi");
 
 }
@@ -122,15 +125,18 @@ void TitleScene::Update(GameApp& app, float dt) {
 	case State::Idle:
 		// 画面内をクリックしたら閉じ演出へ
 		if (clickTrig && isInsideWindow) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			state_ = State::ExitClose;
 		}
 
 		if (tutorialTrig) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			RequestChangeScene_("Tutorial");
 			return;
 		}
 
 		if (deckEditTrig) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			RequestChangeScene_("DeckEdit");
 			return;
 		}

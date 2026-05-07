@@ -2,6 +2,7 @@
 #include "../Selection/SelectionState.h"
 #include "GameApp.h"
 #include "../PausingUI.h"
+#include "AudioManager.h"
 
 void GiveUpConfirmState::Initialize(GameApp& app) {
     // 1. 確認用ボード（メッセージ）の初期化
@@ -41,6 +42,7 @@ void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) 
 
     // ESCキーで戻る（「いいえ」と同じ挙動）
     if (input->IsKeyTrigger(DIK_ESCAPE)) {
+        AudioManager::GetInstance()->PlaySE("SE_Tap");
         context->ChangeState(std::make_unique<SelectionState>(), app);
         return;
     }
@@ -55,6 +57,7 @@ void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) 
             s->SetColor({ 0.5f, 0.5f, 0.5f, 0.9f });
 
             if (input->IsMouseTrigger(0)) {
+                AudioManager::GetInstance()->PlaySE("SE_Tap");
                 std::string name = s->GetName();
                 if (name == "Yes") {
                     // タイトルシーンへ遷移（GameAppの機能に依存）

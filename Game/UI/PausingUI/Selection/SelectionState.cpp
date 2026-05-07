@@ -4,6 +4,7 @@
 
 #include"../PausingUI.h"
 #include"../GiveUp/GiveUpConfirmState.h"
+#include "AudioManager.h"
 
 void SelectionState::Initialize(GameApp& app) {
 
@@ -73,6 +74,7 @@ void SelectionState::Update(PausingUI* context, GameApp& app, Input* input){
 		if (name == "GiveUp")hovered->SetColor({ 1.f, 0.2f, 0.2f, 0.6f });
 
 		if (input->IsMouseTrigger(0)) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			if (name == "Resume") context->SetIsPaused(false);
 			//if (name == "DeckCheck")
 			if (name == "GiveUp") {
