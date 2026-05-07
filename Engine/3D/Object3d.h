@@ -157,6 +157,16 @@ public:
 		return materialData_ ? materialData_->color : Vector4{ 1,1,1,1 };
 	}
 
+	void SetUVTransform(const Vector2& scale, const Vector2& offset) {
+		if (materialData_) {
+			materialData_->uvTransform = Matrix4x4::MakeAffineMatrix(
+				{ scale.x, scale.y, 1.0f },
+				{ 0.0f, 0.0f, 0.0f },
+				{ offset.x, offset.y, 0.0f }
+			);
+		}
+	}
+
 	//ブレンド設定
 	void SetBlendMode(Object3dCommon::BlendMode m) { object3dCommon->SetBlendMode(m); }
 

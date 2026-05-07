@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include "PropManager.h"
 #include "CardDatabase.h"
 #include "HandView3D.h"
 #include "CardInstance.h"
@@ -253,6 +254,9 @@ private:
 	DirectXCommon* dx_ = nullptr;
 
 	std::vector<CardInstance> deck_;
+	void SetupDeck(const std::vector<CardInstance>& initialDeck);
+
+	const std::vector<CardInstance>& GetDeck() const { return deck_; }
 	std::vector<CardInstance> hand_;
 	std::vector<CardInstance> discard_;
 	std::vector<CardInstance> field_;
@@ -314,6 +318,8 @@ private:
 
 	std::unique_ptr<Object3d> costLabel_;
 	std::vector<std::unique_ptr<Object3d>> costDigitModels_;
+	
+	std::unique_ptr<PropManager> propManager_;
 
 	int prevEnergy_ = -1;
 	int prevEnergyMax_ = -1;

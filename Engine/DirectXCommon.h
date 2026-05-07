@@ -296,8 +296,10 @@ private:
 		void SetBackBuffer();
 
 		void SetViewport(uint32_t width, uint32_t height);
+		void SetViewport(int left, int top, int width, int height);
+
+		void SetScissorRect(int left, int top, int width, int height);
 
 		void Release();
 
 };
-
