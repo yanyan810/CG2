@@ -66,9 +66,9 @@ private:
 	// 2D表示用スプライト
 	//--------------------------------------------------------
 	std::unique_ptr<Sprite> bg_;          // 背景画像
+	std::unique_ptr<Sprite> dissolveFade_; // 背景ディソルブ用の黒スプライト
 	std::unique_ptr<Sprite> titleLogo_;   // resonance_title画像
 	std::unique_ptr<Sprite> clickStart_;  // clickStart画像
-	std::unique_ptr<Sprite> dissolveFade_; // 起動時のディソルブ用黒スプライト
 
 	//--------------------------------------------------------
 	// 円形マスク演出用
@@ -76,8 +76,17 @@ private:
 	float circle_ = 1.0f;     // 1.0 = 全開, 0.0 = 完全に閉じる
 	float softness_ = 0.6f;
 	float openingDissolveTimer_ = 0.0f;
+	float bgDissolveDuration_ = 1.4f;
+	float bgDissolveAmount_ = 1.0f;
+	bool bgDissolveDone_ = false;
+	float titleDissolveDelayAfterBg_ = 0.2f;
 	float openingDissolveDuration_ = 2.0f;
 	bool openingDissolveDone_ = false;
+	float titleDissolveAmount_ = 1.0f;
+	float clickDissolveAmount_ = 1.0f;
+	float clickDissolveDelayAfterTitle_ = 1.0f;
+	float clickDissolveDuration_ = 1.0f;
+	bool clickDissolveDone_ = false;
 
 	//--------------------------------------------------------
 	// 遷移先

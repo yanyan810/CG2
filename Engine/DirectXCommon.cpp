@@ -1077,7 +1077,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 		} else if (pso.postEffectType_ == ObjectPost_Composite) {
 			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
-			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
 			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
