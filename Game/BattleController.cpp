@@ -2737,6 +2737,19 @@ void BattleController::Draw3D(GameApp& app)
 
 	if (cardState_ == CardInputState::ChoosingEnemyTarget) {
 		highlightFilter_->Draw();
+
+		if (enemyMgr_) {
+			// 3D描画用のパイプラインに戻す
+			app.ObjCom()->SetGraphicsPipelineState();
+			// Zバッファをクリアして、黒背景（highlightFilter_）よりも手前に描画されるようにする
+			app.Dx()->ClearDepthBuffer();
+
+			for (auto& enemy : enemyMgr_->GetEnemies()) {
+				if (enemy.IsHighlighted()) {
+					enemy.Draw();
+				}
+			}
+		}
 	}
 
 }
@@ -2782,6 +2795,31 @@ void BattleController::DrawImGui()
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
 	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
 	ImGui::Text("field: %d", (int)field_.size());
+
+	if (ImGui::CollapsingHeader("Character Scale")) {
+		if (player_ && player_->GetObject3d()) {
+			Vector3 pScale = player_->GetObject3d()->GetScale();
+			if (ImGui::DragFloat3("Player Scale", &pScale.x, 0.01f)) {
+				player_->GetObject3d()->SetScale(pScale);
+			}
+		}
+		if (enemyMgr_) {
+			int idx = 0;
+			for (auto& enemy : enemyMgr_->GetEnemies()) {
+				if (!enemy.IsAlive() || !enemy.GetObject3d()) {
+					idx++;
+					continue;
+				}
+				ImGui::PushID(idx);
+				Vector3 eScale = enemy.GetObject3d()->GetScale();
+				if (ImGui::DragFloat3(("Enemy " + std::to_string(idx) + " Scale").c_str(), &eScale.x, 0.01f)) {
+					enemy.GetObject3d()->SetScale(eScale);
+				}
+				ImGui::PopID();
+				idx++;
+			}
+		}
+	}
 
 	handView_.DrawImGui();
 

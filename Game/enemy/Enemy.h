@@ -39,6 +39,7 @@ public:
     int GetHP() const { return hp_; }
     int GetMaxHP() const { return maxHp_; }
     void SetHighlight(bool enable) { isHighlighted_ = enable; }
+    bool IsHighlighted() const { return isHighlighted_; }
     void Heal(int value) {
         hp_ += value;
         if (hp_ > GetMaxHP()) {
@@ -60,6 +61,8 @@ public:
     void TriggerHitFlash(float sec) { flashTimer_ = sec; }
     void PlayAttackAnim(const Vector3& targetPos);
     void PlayDamageAnim();
+
+    Object3d* GetObject3d() const { return model_.get(); }
 
     int GetIncomingDamage() const {
         if (!alive_) return 0;
