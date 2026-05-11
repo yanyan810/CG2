@@ -5,6 +5,11 @@ void PostEffect::Initialize(DirectXCommon* dxCommon, BloomConstantBuffer* bloomC
 	bloomCB_ = bloomCB;
 }
 
+void PostEffect::SetBloomConstantBuffer(BloomConstantBuffer* bloomCB)
+{
+	bloomCB_ = bloomCB;
+}
+
 void PostEffect::Draw(D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, PostEffectType blendMode)
 {
 	dxCommon_->GetCommandList()->SetGraphicsRootSignature(dxCommon_->GetPSOEffect(blendMode).root_.GetSignature().Get());

@@ -6,6 +6,7 @@
 #include "Bloom.h"
 #include "ObjectPostEffect.h"
 #include "AudioManager.h"
+#include "Matrix4x4.h"
 
 #include"CardInstance.h"
 #include "TextSprite.h"
@@ -18,6 +19,7 @@ class Object3dCommon;
 class ParticleCommon;
 class ImGuiManagaer;
 class SkinningCommon;
+class Sprite;
 
 class SceneManager;
 
@@ -51,6 +53,7 @@ public:
     void Draw();
     void BeginObjectPostEffect();
     void EndObjectPostEffect();
+    void DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param);
 
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }

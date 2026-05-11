@@ -15,6 +15,7 @@
 #include "DirectXCommon.h"
 #include "SrvManager.h"
 #include "SpriteCommon.h"
+#include "Sprite.h"
 #include "TextureManager.h"
 #include "ModelManager.h"
 #include "Object3dCommon.h"
@@ -317,6 +318,20 @@ void GameApp::BeginObjectPostEffect() {
 
 void GameApp::EndObjectPostEffect() {
 	objectPostEffect_->EndCapture();
+}
+
+void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param)
+{
+	if (!sprite) {
+		return;
+	}
+
+	objectPostEffect_->SetParam(param);
+	sprite->Update(view, proj);
+	BeginObjectPostEffect();
+	sprite->Draw();
+	EndObjectPostEffect();
+	spriteCommon_->SetGraphicsPipelineState();
 }
 
 void GameApp::WarmupAssets_() {

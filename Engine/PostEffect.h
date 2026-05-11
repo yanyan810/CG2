@@ -5,6 +5,7 @@
 class PostEffect {
 public:
     void Initialize(DirectXCommon* dxCommon, BloomConstantBuffer* bloomCB);
+    void SetBloomConstantBuffer(BloomConstantBuffer* bloomCB);
     void Draw(
         D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, PostEffectType blendMode
     );

@@ -24,11 +24,13 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     bloomRT_Half_ = std::make_unique<RenderTexture>();
     bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 2, WinApp::kClientHeight / 2, transparent);
 
-    cb_ = std::make_unique<BloomConstantBuffer>();
-    cb_->Initialize(dxCommon_);
+    for (auto& cb : cbs_) {
+        cb = std::make_unique<BloomConstantBuffer>();
+        cb->Initialize(dxCommon_);
+    }
 
     postEffect_ = std::make_unique<PostEffect>();
-    postEffect_->Initialize(dxCommon_, cb_.get());
+    postEffect_->Initialize(dxCommon_, cbs_[currentCbIndex_].get());
 
     param_.threshold = 0.0f;
     param_.intensity = 1.0f;
@@ -48,14 +50,14 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     param_.dissolveNoiseScale = 36.0f;
     param_.dissolveEdgeColor = { 0.15f, 1.0f, 1.0f, 1.0f };
 
-    cb_->Update(param_);
+    cbs_[currentCbIndex_]->Update(param_);
 }
 
 void ObjectPostEffect::Update()
 {
     timer_ += 1.0f / 60.0f;
     param_.timer = timer_;
-    cb_->Update(param_);
+    cbs_[currentCbIndex_]->Update(param_);
 }
 
 void ObjectPostEffect::BeginCapture()
@@ -110,7 +112,10 @@ void ObjectPostEffect::EndCapture()
 void ObjectPostEffect::SetParam(const BloomParam& param)
 {
     param_ = param;
-    cb_->Update(param_);
+    param_.timer = timer_;
+    currentCbIndex_ = (currentCbIndex_ + 1) % kParamBufferCount_;
+    cbs_[currentCbIndex_]->Update(param_);
+    postEffect_->SetBloomConstantBuffer(cbs_[currentCbIndex_].get());
 }
 
 void ObjectPostEffect::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)

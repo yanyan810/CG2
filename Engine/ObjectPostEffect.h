@@ -2,6 +2,7 @@
 #include "BloomConstantBuffer.h"
 #include "PostEffect.h"
 #include "RenderTexture.h"
+#include <array>
 #include <memory>
 
 class ObjectPostEffect {
@@ -30,7 +31,9 @@ private:
     std::unique_ptr<RenderTexture> bloomRT_Half_;
 
     std::unique_ptr<PostEffect> postEffect_;
-    std::unique_ptr<BloomConstantBuffer> cb_;
+    static constexpr uint32_t kParamBufferCount_ = 32;
+    std::array<std::unique_ptr<BloomConstantBuffer>, kParamBufferCount_> cbs_;
+    uint32_t currentCbIndex_ = 0;
     BloomParam param_{};
     float timer_ = 0.0f;
 };
