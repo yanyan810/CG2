@@ -32,6 +32,8 @@ public:
 	/// <returns></returns>
 	Model* FindModel(const std::string& filePath);
 
+	Model* CreatePrimitiveModel(const std::string& filePath, const Model::ModelData& modelData);
+
 private:
 	static ModelManager* instance;
 
