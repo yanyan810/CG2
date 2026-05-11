@@ -2418,6 +2418,19 @@ void BattleController::UpdateVisuals_(float dt)
 
 	if (propManager_) {
 		propManager_->Update(dt);
+		
+		// EndTurnボタン（Prop）のホバー時のフィードバック
+		for (auto& prop : propManager_->GetPropsMutable()) {
+			if (prop.name == "Button" || prop.name == "EndTurnButton") {
+				if (endTurnButtonHovered_) {
+					prop.object->SetIntensity(prop.lightIntensity * 0.3f); // 暗くなる
+				} else {
+					// ホバーしていない時は元の状態に戻す
+					prop.object->SetIntensity(prop.lightIntensity);
+				}
+				prop.object->Update(dt); // ライトの変更を確定
+			}
+		}
 	}
 }
 

@@ -42,6 +42,7 @@ public:
 	void ScanModelFiles();
 
 	const std::vector<PlacedProp>& GetProps() const { return placedProps_; }
+	std::vector<PlacedProp>& GetPropsMutable() { return placedProps_; }
 
 private:
 	Object3dCommon* objCom_ = nullptr;
