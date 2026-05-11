@@ -1,0 +1,104 @@
+[
+    {
+        "billboardMode": 1,
+        "blendMode": 1,
+        "emitter": {
+            "acceleration": [
+                0.0,
+                -0.36000001430511475,
+                0.0
+            ],
+            "count": 780,
+            "endColor": [
+                1.0,
+                0.0,
+                1.0,
+                1.0
+            ],
+            "frequency": 0.009999999776482582,
+            "lifeTimeMax": 5.0,
+            "lifeTimeMin": 5.0,
+            "radius": 5.0,
+            "shapeAngle": 0.5,
+            "shapeSize": [
+                5.0,
+                5.0,
+                5.0
+            ],
+            "shapeType": 0,
+            "startColor": [
+                0.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "translate": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "velocityBase": [
+                0.0,
+                0.46000000834465027,
+                0.0
+            ],
+            "velocityVariance": 0.10000000149011612
+        },
+        "isAutoEmit": true,
+        "modelName": "",
+        "modelType": 0,
+        "name": "NewParticle",
+        "texturePath": ""
+    },
+    {
+        "billboardMode": 0,
+        "blendMode": 1,
+        "emitter": {
+            "acceleration": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "count": 780,
+            "endColor": [
+                1.0,
+                1.0,
+                0.0,
+                0.0
+            ],
+            "frequency": 0.5,
+            "lifeTimeMax": 2.0,
+            "lifeTimeMin": 0.5,
+            "radius": 5.0,
+            "shapeAngle": 0.5,
+            "shapeSize": [
+                5.0,
+                5.0,
+                5.0
+            ],
+            "shapeType": 0,
+            "startColor": [
+                1.0,
+                0.0,
+                1.0,
+                1.0
+            ],
+            "translate": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "velocityBase": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "velocityVariance": 0.10000000149011612
+        },
+        "isAutoEmit": true,
+        "modelName": "cards/models/heart.obj",
+        "modelType": 2,
+        "name": "NewParticle_2",
+        "texturePath": ""
+    }
+]

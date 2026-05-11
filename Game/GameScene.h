@@ -57,6 +57,12 @@ private:
     std::unique_ptr<CameraAnimator> cameraAnim_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球
 
+    float splitRatio_ = 0.465f; // 画面分割割合（上がバトル画面、下がカード画面）
+    float fieldCameraZoom_ = 1.0f;
+    float fieldCameraRotXOffset_ = 0.08f;
+    float battleCameraZoom_ = 1.0f;
+    float battleCameraRotXOffset_ = -0.08f;
+
     float cameraBlend_ = 0.0f;
 
     std::unique_ptr<Player> player_;

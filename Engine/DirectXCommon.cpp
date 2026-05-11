@@ -963,19 +963,33 @@ void DirectXCommon::SetBackBuffer() {
 
 void DirectXCommon::SetViewport(uint32_t width, uint32_t height)
 {
-	viewport.TopLeftX = 0.0f;
-	viewport.TopLeftY = 0.0f;
+	SetViewport(0, 0, width, height);
+}
+
+void DirectXCommon::SetViewport(int left, int top, int width, int height)
+{
+	viewport.TopLeftX = FLOAT(left);
+	viewport.TopLeftY = FLOAT(top);
 	viewport.Width = FLOAT(width);
 	viewport.Height = FLOAT(height);
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 
-	scissorRect.left = 0;
-	scissorRect.top = 0;
-	scissorRect.right = LONG(width);
-	scissorRect.bottom = LONG(height);
+	scissorRect.left = LONG(left);
+	scissorRect.top = LONG(top);
+	scissorRect.right = LONG(left + width);
+	scissorRect.bottom = LONG(top + height);
 
 	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
+}
+
+void DirectXCommon::SetScissorRect(int left, int top, int width, int height) {
+	scissorRect.left = LONG(left);
+	scissorRect.top = LONG(top);
+	scissorRect.right = LONG(left + width);
+	scissorRect.bottom = LONG(top + height);
+
 	commandList->RSSetScissorRects(1, &scissorRect);
 }
 

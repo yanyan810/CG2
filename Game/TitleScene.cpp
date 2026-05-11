@@ -7,6 +7,7 @@
 #include "TutorialManager.h"
 #include "Card3D.h"
 #include "CardDatabase.h"
+#include "AudioManager.h"
 
 
 namespace {
@@ -149,7 +150,24 @@ void TitleScene::OnEnter(GameApp& app) {
 	clickStart_->SetScale({ 1.0f, 1.0f, 1.0f });
 	clickStart_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 
-	//AudioManager::GetInstance()->PlayBGM("machi");
+	AudioManager::GetInstance()->PlaySE("SE_SoundLogo");
+
+	//--------------------------------------------------------
+	// 起動時ディソルブ用の黒い全面スプライト
+	//--------------------------------------------------------
+	dissolveFade_ = std::make_unique<Sprite>();
+	dissolveFade_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	dissolveFade_->SetAnchorPoint({ 0.0f, 0.0f });
+	dissolveFade_->SetPosition({ 0.0f, 0.0f });
+	const DirectX::TexMetadata& whiteMeta =
+		TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
+	dissolveFade_->SetScale({
+		float(WinApp::kClientWidth) / float(whiteMeta.width),
+		float(WinApp::kClientHeight) / float(whiteMeta.height),
+		1.0f
+		});
+	dissolveFade_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+
 
 }
 
@@ -223,15 +241,18 @@ void TitleScene::Update(GameApp& app, float dt) {
 	case State::Idle:
 		// 画面内をクリックしたら閉じ演出へ
 		if (clickTrig && isInsideWindow) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			state_ = State::ExitClose;
 		}
 
 		if (tutorialTrig) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			RequestChangeScene_("Tutorial");
 			return;
 		}
 
 		if (deckEditTrig) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			RequestChangeScene_("DeckEdit");
 			return;
 		}

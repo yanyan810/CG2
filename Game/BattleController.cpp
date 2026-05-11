@@ -1,9 +1,12 @@
 #include "BattleController.h"
+#include <nlohmann/json.hpp>
+#include <fstream>
 #include "GameApp.h"
 #include "WinApp.h"
 #include <Windows.h>
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
+#include "MathStruct.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -15,6 +18,7 @@
 #include"Enemy.h"
 
 #include "FieldUi.h"
+#include "AudioManager.h"
 
 namespace {
 	float sPokerGlowRainbowTime = 0.0f;
@@ -367,6 +371,59 @@ namespace {
 			CP_UTF8, 0, s.c_str(), -1, result.data(), sizeNeeded
 		);
 		return result;
+	}
+
+	void PlaySE_(const char* soundId)
+	{
+		AudioManager::GetInstance()->PlaySE(soundId);
+	}
+
+	const char* GetAttackSeIdForCard_(const CardDef& def)
+	{
+		const std::string& name = def.name;
+		if (name == "Fireball") {
+			return "SE_Fireball";
+		}
+		if (name == "Attack!" || name == "BloodyVengeance") {
+			return "SE_NormalAttack";
+		}
+		if (name == "Power Shot" ||
+			name == "Crush" ||
+			name == "CrescentMoon" ||
+			name == "OverClock" ||
+			name == "ShieldBash" ||
+			name == "GaeBolg" ||
+			name == "Durandal") {
+			return "SE_StrongAttack";
+		}
+
+		bool hasDamage = false;
+		for (const auto& effect : def.effects) {
+			if (effect.type == "DamageAll" ||
+				effect.type == "DamageCrescent" ||
+				effect.type == "DamageByBlock") {
+				return "SE_StrongAttack";
+			}
+			if (effect.type == "Damage") {
+				hasDamage = true;
+			}
+		}
+
+		return hasDamage ? "SE_NormalAttack" : nullptr;
+	}
+
+	void PlayAttackSEForCard_(const CardDef& def)
+	{
+		if (const char* soundId = GetAttackSeIdForCard_(def)) {
+			PlaySE_(soundId);
+		}
+	}
+
+	void PlayHealSEIfHpIncreased_(Player* player, int beforeHp)
+	{
+		if (player && player->GetHP() > beforeHp) {
+			PlaySE_("SE_Heal");
+		}
 	}
 
 }
@@ -773,6 +830,10 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
 	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
 
+	propManager_ = std::make_unique<PropManager>();
+	propManager_->Initialize(objCom_, dx_, cam_);
+	propManager_->LoadFromJson("resources/configs/sceneProps.json");
+
 	tutorialLockPokerTargetingCancel_ = false;
 
 }
@@ -927,7 +988,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 
 				if (hitCount > 0 && player_->GetVampireHeal() > 0) {
+					int beforeHp = player_->GetHP();
 					player_->Heal(player_->GetVampireHeal() * hitCount);
+					PlayHealSEIfHpIncreased_(player_, beforeHp);
 				}
 
 				//if (applyAttackBuff) {
@@ -944,13 +1007,17 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "Heal") {
 			if (player_) {
+				int beforeHp = player_->GetHP();
 				player_->Heal(effect.value);
+				PlayHealSEIfHpIncreased_(player_, beforeHp);
 			}
 
 		} else if (effect.type == "HealByBlock") {
 			if (player_) {
 				int healAmount = player_->GetBlock() * effect.value; // ブロック数 × 倍率
+				int beforeHp = player_->GetHP();
 				player_->Heal(healAmount);
+				PlayHealSEIfHpIncreased_(player_, beforeHp);
 			}
 		} else if (effect.type == "HealByLowCostInHand") {
 			if (player_) {
@@ -964,7 +1031,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 				int healAmount = count * effect.value;
 				if (healAmount > 0) {
+					int beforeHp = player_->GetHP();
 					player_->Heal(healAmount);
+					PlayHealSEIfHpIncreased_(player_, beforeHp);
 				}
 			}
 		} else if (effect.type == "VampireBuff") {
@@ -1085,6 +1154,7 @@ void BattleController::StartPlayerTurn_()
 			lastPokerTutorialResult_ = PokerTutorialResult::None;
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
 			pokerChoiceJustOpened_ = true;
+			PlaySE_("SE_Pop");
 		}
 	}
 	if (enemyMgr_) {
@@ -1738,13 +1808,30 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		pokerChoiceState_ == PokerChoiceState::None &&
 		!tutorialEndTurnLocked_) {
 
-		const auto& ui = fieldUi.GetFieldUiLayout();
+		endTurnButtonHovered_ = false;
 
-		endTurnButtonHovered_ = PointInRect(
-			mouse.x, mouse.y,
-			ui.endTurnBg.x, ui.endTurnBg.y,
-			ui.endTurnBg.w, ui.endTurnBg.h
-		);
+		if (propManager_) {
+			Matrix4x4 vp = cam_->GetViewProjectionMatrix();
+			for (const auto& prop : propManager_->GetProps()) {
+				// Scene Editorで付けた名前が "Button" のものを探す
+				if (prop.name == "Button" || prop.name == "EndTurnButton") {
+					Vector4 clip = MulRowVec4Mat4({ prop.pos.x, prop.pos.y, prop.pos.z, 1.0f }, vp);
+					if (clip.w > 0.0f) {
+						float sx = (clip.x / clip.w + 1.0f) * 0.5f * WinApp::kClientWidth;
+						float sy = (1.0f - clip.y / clip.w) * 0.5f * WinApp::kClientHeight;
+						
+						// モデルのスケールに応じて当たり判定の半径を計算（適度に大きめ）
+						float radius = 60.0f * prop.scale.x; 
+						float dx = mouse.x - sx;
+						float dy = mouse.y - sy;
+						if (dx * dx + dy * dy <= radius * radius) {
+							endTurnButtonHovered_ = true;
+							break;
+						}
+					}
+				}
+			}
+		}
 
 		if (endTurnButtonHovered_ && lTrig) {
 			endTurnButtonClicked = true;
@@ -1845,6 +1932,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					handView_.SetDrag(-1, 0, 0, false);
 
 					if (dragDy_ <= -threshold) {
+						PlaySE_("SE_CardFlick");
 						cardState_ = CardInputState::Preview;
 						handView_.SetPreviewIndex(selectedIndex_);
 					} else {
@@ -1911,6 +1999,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								return;
 							}
 							energy_ -= def->cost;
+							PlaySE_("SE_CardPlay");
+							PlayAttackSEForCard_(*def);
 							auto usedCardView = handView_.ExtractCardAt(idx);
 							hand_.erase(hand_.begin() + idx);
 							//handView_.Rebuild(hand_);
@@ -1981,6 +2071,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				if (lTrig) {
 					int replaceIndex = fieldReplaceHoverIndex_;
 					if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
+						PlaySE_("SE_CardFlick");
 						if (fieldViews_[replaceIndex]) {
 							handView_.AddDiscardingCard(std::move(fieldViews_[replaceIndex]));
 						}
@@ -2011,6 +2102,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				if (rTrig) {
 					if (hasPendingCard_) {
+						PlaySE_("SE_CardFlick");
 						discard_.push_back(pendingCard_);
 					}
 					if (pendingCardView_) {
@@ -2051,6 +2143,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 
 						if (isPokerDamageTargeting_) {
+							PlaySE_("SE_StrongAttack");
 							ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
 							if (pendingDamage_ > 0) {
 								SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
@@ -2077,6 +2170,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 							// コストを消費して手札から消す
 							energy_ -= def->cost;
+							PlaySE_("SE_CardPlay");
+							PlayAttackSEForCard_(*def);
 							auto usedCardView = handView_.ExtractCardAt(idx);
 							hand_.erase(hand_.begin() + idx);
 
@@ -2321,6 +2416,22 @@ void BattleController::UpdateVisuals_(float dt)
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
+	if (propManager_) {
+		propManager_->Update(dt);
+		
+		// EndTurnボタン（Prop）のホバー時のフィードバック
+		for (auto& prop : propManager_->GetPropsMutable()) {
+			if (prop.name == "Button" || prop.name == "EndTurnButton") {
+				if (endTurnButtonHovered_) {
+					prop.object->SetIntensity(prop.lightIntensity * 0.3f); // 暗くなる
+				} else {
+					// ホバーしていない時は元の状態に戻す
+					prop.object->SetIntensity(prop.lightIntensity);
+				}
+				prop.object->Update(dt); // ライトの変更を確定
+			}
+		}
+	}
 }
 
 void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool yTrig, bool nTrig)
@@ -2620,8 +2731,25 @@ void BattleController::Draw3D(GameApp& app)
 		c->Draw();
 	}
 
+	if (propManager_) {
+		propManager_->Draw3D();
+	}
+
 	if (cardState_ == CardInputState::ChoosingEnemyTarget) {
 		highlightFilter_->Draw();
+
+		if (enemyMgr_) {
+			// 3D描画用のパイプラインに戻す
+			app.ObjCom()->SetGraphicsPipelineState();
+			// Zバッファをクリアして、黒背景（highlightFilter_）よりも手前に描画されるようにする
+			app.Dx()->ClearDepthBuffer();
+
+			for (auto& enemy : enemyMgr_->GetEnemies()) {
+				if (enemy.IsHighlighted()) {
+					enemy.Draw();
+				}
+			}
+		}
 	}
 
 }
@@ -2667,6 +2795,31 @@ void BattleController::DrawImGui()
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
 	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
 	ImGui::Text("field: %d", (int)field_.size());
+
+	if (ImGui::CollapsingHeader("Character Scale")) {
+		if (player_ && player_->GetObject3d()) {
+			Vector3 pScale = player_->GetObject3d()->GetScale();
+			if (ImGui::DragFloat3("Player Scale", &pScale.x, 0.01f)) {
+				player_->GetObject3d()->SetScale(pScale);
+			}
+		}
+		if (enemyMgr_) {
+			int idx = 0;
+			for (auto& enemy : enemyMgr_->GetEnemies()) {
+				if (!enemy.IsAlive() || !enemy.GetObject3d()) {
+					idx++;
+					continue;
+				}
+				ImGui::PushID(idx);
+				Vector3 eScale = enemy.GetObject3d()->GetScale();
+				if (ImGui::DragFloat3(("Enemy " + std::to_string(idx) + " Scale").c_str(), &eScale.x, 0.01f)) {
+					enemy.GetObject3d()->SetScale(eScale);
+				}
+				ImGui::PopID();
+				idx++;
+			}
+		}
+	}
 
 	handView_.DrawImGui();
 
@@ -2754,6 +2907,11 @@ void BattleController::DrawImGui()
 		ImGui::Text("Enemy Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
 	} else {
 		ImGui::Text("Enemy: null");
+	}
+
+	ImGui::Separator();
+	if (propManager_) {
+		propManager_->DrawImGui();
 	}
 
 	ImGui::Separator();
@@ -2861,7 +3019,9 @@ void BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)
 	enemy.Damage(damage);
 
 	if (player_->GetVampireHeal() > 0) {
+		int beforeHp = player_->GetHP();
 		player_->Heal(player_->GetVampireHeal());
+		PlayHealSEIfHpIncreased_(player_, beforeHp);
 	}
 }
 
@@ -3221,3 +3381,4 @@ void BattleController::SetTutorialPokerRestriction(bool activateOnly, bool damag
 	tutorialActivateOnly_ = activateOnly;
 	tutorialDamageOnly_ = damageOnly;
 }
+

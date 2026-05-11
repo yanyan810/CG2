@@ -22,6 +22,8 @@
 #include "ParticleCommon.h"
 #include "ImGuiManagaer.h"
 #include "ModelParticleManager.h"
+#include "ParticleManager.h"
+#include "ParticleEditor.h"
 
 #include <Windows.h>
 
@@ -44,6 +46,10 @@ int GameApp::Run() {
 #endif
 
 		if (input_) input_->Update();
+
+#ifdef USE_IMGUI
+		ParticleEditor::GetInstance()->Update();
+#endif
 
 		sceneMgr_->Update(*this, dt);
 
@@ -143,9 +149,12 @@ bool GameApp::Initialize_() {
 	particleCommon_ = std::make_unique<ParticleCommon>();
 	particleCommon_->Initialize(dx_.get());
 
+	ParticleManager::GetInstance()->Initialize(dx_.get(), srv_.get(), particleCommon_.get());
+
 #ifdef USE_IMGUI
 	imgui_ = std::make_unique<ImGuiManagaer>();
 	imgui_->Initialize(win_.get(), dx_.get(), srv_.get());
+	ParticleEditor::GetInstance()->Initialize();
 #endif
 
 	// GameApp::Initialize など
@@ -248,8 +257,16 @@ void GameApp::Update(float dt) {
 
 	input_->Update();
 
+#ifdef USE_IMGUI
+	ParticleEditor::GetInstance()->Update();
+#endif
 
 	sceneMgr_->Update(*this, dt); // ここがあるかが重要
+
+	Camera* cam = objCommon_->GetDefaultCamera();
+	if (cam) {
+		ParticleManager::GetInstance()->Update(dt, *cam);
+	}
 }
 
 //void GameApp::Draw() {
@@ -265,7 +282,15 @@ void GameApp::Update(float dt) {
 //}
 
 void GameApp::Draw3D() {
+	auto* cmd = dx_->GetCommandList();
+	
+	// すべての3D描画の前にパーティクルのコンピュート処理を実行
+	ParticleManager::GetInstance()->UpdateCompute(cmd);
+
 	sceneMgr_->Draw3D(*this);
+
+	// 3D描画の最後にパーティクルを描画（最前面に出るように）
+	ParticleManager::GetInstance()->Draw(cmd);
 }
 
 void GameApp::Draw2D() {
@@ -274,6 +299,9 @@ void GameApp::Draw2D() {
 
 void GameApp::DrawImGui() {
 	sceneMgr_->DrawImGui(*this);
+#ifdef USE_IMGUI
+	ParticleEditor::GetInstance()->DrawImGui();
+#endif
 }
 
 void GameApp::Draw() {
@@ -406,7 +434,8 @@ void GameApp::WarmupAssets_() {
 	ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
 	ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
 
-
+	// パーティクルの全エフェクト自動ロード
+	ParticleManager::GetInstance()->LoadAllEffects();
 
 	OutputDebugStringA("[Warmup] END\n");
 }

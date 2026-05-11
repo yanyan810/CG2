@@ -27,6 +27,8 @@ public:
 	float GetFovY() const { return fovY_; }
 	const Transform GetTransform() const { return transform_; }
 
+	void SetProjectionShift(const Matrix4x4& shift) { projectionShift_ = shift; }
+
 private:
 
 	Transform transform_;
@@ -39,6 +41,8 @@ private:
 	float farZ_;
 	Matrix4x4 projectionMatrix_;
 	Matrix4x4 viewProjectionMatrix_;
+
+	Matrix4x4 projectionShift_ = Matrix4x4::MakeIdentity4x4();
 
 };
 

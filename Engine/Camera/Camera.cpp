@@ -29,6 +29,8 @@ void Camera::Update() {
 			aspect_,
 			nearZ_, farZ_);
 
+	projectionMatrix_ = Matrix4x4::Multiply(projectionMatrix_, projectionShift_);
+
 	viewProjectionMatrix_ = Matrix4x4::Multiply(viewMatrix_, projectionMatrix_);
 
 
