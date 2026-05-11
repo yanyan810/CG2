@@ -25,7 +25,13 @@ public:
 public:
     void Initialize(DirectXCommon* dxCommon);
 
-    void SetGraphicsPipelineState();
+    void SetGraphicsPipelineState(ID3D12GraphicsCommandList* cmd = nullptr);
+    void SetComputePipelineState(ID3D12GraphicsCommandList* cmd = nullptr);
+    void SetEmitComputePipelineState(ID3D12GraphicsCommandList* cmd = nullptr); 
+    void SetUpdateComputePipelineState(ID3D12GraphicsCommandList* cmd = nullptr); 
+
+    ID3D12RootSignature* GetComputeRootSignature() const { return computeRootSignature_.Get(); }
+    ID3D12PipelineState* GetComputePipelineState() const { return computePipelineState_.Get(); }
 
     // ★ ここではPSOを作り直さない（軽量）
     void SetBlendMode(BlendMode m) { blendMode_ = m; }
@@ -35,12 +41,22 @@ private:
     void CreateRootSignature();
     void CreateGraphicsPipelineState(BlendMode mode); // ★ mode別に作る
 
+    void CreateComputeRootSignature();
+	void CreateComputePipelineState();
+    void CreateEmitComputePipelineState(); // ★追加
+    void CreateUpdateComputePipelineState(); // ★追加
+
 private:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSignature_;
 
     // ★ ブレンド分のPSOを保持
     std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>,
         static_cast<size_t>(BlendMode::kCountOfBlendMode)> pso_{};
+
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> computePipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> emitComputePipelineState_; // ★追加
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> updateComputePipelineState_; // ★追加
 
     DirectXCommon* dx_ = nullptr;
 

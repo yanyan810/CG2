@@ -7,6 +7,7 @@
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
 #include "SrvManager.h"
+#include "ParticleManager.h"
 
 #include <d3d12.h>
 #include <cassert>
@@ -216,6 +217,13 @@ void TestScene::Update(GameApp& app, float dt) {
         normalCube_->SetRotate({ 0.0f, demoTimer_ * 0.8f, 0.0f });
         normalCube_->Update(dt);
     }
+
+    // ★ 特定のタイミングでパーティクルを発生させるテスト（スペースキー）
+    if (input_->IsKeyTrigger(DIK_SPACE)) {
+        // LoadAllEffects() によって自動ロードされたエフェクトをファイル名(拡張子なし)で呼び出す
+        // 例: test_particles.json -> "test_particles"
+        ParticleManager::GetInstance()->EmitEffect("test_particles", { 0.0f, 0.0f, 5.0f });
+    }
     if (postCube_) {
         postCube_->SetRotate({ demoTimer_ * 0.5f, demoTimer_ * 1.2f, 0.0f });
         postCube_->Update(dt);
@@ -397,9 +405,9 @@ void TestScene::Update(GameApp& app, float dt) {
 
 }
 
-
 void TestScene::Draw3D(GameApp& app) {
     auto* cmd = app.Dx()->GetCommandList();
+    
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     app.ObjCom()->SetGraphicsPipelineState();

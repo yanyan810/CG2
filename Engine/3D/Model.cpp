@@ -533,6 +533,18 @@ void Model::Initialize(ModelCommon* modelCommon,
 		OutputDebugStringA(bufN);
 	}
 
+	CreateBuffers();
+}
+
+void Model::InitializeFromData(ModelCommon* modelCommon, const ModelData& data) {
+	modelCommon_ = modelCommon;
+	modelData_ = data;
+	CreateBuffers();
+}
+
+void Model::CreateBuffers() {
+	DirectXCommon* dx = modelCommon_->GetDxCommon();
+
 	// ======================
 	// VB 作成（全meshの頂点を1本に連結）
 	// ======================
@@ -571,8 +583,8 @@ void Model::Initialize(ModelCommon* modelCommon,
 	vertexBufferView_.StrideInBytes = sizeof(VertexData);
 
 	// ======================
-// IB 作成（全meshのindexを1本に連結）★追加
-// ======================
+	// IB 作成（全meshのindexを1本に連結）★追加
+	// ======================
 	const size_t totalIdx = modelData_.indices.size();
 	if (totalIdx == 0) {
 		OutputDebugStringA("[Model] WARN: totalIdx == 0 (non-indexed). Skip creating IB.\n");
@@ -655,9 +667,6 @@ void Model::Initialize(ModelCommon* modelCommon,
 		offsetof(Model::VertexData, normal),
 		sizeof(Model::VertexData));
 	OutputDebugStringA(buf2);
-
-	// BuildNodeRuntime_();
-
 }
 
 
