@@ -1047,6 +1047,24 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				player_->Damage(effect.value);
 			}
 
+		} else if (effect.type == "Poison") {
+			if (enemyMgr_) {
+				// 単体ターゲットが指定されている場合
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()) {
+						e.AddPoison(effect.value);
+					}
+				}
+				else {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.AddPoison(effect.value);
+							break;
+						}
+					}
+				}
+			}
 		} else if (effect.type == "ChangeNumber") {
 			// 後で対象指定が必要
 
@@ -1982,6 +2000,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 									dmgVal += (player_ ? player_->GetBlock() : 0) * effect.value;
 									hitCount++;
 								}
+								if (effect.type == "Poison") {
+									needsTarget = true;
+									hitCount++;
+								}
 							}
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
@@ -2279,6 +2301,21 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				} else {
 					// 全ての敵の行動が終わった場合
+
+					// 毒ダメージ付加
+					if (enemyMgr_) {
+						// 全ての敵に対してループ処理を行う
+						for (auto& enemy : enemyMgr_->GetEnemies()) {
+							// 生きている敵のみに付与
+							if (enemy.IsAlive()) {
+								enemy.ApplyPoisonDamage();
+
+								// 必要であれば各敵の頭上にエフェクトや数値を出す
+								// SpawnDamagePopup(enemy.GetPos(), effect.value, false); 
+							}
+						}
+					}
+
 					currentEnemyIndex_ = 0; // 次のターンに向けてリセットしておく
 
 					// プレイヤーターンへ移行
