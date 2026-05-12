@@ -1,6 +1,8 @@
 #include "HandView3D.h"
 #include "CardDatabase.h"
+#include "GameApp.h"
 #include "WinApp.h"
+#include <algorithm>
 #include <cmath>
 
 // ここはあなたの WorldToScreen 実装に置き換えてOK
@@ -16,6 +18,37 @@ static bool WorldToScreen_RowVector(const Vector3& w, const Matrix4x4& viewProj,
     out.x = (ndcX * 0.5f + 0.5f) * sw;
     out.y = (-ndcY * 0.5f + 0.5f) * sh;
     return true;
+}
+
+namespace {
+float Clamp01_(float value)
+{
+    if (value < 0.0f) return 0.0f;
+    if (value > 1.0f) return 1.0f;
+    return value;
+}
+
+BloomParam MakeCardDissolveParam_(const BloomParam& baseParam, float dissolveAmount)
+{
+    BloomParam param = baseParam;
+    param.threshold = 0.0f;
+    param.dissolveAmount = dissolveAmount;
+    param.dissolveEdgeWidth = 0.05f;
+    param.dissolveEdgeIntensity = 3.0f;
+    param.dissolveNoiseScale = 34.0f;
+    param.dissolveEdgeColor = { 0.10f, 0.95f, 1.0f, 1.0f };
+    param.intensity = 1.0f;
+    param.chromAbAmount = 0.004f;
+    param.distortionAmount = 0.0015f;
+    param.noiseIntensity = 0.0f;
+    param.scanlineIntensity = 0.0f;
+    param.glitchAmount = 0.0f;
+    param.vignetteIntensity = 0.0f;
+    param.vignetteScale = 0.0f;
+    param.isGrayscale = 0.0f;
+    param.isInverted = 0.0f;
+    return param;
+}
 }
 
 void HandView3D::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* cam, CardDatabase* db)
@@ -207,16 +240,17 @@ void HandView3D::Update(float dt)
         
     }
 
-    for (auto& card : discardingCards_) {
-        card->Update(dt);
+    for (auto& entry : discardingCards_) {
+        entry.timer += dt;
+        if (entry.card) {
+            entry.card->Update(dt);
+        }
     }
     discardingCards_.erase(
         std::remove_if(discardingCards_.begin(), discardingCards_.end(),
-            [this](std::unique_ptr<Card3D>& c) {
-                float dx = c->GetWorldPos().x - 25.0f;
-                float dy = c->GetWorldPos().y - (-15.0f);
-                if (dx * dx + dy * dy < 1.0f) { // 墓地に到着
-                    cardPool_.push_back(std::move(c));
+            [this](DiscardingCard& entry) {
+                if (entry.timer >= entry.duration) {
+                    cardPool_.push_back(std::move(entry.card));
                     return true;
                 }
                 return false;
@@ -237,7 +271,29 @@ void HandView3D::Draw()
             cards_[i]->Draw();
         }
     }
-    for (auto& c : discardingCards_) c->Draw();
+}
+
+void HandView3D::DrawDiscardingCardsObjectPost(GameApp& app)
+{
+    if (discardingCards_.empty()) {
+        return;
+    }
+
+    const BloomParam baseParam = app.ObjectPost()->GetParam();
+    for (auto& entry : discardingCards_) {
+        if (!entry.card) {
+            continue;
+        }
+
+        float progress = Clamp01_(entry.timer / entry.duration);
+        BloomParam dissolveParam = MakeCardDissolveParam_(baseParam, progress);
+
+        app.ObjectPost()->SetParam(dissolveParam);
+        app.BeginObjectPostEffect();
+        entry.card->Draw();
+        app.EndObjectPostEffect();
+        app.ObjCom()->SetGraphicsPipelineState();
+    }
 }
 
 void HandView3D::DrawPreviewCard()
@@ -419,8 +475,13 @@ std::unique_ptr<Card3D> HandView3D::ExtractCardAt(int index) {
 
 void HandView3D::AddDiscardingCard(std::unique_ptr<Card3D> card) {
     if (!card) return;
-    card->SetTargetTransform({ 25.0f, -15.0f, 10.0f }, { 0.0f, 3.14159f, 0.0f }, { 0.0f, 0.0f, 0.0f }, false);
-    discardingCards_.push_back(std::move(card));
+    const Vector3 pos = card->GetWorldPos();
+    card->SetTargetTransform(pos, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, true);
+
+    DiscardingCard entry{};
+    entry.card = std::move(card);
+    discardingCards_.push_back(std::move(entry));
+    layoutDirty_ = true;
 }
 
 void HandView3D::RefreshLayout()

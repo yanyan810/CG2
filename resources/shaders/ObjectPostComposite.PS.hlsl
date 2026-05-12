@@ -154,5 +154,5 @@ float4 main(PSInput input) : SV_TARGET
     float dist = length((input.uv * 2.0f - 1.0f) * 0.5f);
     result *= pow(saturate(1.0f - dist * vignetteIntensity * vignetteScale), 0.8f);
 
-    return float4(result, alpha);
+    return float4(result * alpha, alpha);
 }

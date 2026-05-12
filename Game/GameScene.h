@@ -15,6 +15,7 @@
 #include "AudioManager.h"
 #include "PausingUI/PausingUI.h"
 #include "EffectSequencer.h"
+#include "BloomConstantBuffer.h"
 
 class GameApp;
 
@@ -50,6 +51,8 @@ private:
     bool LoadCameraByIndex_(int index);
     bool LoadCameraByPath_(const std::string& path);
     AnimationEditorSession::EditorContext BuildEditorContext_();
+    void ResetParticleObjectPostParam_();
+    void DrawParticleObjectPostEditor_();
 
 private:
     std::unique_ptr<Camera> camera_;
@@ -116,6 +119,8 @@ private:
     bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
     ModelParticleManager* particleManager_;
+    bool particleObjectPostEnabled_ = true;
+    BloomParam particleObjectPostParam_{};
 
     
     std::unique_ptr<TrailManager> trailManager_;

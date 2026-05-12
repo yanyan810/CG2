@@ -1,16 +1,68 @@
 {
-    "startColor": [1.0, 0.5, 0.0, 1.0],
-    "endColor": [1.0, 0.0, 0.0, 0.0],
-    "speedMin": 0.8,
-    "speedMax": 1.5,
-    "lifeTimeMin": 0.6,
-    "lifeTimeMax": 1.0,
-    "gravity": [0.0, 0.3, 0.0],
-    "startScale": 1.2,
-    "endScale": 0.3,
-    "emitterShape": 1,
-    "shapeSize": [1.0, 1.0, 1.0],
+    "angularVelocityMax": [
+        5.0,
+        5.0,
+        5.0
+    ],
+    "angularVelocityMin": [
+        -5.0,
+        -5.0,
+        -5.0
+    ],
     "easingType": 1,
-    "isBillboard": true,
-    "modelPath": "triangleParticle.obj"
+    "emitterShape": 1,
+    "endColor": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+    ],
+    "endColorRandom": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+    ],
+    "endScale": 0.30000001192092896,
+    "endScaleRandom": 0.0,
+    "gravity": [
+        0.0,
+        0.30000001192092896,
+        0.0
+    ],
+    "initialRotateMax": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "initialRotateMin": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "isBillboard": false,
+    "lifeTimeMax": 1.0,
+    "lifeTimeMin": 0.6000000238418579,
+    "modelPath": "triangleParticle.obj",
+    "shapeSize": [
+        1.0,
+        1.0,
+        1.0
+    ],
+    "speedMax": 1.5,
+    "speedMin": 0.800000011920929,
+    "startColor": [
+        1.0,
+        0.5,
+        0.0,
+        1.0
+    ],
+    "startColorRandom": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+    ],
+    "startScale": 1.2000000476837158,
+    "startScaleRandom": 0.0
 }

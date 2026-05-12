@@ -2754,6 +2754,11 @@ void BattleController::Draw3D(GameApp& app)
 
 }
 
+void BattleController::DrawPostEffect3D(GameApp& app)
+{
+	handView_.DrawDiscardingCardsObjectPost(app);
+}
+
 void BattleController::DrawPreviewCard3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 	if (cardState_ == CardInputState::Preview && pendingCardView_) {

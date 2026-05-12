@@ -12,6 +12,7 @@ public:
     void Update();   // ImGuiと定数バッファ更新
     void PreDraw();  // 1. SceneRTをセット
     void PostDraw(); // 2. 抽出・ぼかし・合成を実行
+    D3D12_CPU_DESCRIPTOR_HANDLE GetSceneRTVHandle() const { return sceneRT_->GetRTVHandle(); }
 
 private:
     // 便利関数：リソースバリアの切り替え

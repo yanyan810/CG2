@@ -60,6 +60,25 @@ Vector4 Lerp(const Vector4& start, const Vector4& end, float t)
     return result;
 }
 
+namespace {
+float Clamp01(float value) {
+    return std::clamp(value, 0.0f, 1.0f);
+}
+
+Vector4 ClampColor(const Vector4& color) {
+    return {
+        Clamp01(color.x),
+        Clamp01(color.y),
+        Clamp01(color.z),
+        Clamp01(color.w)
+    };
+}
+
+float RandomizedScale(float baseScale, float randomRange) {
+    return std::max(0.0f, baseScale + Rand(-randomRange, randomRange));
+}
+}
+
 ModelParticleManager* ModelParticleManager::GetInstance()
 {
     static ModelParticleManager instance;
@@ -329,23 +348,25 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     particle.velocity = dir * Rand(config.speedMin, config.speedMax);
     particle.acceleration = config.gravity;
 
-    // 回転速度（氷などで重要）
-    particle.angularVelocity = Rand(Vector3(-5.0f, -5.0f, -5.0f), Vector3(5.0f, 5.0f, 5.0f));
+    // 初期回転と回転速度
+    particle.transform.rotate = Rand(config.initialRotateMin, config.initialRotateMax);
+    particle.angularVelocity = Rand(config.angularVelocityMin, config.angularVelocityMax);
 
     // 色（ベースカラーに対してランダムな揺らぎを与える）
-    Vector4 colorVariation = Rand(Vector4(-0.1f, -0.1f, -0.1f, 0.0f), Vector4(0.1f, 0.1f, 0.1f, 0.0f));
-    particle.color = config.startColor + colorVariation;
+    Vector4 startColorVariation = Rand(-config.startColorRandom, config.startColorRandom);
+    Vector4 endColorVariation = Rand(-config.endColorRandom, config.endColorRandom);
 
     // 寿命とスケール設定
     particle.lifeTime = Rand(config.lifeTimeMin, config.lifeTimeMax);
     particle.currentTime = 0.0f;
 
     // Particle構造体にこれらの変数を保持しておく必要があります
-    particle.startScale = config.startScale;
-    particle.endScale = config.endScale;
+    particle.startScale = RandomizedScale(config.startScale, config.startScaleRandom);
+    particle.endScale = RandomizedScale(config.endScale, config.endScaleRandom);
 
-    particle.startColor = config.startColor;
-    particle.endColor = config.endColor;
+    particle.startColor = ClampColor(config.startColor + startColorVariation);
+    particle.endColor = ClampColor(config.endColor + endColorVariation);
+    particle.color = particle.startColor;
 
     // --- 新機能: イージングタイプとビルボード ---
     particle.easingType = config.easingType;
@@ -447,20 +468,41 @@ void ModelParticleManager::Draw() {
 }
 
 void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEmitterConfig& editingConfig) {
-    ImGui::Begin("Particle Editor");
+    ImGui::Begin("37 Particle Editor");
 
     ImGui::Text("Editing: %s", effectName.c_str());
 
     // 値が変更されたかどうかをチェックするフラグ
     bool changed = false;
 
+    if (ImGui::CollapsingHeader("Spawn", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::DragFloat("Speed Min", &editingConfig.speedMin, 0.01f, 0.0f);
+        changed |= ImGui::DragFloat("Speed Max", &editingConfig.speedMax, 0.01f, 0.0f);
+        changed |= ImGui::DragFloat("Life Min", &editingConfig.lifeTimeMin, 0.01f, 0.01f);
+        changed |= ImGui::DragFloat("Life Max", &editingConfig.lifeTimeMax, 0.01f, 0.01f);
+        changed |= ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
+    }
+
+    if (ImGui::CollapsingHeader("Color", ImGuiTreeNodeFlags_DefaultOpen)) {
     changed |= ImGui::ColorEdit4("StartColor", &editingConfig.startColor.x);
     changed |= ImGui::ColorEdit4("EndColor", &editingConfig.endColor.x);
-    changed |= ImGui::DragFloat("Speed Min", &editingConfig.speedMin, 0.01f);
-    changed |= ImGui::DragFloat("Speed Max", &editingConfig.speedMax, 0.01f);
-    changed |= ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
-    changed |= ImGui::DragFloat("Start Scale", &editingConfig.startScale, 0.01f);
-    changed |= ImGui::DragFloat("End Scale", &editingConfig.endScale, 0.01f);
+        changed |= ImGui::DragFloat4("Start Color Random", &editingConfig.startColorRandom.x, 0.01f, 0.0f, 1.0f);
+        changed |= ImGui::DragFloat4("End Color Random", &editingConfig.endColorRandom.x, 0.01f, 0.0f, 1.0f);
+    }
+
+    if (ImGui::CollapsingHeader("Scale", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::DragFloat("Start Scale", &editingConfig.startScale, 0.01f, 0.0f);
+        changed |= ImGui::DragFloat("End Scale", &editingConfig.endScale, 0.01f, 0.0f);
+        changed |= ImGui::DragFloat("Start Scale Random", &editingConfig.startScaleRandom, 0.01f, 0.0f);
+        changed |= ImGui::DragFloat("End Scale Random", &editingConfig.endScaleRandom, 0.01f, 0.0f);
+    }
+
+    if (ImGui::CollapsingHeader("Rotation", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::DragFloat3("Initial Rotate Min", &editingConfig.initialRotateMin.x, 0.01f);
+        changed |= ImGui::DragFloat3("Initial Rotate Max", &editingConfig.initialRotateMax.x, 0.01f);
+        changed |= ImGui::DragFloat3("Angular Velocity Min", &editingConfig.angularVelocityMin.x, 0.01f);
+        changed |= ImGui::DragFloat3("Angular Velocity Max", &editingConfig.angularVelocityMax.x, 0.01f);
+    }
 
     // --- 新機能: エミッター形状 ---
     ImGui::Separator();
@@ -499,6 +541,23 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
         editingConfig.modelPath = modelPathBuf;
         changed = true;
     }
+
+    editingConfig.speedMin = std::max(0.0f, editingConfig.speedMin);
+    editingConfig.speedMax = std::max(0.0f, editingConfig.speedMax);
+    editingConfig.lifeTimeMin = std::max(0.01f, editingConfig.lifeTimeMin);
+    editingConfig.lifeTimeMax = std::max(0.01f, editingConfig.lifeTimeMax);
+    if (editingConfig.speedMin > editingConfig.speedMax) {
+        std::swap(editingConfig.speedMin, editingConfig.speedMax);
+        changed = true;
+    }
+    if (editingConfig.lifeTimeMin > editingConfig.lifeTimeMax) {
+        std::swap(editingConfig.lifeTimeMin, editingConfig.lifeTimeMax);
+        changed = true;
+    }
+    editingConfig.startScaleRandom = std::max(0.0f, editingConfig.startScaleRandom);
+    editingConfig.endScaleRandom = std::max(0.0f, editingConfig.endScaleRandom);
+    editingConfig.startColorRandom = ClampColor(editingConfig.startColorRandom);
+    editingConfig.endColorRandom = ClampColor(editingConfig.endColorRandom);
 
     // ★ リアルタイム反映：値が変わったら即座に Library を上書き
     if (changed) {

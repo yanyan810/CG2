@@ -212,6 +212,7 @@ void GameScene::OnEnter(GameApp& app) {
 
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
+	ResetParticleObjectPostParam_();
 
 	// 軌跡の見た目の設定
 	TrailConfig config;
@@ -587,6 +588,7 @@ void GameScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	battle_.Draw3D(app);
+	battle_.DrawPostEffect3D(app);
 
 	// 最後にビューポートを元に戻す（2D描画等のため）
 	app.Dx()->SetViewport(windowW, windowH);
@@ -750,6 +752,7 @@ void GameScene::DrawImGui(GameApp& app) {
 
 		// マネージャーから指定したエフェクトの設定を編集・反映
 		particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
+		DrawParticleObjectPostEditor_();
 		ImGui::End();
 	}
 
@@ -809,7 +812,12 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	particleManager_->Draw();
+	if (particleObjectPostEnabled_) {
+		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
+	} else {
+		particleManager_->Draw();
+	}
+	app.ObjCom()->SetGraphicsPipelineState();
 
 	// エフェクトシーケンサーの弾を描画
 	if (effectSequencer_) {
@@ -824,6 +832,69 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 void GameScene::DrawPostEffect2D(GameApp& app)
 {
 
+}
+
+void GameScene::ResetParticleObjectPostParam_()
+{
+	particleObjectPostParam_ = {};
+	particleObjectPostParam_.threshold = 0.0f;
+	particleObjectPostParam_.intensity = 1.7f;
+	particleObjectPostParam_.vignetteIntensity = 0.0f;
+	particleObjectPostParam_.vignetteScale = 0.0f;
+	particleObjectPostParam_.distortionAmount = 0.0f;
+	particleObjectPostParam_.chromAbAmount = 0.003f;
+	particleObjectPostParam_.isGrayscale = 0.0f;
+	particleObjectPostParam_.isInverted = 0.0f;
+	particleObjectPostParam_.noiseIntensity = 0.0f;
+	particleObjectPostParam_.scanlineIntensity = 0.0f;
+	particleObjectPostParam_.scanlineFrequency = 100.0f;
+	particleObjectPostParam_.curvature = 0.0f;
+	particleObjectPostParam_.borderSharp = 0.0f;
+	particleObjectPostParam_.glitchAmount = 0.0f;
+	particleObjectPostParam_.dissolveAmount = -1.0f;
+	particleObjectPostParam_.dissolveEdgeWidth = 0.08f;
+	particleObjectPostParam_.dissolveEdgeIntensity = 2.0f;
+	particleObjectPostParam_.dissolveNoiseScale = 36.0f;
+	particleObjectPostParam_.dissolveEdgeColor = { 0.15f, 0.8f, 1.0f, 1.0f };
+}
+
+void GameScene::DrawParticleObjectPostEditor_()
+{
+#ifdef USE_IMGUI
+	if (!ImGui::CollapsingHeader("Particle Object Post", ImGuiTreeNodeFlags_DefaultOpen)) {
+		return;
+	}
+
+	ImGui::Checkbox("Enable Particle Object Post", &particleObjectPostEnabled_);
+	ImGui::DragFloat("Post Threshold", &particleObjectPostParam_.threshold, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("Post Intensity", &particleObjectPostParam_.intensity, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("Chromatic Aberration", &particleObjectPostParam_.chromAbAmount, 0.001f, 0.0f, 0.1f);
+	ImGui::DragFloat("Distortion", &particleObjectPostParam_.distortionAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Noise", &particleObjectPostParam_.noiseIntensity, 0.001f, 0.0f, 1.0f);
+	ImGui::DragFloat("Glitch", &particleObjectPostParam_.glitchAmount, 0.001f, 0.0f, 0.2f);
+	ImGui::DragFloat("Vignette Intensity", &particleObjectPostParam_.vignetteIntensity, 0.01f, 0.0f, 2.0f);
+	ImGui::DragFloat("Vignette Scale", &particleObjectPostParam_.vignetteScale, 0.01f, 0.0f, 2.0f);
+
+	bool grayscale = particleObjectPostParam_.isGrayscale > 0.5f;
+	bool inverted = particleObjectPostParam_.isInverted > 0.5f;
+	if (ImGui::Checkbox("Post Grayscale", &grayscale)) {
+		particleObjectPostParam_.isGrayscale = grayscale ? 1.0f : 0.0f;
+	}
+	if (ImGui::Checkbox("Post Invert", &inverted)) {
+		particleObjectPostParam_.isInverted = inverted ? 1.0f : 0.0f;
+	}
+
+	ImGui::SeparatorText("Dissolve");
+	ImGui::DragFloat("Dissolve Amount", &particleObjectPostParam_.dissolveAmount, 0.01f, -1.0f, 1.0f);
+	ImGui::DragFloat("Dissolve Edge Width", &particleObjectPostParam_.dissolveEdgeWidth, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Dissolve Edge Intensity", &particleObjectPostParam_.dissolveEdgeIntensity, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("Dissolve Noise Scale", &particleObjectPostParam_.dissolveNoiseScale, 0.1f, 1.0f, 200.0f);
+	ImGui::ColorEdit4("Dissolve Edge Color", &particleObjectPostParam_.dissolveEdgeColor.x);
+
+	if (ImGui::Button("Reset Particle Object Post")) {
+		ResetParticleObjectPostParam_();
+	}
+#endif
 }
 
 //============================

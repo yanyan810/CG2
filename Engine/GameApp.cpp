@@ -320,6 +320,14 @@ void GameApp::EndObjectPostEffect() {
 	objectPostEffect_->EndCapture();
 }
 
+void GameApp::EndObjectPostEffectToBloomScene() {
+	objectPostEffect_->EndCaptureToRenderTarget(
+		bloom_->GetSceneRTVHandle(),
+		WinApp::kClientWidth,
+		WinApp::kClientHeight
+	);
+}
+
 void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param)
 {
 	if (!sprite) {
@@ -332,6 +340,23 @@ void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const 
 	sprite->Draw();
 	EndObjectPostEffect();
 	spriteCommon_->SetGraphicsPipelineState();
+}
+
+void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param)
+{
+	if (!particles) {
+		return;
+	}
+
+	objectPostEffect_->SetParam(param);
+	BeginObjectPostEffect();
+	particles->Draw();
+	objectPostEffect_->EndCaptureToRenderTarget(
+		bloom_->GetSceneRTVHandle(),
+		WinApp::kClientWidth,
+		WinApp::kClientHeight
+	);
+	objCommon_->SetGraphicsPipelineState();
 }
 
 void GameApp::WarmupAssets_() {

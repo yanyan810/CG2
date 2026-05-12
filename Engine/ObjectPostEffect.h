@@ -12,6 +12,7 @@ public:
 
     void BeginCapture();
     void EndCapture();
+    void EndCaptureToRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE outputRTV, int width, int height);
 
     BloomParam& GetParam() { return param_; }
     const BloomParam& GetParam() const { return param_; }
