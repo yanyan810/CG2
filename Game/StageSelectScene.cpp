@@ -16,6 +16,31 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
+namespace {
+	std::string MakeStageConfigPath_(int stageId)
+	{
+		return "resources/stages/stage" + std::string(stageId < 10 ? "0" : "") + std::to_string(stageId) + ".json";
+	}
+
+	std::wstring MakeStageLabel_(int stageId)
+	{
+		if (stageId == 10) {
+			return L"ステージ10 ボス戦";
+		}
+
+		return L"ステージ" + std::to_wstring(stageId) + L" バトル";
+	}
+
+	std::wstring MakeStageDescription_(int stageId)
+	{
+		if (stageId == 10) {
+			return L"強敵とのボス戦です";
+		}
+
+		return L"ステージ" + std::to_wstring(stageId) + L"のバトルを開始します";
+	}
+}
+
 bool StageSelectScene::PointInRect_(float mx, float my, const Rect& rect) const {
 	return mx >= rect.x &&
 		mx <= rect.x + rect.w &&
@@ -23,9 +48,44 @@ bool StageSelectScene::PointInRect_(float mx, float my, const Rect& rect) const 
 		my <= rect.y + rect.h;
 }
 
+void StageSelectScene::SelectStageItem_(GameApp& app, const StageItem& item)
+{
+	if (item.stageId > 0) {
+		app.SetSelectedStage(item.stageId, item.stageConfigPath);
+		RequestChangeScene_("Game");
+		return;
+	}
+
+	RequestChangeScene_(item.sceneName.c_str());
+}
+
+void StageSelectScene::ChangeStage_(int delta)
+{
+	const int nextStageId = currentStageId_ + delta;
+	if (nextStageId < 1 || nextStageId > 10) {
+		return;
+	}
+	currentStageId_ = nextStageId;
+	ApplyCurrentStageToBattleItem_();
+	selectIndex_ = 1;
+}
+
+void StageSelectScene::ApplyCurrentStageToBattleItem_()
+{
+	if (stageItems_.size() <= 1) {
+		return;
+	}
+
+	stageItems_[1].displayText = MakeStageLabel_(currentStageId_);
+	stageItems_[1].descText = MakeStageDescription_(currentStageId_);
+	stageItems_[1].stageId = currentStageId_;
+	stageItems_[1].stageConfigPath = MakeStageConfigPath_(currentStageId_);
+}
+
 void StageSelectScene::OnEnter(GameApp& app) {
 	hoverIndex_ = -1;
 	selectIndex_ = 0;
+	currentStageId_ = 1;
 	circle_ = 0.0f;
 	softness_ = 0.6f;
 
@@ -64,7 +124,8 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	descTextSprite_->SetAlpha(1.0f);
 
 	stageItems_[0].sceneName = "Tutorial";
-	stageItems_[0].descText = L"ゲームの基本操作や\n特殊効果の流れを学べます";
+	stageItems_[0].displayText = L"チュートリアル";
+	stageItems_[0].descText = L"ゲームの基本操作を確認します";
 	stageItems_[0].buttonRect = {
 	 layout_.tutorialButtonRect.x,
 	 layout_.tutorialButtonRect.y,
@@ -72,12 +133,12 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	 layout_.tutorialButtonRect.h
 	};
 	stageItems_[0].buttonSprite = std::make_unique<Sprite>();
-	stageItems_[0].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/button_tutorial.png");
+	stageItems_[0].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	stageItems_[0].buttonSprite->SetAnchorPoint({ 0.0f, 0.0f });
 	stageItems_[0].buttonSprite->SetPosition({ stageItems_[0].buttonRect.x, stageItems_[0].buttonRect.y });
 
 	stageItems_[1].sceneName = "Game";
-	stageItems_[1].descText = L"通常のバトルを開始します\n実戦用のモードです";
+	ApplyCurrentStageToBattleItem_();
 	stageItems_[1].buttonRect = {
 	layout_.battleButtonRect.x,
 	layout_.battleButtonRect.y,
@@ -85,12 +146,13 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	layout_.battleButtonRect.h
 	};
 	stageItems_[1].buttonSprite = std::make_unique<Sprite>();
-	stageItems_[1].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/button_battle.png");
+	stageItems_[1].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	stageItems_[1].buttonSprite->SetAnchorPoint({ 0.0f, 0.0f });
 	stageItems_[1].buttonSprite->SetPosition({ stageItems_[1].buttonRect.x, stageItems_[1].buttonRect.y });
 
 	stageItems_[2].sceneName = "DeckEdit";
-	stageItems_[2].descText = L"使用するデッキを\n編成します";
+	stageItems_[2].displayText = L"デッキ編集";
+	stageItems_[2].descText = L"使用するデッキを編成します";
 	stageItems_[2].buttonRect = {
 	layout_.deckEditButtonRect.x,
 	layout_.deckEditButtonRect.y,
@@ -98,7 +160,7 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	layout_.deckEditButtonRect.h
 	};// 仮の座標（後でImGui等で調整）
 	stageItems_[2].buttonSprite = std::make_unique<Sprite>();
-	stageItems_[2].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/button_deckEdit.png");
+	stageItems_[2].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	stageItems_[2].buttonSprite->SetAnchorPoint({ 0.0f, 0.0f });
 	stageItems_[2].buttonSprite->SetPosition({ stageItems_[2].buttonRect.x, stageItems_[2].buttonRect.y });
 
@@ -108,6 +170,30 @@ void StageSelectScene::OnEnter(GameApp& app) {
 		debugHitBgs_[i]->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 		debugHitBgs_[i]->SetAnchorPoint({ 0.0f, 0.0f });
 	}
+
+	itemTextSprites_.resize(stageItems_.size());
+	for (int i = 0; i < static_cast<int>(stageItems_.size()); ++i) {
+		itemTextSprites_[i] = std::make_unique<TextSprite>();
+		itemTextSprites_[i]->Initialize(app.SpriteCom(), app.Dx());
+		itemTextSprites_[i]->SetText(stageItems_[i].displayText);
+		itemTextSprites_[i]->SetFontSize(stageItems_[i].stageId > 0 ? 40 : 34);
+		itemTextSprites_[i]->SetSize({ 1.0f, 1.0f, 1.0f });
+		itemTextSprites_[i]->SetAlpha(1.0f);
+	}
+
+	leftArrowText_ = std::make_unique<TextSprite>();
+	leftArrowText_->Initialize(app.SpriteCom(), app.Dx());
+	leftArrowText_->SetText(L"<");
+	leftArrowText_->SetFontSize(64);
+	leftArrowText_->SetSize({ 1.0f, 1.0f, 1.0f });
+	leftArrowText_->SetAlpha(1.0f);
+
+	rightArrowText_ = std::make_unique<TextSprite>();
+	rightArrowText_->Initialize(app.SpriteCom(), app.Dx());
+	rightArrowText_->SetText(L">");
+	rightArrowText_->SetFontSize(64);
+	rightArrowText_->SetSize({ 1.0f, 1.0f, 1.0f });
+	rightArrowText_->SetAlpha(1.0f);
 
 	LoadLayout_();
 	ApplyLayout_();
@@ -123,6 +209,9 @@ void StageSelectScene::OnEnter(GameApp& app) {
 
 void StageSelectScene::OnExit(GameApp& app) {
 	(void)app;
+	rightArrowText_.reset();
+	leftArrowText_.reset();
+	itemTextSprites_.clear();
 	stageItems_.clear();
 	descBgBottom_.reset();
 	descBgTop_.reset();
@@ -154,7 +243,17 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 	const float mx = static_cast<float>(mouse.x);
 	const float my = static_cast<float>(mouse.y);
 
+	if (currentStageId_ > 1 && PointInRect_(mx, my, leftArrowRect_) && input->IsMouseTrigger(0)) {
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
+		ChangeStage_(-1);
+		return;
+	}
 
+	if (currentStageId_ < 10 && PointInRect_(mx, my, rightArrowRect_) && input->IsMouseTrigger(0)) {
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
+		ChangeStage_(1);
+		return;
+	}
 
 	for (int i = 0; i < static_cast<int>(stageItems_.size()); ++i) {
 		if (PointInRect_(mx, my, stageItems_[i].buttonRect)) {
@@ -168,7 +267,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 
 		if (input->IsMouseTrigger(0)) {
 			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			RequestChangeScene_(stageItems_[selectIndex_].sceneName.c_str());
+			SelectStageItem_(app, stageItems_[selectIndex_]);
 			return;
 		}
 	}
@@ -188,22 +287,33 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		}
 	}
 
+	if (input->IsKeyTrigger(DIK_LEFT) || input->IsKeyTrigger(DIK_A)) {
+		if (currentStageId_ > 1) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
+			ChangeStage_(-1);
+		}
+	}
+
+	if (input->IsKeyTrigger(DIK_RIGHT) || input->IsKeyTrigger(DIK_D)) {
+		if (currentStageId_ < 10) {
+			AudioManager::GetInstance()->PlaySE("SE_Tap");
+			ChangeStage_(1);
+		}
+	}
+
 	if (input->IsKeyTrigger(DIK_RETURN) || input->IsKeyTrigger(DIK_SPACE)) {
 		AudioManager::GetInstance()->PlaySE("SE_Tap");
-		RequestChangeScene_(stageItems_[selectIndex_].sceneName.c_str());
+		SelectStageItem_(app, stageItems_[selectIndex_]);
 		return;
 	}
 
-	const int showIndex = hoverIndex_;
-	if (showIndex == 0) {
-		currentDescText_ = stageItems_[0].descText;
-		currentDescPos_ = { layout_.tutorialDescText.x, layout_.tutorialDescText.y };
-	} else if (showIndex == 1) {
-		currentDescText_ = stageItems_[1].descText;
-		currentDescPos_ = { layout_.battleDescText.x, layout_.battleDescText.y };
-	} else if (showIndex == 2) {
-		currentDescText_ = stageItems_[2].descText;
-		currentDescPos_ = { layout_.deckEditDescText.x, layout_.deckEditDescText.y };
+	const int showIndex = hoverIndex_ >= 0 ? hoverIndex_ : selectIndex_;
+	if (showIndex >= 0 && showIndex < static_cast<int>(stageItems_.size())) {
+		currentDescText_ = stageItems_[showIndex].descText;
+		currentDescPos_ = {
+			stageItems_[showIndex].descRect.x,
+			stageItems_[showIndex].descRect.y
+		};
 	} else {
 		currentDescText_ = L"";
 	}
@@ -226,12 +336,13 @@ void StageSelectScene::DrawDescriptionText_(GameApp& app, const std::wstring& te
 		0.0f, 100.0f
 	);
 
-	float scale = 1.5f;
-	if (selectIndex_ == 0) {
+	float scale = 1.2f;
+	const int showIndex = hoverIndex_ >= 0 ? hoverIndex_ : selectIndex_;
+	if (showIndex == 0) {
 		scale = layout_.tutorialDescText.scale;
-	} else if (selectIndex_ == 1) {
+	} else if (showIndex == 1) {
 		scale = layout_.battleDescText.scale;
-	} else if (selectIndex_ == 2) {
+	} else if (showIndex == 2) {
 		//scale = layout_.deckEditDescText.scale;
 	}
 
@@ -273,24 +384,70 @@ void StageSelectScene::Draw2D(GameApp& app) {
 			continue;
 		}
 
-		if (hoverIndex_ == 1 && i == 2) continue;
-
 		// 2. デッキ編集(index 2)にホバー中なら、バトル(index 1)を表示しない
-		if (hoverIndex_ == 2 && i == 1) continue;
+
+		const bool isSelected = i == selectIndex_;
+		const bool isHovered = i == hoverIndex_;
 
 		float scale = 1.0f;
-		if (i == hoverIndex_) {
+		if (isSelected || isHovered) {
 			scale = hoverScale_;
 		}
 
-		stageItems_[i].buttonSprite->SetScale({ scale, scale, 1.0f });
+		stageItems_[i].buttonSprite->SetPosition({ stageItems_[i].buttonRect.x, stageItems_[i].buttonRect.y });
+		stageItems_[i].buttonSprite->SetScale({ stageItems_[i].buttonRect.w * scale, stageItems_[i].buttonRect.h * scale, 1.0f });
+		stageItems_[i].buttonSprite->SetColor({ 1.0f, 1.0f, 1.0f, 0.0f });
 		stageItems_[i].buttonSprite->Update(view, proj);
 		stageItems_[i].buttonSprite->Draw();
 	}
 
-	if (descBgTop_) {
-		descBgTop_->Update(view, proj);
-		descBgTop_->Draw();
+	for (int i = 0; i < static_cast<int>(itemTextSprites_.size()); ++i) {
+		if (!itemTextSprites_[i]) {
+			continue;
+		}
+
+		const Rect& r = stageItems_[i].buttonRect;
+		const bool isSelected = i == selectIndex_;
+		const bool isHovered = i == hoverIndex_;
+		const bool isBossStage = stageItems_[i].stageId == 10;
+		Vector3 textColor = { 1.0f, 1.0f, 1.0f };
+		if (isBossStage) {
+			textColor = { 1.0f, 0.78f, 0.2f };
+		}
+		if (isHovered && !isSelected) {
+			textColor = { 0.68f, 0.9f, 1.0f };
+		}
+		if (isSelected) {
+			textColor = { 1.0f, 0.92f, 0.45f };
+		}
+
+		itemTextSprites_[i]->SetText(stageItems_[i].displayText);
+		itemTextSprites_[i]->SetColor(textColor);
+		Vector2 textPos{ r.x + 72.0f, r.y + 42.0f };
+		if (i == 0) {
+			textPos = { r.x + 55.0f, r.y + 40.0f };
+		} else if (i == 2) {
+			textPos = { r.x + 82.0f, r.y + 40.0f };
+		} else if (stageItems_[i].stageId > 0) {
+			textPos = { r.x + 58.0f, r.y + 38.0f };
+		}
+		itemTextSprites_[i]->SetPosition(textPos);
+		itemTextSprites_[i]->Update(view, proj);
+		itemTextSprites_[i]->Draw();
+	}
+
+	if (leftArrowText_ && currentStageId_ > 1) {
+		leftArrowText_->SetColor({ 1.0f, 1.0f, 1.0f });
+		leftArrowText_->SetPosition({ leftArrowRect_.x, leftArrowRect_.y });
+		leftArrowText_->Update(view, proj);
+		leftArrowText_->Draw();
+	}
+
+	if (rightArrowText_ && currentStageId_ < 10) {
+		rightArrowText_->SetColor({ 1.0f, 1.0f, 1.0f });
+		rightArrowText_->SetPosition({ rightArrowRect_.x, rightArrowRect_.y });
+		rightArrowText_->Update(view, proj);
+		rightArrowText_->Draw();
 	}
 
 	if (descBgBottom_) {
@@ -305,10 +462,7 @@ void StageSelectScene::Draw2D(GameApp& app) {
 		for (int i = 0; i < static_cast<int>(stageItems_.size()); ++i) {
 			const Rect& r = stageItems_[i].buttonRect;
 
-			if (hoverIndex_ == 1 && i == 2) continue;
-
 			// 2. デッキ編集(index 2)にホバー中なら、バトル(index 1)を表示しない
-			if (hoverIndex_ == 2 && i == 1) continue;
 
 			Vector4 color = { 0.0f, 0.0f, 0.0f, 0.45f };
 			if (i == hoverIndex_) {
@@ -401,15 +555,19 @@ void StageSelectScene::ApplyLayout_() {
 		titleSprite_->SetPosition({ layout_.titlePos.x, layout_.titlePos.y });
 	}
 
-	if (descBgTop_) {
-		descBgTop_->SetPosition({ layout_.tutorialDescBgPos.x, layout_.tutorialDescBgPos.y });
-	}
-
 	if (descBgBottom_) {
-		descBgBottom_->SetPosition({ layout_.battleDescBgPos.x, layout_.battleDescBgPos.y });
+		descBgBottom_->SetPosition({ 360.0f, 560.0f });
 	}
 
 	if (stageItems_.size() >= 3) {
+		const float battleW = 420.0f;
+		const float battleH = 120.0f;
+		const float battleX = (static_cast<float>(WinApp::kClientWidth) - battleW) * 0.5f;
+		const float battleY = 390.0f;
+		const float deckGap = 40.0f;
+		const float descX = 420.0f;
+		const float descY = 585.0f;
+
 		stageItems_[0].buttonRect = {
 			layout_.tutorialButtonRect.x,
 			layout_.tutorialButtonRect.y,
@@ -418,57 +576,57 @@ void StageSelectScene::ApplyLayout_() {
 		};
 
 		stageItems_[1].buttonRect = {
-			layout_.battleButtonRect.x,
-			layout_.battleButtonRect.y,
-			layout_.battleButtonRect.w,
-			layout_.battleButtonRect.h
+			battleX,
+			battleY,
+			battleW,
+			battleH
 		};
 
 		stageItems_[2].buttonRect = {
-			layout_.deckEditButtonRect.x,
-			layout_.deckEditButtonRect.y,
+			layout_.tutorialButtonRect.x + layout_.tutorialButtonRect.w + deckGap,
+			layout_.tutorialButtonRect.y,
 			layout_.deckEditButtonRect.w,
 			layout_.deckEditButtonRect.h
 		};
 
 		stageItems_[0].descRect = {
-			layout_.tutorialDescBgPos.x,
-			layout_.tutorialDescBgPos.y,
+			descX,
+			descY,
 			layout_.tutorialButtonRect.w,
 			layout_.tutorialButtonRect.h
 		};
 
 		stageItems_[1].descRect = {
-			layout_.battleDescBgPos.x,
-			layout_.battleDescBgPos.y,
-			layout_.battleButtonRect.w,
-			layout_.battleButtonRect.h
+			descX,
+			descY,
+			battleW,
+			battleH
 		};
 
 		stageItems_[2].descRect = {
-			layout_.deckEditDescBgPos.x,
-			layout_.deckEditDescBgPos.y,
+			descX,
+			descY,
 			layout_.deckEditButtonRect.w,
 			layout_.deckEditButtonRect.h
 		};
 
 		if (stageItems_[0].buttonSprite) {
 			stageItems_[0].buttonSprite->SetPosition({
-				layout_.tutorialButtonVisualPos.x,
-				layout_.tutorialButtonVisualPos.y
+				stageItems_[0].buttonRect.x,
+				stageItems_[0].buttonRect.y
 				});
 		}
 
 		if (stageItems_[1].buttonSprite) {
 			stageItems_[1].buttonSprite->SetPosition({
-				layout_.battleButtonVisualPos.x,
-				layout_.battleButtonVisualPos.y
+				stageItems_[1].buttonRect.x,
+				stageItems_[1].buttonRect.y
 				});
 		}
 		if (stageItems_[2].buttonSprite) {
 			stageItems_[2].buttonSprite->SetPosition({
-				layout_.deckEditButtonVisualPos.x,
-				layout_.deckEditButtonVisualPos.y
+				stageItems_[2].buttonRect.x,
+				stageItems_[2].buttonRect.y
 				});
 		}
 	}

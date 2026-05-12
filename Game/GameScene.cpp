@@ -3,11 +3,15 @@
 #include "Input.h"
 #include "ModelParticleManager.h"
 #include "AnimationJsonSerializer.h"
+#include "AudioManager.h"
+#include <fstream>
 #include <random>
 #include <filesystem>
 #include <algorithm>
+#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
+using json = nlohmann::json;
 
 static std::wstring Utf8ToWString(const std::string& s)
 {
@@ -18,7 +22,93 @@ static std::wstring Utf8ToWString(const std::string& s)
 	return out;
 }
 
+namespace {
+	EnemyType ParseEnemyType_(const std::string& type)
+	{
+		if (type == "Boss" || type == "boss") {
+			return EnemyType::Boss;
+		}
+		return EnemyType::Slime;
+	}
+
+	Vector3 ReadEnemyPosition_(const json& enemyJson)
+	{
+		Vector3 pos{ 7.0f, 0.0f, 15.0f };
+		if (!enemyJson.contains("position") || !enemyJson["position"].is_object()) {
+			return pos;
+		}
+
+		const auto& jPos = enemyJson["position"];
+		pos.x = jPos.value("x", pos.x);
+		pos.y = jPos.value("y", pos.y);
+		pos.z = jPos.value("z", pos.z);
+		return pos;
+	}
+
+	bool LoadStageEnemyConfigs_(
+		const std::string& path,
+		std::vector<StageEnemyConfig>& outEnemies,
+		std::string& outBgmId,
+		bool& outIsBossStage)
+	{
+		outEnemies.clear();
+		outBgmId.clear();
+		outIsBossStage = false;
+		if (path.empty()) {
+			return false;
+		}
+
+		std::ifstream ifs(path);
+		if (!ifs.is_open()) {
+			return false;
+		}
+
+		json root;
+		try {
+			ifs >> root;
+		} catch (...) {
+			outEnemies.clear();
+			return false;
+		}
+
+		if (!root.contains("enemies") || !root["enemies"].is_array()) {
+			return false;
+		}
+
+		outBgmId = root.value("bgmId", "");
+		bool hasBossEnemy = false;
+
+		for (const auto& enemyJson : root["enemies"]) {
+			if (!enemyJson.is_object()) {
+				continue;
+			}
+
+			StageEnemyConfig config{};
+			config.type = ParseEnemyType_(enemyJson.value("enemyType", "Slime"));
+			config.position = ReadEnemyPosition_(enemyJson);
+			config.maxHp = enemyJson.value("maxHp", -1);
+			config.hp = enemyJson.value("hp", -1);
+			config.behaviorJson = enemyJson.value("behaviorJson", "");
+			hasBossEnemy = hasBossEnemy || enemyJson.value("bossFlag", false);
+			outEnemies.push_back(config);
+		}
+
+		outIsBossStage = root.value("isBossStage", false) || hasBossEnemy;
+		return !outEnemies.empty();
+	}
+
+	void SpawnDefaultEnemies_(EnemyManager& enemyMgr)
+	{
+		enemyMgr.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 5.0f });
+		enemyMgr.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 15.0f });
+		enemyMgr.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 25.0f });
+	}
+}
+
 void GameScene::OnEnter(GameApp& app) {
+	isBossStage_ = false;
+	bossStageBannerTimer_ = 0.0f;
+
 	// --------------------------------------------------
 	// 1. カメラの初期化と設定
 	// --------------------------------------------------
@@ -104,9 +194,21 @@ void GameScene::OnEnter(GameApp& app) {
 
 	// エネミーの配置（右側・左向き）
 	enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
-	enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 5.0f }); // 奥にスライム
-	enemyMgr_.Spawn(EnemyType::Boss, { 7.0f, 0.0f,  15.0f }); // 真ん中にボス
-	enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f,  25.0f }); // 手前にスライム
+	std::vector<StageEnemyConfig> stageEnemies;
+	std::string stageBgmId;
+	bool stageIsBoss = false;
+	if (LoadStageEnemyConfigs_(app.GetSelectedStageConfigPath(), stageEnemies, stageBgmId, stageIsBoss)) {
+		isBossStage_ = stageIsBoss;
+		for (const StageEnemyConfig& config : stageEnemies) {
+			enemyMgr_.SpawnWithConfig(config);
+		}
+	} else {
+		isBossStage_ = false;
+		SpawnDefaultEnemies_(enemyMgr_);
+	}
+	bossStageBannerTimer_ = isBossStage_ ? 3.0f : 0.0f;
+
+	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Game" : stageBgmId);
 	// --------------------------------------------------
 	// 4. ライトの初期設定
 	// --------------------------------------------------
@@ -195,6 +297,20 @@ void GameScene::OnEnter(GameApp& app) {
 	highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
 	highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
 
+	bossStageBannerBg_ = std::make_unique<Sprite>();
+	bossStageBannerBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	bossStageBannerBg_->SetPosition({ 380.0f, 105.0f });
+	bossStageBannerBg_->SetScale({ 520.0f, 86.0f, 1.0f });
+	bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f });
+
+	bossStageBannerText_ = std::make_unique<TextSprite>();
+	bossStageBannerText_->Initialize(app.SpriteCom(), app.Dx());
+	bossStageBannerText_->SetText(L"BOSS STAGE");
+	bossStageBannerText_->SetFontSize(56);
+	bossStageBannerText_->SetColor({ 1.0f, 0.78f, 0.2f });
+	bossStageBannerText_->SetPosition({ 430.0f, 120.0f });
+	bossStageBannerText_->SetSize({ 1.0f, 1.0f, 1.0f });
+
 	particleManager_ = ModelParticleManager::GetInstance();
 	particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
 	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
@@ -223,9 +339,6 @@ void GameScene::OnEnter(GameApp& app) {
 	trailConfig_.endColor = { 1, 0, 0, 0.2f }; // 最後まで少し色を残す
 	player_->SetTrailConfig(config);
 
-	//AudioManager::GetInstance()->PlayBGM("BGM_Game");
-	//AudioManager::GetInstance()->PlayBGM("neppuu");
-
 	// エフェクトシーケンサーの初期化（GameScene用）
 	effectSequencer_ = std::make_unique<EffectSequencer>();
 	effectSequencer_->Initialize(
@@ -252,8 +365,12 @@ void GameScene::OnEnter(GameApp& app) {
 
 void GameScene::OnExit(GameApp& app) {
 	fieldUi_.reset();
+	bossStageBannerText_.reset();
+	bossStageBannerBg_.reset();
 	cardDescBg_.reset();
 	cardDescText_.reset();
+	isBossStage_ = false;
+	bossStageBannerTimer_ = 0.0f;
 
 	animationEditTarget_ = nullptr;
 	cameraEditTarget_ = nullptr;
@@ -292,6 +409,13 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	if (pausingUI_->GetIsPaused()) {
 		return;
+	}
+
+	if (bossStageBannerTimer_ > 0.0f) {
+		bossStageBannerTimer_ -= dt;
+		if (bossStageBannerTimer_ < 0.0f) {
+			bossStageBannerTimer_ = 0.0f;
+		}
 	}
 
 	if (cameraAnim_ && cameraAnim_->IsEditing()) {
@@ -650,6 +774,20 @@ void GameScene::Draw2D(GameApp& app) {
 	for (auto& text : enemyHpTexts_) {
 		text->Update(view, proj);
 		text->Draw();
+	}
+
+	if (isBossStage_ && bossStageBannerTimer_ > 0.0f) {
+		const float alpha = bossStageBannerTimer_ < 1.0f ? bossStageBannerTimer_ : 1.0f;
+		if (bossStageBannerBg_) {
+			bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f * alpha });
+			bossStageBannerBg_->Update(view, proj);
+			bossStageBannerBg_->Draw();
+		}
+		if (bossStageBannerText_) {
+			bossStageBannerText_->SetAlpha(alpha);
+			bossStageBannerText_->Update(view, proj);
+			bossStageBannerText_->Draw();
+		}
 	}
 }
 

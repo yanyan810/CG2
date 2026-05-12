@@ -10,6 +10,7 @@
 #include "Card3D.h"
 #include <array>
 #include "Sprite.h"
+#include "TextSprite.h"
 #include <memory>
 
 class GameApp;
@@ -173,6 +174,9 @@ public:
 		playerHpFg_.reset();
 		enemyHpBgs_.clear();
 		enemyHpFgs_.clear();
+		enemyBlockPredicts_.clear();
+		enemyIntentIcons_.clear();
+		enemyIntentTexts_.clear();
 
 		deck_.clear();
 		hand_.clear();
@@ -370,8 +374,10 @@ private:
 
 	std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
 	std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
+	std::vector<std::unique_ptr<Sprite>> enemyBlockPredicts_;
 
 	std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
+	std::vector<std::unique_ptr<TextSprite>> enemyIntentTexts_;
 
 	std::unique_ptr<Sprite> highlightFilter_;
 
@@ -417,7 +423,7 @@ private:
 	void PreloadCardAssets_();
 
 	int CalcFinalAttackDamage_(int baseDamage) const;
-	void ApplyDamageToEnemy_(Enemy& enemy, int damage);
+	int ApplyDamageToEnemy_(Enemy& enemy, int damage);
 
 	void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 
