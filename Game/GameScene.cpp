@@ -809,7 +809,7 @@ void GameScene::Draw2D(GameApp& app) {
 			bossStageBannerText_->Draw();
 		}
 	}
-}
+
 
 	for (auto& text : enemyPoisonTexts_) {
 		text->Update(view, proj);
