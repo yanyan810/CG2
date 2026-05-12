@@ -118,7 +118,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/GaeBolg.png",
-      "desc": "敵単体に1ダメージ与える。特殊効果発動時、スリーカードなら敵単体に100ダメージ与える",
+      "desc": "敵単体に1ダメージ与える。",
       "effects": [
         { "type": "Damage", "value": 1 }
       ],
