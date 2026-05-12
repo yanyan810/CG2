@@ -71,6 +71,7 @@ public:
         return 0;
     }
 
+	/// ----- 毒の処理 ----- ///
     // 毒を付与する
     void AddPoison(int value) { poison_ += value; }
     // 毒の値を取得する
@@ -82,7 +83,27 @@ public:
         if (poison_ < 0) {
 			poison_ = 0;
         }
+        if (hp_ < 0) {
+            hp_ = 0;
+            alive_ = false;
+        }
     }
+
+    void PoisonDouble() {
+        poison_ *= 2;
+	}
+
+    void PoisonDamage(int count) {
+        hp_ -= poison_ * count;
+        if (hp_ < 0) {
+            hp_ = 0;
+            alive_ = false;
+        }
+	}
+
+    void PoisonRemove() {
+        poison_ = 0;
+	}
 
 public:
 
