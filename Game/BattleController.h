@@ -71,6 +71,7 @@ public:
 
 	void Initialize(GameApp& app, Camera* camera);
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
+	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);

@@ -75,6 +75,11 @@ void ObjectPostEffect::BeginCapture()
 
 void ObjectPostEffect::EndCapture()
 {
+    EndCaptureToRenderTarget({ 0 }, WinApp::kClientWidth, WinApp::kClientHeight);
+}
+
+void ObjectPostEffect::EndCaptureToRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE outputRTV, int width, int height)
+{
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -104,8 +109,12 @@ void ObjectPostEffect::EndCapture()
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    dxCommon_->SetBackBuffer();
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    if (outputRTV.ptr == 0) {
+        dxCommon_->SetBackBuffer();
+    } else {
+        dxCommon_->SetRenderTargetNoDepth(outputRTV);
+    }
+    dxCommon_->SetViewport(width, height);
     postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
 }
 

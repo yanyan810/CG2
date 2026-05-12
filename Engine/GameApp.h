@@ -20,6 +20,7 @@ class ParticleCommon;
 class ImGuiManagaer;
 class SkinningCommon;
 class Sprite;
+class ModelParticleManager;
 
 class SceneManager;
 
@@ -53,7 +54,9 @@ public:
     void Draw();
     void BeginObjectPostEffect();
     void EndObjectPostEffect();
+    void EndObjectPostEffectToBloomScene();
     void DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param);
+    void DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param);
 
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }

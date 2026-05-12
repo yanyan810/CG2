@@ -10,6 +10,7 @@ class Camera;
 class Object3dCommon;
 class DirectXCommon;
 class CardDatabase;
+class GameApp;
 
 class HandView3D {
 public:
@@ -19,6 +20,7 @@ public:
 
     void Update(float dt);
     void Draw();
+    void DrawDiscardingCardsObjectPost(GameApp& app);
     void DrawPreviewCard();
 
     void Clear();
@@ -45,6 +47,12 @@ public:
     void MoveFieldToDiscard(std::unique_ptr<Card3D> card);
     void AddDiscardingCard(std::unique_ptr<Card3D> card);
 private:
+    struct DiscardingCard {
+        std::unique_ptr<Card3D> card;
+        float timer = 0.0f;
+        float duration = 0.75f;
+    };
+
     void LayoutFan_();
 
     Object3dCommon* objCom_ = nullptr;
@@ -56,7 +64,7 @@ private:
     std::vector<std::unique_ptr<Card3D>> cardPool_;
     std::vector<CardInstance> handCards_;
 
-    std::vector<std::unique_ptr<Card3D>> discardingCards_;
+    std::vector<DiscardingCard> discardingCards_;
 
     std::vector<Vector3> basePos_;
     std::vector<Vector3> baseRot_;
