@@ -10,6 +10,7 @@
 #include "Card3D.h"
 #include <array>
 #include "Sprite.h"
+#include "TextSprite.h"
 #include <memory>
 
 class GameApp;
@@ -71,6 +72,7 @@ public:
 
 	void Initialize(GameApp& app, Camera* camera);
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
+	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
@@ -94,7 +96,6 @@ public:
 	std::wstring GetEnergyText() const;
 	std::wstring GetPlayerHpTexts() const;
 	std::vector<std::wstring> GetEnemyHpTexts() const;
-	std::vector<std::wstring> GetEnemyPoisonTexts() const;
 	std::wstring GetPlayerPowerBoostText()const;
 	std::wstring GetPlayerBlockText()const;
 
@@ -173,6 +174,9 @@ public:
 		playerHpFg_.reset();
 		enemyHpBgs_.clear();
 		enemyHpFgs_.clear();
+		enemyBlockPredicts_.clear();
+		enemyIntentIcons_.clear();
+		enemyIntentTexts_.clear();
 
 		deck_.clear();
 		hand_.clear();
@@ -370,8 +374,10 @@ private:
 
 	std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
 	std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
+	std::vector<std::unique_ptr<Sprite>> enemyBlockPredicts_;
 
 	std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
+	std::vector<std::unique_ptr<TextSprite>> enemyIntentTexts_;
 
 	std::unique_ptr<Sprite> highlightFilter_;
 
@@ -417,7 +423,7 @@ private:
 	void PreloadCardAssets_();
 
 	int CalcFinalAttackDamage_(int baseDamage) const;
-	void ApplyDamageToEnemy_(Enemy& enemy, int damage);
+	int ApplyDamageToEnemy_(Enemy& enemy, int damage);
 
 	void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 
