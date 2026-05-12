@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <vector>
 #include "SceneManager.h"
 #include "Input.h"
 #include "SpriteCommon.h"
@@ -60,6 +62,10 @@ public:
     void SetDeckInstances(const std::vector<CardInstance>& instances) { deckInstances_ = instances; }
     void SetDeckInstancesFromId(const std::vector<int>& ids);
 
+    void SetSelectedStage(int stageId, const std::string& configPath);
+    int GetSelectedStageId() const { return selectedStageId_; }
+    const std::string& GetSelectedStageConfigPath() const { return selectedStageConfigPath_; }
+
     CardDatabase* GetCardDB() { return cardDB_.get(); }
 
 private:
@@ -87,6 +93,8 @@ private:
     std::unique_ptr<RtvManager> rtv_;
 
     std::vector<CardInstance> deckInstances_;
+    int selectedStageId_ = 1;
+    std::string selectedStageConfigPath_ = "resources/stages/stage01.json";
 
     std::unique_ptr<CardDatabase> cardDB_;
 };

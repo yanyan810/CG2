@@ -36,7 +36,10 @@ private:
 
     struct StageItem {
         std::string sceneName;
+        std::wstring displayText;
         std::wstring descText;
+        int stageId = 0;
+        std::string stageConfigPath;
         Rect buttonRect{};
         Rect descRect{};
         std::unique_ptr<Sprite> buttonSprite;
@@ -44,6 +47,9 @@ private:
 
 private:
     bool PointInRect_(float mx, float my, const Rect& rect) const;
+    void SelectStageItem_(GameApp& app, const StageItem& item);
+    void ChangeStage_(int delta);
+    void ApplyCurrentStageToBattleItem_();
     void DrawDescriptionText_(GameApp& app, const std::wstring& text, float x, float y);
 
 private:
@@ -55,11 +61,14 @@ private:
     std::unique_ptr<Sprite> descBgBottom_;
 
     std::vector<StageItem> stageItems_;
+    std::vector<std::unique_ptr<TextSprite>> itemTextSprites_;
+    std::unique_ptr<TextSprite> leftArrowText_;
+    std::unique_ptr<TextSprite> rightArrowText_;
 
     std::unique_ptr<TextSprite> descTextSprite_;
 
     std::vector<std::unique_ptr<Sprite>> debugHitBgs_;
-    bool showDebugHitBox_ = true;
+    bool showDebugHitBox_ = false;
 
 
     int hoverIndex_ = -1;
@@ -69,6 +78,9 @@ private:
 
     float circle_ = 0.0f;
     float softness_ = 0.6f;
+    int currentStageId_ = 1;
+    Rect leftArrowRect_{ 120.0f, 410.0f, 80.0f, 100.0f };
+    Rect rightArrowRect_{ 1080.0f, 410.0f, 80.0f, 100.0f };
 
 private:
 

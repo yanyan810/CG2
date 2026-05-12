@@ -402,3 +402,9 @@ void GameApp::SetDeckInstancesFromId(const std::vector<int>& ids) {
 		deckInstances_.push_back(MakeCardInstance(id));
 	}
 }
+
+void GameApp::SetSelectedStage(int stageId, const std::string& configPath)
+{
+	selectedStageId_ = stageId;
+	selectedStageConfigPath_ = configPath;
+}

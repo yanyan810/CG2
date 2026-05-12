@@ -1,0 +1,30 @@
+{
+  "stageId": 8,
+  "stageName": "Stage 8",
+  "bgmId": "BGM_Game",
+  "isBossStage": false,
+  "enemies": [
+    {
+      "enemyType": "Slime",
+      "enemyName": "Slime",
+      "maxHp": 140,
+      "hp": 140,
+      "attack": 12,
+      "defense": 3,
+      "position": { "x": 7.0, "y": 0.0, "z": 10.0 },
+      "behaviorJson": "resources/cards/Slime.json",
+      "bossFlag": false
+    },
+    {
+      "enemyType": "Slime",
+      "enemyName": "Slime",
+      "maxHp": 140,
+      "hp": 140,
+      "attack": 12,
+      "defense": 3,
+      "position": { "x": 7.0, "y": 0.0, "z": 20.0 },
+      "behaviorJson": "resources/cards/Slime.json",
+      "bossFlag": false
+    }
+  ]
+}
