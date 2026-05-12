@@ -68,7 +68,16 @@ Model* ModelManager::FindModel(const std::string& filePath) {
 		return models.at(filePath).get();
 	}
 
-	//ファイル名一致無し
 	return nullptr;
 
+}
+
+Model* ModelManager::CreatePrimitiveModel(const std::string& filePath, const Model::ModelData& modelData) {
+	if (models.contains(filePath)) {
+		return models.at(filePath).get();
+	}
+	std::unique_ptr<Model> model = std::make_unique<Model>();
+	model->InitializeFromData(modelCommon, modelData);
+	models.insert(std::make_pair(filePath, std::move(model)));
+	return models.at(filePath).get();
 }

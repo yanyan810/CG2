@@ -144,6 +144,8 @@ public:
 		const std::string& directoryPath,
 		const std::string& filename);
 
+	void InitializeFromData(ModelCommon* modelCommon, const ModelData& data);
+
 	void Draw(ID3D12GraphicsCommandList* cmd);
 	//パーティクル用
 	void Draw(ID3D12GraphicsCommandList* cmd, uint32_t instanceCount);
@@ -276,6 +278,8 @@ private:
 	void TraverseNode_(const Node* n, int32_t parent);
 
 	void DebugValidateAnimationTracks_() const;
+
+	void CreateBuffers();
 
 private:
 

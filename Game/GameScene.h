@@ -15,6 +15,7 @@
 #include "AudioManager.h"
 #include "PausingUI/PausingUI.h"
 #include "EffectSequencer.h"
+#include "BloomConstantBuffer.h"
 
 class GameApp;
 
@@ -50,6 +51,8 @@ private:
     bool LoadCameraByIndex_(int index);
     bool LoadCameraByPath_(const std::string& path);
     AnimationEditorSession::EditorContext BuildEditorContext_();
+    void ResetParticleObjectPostParam_();
+    void DrawParticleObjectPostEditor_();
 
 private:
     std::unique_ptr<Camera> camera_;
@@ -57,7 +60,7 @@ private:
     std::unique_ptr<CameraAnimator> cameraAnim_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球
 
-    float splitRatio_ = 0.4f; // 画面分割割合（上がバトル画面、下がカード画面）
+    float splitRatio_ = 0.465f; // 画面分割割合（上がバトル画面、下がカード画面）
     float fieldCameraZoom_ = 1.0f;
     float fieldCameraRotXOffset_ = 0.08f;
     float battleCameraZoom_ = 1.0f;
@@ -109,6 +112,10 @@ private:
     std::unique_ptr<TextSprite> blockText_;
 
     std::unique_ptr<Sprite> highlightFilter_;
+    std::unique_ptr<Sprite> bossStageBannerBg_;
+    std::unique_ptr<TextSprite> bossStageBannerText_;
+    bool isBossStage_ = false;
+    float bossStageBannerTimer_ = 0.0f;
 
     //カメラアニメ
     std::vector<std::string> cameraFiles_;
@@ -117,6 +124,8 @@ private:
     bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
     ModelParticleManager* particleManager_;
+    bool particleObjectPostEnabled_ = true;
+    BloomParam particleObjectPostParam_{};
 
     
     std::unique_ptr<TrailManager> trailManager_;

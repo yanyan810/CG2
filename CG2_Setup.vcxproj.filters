@@ -98,6 +98,8 @@
     <ClCompile Include="Game\StageSelectScene.cpp" />
     <ClCompile Include="Engine\EffectSequencer.cpp" />
     <ClCompile Include="Game\PropManager.cpp" />
+    <ClCompile Include="Engine\GeometryGenerator.cpp" />
+    <ClCompile Include="Engine\ParticleEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
@@ -198,6 +200,8 @@
     <ClInclude Include="Game\StageSelectScene.h" />
     <ClInclude Include="Engine\EffectSequencer.h" />
     <ClInclude Include="Game\PropManager.h" />
+    <ClInclude Include="Engine\GeometryGenerator.h" />
+    <ClInclude Include="Engine\ParticleEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />

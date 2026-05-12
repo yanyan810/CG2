@@ -1,11 +1,14 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <vector>
 #include "SceneManager.h"
 #include "Input.h"
 #include "SpriteCommon.h"
 #include "Bloom.h"
 #include "ObjectPostEffect.h"
 #include "AudioManager.h"
+#include "Matrix4x4.h"
 
 #include"CardInstance.h"
 #include "TextSprite.h"
@@ -18,6 +21,8 @@ class Object3dCommon;
 class ParticleCommon;
 class ImGuiManagaer;
 class SkinningCommon;
+class Sprite;
+class ModelParticleManager;
 
 class SceneManager;
 
@@ -51,6 +56,9 @@ public:
     void Draw();
     void BeginObjectPostEffect();
     void EndObjectPostEffect();
+    void EndObjectPostEffectToBloomScene();
+    void DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param);
+    void DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param);
 
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }
@@ -59,6 +67,10 @@ public:
     const std::vector<CardInstance>& GetDeckInstances() const { return deckInstances_; }
     void SetDeckInstances(const std::vector<CardInstance>& instances) { deckInstances_ = instances; }
     void SetDeckInstancesFromId(const std::vector<int>& ids);
+
+    void SetSelectedStage(int stageId, const std::string& configPath);
+    int GetSelectedStageId() const { return selectedStageId_; }
+    const std::string& GetSelectedStageConfigPath() const { return selectedStageConfigPath_; }
 
     CardDatabase* GetCardDB() { return cardDB_.get(); }
 
@@ -87,6 +99,8 @@ private:
     std::unique_ptr<RtvManager> rtv_;
 
     std::vector<CardInstance> deckInstances_;
+    int selectedStageId_ = 1;
+    std::string selectedStageConfigPath_ = "resources/stages/stage01.json";
 
     std::unique_ptr<CardDatabase> cardDB_;
 };

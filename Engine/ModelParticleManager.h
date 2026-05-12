@@ -45,9 +45,18 @@ struct ParticleEmitterConfig {
 	// イージング用に追加
 	float startScale = 1.0f;
 	float endScale = 0.0f;
+	float startScaleRandom = 0.0f;
+	float endScaleRandom = 0.0f;
 
 	Vector4 startColor = { 1, 1, 1, 1 };
 	Vector4 endColor = { 1, 1, 1, 0 };
+	Vector4 startColorRandom = { 0, 0, 0, 0 };
+	Vector4 endColorRandom = { 0, 0, 0, 0 };
+
+	Vector3 initialRotateMin = { 0.0f, 0.0f, 0.0f };
+	Vector3 initialRotateMax = { 0.0f, 0.0f, 0.0f };
+	Vector3 angularVelocityMin = { -5.0f, -5.0f, -5.0f };
+	Vector3 angularVelocityMax = { 5.0f, 5.0f, 5.0f };
 
 	// --- 新機能: モデルパス ---
 	std::string modelPath = "triangleParticle.obj";
@@ -74,6 +83,14 @@ struct ParticleEmitterConfig {
 			{"gravity", {gravity.x, gravity.y, gravity.z}},
 			{"startScale", startScale},
 			{"endScale", endScale},
+			{"startScaleRandom", startScaleRandom},
+			{"endScaleRandom", endScaleRandom},
+			{"startColorRandom", {startColorRandom.x, startColorRandom.y, startColorRandom.z, startColorRandom.w}},
+			{"endColorRandom", {endColorRandom.x, endColorRandom.y, endColorRandom.z, endColorRandom.w}},
+			{"initialRotateMin", {initialRotateMin.x, initialRotateMin.y, initialRotateMin.z}},
+			{"initialRotateMax", {initialRotateMax.x, initialRotateMax.y, initialRotateMax.z}},
+			{"angularVelocityMin", {angularVelocityMin.x, angularVelocityMin.y, angularVelocityMin.z}},
+			{"angularVelocityMax", {angularVelocityMax.x, angularVelocityMax.y, angularVelocityMax.z}},
 			{"modelPath", modelPath},
 			{"emitterShape", static_cast<int>(emitterShape)},
 			{"shapeSize", {shapeSize.x, shapeSize.y, shapeSize.z}},
@@ -99,6 +116,26 @@ struct ParticleEmitterConfig {
 		}
 		startScale = j.value("startScale", startScale);
 		endScale = j.value("endScale", endScale);
+		startScaleRandom = j.value("startScaleRandom", startScaleRandom);
+		endScaleRandom = j.value("endScaleRandom", endScaleRandom);
+		if (j.contains("startColorRandom")) {
+			startColorRandom = { j["startColorRandom"][0], j["startColorRandom"][1], j["startColorRandom"][2], j["startColorRandom"][3] };
+		}
+		if (j.contains("endColorRandom")) {
+			endColorRandom = { j["endColorRandom"][0], j["endColorRandom"][1], j["endColorRandom"][2], j["endColorRandom"][3] };
+		}
+		if (j.contains("initialRotateMin")) {
+			initialRotateMin = { j["initialRotateMin"][0], j["initialRotateMin"][1], j["initialRotateMin"][2] };
+		}
+		if (j.contains("initialRotateMax")) {
+			initialRotateMax = { j["initialRotateMax"][0], j["initialRotateMax"][1], j["initialRotateMax"][2] };
+		}
+		if (j.contains("angularVelocityMin")) {
+			angularVelocityMin = { j["angularVelocityMin"][0], j["angularVelocityMin"][1], j["angularVelocityMin"][2] };
+		}
+		if (j.contains("angularVelocityMax")) {
+			angularVelocityMax = { j["angularVelocityMax"][0], j["angularVelocityMax"][1], j["angularVelocityMax"][2] };
+		}
 		modelPath = j.value("modelPath", modelPath);
 		if (j.contains("emitterShape")) {
 			emitterShape = static_cast<EmitterShape>(j["emitterShape"].get<int>());

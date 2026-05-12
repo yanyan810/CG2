@@ -1,0 +1,19 @@
+{
+  "stageId": 10,
+  "stageName": "Boss Stage",
+  "bgmId": "neppuu",
+  "isBossStage": true,
+  "enemies": [
+    {
+      "enemyType": "Boss",
+      "enemyName": "Boss",
+      "maxHp": 300,
+      "hp": 300,
+      "attack": 20,
+      "defense": 5,
+      "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
+      "behaviorJson": "resources/cards/Boos.json",
+      "bossFlag": true
+    }
+  ]
+}

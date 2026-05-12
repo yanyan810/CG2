@@ -379,6 +379,7 @@ void TutorialScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
 
     battle_.Draw3D(app);
+    battle_.DrawPostEffect3D(app);
 }
 
 void TutorialScene::Draw2D(GameApp& app) {

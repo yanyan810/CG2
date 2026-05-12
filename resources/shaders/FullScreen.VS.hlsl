@@ -1,27 +1,24 @@
-struct VSOut
+#include "CopyImage.hlsli"
+
+static const uint kNumVertex = 3;
+static const float4 kPositions[kNumVertex] =
 {
-    float4 pos : SV_POSITION;
-    float2 uv : TEXCOORD0;
+    { -1.0f, 1.0f, 0.0f, 1.0f },
+    { 3.0f, 1.0f, 0.0f, 1.0f },
+    { -1.0f, -3.0f, 0.0f, 1.0f },
 };
 
-VSOut main(uint id : SV_VertexID)
+static const float2 kTexcoords[kNumVertex] =
 {
-    float2 pos[3] =
-    {
-        { -1.0, -1.0 },
-        { -1.0, 3.0 },
-        { 3.0, -1.0 }
-    };
+    { 0.0f, 0.0f },
+    { 2.0f, 0.0f },
+    { 0.0f, 2.0f },
+};
 
-    float2 uv[3] =
-    {
-        { 0.0, 1.0 },
-        { 0.0, -1.0 },
-        { 2.0, 1.0 }
-    };
-
-    VSOut o;
-    o.pos = float4(pos[id], 0, 1);
-    o.uv = uv[id];
-    return o;
+VertexShaderOutput main(uint vertexId : SV_VertexID)
+{
+    VertexShaderOutput output;
+    output.position = kPositions[vertexId];
+    output.texcoord = kTexcoords[vertexId];
+    return output;
 }

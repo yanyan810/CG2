@@ -15,12 +15,15 @@
 #include "DirectXCommon.h"
 #include "SrvManager.h"
 #include "SpriteCommon.h"
+#include "Sprite.h"
 #include "TextureManager.h"
 #include "ModelManager.h"
 #include "Object3dCommon.h"
 #include "ParticleCommon.h"
 #include "ImGuiManagaer.h"
 #include "ModelParticleManager.h"
+#include "ParticleManager.h"
+#include "ParticleEditor.h"
 
 #include <Windows.h>
 
@@ -43,6 +46,10 @@ int GameApp::Run() {
 #endif
 
 		if (input_) input_->Update();
+
+#ifdef USE_IMGUI
+		ParticleEditor::GetInstance()->Update();
+#endif
 
 		sceneMgr_->Update(*this, dt);
 
@@ -142,9 +149,12 @@ bool GameApp::Initialize_() {
 	particleCommon_ = std::make_unique<ParticleCommon>();
 	particleCommon_->Initialize(dx_.get());
 
+	ParticleManager::GetInstance()->Initialize(dx_.get(), srv_.get(), particleCommon_.get());
+
 #ifdef USE_IMGUI
 	imgui_ = std::make_unique<ImGuiManagaer>();
 	imgui_->Initialize(win_.get(), dx_.get(), srv_.get());
+	ParticleEditor::GetInstance()->Initialize();
 #endif
 
 	// GameApp::Initialize など
@@ -237,8 +247,16 @@ void GameApp::Update(float dt) {
 
 	input_->Update();
 
+#ifdef USE_IMGUI
+	ParticleEditor::GetInstance()->Update();
+#endif
 
 	sceneMgr_->Update(*this, dt); // ここがあるかが重要
+
+	Camera* cam = objCommon_->GetDefaultCamera();
+	if (cam) {
+		ParticleManager::GetInstance()->Update(dt, *cam);
+	}
 }
 
 //void GameApp::Draw() {
@@ -254,7 +272,15 @@ void GameApp::Update(float dt) {
 //}
 
 void GameApp::Draw3D() {
+	auto* cmd = dx_->GetCommandList();
+	
+	// すべての3D描画の前にパーティクルのコンピュート処理を実行
+	ParticleManager::GetInstance()->UpdateCompute(cmd);
+
 	sceneMgr_->Draw3D(*this);
+
+	// 3D描画の最後にパーティクルを描画（最前面に出るように）
+	ParticleManager::GetInstance()->Draw(cmd);
 }
 
 void GameApp::Draw2D() {
@@ -263,6 +289,9 @@ void GameApp::Draw2D() {
 
 void GameApp::DrawImGui() {
 	sceneMgr_->DrawImGui(*this);
+#ifdef USE_IMGUI
+	ParticleEditor::GetInstance()->DrawImGui();
+#endif
 }
 
 void GameApp::Draw() {
@@ -279,6 +308,45 @@ void GameApp::BeginObjectPostEffect() {
 
 void GameApp::EndObjectPostEffect() {
 	objectPostEffect_->EndCapture();
+}
+
+void GameApp::EndObjectPostEffectToBloomScene() {
+	objectPostEffect_->EndCaptureToRenderTarget(
+		bloom_->GetSceneRTVHandle(),
+		WinApp::kClientWidth,
+		WinApp::kClientHeight
+	);
+}
+
+void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param)
+{
+	if (!sprite) {
+		return;
+	}
+
+	objectPostEffect_->SetParam(param);
+	sprite->Update(view, proj);
+	BeginObjectPostEffect();
+	sprite->Draw();
+	EndObjectPostEffect();
+	spriteCommon_->SetGraphicsPipelineState();
+}
+
+void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param)
+{
+	if (!particles) {
+		return;
+	}
+
+	objectPostEffect_->SetParam(param);
+	BeginObjectPostEffect();
+	particles->Draw();
+	objectPostEffect_->EndCaptureToRenderTarget(
+		bloom_->GetSceneRTVHandle(),
+		WinApp::kClientWidth,
+		WinApp::kClientHeight
+	);
+	objCommon_->SetGraphicsPipelineState();
 }
 
 void GameApp::WarmupAssets_() {
@@ -381,7 +449,8 @@ void GameApp::WarmupAssets_() {
 	ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
 	ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
 
-
+	// パーティクルの全エフェクト自動ロード
+	ParticleManager::GetInstance()->LoadAllEffects();
 
 	OutputDebugStringA("[Warmup] END\n");
 }
@@ -391,4 +460,10 @@ void GameApp::SetDeckInstancesFromId(const std::vector<int>& ids) {
 	for (const auto& id : ids) {
 		deckInstances_.push_back(MakeCardInstance(id));
 	}
+}
+
+void GameApp::SetSelectedStage(int stageId, const std::string& configPath)
+{
+	selectedStageId_ = stageId;
+	selectedStageConfigPath_ = configPath;
 }

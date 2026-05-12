@@ -24,11 +24,13 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     bloomRT_Half_ = std::make_unique<RenderTexture>();
     bloomRT_Half_->Initialize(dxCommon_, srvManager_, rtvManager_, WinApp::kClientWidth / 2, WinApp::kClientHeight / 2, transparent);
 
-    cb_ = std::make_unique<BloomConstantBuffer>();
-    cb_->Initialize(dxCommon_);
+    for (auto& cb : cbs_) {
+        cb = std::make_unique<BloomConstantBuffer>();
+        cb->Initialize(dxCommon_);
+    }
 
     postEffect_ = std::make_unique<PostEffect>();
-    postEffect_->Initialize(dxCommon_, cb_.get());
+    postEffect_->Initialize(dxCommon_, cbs_[currentCbIndex_].get());
 
     param_.threshold = 0.0f;
     param_.intensity = 1.0f;
@@ -48,14 +50,14 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     param_.dissolveNoiseScale = 36.0f;
     param_.dissolveEdgeColor = { 0.15f, 1.0f, 1.0f, 1.0f };
 
-    cb_->Update(param_);
+    cbs_[currentCbIndex_]->Update(param_);
 }
 
 void ObjectPostEffect::Update()
 {
     timer_ += 1.0f / 60.0f;
     param_.timer = timer_;
-    cb_->Update(param_);
+    cbs_[currentCbIndex_]->Update(param_);
 }
 
 void ObjectPostEffect::BeginCapture()
@@ -72,6 +74,11 @@ void ObjectPostEffect::BeginCapture()
 }
 
 void ObjectPostEffect::EndCapture()
+{
+    EndCaptureToRenderTarget({ 0 }, WinApp::kClientWidth, WinApp::kClientHeight);
+}
+
+void ObjectPostEffect::EndCaptureToRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE outputRTV, int width, int height)
 {
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -102,15 +109,22 @@ void ObjectPostEffect::EndCapture()
     postEffect_->Draw(bloomRT_B_->GetGPUHandle(), Bloom_BlurV);
     Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    dxCommon_->SetBackBuffer();
-    dxCommon_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    if (outputRTV.ptr == 0) {
+        dxCommon_->SetBackBuffer();
+    } else {
+        dxCommon_->SetRenderTargetNoDepth(outputRTV);
+    }
+    dxCommon_->SetViewport(width, height);
     postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
 }
 
 void ObjectPostEffect::SetParam(const BloomParam& param)
 {
     param_ = param;
-    cb_->Update(param_);
+    param_.timer = timer_;
+    currentCbIndex_ = (currentCbIndex_ + 1) % kParamBufferCount_;
+    cbs_[currentCbIndex_]->Update(param_);
+    postEffect_->SetBloomConstantBuffer(cbs_[currentCbIndex_].get());
 }
 
 void ObjectPostEffect::Transition(ID3D12Resource* res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
