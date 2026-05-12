@@ -969,9 +969,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					}
 				}
 
-			/*	if (applyAttackBuff) {
-					nextTurnAtkUp_ = 0;
-				}*/
+				/*	if (applyAttackBuff) {
+						nextTurnAtkUp_ = 0;
+					}*/
 			}
 
 		} else if (effect.type == "DamageCrescent") {
@@ -998,9 +998,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					}
 				}
 
-			/*	if (applyAttackBuff) {
-					nextTurnAtkUp_ = 0;
-				}*/
+				/*	if (applyAttackBuff) {
+						nextTurnAtkUp_ = 0;
+					}*/
 			}
 
 		} else if (effect.type == "DamageByBlock") {
@@ -1023,9 +1023,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					}
 				}
 
-			/*	if (applyAttackBuff) {
-					nextTurnAtkUp_ = 0;
-				}*/
+				/*	if (applyAttackBuff) {
+						nextTurnAtkUp_ = 0;
+					}*/
 			}
 
 		} else if (effect.type == "Block") {
@@ -1111,6 +1111,81 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				player_->PlayDamageAnim();
 				player_->Damage(effect.value);
 			}
+
+		} else if (effect.type == "Poison") {
+			if (enemyMgr_) {
+				// 単体ターゲットが指定されている場合
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()) {
+						e.AddPoison(effect.value);
+					}
+				} else {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.AddPoison(effect.value);
+							break;
+						}
+					}
+				}
+			}
+			if (player_->GetPoisonDrawActive()) {
+				DrawCards_(1); // ポイズンドロー状態なら1枚引く
+			}
+		} else if (effect.type == "PoisonAll") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.AddPoison(effect.value);
+					}
+				}
+			}
+			if (player_->GetPoisonDrawActive()) {
+				DrawCards_(1); // ポイズンドロー状態なら1枚引く
+			}
+		} else if (effect.type == "PoisonDouble") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.PoisonDouble();
+					}
+				}
+			}
+		} else if (effect.type == "PoisonDamage") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.PoisonDamage(effect.value);
+					}
+				}
+			}
+		} else if (effect.type == "PoisonDraw") {
+
+			player_->SetPoisonDrawActive(true);
+
+		} else if (effect.type == "PoisonRemove") {
+
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.PoisonRemove();
+					}
+				}
+			}
+
+		} else if (effect.type == "PoisonHeal") {
+
+			int healAmount = 0;
+
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						healAmount += e.GetPoison();
+					}
+				}
+			}
+
+			player_->Heal(healAmount);
 
 		} else if (effect.type == "ChangeNumber") {
 			// 後で対象指定が必要
@@ -1206,7 +1281,7 @@ void BattleController::StartPlayerTurn_()
 	if (!field_.empty()) {
 		RebuildFieldView_();
 	}
-	
+
 	if (field_.size() == 5) {
 		currentPoker_ = EvaluatePokerHand_();
 
@@ -1448,12 +1523,12 @@ std::wstring BattleController::GetPreviewCardDetailText() const
 			if (i > 0) {
 				text += L"\n\n";
 			}
-			
+
 			std::wstring triggerText = GetSubEffectTriggerText_(sub.trigger);
 			if (!triggerText.empty()) {
 				text += triggerText + L"\n";
 			}
-			
+
 			std::wstring conditionText = GetSubEffectConditionText_(sub);
 			if (!conditionText.empty()) {
 				text += conditionText + L"\n";
@@ -1640,12 +1715,12 @@ void BattleController::RebuildFieldView_()
 	}
 
 	// 1. 今の役を評価
-if (field_.size() == 5) {
-	currentPoker_ = EvaluatePokerHand_();
-} else {
-	currentPoker_.rank = PokerHandRank::None;
-	currentPoker_.power = 0;
-}
+	if (field_.size() == 5) {
+		currentPoker_ = EvaluatePokerHand_();
+	} else {
+		currentPoker_.rank = PokerHandRank::None;
+		currentPoker_.power = 0;
+	}
 
 	// 2. 役の強さに応じてキラキラの強さを決める
 	float intensity = 0.0f;
@@ -1660,22 +1735,22 @@ if (field_.size() == 5) {
 	}
 
 	// 3. 役に関係しているカードだけをハイライト
-    std::array<bool, 5> mask = GetPokerHighlightMask_();
+	std::array<bool, 5> mask = GetPokerHighlightMask_();
 
-    for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-        if (i < 5 && mask[i]) {
-            fieldViews_[i]->SetGlitter(intensity);
-            
-            // 強い役なら枠の色も変更
-            if (currentPoker_.rank != PokerHandRank::None) {
-                // final frame color is applied in RefreshAllFieldCardTransforms_()
-            }
-        } else {
-            // 役に関係ないカードはリセット
-            fieldViews_[i]->SetGlitter(0.0f);
-            // final frame color is applied in RefreshAllFieldCardTransforms_()
-        }
-    }
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		if (i < 5 && mask[i]) {
+			fieldViews_[i]->SetGlitter(intensity);
+
+			// 強い役なら枠の色も変更
+			if (currentPoker_.rank != PokerHandRank::None) {
+				// final frame color is applied in RefreshAllFieldCardTransforms_()
+			}
+		} else {
+			// 役に関係ないカードはリセット
+			fieldViews_[i]->SetGlitter(0.0f);
+			// final frame color is applied in RefreshAllFieldCardTransforms_()
+		}
+	}
 
 	fieldLayoutDirty_ = true;
 	RefreshAllFieldCardTransforms_(0.0f);
@@ -1884,9 +1959,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					if (clip.w > 0.0f) {
 						float sx = (clip.x / clip.w + 1.0f) * 0.5f * WinApp::kClientWidth;
 						float sy = (1.0f - clip.y / clip.w) * 0.5f * WinApp::kClientHeight;
-						
+
 						// モデルのスケールに応じて当たり判定の半径を計算（適度に大きめ）
-						float radius = 60.0f * prop.scale.x; 
+						float radius = 60.0f * prop.scale.x;
 						float dx = mouse.x - sx;
 						float dy = mouse.y - sy;
 						if (dx * dx + dy * dy <= radius * radius) {
@@ -1940,6 +2015,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				" field=" + std::to_string(field_.size()) + "\n").c_str());
 
 			turn_ = TurnState::Enemy;
+			player_->SetPoisonDrawActive(false);
 			enemyTurnCount_++;
 			hasPendingCard_ = false;
 			pendingCard_ = {};
@@ -2047,6 +2123,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 									dmgVal += (player_ ? player_->GetBlock() : 0) * effect.value;
 									hitCount++;
 								}
+								if (effect.type == "Poison") {
+									needsTarget = true;
+									hitCount++;
+								}
 							}
 
 							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
@@ -2120,7 +2200,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 			case CardInputState::ChoosingFieldReplace:
 			{
 				if (pendingCardView_) {
-					
+
 					Vector3 previewPos = { -10.f, 2.0f, 3.0 };
 					pendingCardView_->SetTransform(previewPos, { 0.0f, 0.0f, 0.0f }, { 1.f, 1.f, 1.f });
 					pendingCardView_->Update(dt); // 描画のためにUpdateを呼ぶ
@@ -2344,6 +2424,21 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				} else {
 					// 全ての敵の行動が終わった場合
+
+					// 毒ダメージ付加
+					if (enemyMgr_) {
+						// 全ての敵に対してループ処理を行う
+						for (auto& enemy : enemyMgr_->GetEnemies()) {
+							// 生きている敵のみに付与
+							if (enemy.IsAlive()) {
+								enemy.ApplyPoisonDamage();
+
+								// 必要であれば各敵の頭上にエフェクトや数値を出す
+								// SpawnDamagePopup(enemy.GetPos(), effect.value, false); 
+							}
+						}
+					}
+
 					currentEnemyIndex_ = 0; // 次のターンに向けてリセットしておく
 
 					// プレイヤーターンへ移行
@@ -2493,7 +2588,7 @@ void BattleController::UpdateVisuals_(float dt)
 				Vector3 digitPos = it->pos;
 				digitPos.x += startX + gap * i;
 				digitPos.z -= 1.0f; // 手前に表示させる
-				
+
 				it->digitModels[i]->SetTranslate(digitPos);
 				it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
 				it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
@@ -2522,7 +2617,7 @@ void BattleController::UpdateVisuals_(float dt)
 
 	if (propManager_) {
 		propManager_->Update(dt);
-		
+
 		// EndTurnボタン（Prop）のホバー時のフィードバック
 		for (auto& prop : propManager_->GetPropsMutable()) {
 			if (prop.name == "Button" || prop.name == "EndTurnButton") {
@@ -3402,6 +3497,21 @@ std::vector<std::wstring> BattleController::GetEnemyHpTexts() const {
 	}
 	return hpTexts;
 }
+
+std::vector<std::wstring> BattleController::GetEnemyPoisonTexts() const {
+	std::vector<std::wstring> poisonTexts;
+	auto& enemies = enemyMgr_->GetEnemies();
+
+	for (const auto& enemy : enemies) {
+		if (enemy.IsAlive()) {
+			// "100 / 100" という形式の文字列を作成
+			std::wstring text = std::to_wstring(enemy.GetPoison());
+			poisonTexts.push_back(text);
+		}
+	}
+	return poisonTexts;
+}
+
 
 
 BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const

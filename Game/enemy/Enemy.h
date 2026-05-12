@@ -112,12 +112,45 @@ public:
         return 0;
     }
 
+	/// ----- 毒の処理 ----- ///
+    // 毒を付与する
+    void AddPoison(int value) { poison_ += value; }
+    // 毒の値を取得する
+    int GetPoison() const { return poison_; }
+    // ターン終了時などに毒のダメージを適用する（必要に応じて実装）
+    void ApplyPoisonDamage() {
+		hp_ -= poison_;
+        poison_ -= 1;
+        if (poison_ < 0) {
+			poison_ = 0;
+        }
+        if (hp_ < 0) {
+            hp_ = 0;
+            alive_ = false;
+        }
+    }
+
+    void PoisonDouble() {
+        poison_ *= 2;
+	}
+
+    void PoisonDamage(int count) {
+        hp_ -= poison_ * count;
+        if (hp_ < 0) {
+            hp_ = 0;
+            alive_ = false;
+        }
+	}
+
+    void PoisonRemove() {
+        poison_ = 0;
+	}
+
 public:
 
     //チュートリアル用
     void SetMaxHp(int maxHp, bool healToFull = true);
     void SetHp(int hp);
-   // int GetTutorialMaxHp() const { return maxHp_; }
 
 private:
 
@@ -152,6 +185,8 @@ private:
     Vector3 targetPos_{};
 
     float flashTimer_ = 0.0f;
+
+    int poison_ = 0;
 };
 
 // ==========================================

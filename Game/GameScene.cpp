@@ -256,6 +256,13 @@ void GameScene::OnEnter(GameApp& app) {
 		text->SetSize({ 1.0f,1.0f,1.0f });
 		text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
 		enemyHpTexts_.push_back(std::move(text));
+
+		auto poisonText = std::make_unique<TextSprite>();
+		poisonText->Initialize(app.SpriteCom(), app.Dx());
+		poisonText->SetSize({ 1.0f,1.0f,1.0f });
+		poisonText->SetColor({ 0.5f, 0.0f, 0.5f }); // 紫色
+		enemyPoisonTexts_.push_back(std::move(poisonText));
+
 	}
 
 	// パワーブースト
@@ -661,6 +668,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
+	std::vector<std::wstring> poisonData = battle_.GetEnemyPoisonTexts();
 
 	for (size_t i = 0; i < enemyHpTexts_.size(); i++) {
 		if (i < hpData.size()) {
@@ -670,6 +678,18 @@ void GameScene::Update(GameApp& app, float dt) {
 		} else {
 
 			enemyHpTexts_[i]->SetText(L"");
+		}
+	}
+
+
+	for (size_t i = 0; i < enemyPoisonTexts_.size(); i++) {
+		if (i < poisonData.size()) {
+			enemyPoisonTexts_[i]->SetText(poisonData[i]);
+
+			enemyPoisonTexts_[i]->SetPosition({ 1200.0f, 10.0f + (i * 30.0f) });
+		} else {
+
+			enemyPoisonTexts_[i]->SetText(L"");
 		}
 	}
 
@@ -788,6 +808,12 @@ void GameScene::Draw2D(GameApp& app) {
 			bossStageBannerText_->Update(view, proj);
 			bossStageBannerText_->Draw();
 		}
+	}
+
+
+	for (auto& text : enemyPoisonTexts_) {
+		text->Update(view, proj);
+		text->Draw();
 	}
 }
 

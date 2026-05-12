@@ -102,6 +102,7 @@ private:
 
     std::unique_ptr<TextSprite> playerHpText_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
+    std::vector<std::unique_ptr<TextSprite>> enemyPoisonTexts_;
 
     ParticleEmitterConfig attackEffectConfig_;
     
