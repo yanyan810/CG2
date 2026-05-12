@@ -3336,6 +3336,21 @@ std::vector<std::wstring> BattleController::GetEnemyHpTexts() const {
 	return hpTexts;
 }
 
+std::vector<std::wstring> BattleController::GetEnemyPoisonTexts() const {
+	std::vector<std::wstring> poisonTexts;
+	auto& enemies = enemyMgr_->GetEnemies();
+
+	for (const auto& enemy : enemies) {
+		if (enemy.IsAlive()) {
+			// "100 / 100" という形式の文字列を作成
+			std::wstring text = std::to_wstring(enemy.GetPoison());
+			poisonTexts.push_back(text);
+		}
+	}
+	return poisonTexts;
+}
+
+
 
 BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
 {
