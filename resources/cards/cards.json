@@ -320,7 +320,7 @@
       {
       "id": 23,
       "name": "PainAmplification",
-      "cost": 2,
+      "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PainAmplification.png",
@@ -410,7 +410,7 @@
       {
       "id": 30,
       "name": "FriendlyPoison",
-      "cost": 3,
+      "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/FriendlyPoison.png",
