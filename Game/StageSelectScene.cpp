@@ -148,6 +148,11 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
+	if (input->IsKeyTrigger(DIK_A)) {
+		RequestChangeScene_("BattleAnimeEditer");
+		return;
+	}
+
 	hoverIndex_ = -1;
 
 	POINT mouse = input->GetMousePosition();

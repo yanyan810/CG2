@@ -1,0 +1,45 @@
+{
+    "cutinDuration": 0.6,
+    "cutinBgColor": [
+        0.0,
+        0.0,
+        0.0,
+        0.7
+    ],
+    "cutinLineColor": [
+        1.0,
+        0.3,
+        0.1,
+        1.0
+    ],
+    "enableCameraWork": true,
+    "approachDuration": 0.3,
+    "attackWaitDuration": 0.5,
+    "returnDuration": 0.3,
+    "cameraPos": [
+        7.358891487121582,
+        7.374782085418701,
+        -6.925790786743164
+    ],
+    "cameraRot": [
+        0.6233846020059449,
+        -0.7032724368751422,
+        0.0
+    ],
+    "cameraFov": 0.6911112070083618,
+    "cameraAnimFile": "resources/sequences/test_attack_2_camera.json",
+    "playerPos": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "enemyPos": [
+        8.303918838500977,
+        0.0,
+        0.0
+    ],
+    "playerAttackAnim": "",
+    "playerAttackAnimStartTime": 2.5,
+    "enemyDamageAnim": "",
+    "enemyDamageAnimStartTime": 0.0
+}

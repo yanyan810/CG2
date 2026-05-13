@@ -46,6 +46,10 @@ public:
     WindowVisibility& GetWindowVisibility() { return windowVisibility_; }
     const WindowVisibility& GetWindowVisibility() const { return windowVisibility_; }
 
+    void SetExportFileName(const std::string& filename) {
+        strncpy_s(exportFileName_, sizeof(exportFileName_), filename.c_str(), _TRUNCATE);
+    }
+
 private:
     struct Ray {
         Vector3 origin;

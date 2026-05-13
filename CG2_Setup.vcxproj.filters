@@ -100,6 +100,8 @@
     <ClCompile Include="Game\PropManager.cpp" />
     <ClCompile Include="Engine\GeometryGenerator.cpp" />
     <ClCompile Include="Engine\ParticleEditor.cpp" />
+    <ClCompile Include="Game\UI\BattleActionDirector.cpp" />
+    <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
@@ -202,6 +204,8 @@
     <ClInclude Include="Game\PropManager.h" />
     <ClInclude Include="Engine\GeometryGenerator.h" />
     <ClInclude Include="Engine\ParticleEditor.h" />
+    <ClInclude Include="Game\UI\BattleActionDirector.h" />
+    <ClInclude Include="Game\BattleAnimeEditerScene.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />
