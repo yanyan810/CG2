@@ -336,7 +336,7 @@ void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const 
 	spriteCommon_->SetGraphicsPipelineState();
 }
 
-void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param)
+void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param, int clipHeight)
 {
 	if (!particles) {
 		return;
@@ -344,12 +344,21 @@ void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* par
 
 	objectPostEffect_->SetParam(param);
 	BeginObjectPostEffect();
+	if (clipHeight > 0) {
+		dx_->SetScissorRect(0, 0, WinApp::kClientWidth, clipHeight);
+	}
 	particles->Draw();
 	objectPostEffect_->EndCaptureToRenderTarget(
 		bloom_->GetSceneRTVHandle(),
 		WinApp::kClientWidth,
-		WinApp::kClientHeight
+		WinApp::kClientHeight,
+		clipHeight
 	);
+	dx_->SetRenderTarget(bloom_->GetSceneRTVHandle());
+	dx_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+	if (clipHeight > 0) {
+		dx_->SetScissorRect(0, 0, WinApp::kClientWidth, clipHeight);
+	}
 	objCommon_->SetGraphicsPipelineState();
 }
 

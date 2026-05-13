@@ -78,6 +78,7 @@ public:
 	void Draw3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
+	Camera* GetActionCamera() const;
 
 	const CardDef* GetPreviewCardDef() const;
 
