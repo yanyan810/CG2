@@ -2336,11 +2336,68 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				if (lTrig) {
 					if (hoverIndex >= 0) {
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
-						currentEnemyIndex_ = hoverIndex;
-						const CardInstance& inst = hand_[pendingCardHandIndex_];
-						const CardDef* def = db_.Find(inst.defId);
-						if (!def || !BeginCardActionSequence_(app, *def, targetEnemy)) {
-							actionDirector_.StartAction(player_, &targetEnemy);
+
+						if (isPokerDamageTargeting_) {
+							PlaySE_("SE_StrongAttack");
+							ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
+							if (pendingDamage_ > 0) {
+								SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
+							}
+
+							// ここで初めて「発動完了」
+							lastPokerTutorialResult_ = PokerTutorialResult::Activated;
+
+							isPokerDamageTargeting_ = false;
+							tutorialLockPokerTargetingCancel_ = false;
+							pendingDamage_ = 0;
+
+
+							ConsumeFieldCards_();
+							cardState_ = CardInputState::Idle;
+							turn_ = TurnState::Enemy;
+							enemyTurnCount_++;
+							enemyWait_ = 1.0f;
+						} else {
+							// 手札のカードでの攻撃だった場合
+							int idx = pendingCardHandIndex_;
+							CardInstance inst = hand_[idx];
+							const CardDef* def = db_.Find(inst.defId);
+
+							// コストを消費して手札から消す
+							energy_ -= def->cost;
+							PlaySE_("SE_CardPlay");
+							PlayAttackSEForCard_(*def);
+							auto usedCardView = handView_.ExtractCardAt(idx);
+							hand_.erase(hand_.begin() + idx);
+
+							handView_.Rebuild(hand_);
+
+							// ダメージ以外の効果（ドローなど）を発動
+							ApplyCardEffects_(*def, hoverIndex);
+
+							handView_.SetFocusIndex(-1);
+
+							// 場に出す処理
+							if ((int)field_.size() < 5) {
+								field_.push_back(inst);
+								if (usedCardView) {
+									usedCardView->SetIsHand(false);
+									fieldViews_.push_back(std::move(usedCardView));
+								}
+								RebuildFieldView_();
+								if ((int)field_.size() == 5) {
+									PokerHandResult poker = EvaluatePokerHand_();
+									TriggerSubEffectsForCard_(inst, SubEffectTrigger::OnPlayToField, poker.rank);
+								}
+								cardState_ = CardInputState::Idle;
+								hasPendingCard_ = false;
+								pendingCard_ = {};
+							} else {
+								pendingCard_ = inst;
+								hasPendingCard_ = true;
+								pendingCardView_ = std::move(usedCardView);
+								cardState_ = CardInputState::ChoosingFieldReplace;
+							}
 						}
 						cardState_ = CardInputState::ExecutingSequence;
 					}
@@ -3668,9 +3725,9 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 {
 	if (isPokerDamageTargeting_) {
 		PlaySE_("SE_StrongAttack");
-		const int actualDamage = ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
+		ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
 		if (pendingDamage_ > 0) {
-			SpawnDamagePopup(targetEnemy.GetPos(), actualDamage, false);
+			SpawnDamagePopup(targetEnemy.GetPos(), pendingDamage_, false);
 		}
 
 		lastPokerTutorialResult_ = PokerTutorialResult::Activated;
