@@ -12,6 +12,7 @@
 #include "Sprite.h"
 #include "TextSprite.h"
 #include <memory>
+#include "UI/BattleActionDirector.h"
 
 class GameApp;
 class Camera;
@@ -32,7 +33,8 @@ public:
 		Dragging,
 		Preview,
 		ChoosingFieldReplace,
-		ChoosingEnemyTarget
+		ChoosingEnemyTarget,
+		ExecutingSequence
 	};
 
 	enum class PokerChoiceState
@@ -76,6 +78,7 @@ public:
 	void Draw3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
+	Camera* GetActionCamera() const;
 
 	const CardDef* GetPreviewCardDef() const;
 
@@ -365,6 +368,15 @@ private:
 private:
 
 	SpriteCommon* spriteCom_ = nullptr;
+	BattleActionDirector actionDirector_;
+	std::vector<const ActionSequenceProfile*> actionSequenceQueue_;
+	size_t actionSequenceIndex_ = 0;
+	Enemy* actionSequenceTarget_ = nullptr;
+
+	void ExecutePendingAttack_(Enemy& targetEnemy);
+	std::vector<std::string> CollectEffectTypes_(const CardDef& def) const;
+	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, Enemy& targetEnemy);
+	bool StartNextActionSequence_();
 
 	std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
 	std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)

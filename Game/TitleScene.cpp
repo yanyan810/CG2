@@ -215,6 +215,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 	bool tutorialTrig = input->IsKeyTrigger(DIK_T);
 	bool deckEditTrig = input->IsKeyTrigger(DIK_D);
 	bool objectPostTestTrig = input->IsKeyTrigger(DIK_O);
+	bool animeEditorTrig = input->IsKeyTrigger(DIK_A);
 
 	if (!clickDissolveDone_) {
 		openingDissolveTimer_ += dt;
@@ -259,6 +260,11 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 		if (objectPostTestTrig) {
 			RequestChangeScene_("Test");
+			return;
+		}
+
+		if (animeEditorTrig) {
+			RequestChangeScene_("BattleAnimeEditer");
 			return;
 		}
 

@@ -93,7 +93,7 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection) {
         }
 
         // インスタンスごとの描画命令
-        if (instanceVertexCount > 0) {
+        if (instanceVertexCount >= 4) {
             commandList->DrawInstanced(instanceVertexCount, 1, currentVertexOffset, 0);
             currentVertexOffset += instanceVertexCount;
         }

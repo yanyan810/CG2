@@ -618,6 +618,22 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	battle_.Update(app, *fieldUi_, dt);
+	if (Camera* actionCamera = battle_.GetActionCamera()) {
+		int windowW = WinApp::kClientWidth;
+		int windowH = WinApp::kClientHeight;
+		int battleHeight = static_cast<int>(windowH * splitRatio_);
+		actionCamera->SetAspect((float)windowW / battleHeight);
+
+		float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+		float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
+		actionCamera->SetFovY(correctedFovY);
+
+		Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
+		shiftBattle.m[1][1] = splitRatio_;
+		shiftBattle.m[3][1] = 1.0f - splitRatio_;
+		actionCamera->SetProjectionShift(shiftBattle);
+		actionCamera->Update();
+	}
 
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
@@ -971,13 +987,15 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 {
 	int windowW = WinApp::kClientWidth;
 	int windowH = WinApp::kClientHeight;
+	int battleHeight = static_cast<int>(windowH * splitRatio_);
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
-	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	if (particleObjectPostEnabled_) {
-		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
+		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_, battleHeight);
+		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	} else {
 		particleManager_->Draw();
 	}
@@ -991,6 +1009,8 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	if (trailManager_) {
 		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());
 	}
+
+	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
 
 void GameScene::DrawPostEffect2D(GameApp& app)
