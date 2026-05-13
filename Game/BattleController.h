@@ -76,6 +76,10 @@ public:
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
 	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
+	void DrawDamagePopups3D(GameApp& app);
+	void DrawField3D(GameApp& app);
+	void DrawCardArea3D(GameApp& app);
+	void DrawBattleOverlay3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
 	Camera* GetActionCamera() const;

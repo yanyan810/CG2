@@ -2929,7 +2929,25 @@ void BattleController::HandlePokerViewBoard_(FieldUi& fieldUi, POINT mouse, bool
 
 void BattleController::Draw3D(GameApp& app)
 {
+	DrawDamagePopups3D(app);
+	DrawCardArea3D(app);
+	DrawField3D(app);
+	DrawBattleOverlay3D(app);
+}
 
+void BattleController::DrawDamagePopups3D(GameApp& app)
+{
+	(void)app;
+	for (auto& popup : damagePopups_) {
+		for (auto& obj : popup.digitModels) {
+			if (obj) obj->Draw();
+		}
+	}
+}
+
+void BattleController::DrawCardArea3D(GameApp& app)
+{
+	(void)app;
 	// 墓地
 	if (discardView_) {
 		discardView_->Draw();
@@ -2956,11 +2974,18 @@ void BattleController::Draw3D(GameApp& app)
 	for (auto& c : fieldViews_) {
 		c->Draw();
 	}
+}
 
+void BattleController::DrawField3D(GameApp& app)
+{
+	(void)app;
 	if (propManager_) {
 		propManager_->Draw3D();
 	}
+}
 
+void BattleController::DrawBattleOverlay3D(GameApp& app)
+{
 	if (cardState_ == CardInputState::ChoosingEnemyTarget) {
 		highlightFilter_->Draw();
 

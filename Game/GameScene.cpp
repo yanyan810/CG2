@@ -743,11 +743,19 @@ void GameScene::Draw3D(GameApp& app) {
 	if (battle_.GetNowCardInputState() == BattleController::CardInputState::ChoosingEnemyTarget) {
 		highlightFilter_->Draw();
 	}
+	battle_.DrawDamagePopups3D(app);
+
+	app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
+	app.ObjCom()->SetGraphicsPipelineState();
+	app.Dx()->ClearDepthBuffer();
+	battle_.DrawField3D(app);
+	battle_.DrawCardArea3D(app);
+
+	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+	app.ObjCom()->SetGraphicsPipelineState();
+	battle_.DrawBattleOverlay3D(app);
 
 	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
-	app.ObjCom()->SetGraphicsPipelineState();
-
-	battle_.Draw3D(app);
 	battle_.DrawPostEffect3D(app);
 
 	// 最後にビューポートを元に戻す（2D描画等のため）
@@ -781,7 +789,6 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 	battle_.Draw2D(app);
-
 
 	highlightFilter_->Update(view, proj);
 
