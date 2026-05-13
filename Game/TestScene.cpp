@@ -35,16 +35,20 @@ void TestScene::OnEnter(GameApp& app) {
     // EnemyManager
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
 
-    //// ★真ん中に「動かない敵」を1体
-    //const Vector3 enemyPos{ 0.0f, 0.0f, 5.0f };
-    //enemyMgr_.Spawn(EnemyType::Melee, enemyPos);
-    //
-    // ★凍結（GetEnemies() は PlayerCombo でも使ってるので存在してる前提）
-    //auto& enemies = enemyMgr_.GetEnemies();
-    //if (!enemies.empty()) {
-    //    enemies.back().SetInvincible(true); // 死なない
-    //    enemies.back().SetAIDisabled(true); // AI止める（でも吹き飛ぶ）
-    //}
+    // ★真ん中に敵を1体（テスト用）
+    const Vector3 enemyPos{ 0.0f, 0.0f, 5.0f };
+    enemyMgr_.Spawn(EnemyType::Boss, enemyPos);
+
+    actionDirector_.Initialize(app.SpriteCom(), app.Dx());
+    if (const ActionSequenceProfile* profile = app.FindActionSequenceProfile("test_attack")) {
+        actionDirector_.SetProfile(*profile);
+        actionDirector_.SetProfilePath("resources/sequences/test_attack.json");
+
+        player_->SetSpawnPos(profile->playerPos);
+        if (!enemyMgr_.GetEnemies().empty()) {
+            enemyMgr_.GetEnemies().front().SetPosition(profile->enemyPos);
+        }
+    }
 
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text1.png");
 
@@ -240,13 +244,20 @@ void TestScene::Update(GameApp& app, float dt) {
     //postParam.noiseIntensity = 0.02f;
 
     if (player_) {
-        //player_->Update(dt, *input_, enemyMgr_);
+        player_->Update(dt);
     }
+    
+    enemyMgr_.Update(dt);
 
-   /* Vector2 playerPos2D = player_->GetPos2D();
-    float playerZ = player_->GetZ();*/
+    actionDirector_.Update(dt);
 
-    //enemyMgr_.Update(dt, playerPos2D, playerZ, *player_);
+    if (actionDirector_.IsPlaying() && actionDirector_.GetProfile().enableCameraWork) {
+        // 再生中はシネマティックカメラの座標・回転をメインカメラにコピーする
+        Camera* cinematicCam = actionDirector_.GetCinematicCamera();
+        camera_->SetTranslate(cinematicCam->GetTranslate());
+        camera_->SetRotate(cinematicCam->GetRotate());
+        camera_->SetFovY(cinematicCam->GetFovY());
+    }
 
     // ===============================
     // ★ クランプ到達チェック
@@ -402,6 +413,11 @@ void TestScene::Update(GameApp& app, float dt) {
 #endif
 
 
+    if(input_->IsKeyTrigger(DIK_ESCAPE)) {
+        //prevEsc_ = true;
+        RequestChangeScene_("Title");
+    }
+    
 
 }
 
@@ -412,7 +428,7 @@ void TestScene::Draw3D(GameApp& app) {
 
     app.ObjCom()->SetGraphicsPipelineState();
 
-    if (ground_) ground_->Draw();
+//    if (ground_) ground_->Draw();
     if (skyDome_) skyDome_->Draw();
     if (normalCube_) normalCube_->Draw();
     if (drawPointMarker_ && pointMarker_) pointMarker_->Draw();
@@ -447,10 +463,16 @@ void TestScene::Draw2D(GameApp& app) {
         playTxst_->Update(view, proj);
         playTxst_->Draw();
     }
+
+    actionDirector_.Draw2D();
 }
 
 void TestScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
- 
+    Enemy* targetEnemy = nullptr;
+    if (!enemyMgr_.GetEnemies().empty()) {
+        targetEnemy = &enemyMgr_.GetEnemies().front();
+    }
+    actionDirector_.DrawImGuiEditor(camera_.get(), player_.get(), targetEnemy);
 #endif
 }

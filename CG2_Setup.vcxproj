@@ -176,6 +176,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\3D\AnimationJsonSerializer.cpp" />
     <ClCompile Include="Engine\GeometryGenerator.cpp" />
     <ClCompile Include="Engine\ParticleEditor.cpp" />
+    <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
     <ClCompile Include="Game\DeckEditScene.cpp" />
     <ClCompile Include="Engine\Audio.cpp" />
     <ClCompile Include="Engine\AudioManager.cpp" />
@@ -234,6 +235,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\StageSelectScene.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialManager.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
+    <ClCompile Include="Game\UI\BattleActionDirector.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
     <ClCompile Include="Game\UI\FieldUi.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
@@ -340,6 +342,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\3D\AnimationJsonSerializer.h" />
     <ClInclude Include="Engine\GeometryGenerator.h" />
     <ClInclude Include="Engine\ParticleEditor.h" />
+    <ClInclude Include="Game\BattleAnimeEditerScene.h" />
     <ClInclude Include="Game\DeckEditScene.h" />
     <ClInclude Include="Engine\Audio.h" />
     <ClInclude Include="Engine\AudioManager.h" />
@@ -423,6 +426,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\TestScene.h" />
     <ClInclude Include="Game\Tutorial\TutorialManager.h" />
     <ClInclude Include="Game\Tutorial\TutorialScene.h" />
+    <ClInclude Include="Game\UI\BattleActionDirector.h" />
     <ClInclude Include="Game\UI\Card3D.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />

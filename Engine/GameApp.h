@@ -9,9 +9,14 @@
 #include "ObjectPostEffect.h"
 #include "AudioManager.h"
 #include "Matrix4x4.h"
+#include "UI/BattleActionDirector.h"
 
 #include"CardInstance.h"
 #include "TextSprite.h"
+
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 class CardDatabase;
 class WinApp;
@@ -74,10 +79,18 @@ public:
 
     CardDatabase* GetCardDB() { return cardDB_.get(); }
 
+    const ActionSequenceProfile* FindActionSequenceProfile(const std::string& name) const;
+    const ActionSequenceProfile* PickCardUseSequenceProfile() const;
+    const ActionSequenceProfile* PickCardEffectSequenceProfile(
+        int cardId,
+        const std::vector<std::string>& effectTypes) const;
+
 private:
     bool Initialize_();
     void Finalize_();
     void WarmupAssets_();
+    void LoadActionSequenceProfiles_();
+    const ActionSequenceProfile* PickSequenceFromNames_(const std::vector<std::string>& names) const;
 private:
     bool quit_ = false;
 
@@ -103,4 +116,9 @@ private:
     std::string selectedStageConfigPath_ = "resources/stages/stage01.json";
 
     std::unique_ptr<CardDatabase> cardDB_;
+
+    std::unordered_map<std::string, ActionSequenceProfile> actionSequenceProfiles_;
+    std::vector<std::string> cardUseSequenceNames_;
+    std::unordered_map<std::string, std::vector<std::string>> effectSequenceNames_;
+    std::unordered_map<int, std::vector<std::string>> cardSequenceNames_;
 };

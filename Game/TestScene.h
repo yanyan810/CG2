@@ -20,6 +20,7 @@ class Camera;
 class Player;
 
 #include "Enemy.h" // ← EnemyManager を使うなら
+#include "UI/BattleActionDirector.h"
 
 class TestScene : public IScene {
 public:
@@ -35,6 +36,7 @@ private:
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<Player> player_;
     EnemyManager enemyMgr_;
+    BattleActionDirector actionDirector_;
 
     bool prevEsc_ = false;
 
