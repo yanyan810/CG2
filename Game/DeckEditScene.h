@@ -46,11 +46,15 @@ private:
 
     bool isDeckValid_ = false;
 
+    bool isHoverd_ = false;
+
     std::unique_ptr<Sprite> changeSceneButtonBg_;  
     std::unique_ptr<TextSprite> changeSceneButtonText_;
     std::unique_ptr<TextSprite> warningText_;
     std::unique_ptr<TextSprite> countText_;
 	std::unique_ptr<TextSprite> controlHintText_;
+	std::unique_ptr<Sprite> cardPreviewBg_;
+    std::unique_ptr<TextSprite> cardPreviewText_;
 
 
     void RebuildCardModels(GameApp& app);
@@ -58,4 +62,8 @@ private:
     void UpdateSprites();
 
     int PickCardIndex(GameApp& app);
+
+    const CardDef* GetHoveredCardDef(GameApp& app);
+
+    Vector2 GetPopupPosition(GameApp& app, int cardIdx);
 };
