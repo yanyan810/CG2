@@ -573,6 +573,9 @@ void GameScene::Update(GameApp& app, float dt) {
 
 		// 少し上を向けてキャラクターの頭が見切れないようにする
 		Vector3 rot = animCamera_->GetRotate();
+		if (!cameraAnim_ || cameraAnim_->GetKeyframes().empty()) {
+			rot.x = 0.15f;
+		}
 		rot.x += battleCameraRotXOffset_;
 		animCamera_->SetRotate(rot);
 
@@ -749,13 +752,16 @@ void GameScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 	app.Dx()->ClearDepthBuffer();
 	battle_.DrawField3D(app);
-	battle_.DrawCardArea3D(app);
 
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	app.ObjCom()->SetGraphicsPipelineState();
 	battle_.DrawBattleOverlay3D(app);
 
 	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+	app.ObjCom()->SetGraphicsPipelineState();
+	app.Dx()->ClearDepthBuffer();
+	battle_.DrawCardArea3D(app);
+
 	battle_.DrawPostEffect3D(app);
 
 	// 最後にビューポートを元に戻す（2D描画等のため）

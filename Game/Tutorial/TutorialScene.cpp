@@ -175,8 +175,47 @@ void TutorialScene::Update(GameApp& app, float dt) {
     }
     prevEsc_ = currEsc;
 
+    bool isTargeting = battle_.IsPlayerTargeting();
+
+    if (isTargeting) {
+        cameraBlend_ += dt * 5.0f;
+        if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
+    } else {
+        cameraBlend_ -= dt * 5.0f;
+        if (cameraBlend_ < 0.0f) cameraBlend_ = 0.0f;
+    }
+
     if (cameraAnim_) {
-        cameraAnim_->Update(dt);
+        if (isTargeting) {
+            cameraAnim_->Update(0.0f);
+        } else {
+            cameraAnim_->Update(dt);
+        }
+    }
+
+    if (cameraBlend_ > 0.0f) {
+        Vector3 animPos = animCamera_->GetTranslate();
+        Vector3 animRot = animCamera_->GetRotate();
+
+        Vector3 defaultPos = { 0.0f, 4.0f, -40.0f };
+        Vector3 defaultRot = { 0.15f, 0.0f, 0.0f };
+
+        float t = cameraBlend_;
+        float easeT = t * t * (3.0f - 2.0f * t);
+
+        Vector3 blendedPos = {
+            animPos.x + (defaultPos.x - animPos.x) * easeT,
+            animPos.y + (defaultPos.y - animPos.y) * easeT,
+            animPos.z + (defaultPos.z - animPos.z) * easeT
+        };
+        Vector3 blendedRot = {
+            animRot.x + (defaultRot.x - animRot.x) * easeT,
+            animRot.y + (defaultRot.y - animRot.y) * easeT,
+            animRot.z + (defaultRot.z - animRot.z) * easeT
+        };
+
+        animCamera_->SetTranslate(blendedPos);
+        animCamera_->SetRotate(blendedRot);
     }
     if (camera_) {
         int windowW = WinApp::kClientWidth;
@@ -213,6 +252,9 @@ void TutorialScene::Update(GameApp& app, float dt) {
         animCamera_->SetFovY(newFovY);
 
         Vector3 rot = animCamera_->GetRotate();
+        if (!cameraAnim_ || cameraAnim_->GetKeyframes().empty()) {
+            rot.x = 0.15f;
+        }
         rot.x += battleCameraRotXOffset_;
         animCamera_->SetRotate(rot);
 
@@ -329,6 +371,22 @@ void TutorialScene::Update(GameApp& app, float dt) {
     }
 
     battle_.Update(app, *fieldUi_, dt);
+    if (Camera* actionCamera = battle_.GetActionCamera()) {
+        int windowW = WinApp::kClientWidth;
+        int windowH = WinApp::kClientHeight;
+        int battleHeight = static_cast<int>(windowH * splitRatio_);
+        actionCamera->SetAspect((float)windowW / battleHeight);
+
+        float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+        float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
+        actionCamera->SetFovY(correctedFovY);
+
+        Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
+        shiftBattle.m[1][1] = splitRatio_;
+        shiftBattle.m[3][1] = 1.0f - splitRatio_;
+        actionCamera->SetProjectionShift(shiftBattle);
+        actionCamera->Update();
+    }
 
     if (tutorialUi_ && tutorial_ && fieldUi_) {
         tutorialUi_->Update(app, *tutorial_, battle_, *fieldUi_);
@@ -374,11 +432,22 @@ void TutorialScene::Draw3D(GameApp& app) {
         player_->Draw();
     }
     enemyMgr_.Draw();
+    battle_.DrawDamagePopups3D(app);
+
+    app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
+    app.ObjCom()->SetGraphicsPipelineState();
+    app.Dx()->ClearDepthBuffer();
+    battle_.DrawField3D(app);
+
+    app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+    app.ObjCom()->SetGraphicsPipelineState();
+    battle_.DrawBattleOverlay3D(app);
 
     app.Dx()->SetScissorRect(0, 0, windowW, windowH);
     app.ObjCom()->SetGraphicsPipelineState();
+    app.Dx()->ClearDepthBuffer();
+    battle_.DrawCardArea3D(app);
 
-    battle_.Draw3D(app);
     battle_.DrawPostEffect3D(app);
 }
 
