@@ -19,7 +19,7 @@ struct BloomParam
 	float curvature; // 画面の膨らみ具合 (0.02 くらいがおすすめ)
 	float borderSharp; // 枠の角の鋭さ (20.0 くらい)
 	float glitchAmount; // 追加：グリッチの強さ（0.0 ~ 0.1くらい）
-	float padding; // paddingを調節して16バイト境界に合わせる
+	float radialBlurStrength; // 0.0で無効。Compositeで画面中央へのRadialBlurに使う
 	float dissolveAmount; // 0.0で表示、1.0で消える。0未満で無効
 	float dissolveEdgeWidth;
 	float dissolveEdgeIntensity;

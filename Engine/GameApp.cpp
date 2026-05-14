@@ -349,6 +349,20 @@ void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* par
 	objCommon_->SetGraphicsPipelineState();
 }
 
+void GameApp::SetRadialBlur(float strength)
+{
+	if (bloom_) {
+		bloom_->SetRadialBlur(strength);
+	}
+}
+
+void GameApp::ResetRadialBlur()
+{
+	if (bloom_) {
+		bloom_->ResetRadialBlur();
+	}
+}
+
 void GameApp::WarmupAssets_() {
 	OutputDebugStringA("[Warmup] START\n");
 

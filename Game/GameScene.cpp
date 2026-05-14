@@ -23,6 +23,14 @@ static std::wstring Utf8ToWString(const std::string& s)
 }
 
 namespace {
+	constexpr float kBossStageBannerDuration = 2.0f;
+	constexpr float kBossStageBannerX = 380.0f;
+	constexpr float kBossStageBannerY = 105.0f;
+	constexpr float kBossStageBannerWidth = 520.0f;
+	constexpr float kBossStageBannerHeight = 86.0f;
+	constexpr float kBossStageTextX = kBossStageBannerX + 110.0f;
+	constexpr float kBossStageTextY = kBossStageBannerY;
+
 	EnemyType ParseEnemyType_(const std::string& type)
 	{
 		if (type == "Boss" || type == "boss") {
@@ -103,11 +111,32 @@ namespace {
 		enemyMgr.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 15.0f });
 		enemyMgr.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 25.0f });
 	}
+
+	BloomParam MakeBossStageBannerEffectParam_(const BloomParam& baseParam, float strength)
+	{
+		const float t = std::clamp(strength, 0.0f, 1.0f);
+		BloomParam param = baseParam;
+		param.threshold = 0.0f;
+		param.intensity = 0.75f + 0.25f * t;
+		param.vignetteIntensity = 0.0f;
+		param.vignetteScale = 0.0f;
+		param.chromAbAmount = 0.004f + 0.008f * t;
+		param.distortionAmount = 0.0006f + 0.0008f * t;
+		param.noiseIntensity = 0.10f + 0.20f * t;
+		param.scanlineIntensity = 0.08f + 0.18f * t;
+		param.scanlineFrequency = 120.0f;
+		param.curvature = 0.0f;
+		param.borderSharp = 0.0f;
+		param.glitchAmount = 0.004f + 0.016f * t;
+		param.dissolveAmount = -1.0f;
+		return param;
+	}
 }
 
 void GameScene::OnEnter(GameApp& app) {
 	isBossStage_ = false;
 	bossStageBannerTimer_ = 0.0f;
+	app.ResetRadialBlur();
 
 	// --------------------------------------------------
 	// 1. カメラの初期化と設定
@@ -206,7 +235,7 @@ void GameScene::OnEnter(GameApp& app) {
 		isBossStage_ = false;
 		SpawnDefaultEnemies_(enemyMgr_);
 	}
-	bossStageBannerTimer_ = isBossStage_ ? 3.0f : 0.0f;
+	bossStageBannerTimer_ = isBossStage_ ? kBossStageBannerDuration : 0.0f;
 
 	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Game" : stageBgmId);
 	// --------------------------------------------------
@@ -306,16 +335,30 @@ void GameScene::OnEnter(GameApp& app) {
 
 	bossStageBannerBg_ = std::make_unique<Sprite>();
 	bossStageBannerBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	bossStageBannerBg_->SetPosition({ 380.0f, 105.0f });
-	bossStageBannerBg_->SetScale({ 520.0f, 86.0f, 1.0f });
+	bossStageBannerBg_->SetPosition({ kBossStageBannerX, kBossStageBannerY });
+	bossStageBannerBg_->SetScale({ kBossStageBannerWidth, kBossStageBannerHeight, 1.0f });
 	bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f });
+
+	bossStageBannerEffectOverlay_ = std::make_unique<Sprite>();
+	bossStageBannerEffectOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	bossStageBannerEffectOverlay_->SetPosition({ kBossStageBannerX - 24.0f, kBossStageBannerY - 12.0f });
+	bossStageBannerEffectOverlay_->SetScale({ kBossStageBannerWidth + 48.0f, kBossStageBannerHeight + 24.0f, 1.0f });
+	bossStageBannerEffectOverlay_->SetColor({ 1.0f, 0.02f, 0.0f, 0.18f });
+
+	bossStageBannerGlowText_ = std::make_unique<TextSprite>();
+	bossStageBannerGlowText_->Initialize(app.SpriteCom(), app.Dx());
+	bossStageBannerGlowText_->SetText(L"BOSS STAGE");
+	bossStageBannerGlowText_->SetFontSize(56);
+	bossStageBannerGlowText_->SetColor({ 1.0f, 0.18f, 0.04f });
+	bossStageBannerGlowText_->SetPosition({ kBossStageTextX, kBossStageTextY });
+	bossStageBannerGlowText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
 	bossStageBannerText_ = std::make_unique<TextSprite>();
 	bossStageBannerText_->Initialize(app.SpriteCom(), app.Dx());
 	bossStageBannerText_->SetText(L"BOSS STAGE");
 	bossStageBannerText_->SetFontSize(56);
 	bossStageBannerText_->SetColor({ 1.0f, 0.78f, 0.2f });
-	bossStageBannerText_->SetPosition({ 430.0f, 120.0f });
+	bossStageBannerText_->SetPosition({ kBossStageTextX, kBossStageTextY });
 	bossStageBannerText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
 	particleManager_ = ModelParticleManager::GetInstance();
@@ -371,9 +414,12 @@ void GameScene::OnEnter(GameApp& app) {
 }
 
 void GameScene::OnExit(GameApp& app) {
+	app.ResetRadialBlur();
 	fieldUi_.reset();
+	bossStageBannerGlowText_.reset();
 	bossStageBannerText_.reset();
 	bossStageBannerBg_.reset();
+	bossStageBannerEffectOverlay_.reset();
 	cardDescBg_.reset();
 	cardDescText_.reset();
 	isBossStage_ = false;
@@ -410,11 +456,15 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	Input* input = app.GetInput();
-	if (!input) return;
+	if (!input) {
+		app.ResetRadialBlur();
+		return;
+	}
 
 	pausingUI_->Update(app, input);
 
 	if (pausingUI_->GetIsPaused()) {
+		app.ResetRadialBlur();
 		return;
 	}
 
@@ -423,6 +473,13 @@ void GameScene::Update(GameApp& app, float dt) {
 		if (bossStageBannerTimer_ < 0.0f) {
 			bossStageBannerTimer_ = 0.0f;
 		}
+	}
+
+	if (isBossStage_ && bossStageBannerTimer_ > 0.0f) {
+		const float t = std::clamp(bossStageBannerTimer_ / kBossStageBannerDuration, 0.0f, 1.0f);
+		app.SetRadialBlur(0.055f * t);
+	} else {
+		app.ResetRadialBlur();
 	}
 
 	if (cameraAnim_ && cameraAnim_->IsEditing()) {
@@ -798,10 +855,22 @@ void GameScene::Draw2D(GameApp& app) {
 
 	if (isBossStage_ && bossStageBannerTimer_ > 0.0f) {
 		const float alpha = bossStageBannerTimer_ < 1.0f ? bossStageBannerTimer_ : 1.0f;
+		const float effectStrength = std::clamp(bossStageBannerTimer_ / kBossStageBannerDuration, 0.0f, 1.0f);
+		if (bossStageBannerEffectOverlay_) {
+			const float effectAlpha = (0.10f + 0.18f * effectStrength) * alpha;
+			bossStageBannerEffectOverlay_->SetColor({ 1.0f, 0.02f, 0.0f, effectAlpha });
+			BloomParam bannerParam = MakeBossStageBannerEffectParam_(app.ObjectPost()->GetParam(), effectStrength);
+			app.DrawSpriteObjectPost(bossStageBannerEffectOverlay_.get(), view, proj, bannerParam);
+		}
 		if (bossStageBannerBg_) {
 			bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f * alpha });
 			bossStageBannerBg_->Update(view, proj);
 			bossStageBannerBg_->Draw();
+		}
+		if (bossStageBannerGlowText_) {
+			bossStageBannerGlowText_->SetAlpha(0.16f * alpha);
+			bossStageBannerGlowText_->Update(view, proj);
+			bossStageBannerGlowText_->Draw();
 		}
 		if (bossStageBannerText_) {
 			bossStageBannerText_->SetAlpha(alpha);

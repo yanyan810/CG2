@@ -8,11 +8,13 @@
 #include "Object3dCommon.h"
 #include "Matrix4x4.h"
 #include "AudioManager.h"
+#include "TextureManager.h"
 
 #ifdef USE_IMGUI
 #include <imgui.h>
 #endif
 
+#include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -39,6 +41,27 @@ namespace {
 
 		return L"ステージ" + std::to_wstring(stageId) + L"のバトルを開始します";
 	}
+
+	BloomParam MakeBossStageWarningParam_(const BloomParam& baseParam, bool isBurst)
+	{
+		BloomParam param = baseParam;
+		param.threshold = 0.0f;
+		param.intensity = 0.55f;
+		param.vignetteIntensity = 0.0f;
+		param.vignetteScale = 0.0f;
+		param.chromAbAmount = isBurst ? 0.012f : 0.004f;
+		param.distortionAmount = 0.0008f;
+		param.noiseIntensity = isBurst ? 0.35f : 0.16f;
+		param.scanlineIntensity = isBurst ? 0.30f : 0.12f;
+		param.scanlineFrequency = 140.0f;
+		param.glitchAmount = isBurst ? 0.04f : 0.008f;
+		param.curvature = 0.0f;
+		param.borderSharp = 0.0f;
+		param.isGrayscale = 0.0f;
+		param.isInverted = 0.0f;
+		param.dissolveAmount = -1.0f;
+		return param;
+	}
 }
 
 bool StageSelectScene::PointInRect_(float mx, float my, const Rect& rect) const {
@@ -61,11 +84,19 @@ void StageSelectScene::SelectStageItem_(GameApp& app, const StageItem& item)
 
 void StageSelectScene::ChangeStage_(int delta)
 {
+	const int prevStageId = currentStageId_;
 	const int nextStageId = currentStageId_ + delta;
 	if (nextStageId < 1 || nextStageId > 10) {
 		return;
 	}
 	currentStageId_ = nextStageId;
+	if (currentStageId_ == 10 && prevStageId != 10) {
+		bossWarningBurstTimer_ = bossWarningBurstDuration_;
+		bossShakeTimer_ = bossShakeDuration_;
+	} else if (currentStageId_ != 10) {
+		bossWarningBurstTimer_ = 0.0f;
+		bossShakeTimer_ = 0.0f;
+	}
 	ApplyCurrentStageToBattleItem_();
 	selectIndex_ = 1;
 }
@@ -86,6 +117,8 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	hoverIndex_ = -1;
 	selectIndex_ = 0;
 	currentStageId_ = 1;
+	bossWarningBurstTimer_ = 0.0f;
+	bossShakeTimer_ = 0.0f;
 	circle_ = 0.0f;
 	softness_ = 0.6f;
 
@@ -98,6 +131,19 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/bg.png");
 	bg_->SetAnchorPoint({ 0.0f, 0.0f });
 	bg_->SetPosition({ 0.0f, 0.0f });
+
+	bossStageWarningOverlay_ = std::make_unique<Sprite>();
+	bossStageWarningOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	bossStageWarningOverlay_->SetAnchorPoint({ 0.0f, 0.0f });
+	bossStageWarningOverlay_->SetPosition({ 0.0f, 0.0f });
+	const DirectX::TexMetadata& whiteMeta =
+		TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
+	bossStageWarningOverlay_->SetScale({
+		static_cast<float>(WinApp::kClientWidth) / static_cast<float>(whiteMeta.width),
+		static_cast<float>(WinApp::kClientHeight) / static_cast<float>(whiteMeta.height),
+		1.0f
+		});
+	bossStageWarningOverlay_->SetColor({ 1.0f, 0.04f, 0.02f, 0.18f });
 
 	titleSprite_ = std::make_unique<Sprite>();
 	titleSprite_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/title_stage_select.png");
@@ -216,15 +262,30 @@ void StageSelectScene::OnExit(GameApp& app) {
 	descBgBottom_.reset();
 	descBgTop_.reset();
 	titleSprite_.reset();
+	bossStageWarningOverlay_.reset();
 	bg_.reset();
 	camera_.reset();
 	descTextSprite_.reset();
 }
 
 void StageSelectScene::Update(GameApp& app, float dt) {
-	(void)dt;
-
 	ApplyLayout_();
+	if (currentStageId_ == 10 && bossWarningBurstTimer_ > 0.0f) {
+		bossWarningBurstTimer_ -= dt;
+		if (bossWarningBurstTimer_ < 0.0f) {
+			bossWarningBurstTimer_ = 0.0f;
+		}
+	} else if (currentStageId_ != 10) {
+		bossWarningBurstTimer_ = 0.0f;
+	}
+	if (currentStageId_ == 10 && bossShakeTimer_ > 0.0f) {
+		bossShakeTimer_ -= dt;
+		if (bossShakeTimer_ < 0.0f) {
+			bossShakeTimer_ = 0.0f;
+		}
+	} else if (currentStageId_ != 10) {
+		bossShakeTimer_ = 0.0f;
+	}
 
 	Input* input = app.GetInput();
 	if (!input) {
@@ -364,17 +425,33 @@ void StageSelectScene::Draw2D(GameApp& app) {
 		0.0f, 100.0f
 	);
 
+	Vector2 shakeOffset{ 0.0f, 0.0f };
+	if (currentStageId_ == 10 && bossShakeTimer_ > 0.0f && bossShakeDuration_ > 0.0f) {
+		const float elapsed = bossShakeDuration_ - bossShakeTimer_;
+		const float strength = bossShakeMagnitude_ * (bossShakeTimer_ / bossShakeDuration_);
+		shakeOffset.x = static_cast<float>(std::sin(elapsed * 90.0f)) * strength;
+		shakeOffset.y = static_cast<float>(std::cos(elapsed * 72.0f)) * strength * 0.55f;
+	}
 
 
 	if (bg_) {
+		bg_->SetPosition({ shakeOffset.x, shakeOffset.y });
 		bg_->Update(view, proj);
 		bg_->Draw();
 	}
 
-	
+	if (currentStageId_ == 10 && bossStageWarningOverlay_) {
+		const bool isBurst = bossWarningBurstTimer_ > 0.0f;
+		const float overlayAlpha = isBurst ? 0.22f : 0.14f;
+		bossStageWarningOverlay_->SetPosition({ shakeOffset.x, shakeOffset.y });
+		bossStageWarningOverlay_->SetColor({ 1.0f, 0.04f, 0.02f, overlayAlpha });
+		BloomParam warningParam = MakeBossStageWarningParam_(app.ObjectPost()->GetParam(), isBurst);
+		app.DrawSpriteObjectPost(bossStageWarningOverlay_.get(), view, proj, warningParam);
+	}
 
 
 	if (titleSprite_) {
+		titleSprite_->SetPosition({ layout_.titlePos.x + shakeOffset.x, layout_.titlePos.y + shakeOffset.y });
 		titleSprite_->Update(view, proj);
 		titleSprite_->Draw();
 	}
@@ -394,7 +471,10 @@ void StageSelectScene::Draw2D(GameApp& app) {
 			scale = hoverScale_;
 		}
 
-		stageItems_[i].buttonSprite->SetPosition({ stageItems_[i].buttonRect.x, stageItems_[i].buttonRect.y });
+		stageItems_[i].buttonSprite->SetPosition({
+			stageItems_[i].buttonRect.x + shakeOffset.x,
+			stageItems_[i].buttonRect.y + shakeOffset.y
+			});
 		stageItems_[i].buttonSprite->SetScale({ stageItems_[i].buttonRect.w * scale, stageItems_[i].buttonRect.h * scale, 1.0f });
 		stageItems_[i].buttonSprite->SetColor({ 1.0f, 1.0f, 1.0f, 0.0f });
 		stageItems_[i].buttonSprite->Update(view, proj);
@@ -431,31 +511,32 @@ void StageSelectScene::Draw2D(GameApp& app) {
 		} else if (stageItems_[i].stageId > 0) {
 			textPos = { r.x + 58.0f, r.y + 38.0f };
 		}
-		itemTextSprites_[i]->SetPosition(textPos);
+		itemTextSprites_[i]->SetPosition({ textPos.x + shakeOffset.x, textPos.y + shakeOffset.y });
 		itemTextSprites_[i]->Update(view, proj);
 		itemTextSprites_[i]->Draw();
 	}
 
 	if (leftArrowText_ && currentStageId_ > 1) {
 		leftArrowText_->SetColor({ 1.0f, 1.0f, 1.0f });
-		leftArrowText_->SetPosition({ leftArrowRect_.x, leftArrowRect_.y });
+		leftArrowText_->SetPosition({ leftArrowRect_.x + shakeOffset.x, leftArrowRect_.y + shakeOffset.y });
 		leftArrowText_->Update(view, proj);
 		leftArrowText_->Draw();
 	}
 
 	if (rightArrowText_ && currentStageId_ < 10) {
 		rightArrowText_->SetColor({ 1.0f, 1.0f, 1.0f });
-		rightArrowText_->SetPosition({ rightArrowRect_.x, rightArrowRect_.y });
+		rightArrowText_->SetPosition({ rightArrowRect_.x + shakeOffset.x, rightArrowRect_.y + shakeOffset.y });
 		rightArrowText_->Update(view, proj);
 		rightArrowText_->Draw();
 	}
 
 	if (descBgBottom_) {
+		descBgBottom_->SetPosition({ 360.0f + shakeOffset.x, 560.0f + shakeOffset.y });
 		descBgBottom_->Update(view, proj);
 		descBgBottom_->Draw();
 	}
 
-	DrawDescriptionText_(app, currentDescText_, currentDescPos_.x, currentDescPos_.y);
+	DrawDescriptionText_(app, currentDescText_, currentDescPos_.x + shakeOffset.x, currentDescPos_.y + shakeOffset.y);
 
 	// デバッグ用：当たり判定表示
 	if (showDebugHitBox_) {

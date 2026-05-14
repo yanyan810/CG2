@@ -56,6 +56,7 @@ private:
     std::unique_ptr<Camera> camera_;
 
     std::unique_ptr<Sprite> bg_;
+    std::unique_ptr<Sprite> bossStageWarningOverlay_;
     std::unique_ptr<Sprite> titleSprite_;
     std::unique_ptr<Sprite> descBgTop_;
     std::unique_ptr<Sprite> descBgBottom_;
@@ -79,6 +80,11 @@ private:
     float circle_ = 0.0f;
     float softness_ = 0.6f;
     int currentStageId_ = 1;
+    float bossWarningBurstTimer_ = 0.0f;
+    float bossWarningBurstDuration_ = 0.8f;
+    float bossShakeTimer_ = 0.0f;
+    float bossShakeDuration_ = 0.4f;
+    float bossShakeMagnitude_ = 6.0f;
     Rect leftArrowRect_{ 120.0f, 410.0f, 80.0f, 100.0f };
     Rect rightArrowRect_{ 1080.0f, 410.0f, 80.0f, 100.0f };
 

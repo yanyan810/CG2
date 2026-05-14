@@ -13,6 +13,8 @@ public:
     void PreDraw();  // 1. SceneRTをセット
     void PostDraw(); // 2. 抽出・ぼかし・合成を実行
     D3D12_CPU_DESCRIPTOR_HANDLE GetSceneRTVHandle() const { return sceneRT_->GetRTVHandle(); }
+    void SetRadialBlur(float strength);
+    void ResetRadialBlur();
 
 private:
     // 便利関数：リソースバリアの切り替え

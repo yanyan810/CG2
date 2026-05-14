@@ -44,6 +44,7 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     param_.curvature = 0.0f;
     param_.borderSharp = 0.0f;
     param_.glitchAmount = 0.0f;
+    param_.radialBlurStrength = 0.0f;
     param_.dissolveAmount = -1.0f;
     param_.dissolveEdgeWidth = 0.08f;
     param_.dissolveEdgeIntensity = 2.0f;
