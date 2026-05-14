@@ -1076,7 +1076,7 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	app.ObjCom()->SetGraphicsPipelineState();
 
 	if (particleObjectPostEnabled_) {
-		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_, battleHeight);
+		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
 		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	} else {
 		particleManager_->Draw();
