@@ -113,38 +113,28 @@ public:
     }
 
 	/// ----- 毒の処理 ----- ///
-    // 毒を付与する
-    void AddPoison(int value) { poison_ += value; }
-    // 毒の値を取得する
+    void AddPoison(int value) {
+        SetPoison(poison_ + value);
+    }
+
     int GetPoison() const { return poison_; }
-    // ターン終了時などに毒のダメージを適用する（必要に応じて実装）
+
     void ApplyPoisonDamage() {
-		hp_ -= poison_;
-        poison_ -= 1;
-        if (poison_ < 0) {
-			poison_ = 0;
-        }
-        if (hp_ < 0) {
-            hp_ = 0;
-            alive_ = false;
-        }
+        Damage(poison_);
+        SetPoison(poison_ / 2);
     }
 
     void PoisonDouble() {
-        poison_ *= 2;
-	}
+        SetPoison(poison_ * 2);
+    }
 
     void PoisonDamage(int count) {
-        hp_ -= poison_ * count;
-        if (hp_ < 0) {
-            hp_ = 0;
-            alive_ = false;
-        }
-	}
+        Damage(poison_ * count);
+    }
 
     void PoisonRemove() {
-        poison_ = 0;
-	}
+        SetPoison(0);
+    }
 
 public:
 
@@ -187,6 +177,11 @@ private:
     float flashTimer_ = 0.0f;
 
     int poison_ = 0;
+
+    // 毒の値のセット（負数防止）を共通化
+    void SetPoison(int value) {
+        poison_ = (value < 0) ? 0 : value;
+    }
 };
 
 // ==========================================

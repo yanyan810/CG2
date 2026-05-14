@@ -52,6 +52,7 @@ private:
     std::unique_ptr<TextSprite> changeSceneButtonText_;
     std::unique_ptr<TextSprite> warningText_;
     std::unique_ptr<TextSprite> countText_;
+    const std::wstring countTextSup_ = L"デッキ枚数\n";
 	std::unique_ptr<TextSprite> controlHintText_;
 	std::unique_ptr<Sprite> cardPreviewBg_;
     std::unique_ptr<TextSprite> cardPreviewText_;

@@ -7,7 +7,7 @@
 #include"CardInstance.h"
 #include"Card3D.h"
 #include "AudioManager.h"
-#include"CardPreviewUI.h"
+#include"Logic/CardPreview.h"
 
 void DeckEditScene::OnEnter(GameApp& app) {
 	camera_ = std::make_unique<Camera>();
@@ -64,22 +64,20 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	countText_->SetFontSize(30);
 	countText_->SetSize({ 1.f, 1.f, 1.f });
 	countText_->SetPosition({ 1050.0f, 50.0f });
-	countText_->SetText(L"0 / 40");
+	countText_->SetText(countTextSup_ + L"0 / 40");
 
 	controlHintText_ = std::make_unique<TextSprite>();
 	controlHintText_->Initialize(app.SpriteCom(), app.Dx());
 	controlHintText_->SetFontSize(30);
 	controlHintText_->SetSize({ 1.f, 1.f, 1.f });
 	controlHintText_->SetPosition({ 1000.0f, 200.0f });
-	controlHintText_->SetText(L"カードを\n\n左クリック : 1枚追加\n右クリック : 1枚削除\n\nできます");
-	controlHintText_->SetText(L"");
+	controlHintText_->SetText(L"カードを\n左クリック : 1枚追加\n右クリック : 1枚削除\nできます\n\nスクロールで\n上下に動かす");
 
 	cardPreviewBg_ = std::make_unique<Sprite>();
 	cardPreviewBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	cardPreviewBg_->SetPosition({ 0.f, 0.f }); // 画面右下あたり
 	cardPreviewBg_->SetScale({ 300.f, 300.f, 1.0f });
-	cardPreviewBg_->SetColor({ 0.3f, 0.3f, 0.3f, 0.8f }); // 暗めのグレー
-	cardPreviewBg_->SetColor({ 0.3f, 0.3f, 0.3f, 0.8f }); // 暗めのグレー
+	cardPreviewBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f }); // 暗めのグレー
 
 	cardPreviewText_ = std::make_unique<TextSprite>();
 	cardPreviewText_->Initialize(app.SpriteCom(), app.Dx());
@@ -109,7 +107,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 
 	if (countText_) {
 		// 表示する文字列を作成
-		std::wstring countStr = std::to_wstring(totalCount_) + L" / 40";
+		std::wstring countStr = countTextSup_ + std::to_wstring(totalCount_) + L" / 40";
 		countText_->SetText(countStr);
 
 		// 40枚ちょうどなら緑、それ以外は白
@@ -280,7 +278,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 
 		// カード情報を取得してテキストを設定
 		const CardDef* hoveredDef = cardDB_->Find(hoveredIdx + 1);
-		cardPreviewText_->SetText(CardPreviewUI::GetPreviewCardDetailText(hoveredDef));
+		cardPreviewText_->SetText(CardPreview::GetPreviewCardDetailText(hoveredDef));
 	} else {
 		// 乗っていない場合はフラグを折る
 		isHoverd_ = false;

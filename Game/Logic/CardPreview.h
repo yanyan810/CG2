@@ -6,7 +6,7 @@ enum class SubEffectTrigger;
 struct CardEffectDef;
 struct CardSubEffectDef;
 
-class CardPreviewUI
+class CardPreview
 {
 public:
 

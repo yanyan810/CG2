@@ -1,4 +1,4 @@
-#include "CardPreviewUI.h"
+#include "CardPreview.h"
 
 #include<Windows.h>
 
@@ -23,7 +23,7 @@ std::wstring Utf8ToWString(const std::string& s) {
 	return result;
 }
 
-std::wstring CardPreviewUI::GetPreviewCardDetailText(const CardDef* def)
+std::wstring CardPreview::GetPreviewCardDetailText(const CardDef* def)
 {
 	if (!def) {
 		return L"";
@@ -64,7 +64,7 @@ std::wstring CardPreviewUI::GetPreviewCardDetailText(const CardDef* def)
 	return text;
 }
 
-std::wstring CardPreviewUI::GetSubEffectTriggerText(SubEffectTrigger trigger)
+std::wstring CardPreview::GetSubEffectTriggerText(SubEffectTrigger trigger)
 {
 	switch (trigger) {
 	case SubEffectTrigger::OnTurnStartWithPoker:
@@ -81,7 +81,7 @@ std::wstring CardPreviewUI::GetSubEffectTriggerText(SubEffectTrigger trigger)
 	}
 }
 
-CardPreviewUI::PokerHandRank CardPreviewUI::ParsePokerRankString(const std::string& s)
+CardPreview::PokerHandRank CardPreview::ParsePokerRankString(const std::string& s)
 {
 	if (s == "OnePair") return PokerHandRank::OnePair;
 	if (s == "TwoPair") return PokerHandRank::TwoPair;
@@ -96,7 +96,7 @@ CardPreviewUI::PokerHandRank CardPreviewUI::ParsePokerRankString(const std::stri
 }
 
 
-std::wstring CardPreviewUI::GetSubEffectConditionText(const CardSubEffectDef& sub)
+std::wstring CardPreview::GetSubEffectConditionText(const CardSubEffectDef& sub)
 {
 	auto rankToText = [](PokerHandRank rank) -> std::wstring {
 		switch (rank) {
@@ -146,7 +146,7 @@ std::wstring CardPreviewUI::GetSubEffectConditionText(const CardSubEffectDef& su
 	return L"";
 }
 
-std::wstring CardPreviewUI::GetEffectValueText(const CardEffectDef& effect)
+std::wstring CardPreview::GetEffectValueText(const CardEffectDef& effect)
 {
 	if (!effect.valueText.empty()) {
 		return Utf8ToWString(effect.valueText) + L": " + std::to_wstring(effect.value);
