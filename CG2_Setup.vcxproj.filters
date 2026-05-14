@@ -100,6 +100,8 @@
     <ClCompile Include="Game\PropManager.cpp" />
     <ClCompile Include="Engine\GeometryGenerator.cpp" />
     <ClCompile Include="Engine\ParticleEditor.cpp" />
+    <ClCompile Include="Game\UI\BattleActionDirector.cpp" />
+    <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
     <ClCompile Include="Game\Logic\CardPreview.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -203,6 +205,8 @@
     <ClInclude Include="Game\PropManager.h" />
     <ClInclude Include="Engine\GeometryGenerator.h" />
     <ClInclude Include="Engine\ParticleEditor.h" />
+    <ClInclude Include="Game\UI\BattleActionDirector.h" />
+    <ClInclude Include="Game\BattleAnimeEditerScene.h" />
     <ClInclude Include="Game\Logic\CardPreview.h" />
   </ItemGroup>
   <ItemGroup>

@@ -92,6 +92,12 @@ public:
     }
 
     Vector3 GetPos() const { return pos_; }
+    void SetPosition(const Vector3& pos) {
+        pos_ = pos;
+        if (model_) {
+            model_->SetTranslate(pos_);
+        }
+    }
     AABB GetBodyAABB() const { return body_; }
     BossAI& GetBossAI() { return ai_; }
     void SetLighting(const LightingParam& p);
