@@ -19,7 +19,7 @@ cbuffer BloomParam : register(b0)
     float curvature;
     float borderSharp;
     float glitchAmount;
-    float padding;
+    float radialBlurStrength;
 };
 
 // --- ヘルパー関数：ランダム ---
@@ -92,6 +92,17 @@ float3 ApplyOverlays(float3 color, float2 uv)
     return color;
 }
 
+void SampleSceneAndBloom(float2 uv, float2 shift, out float3 scene, out float3 bloom)
+{
+    scene.r = sceneTex.Sample(samp, uv + shift).r;
+    scene.g = sceneTex.Sample(samp, uv).g;
+    scene.b = sceneTex.Sample(samp, uv - shift).b;
+
+    bloom.r = bloomTex.Sample(samp, uv + shift).r;
+    bloom.g = bloomTex.Sample(samp, uv).g;
+    bloom.b = bloomTex.Sample(samp, uv - shift).b;
+}
+
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -119,16 +130,37 @@ float4 main(PSInput input) : SV_TARGET
     float2 finalUV = ApplyWave(postGlitchUV);
 
     // E. サンプリング（色収差）
-    float2 shift = (postGlitchUV - 0.5f) * chromAbAmount;
     float3 scene, bloom;
-    
-    scene.r = sceneTex.Sample(samp, finalUV + shift).r;
-    scene.g = sceneTex.Sample(samp, finalUV).g;
-    scene.b = sceneTex.Sample(samp, finalUV - shift).b;
-    
-    bloom.r = bloomTex.Sample(samp, finalUV + shift).r;
-    bloom.g = bloomTex.Sample(samp, finalUV).g;
-    bloom.b = bloomTex.Sample(samp, finalUV - shift).b;
+
+    if (radialBlurStrength <= 0.0f)
+    {
+        float2 shift = (postGlitchUV - 0.5f) * chromAbAmount;
+        SampleSceneAndBloom(finalUV, shift, scene, bloom);
+    }
+    else
+    {
+        const int sampleCount = 6;
+        const float2 radialCenter = float2(0.5f, 0.5f);
+        float2 radialDir = finalUV - radialCenter;
+        scene = float3(0.0f, 0.0f, 0.0f);
+        bloom = float3(0.0f, 0.0f, 0.0f);
+
+        [unroll]
+        for (int i = 0; i < sampleCount; ++i)
+        {
+            float rate = (float)i / (float)(sampleCount - 1);
+            float2 sampleUV = saturate(finalUV - radialDir * radialBlurStrength * rate);
+            float2 shift = (sampleUV - 0.5f) * chromAbAmount;
+            float3 sampleScene;
+            float3 sampleBloom;
+            SampleSceneAndBloom(sampleUV, shift, sampleScene, sampleBloom);
+            scene += sampleScene;
+            bloom += sampleBloom;
+        }
+
+        scene /= (float)sampleCount;
+        bloom /= (float)sampleCount;
+    }
 
     // F. 合成とカラー加工
     float3 result = scene + bloom * intensity;

@@ -19,7 +19,7 @@ cbuffer BloomParam : register(b0)
     float curvature;
     float borderSharp;
     float glitchAmount;
-    float padding;
+    float radialBlurStrength;
     float dissolveAmount;
     float dissolveEdgeWidth;
     float dissolveEdgeIntensity;
