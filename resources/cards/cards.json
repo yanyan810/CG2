@@ -31,7 +31,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/BloodyVengeance.png",
-      "desc": "敵単体に2ダメージ与えて、自身は1ダメージ食らう",
+      "desc": "敵単体に2ダメージ与えて、\n自身は1ダメージ食らう",
       "effects": [
         { "type": "SelfDamage", "value": 1 },
         { "type": "Damage", "value": 2 }
@@ -81,7 +81,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/CrescentMoon.png",
-      "desc": "敵単体に3ダメージ与える。現在のターン数が奇数ならさらに3ダメージ与える",
+      "desc": "敵単体に3ダメージ与える。\n現在のターン数が奇数なら\nさらに3ダメージ与える",
       "effects": [
         { "type": "DamageCrescent", "value": 3 }
       ]
@@ -93,7 +93,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/OverClock.png",
-      "desc": "敵単体に2ダメージを与える。これを二回行う",
+      "desc": "敵単体に2ダメージを与える。\nこれを二回行う",
       "effects": [
         { "type": "Damage", "value": 2 },
         { "type": "Damage", "value": 2 }
@@ -106,7 +106,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/ShieldBash.png",
-      "desc": "敵単体にブロック数x1ダメージ与える",
+      "desc": "敵単体に\nブロック数x1ダメージ与える",
       "effects": [
         { "type": "DamageByBlock", "value": 1 }
       ]
@@ -320,7 +320,7 @@
       {
       "id": 23,
       "name": "PainAmplification",
-      "cost": 2,
+      "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PainAmplification.png",
@@ -410,11 +410,11 @@
       {
       "id": 30,
       "name": "FriendlyPoison",
-      "cost": 3,
+      "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/FriendlyPoison.png",
-      "desc": "敵全体の毒の合計値分体力を回復",
+      "desc": "敵全体の毒の合計値分\n体力を回復",
       "effects": [
         { "type": "PoisonHeal", "value": 1 }
       ]

@@ -7,6 +7,7 @@
 #include"CardInstance.h"
 #include"Card3D.h"
 #include "AudioManager.h"
+#include"Logic/CardPreview.h"
 
 void DeckEditScene::OnEnter(GameApp& app) {
 	camera_ = std::make_unique<Camera>();
@@ -63,14 +64,27 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	countText_->SetFontSize(30);
 	countText_->SetSize({ 1.f, 1.f, 1.f });
 	countText_->SetPosition({ 1050.0f, 50.0f });
-	countText_->SetText(L"0 / 40");
+	countText_->SetText(countTextSup_ + L"0 / 40");
 
 	controlHintText_ = std::make_unique<TextSprite>();
 	controlHintText_->Initialize(app.SpriteCom(), app.Dx());
 	controlHintText_->SetFontSize(30);
 	controlHintText_->SetSize({ 1.f, 1.f, 1.f });
 	controlHintText_->SetPosition({ 1000.0f, 200.0f });
-	controlHintText_->SetText(L"カードを\n\n左クリック : 1枚追加\n右クリック : 1枚削除\n\nできます");
+	controlHintText_->SetText(L"カードを\n左クリック : 1枚追加\n右クリック : 1枚削除\nできます\n\nスクロールで\n上下に動かす");
+
+	cardPreviewBg_ = std::make_unique<Sprite>();
+	cardPreviewBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	cardPreviewBg_->SetPosition({ 0.f, 0.f }); // 画面右下あたり
+	cardPreviewBg_->SetScale({ 300.f, 300.f, 1.0f });
+	cardPreviewBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f }); // 暗めのグレー
+
+	cardPreviewText_ = std::make_unique<TextSprite>();
+	cardPreviewText_->Initialize(app.SpriteCom(), app.Dx());
+	cardPreviewText_->SetFontSize(30);
+	cardPreviewText_->SetSize({ 1.f, 1.f, 1.f });
+	cardPreviewText_->SetPosition({ 1000.0f, 200.0f });
+	cardPreviewText_->SetText(L"");
 
 	scrollY_ = kInitialScrollY;
 }
@@ -93,7 +107,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 
 	if (countText_) {
 		// 表示する文字列を作成
-		std::wstring countStr = std::to_wstring(totalCount_) + L" / 40";
+		std::wstring countStr = countTextSup_ + std::to_wstring(totalCount_) + L" / 40";
 		countText_->SetText(countStr);
 
 		// 40枚ちょうどなら緑、それ以外は白
@@ -251,6 +265,24 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		card->Update(dt);
 	}
 
+	int hoveredIdx = PickCardIndex(app);
+
+	if (hoveredIdx != -1) {
+		// カードに乗っている場合のみ、座標計算とテキスト更新を行う
+		isHoverd_ = true;
+
+		// 座標を計算
+		Vector2 popupPos = GetPopupPosition(app, hoveredIdx);
+		cardPreviewBg_->SetPosition(popupPos);
+		cardPreviewText_->SetPosition(popupPos);
+
+		// カード情報を取得してテキストを設定
+		const CardDef* hoveredDef = cardDB_->Find(hoveredIdx + 1);
+		cardPreviewText_->SetText(CardPreview::GetPreviewCardDetailText(hoveredDef));
+	} else {
+		// 乗っていない場合はフラグを折る
+		isHoverd_ = false;
+	}
 
 	//================
 	//Dキーを押したとき
@@ -301,113 +333,20 @@ void DeckEditScene::Draw2D(GameApp& app) {
 	if (controlHintText_) {
 		controlHintText_->Draw();
 	}
+
+	if (isHoverd_) 
+	{
+		if (cardPreviewBg_) {
+			cardPreviewBg_->Draw();
+		}
+		if (cardPreviewText_) {
+			cardPreviewText_->Draw();
+		}
+	}
 }
 
 void DeckEditScene::DrawImGui(GameApp& app) {
-	//ImGui::Begin("Deck Editor");
-
-	//if (changeSceneButtonBg_) {
-	//	if (ImGui::CollapsingHeader("Button Background", ImGuiTreeNodeFlags_DefaultOpen)) {
-	//		// 座標
-	//		Vector2 pos = changeSceneButtonBg_->GetPosition();
-	//		float posArr[2] = { pos.x, pos.y };
-	//		if (ImGui::DragFloat2("BG Position", posArr, 1.0f)) {
-	//			changeSceneButtonBg_->SetPosition({ posArr[0], posArr[1] });
-	//		}
-
-	//		// サイズ (Scale)
-	//		Vector3 scl = changeSceneButtonBg_->GetScale();
-	//		float sclArr[2] = { scl.x, scl.y };
-	//		if (ImGui::DragFloat2("BG Scale", sclArr, 1.0f)) {
-	//			changeSceneButtonBg_->SetScale({ sclArr[0], sclArr[1], 1.0f });
-	//		}
-
-	//		// 色（透明度も調整可能）
-	//		Vector4 color = changeSceneButtonBg_->GetColor();
-	//		float colArr[4] = { color.x, color.y, color.z, color.w };
-	//		if (ImGui::ColorEdit4("BG Color", colArr)) {
-	//			changeSceneButtonBg_->SetColor({ colArr[0], colArr[1], colArr[2], colArr[3] });
-	//		}
-	//	}
-	//}
-
-	//// 現在の合計枚数表示
-	//if (totalCount_ == 40) {
-	//	ImGui::TextColored(ImVec4(0, 1, 0, 1), "Total: %d / 40 (OK!)", totalCount_);
-	//} else {
-	//	ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Total: %d / 40 (Need exactly 40)", totalCount_);
-	//}
-
-
-	//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-	//	1000.0f / ImGui::GetIO().Framerate,
-	//	ImGui::GetIO().Framerate);
-
-	//ImGui::Separator();
-
-	//// カードリストをもとに表示
-	//ImGui::BeginChild("CardList", ImVec2(0, -50), true);
-
-	//// 仮にID 1〜100までループ（実際はCardDatabaseの中身に合わせて調整）
-	//for (int i = 1; i <= 30; ++i) {
-	//	auto cardDef = cardDB_->Find(i);
-	//	if (!cardDef) continue;
-
-	//	int currentCount = editingDeck_[cardDef->id];
-
-	//	ImGui::PushID(cardDef->id);
-	//	ImGui::Text("%-15s [%d/4]", cardDef->name.c_str(), currentCount);
-	//	ImGui::SameLine(ImGui::GetWindowWidth() - 100);
-
-	//	// 重複4枚制限
-	//	if (currentCount >= 4) ImGui::BeginDisabled();
-	//	if (ImGui::Button("+")) {
-	//		RecalculateTotal();
-	//		if (totalCount_ < 40) {
-	//			editingDeck_[cardDef->id]++;
-	//			RecalculateTotal();
-	//		}
-
-	//	}
-	//	if (currentCount >= 4) ImGui::EndDisabled();
-
-	//	ImGui::SameLine();
-
-	//	if (currentCount <= 0) ImGui::BeginDisabled();
-	//	if (ImGui::Button("-")) {
-	//		editingDeck_[cardDef->id]--;
-	//		RecalculateTotal();
-	//	}
-	//	if (currentCount <= 0) ImGui::EndDisabled();
-
-	//	ImGui::PopID();
-	//}
-	//ImGui::EndChild();
-
-	//// 下部の決定ボタン
-	//bool canSave = (totalCount_ == 40);
-	//if (!canSave) ImGui::BeginDisabled();
-
-	//if (ImGui::Button("Save and Go to Battle", ImVec2(-1, 40))) {
-	//	// --- vector<int> 形式に変換 ---
-	//	std::vector<int> finalDeck;
-	//	finalDeck.reserve(40);
-	//	for (auto const& [id, count] : editingDeck_) {
-	//		for (int j = 0; j < count; ++j) {
-	//			finalDeck.push_back(id);
-	//		}
-	//	}
-
-	//	// --- GameAppに情報を渡す ---
-	//	app.SetDeckInstancesFromId(finalDeck);
-
-	//	// --- シーン遷移 ---
-	//	RequestChangeScene_("Game");
-	//}
-
-	//if (!canSave) ImGui::EndDisabled();
-
-	//ImGui::End();
+	
 }
 
 void DeckEditScene::RebuildCardModels(GameApp& app) {
@@ -511,4 +450,43 @@ void DeckEditScene::UpdateSprites() {
 	if (controlHintText_) {
 		controlHintText_->Update(view, proj);
 	}
+	if(cardPreviewBg_) {
+		cardPreviewBg_->Update(view, proj);
+	}
+	if(cardPreviewText_) {
+		cardPreviewText_->Update(view, proj);
+	}
+}
+
+Vector2 DeckEditScene::GetPopupPosition(GameApp& app, int cardIdx) {
+	if (cardIdx == -1 || cardIdx >= (int)cardModels_.size()) return { 0, 0 };
+
+	// 1. カードの3D世界座標を取得
+	Vector3 worldPos = cardModels_[cardIdx]->GetWorldPos();
+
+	// 2. スクリーン座標(ピクセル)に変換
+	Vector2 screenPos;
+	Matrix4x4 viewProj = camera_->GetViewMatrix() * camera_->GetProjectionMatrix();
+	float sw = 1280.0f; // WinApp::kClientWidth 等
+	float sh = 720.0f;  // WinApp::kClientHeight 等
+
+	if (WorldToScreen(worldPos, viewProj, sw, sh, screenPos)) {
+		// 3. カードの右側にオフセットを加える
+		// dx < 40.0f という判定から、カードの半幅は約40pxと推測
+		float offsetX = 80.0f;  // カードの右端からさらにどれくらい離すか
+		float offsetY = -150.0f; // 少し上に表示したい場合などの調整
+
+		return { screenPos.x + offsetX, screenPos.y + offsetY };
+	}
+
+	return { 0, 0 };
+}
+
+const CardDef* DeckEditScene::GetHoveredCardDef(GameApp& app) {
+	int idx = PickCardIndex(app);
+	if (idx != -1 && idx < (int)cardModels_.size()) {
+		isHoverd_ = true;
+		return cardDB_->Find(idx + 1);
+	}
+	return nullptr;
 }

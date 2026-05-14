@@ -9,7 +9,7 @@
 #include "TutorialScene.h"
 #include "StageSelectScene.h"
 #include "BattleController.h"
-
+#include "BattleAnimeEditerScene.h"
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
@@ -26,6 +26,9 @@
 #include "ParticleEditor.h"
 
 #include <Windows.h>
+#include <filesystem>
+#include <fstream>
+#include <random>
 
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
@@ -175,6 +178,7 @@ bool GameApp::Initialize_() {
 
 	Audio::GetInstance()->Initialize();
 	AudioManager::GetInstance()->LoadAllConfigs("resources/configs/audioSettings.json");
+	LoadActionSequenceProfiles_();
 
 	// SceneManager
 	sceneMgr_ = std::make_unique<SceneManager>();
@@ -186,7 +190,7 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("StageSelect", [] { return std::make_unique<StageSelectScene>(); });
 	sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  });
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
-
+	sceneMgr_->Register("BattleAnimeEditer", [] { return std::make_unique<BattleAnimeEditerScene>(); });
 
 	// デフォルトデッキ
 	for (int i = 0; i < 4; i++) {
@@ -332,7 +336,7 @@ void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const 
 	spriteCommon_->SetGraphicsPipelineState();
 }
 
-void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param)
+void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param, int clipHeight)
 {
 	if (!particles) {
 		return;
@@ -340,12 +344,21 @@ void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* par
 
 	objectPostEffect_->SetParam(param);
 	BeginObjectPostEffect();
+	if (clipHeight > 0) {
+		dx_->SetScissorRect(0, 0, WinApp::kClientWidth, clipHeight);
+	}
 	particles->Draw();
 	objectPostEffect_->EndCaptureToRenderTarget(
 		bloom_->GetSceneRTVHandle(),
 		WinApp::kClientWidth,
-		WinApp::kClientHeight
+		WinApp::kClientHeight,
+		clipHeight
 	);
+	dx_->SetRenderTarget(bloom_->GetSceneRTVHandle());
+	dx_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+	if (clipHeight > 0) {
+		dx_->SetScissorRect(0, 0, WinApp::kClientWidth, clipHeight);
+	}
 	objCommon_->SetGraphicsPipelineState();
 }
 
@@ -467,6 +480,154 @@ void GameApp::WarmupAssets_() {
 	ParticleManager::GetInstance()->LoadAllEffects();
 
 	OutputDebugStringA("[Warmup] END\n");
+}
+
+void GameApp::LoadActionSequenceProfiles_() {
+	actionSequenceProfiles_.clear();
+	cardUseSequenceNames_.clear();
+	effectSequenceNames_.clear();
+	cardSequenceNames_.clear();
+
+	const std::filesystem::path sequenceDir = "resources/sequences";
+	if (!std::filesystem::exists(sequenceDir)) {
+		OutputDebugStringA("[ActionSequence] resources/sequences not found\n");
+		return;
+	}
+
+	for (const auto& entry : std::filesystem::directory_iterator(sequenceDir)) {
+		if (!entry.is_regular_file() || entry.path().extension() != ".json") {
+			continue;
+		}
+		if (entry.path().filename() == "card_sequence_map.json") {
+			continue;
+		}
+		if (entry.path().stem().string().ends_with("_camera")) {
+			continue;
+		}
+
+		std::ifstream file(entry.path());
+		if (!file.is_open()) {
+			continue;
+		}
+
+		try {
+			nlohmann::json j;
+			file >> j;
+
+			ActionSequenceProfile profile;
+			profile.FromJson(j);
+
+			const std::string key = entry.path().stem().string();
+			actionSequenceProfiles_[key] = profile;
+
+			OutputDebugStringA(("[ActionSequence] loaded: " + key + "\n").c_str());
+		} catch (...) {
+			OutputDebugStringA(("[ActionSequence] failed: " + entry.path().string() + "\n").c_str());
+		}
+	}
+
+	const std::filesystem::path mapPath = sequenceDir / "card_sequence_map.json";
+	if (!std::filesystem::exists(mapPath)) {
+		return;
+	}
+
+	std::ifstream mapFile(mapPath);
+	if (!mapFile.is_open()) {
+		return;
+	}
+
+	try {
+		nlohmann::json j;
+		mapFile >> j;
+
+		if (j.contains("cardUse") && j["cardUse"].is_array()) {
+			for (const auto& name : j["cardUse"]) {
+				cardUseSequenceNames_.push_back(name.get<std::string>());
+			}
+		}
+
+		if (j.contains("effects") && j["effects"].is_object()) {
+			for (const auto& [effectType, names] : j["effects"].items()) {
+				if (!names.is_array()) {
+					continue;
+				}
+				auto& list = effectSequenceNames_[effectType];
+				for (const auto& name : names) {
+					list.push_back(name.get<std::string>());
+				}
+			}
+		}
+
+		if (j.contains("cards") && j["cards"].is_object()) {
+			for (const auto& [cardIdText, names] : j["cards"].items()) {
+				if (!names.is_array()) {
+					continue;
+				}
+				auto& list = cardSequenceNames_[std::stoi(cardIdText)];
+				for (const auto& name : names) {
+					list.push_back(name.get<std::string>());
+				}
+			}
+		}
+
+		OutputDebugStringA("[ActionSequence] loaded card_sequence_map\n");
+	} catch (...) {
+		OutputDebugStringA("[ActionSequence] failed: card_sequence_map.json\n");
+	}
+}
+
+const ActionSequenceProfile* GameApp::FindActionSequenceProfile(const std::string& name) const {
+	auto it = actionSequenceProfiles_.find(name);
+	if (it == actionSequenceProfiles_.end()) {
+		return nullptr;
+	}
+
+	return &it->second;
+}
+
+const ActionSequenceProfile* GameApp::PickSequenceFromNames_(const std::vector<std::string>& names) const {
+	std::vector<const ActionSequenceProfile*> available;
+	available.reserve(names.size());
+
+	for (const std::string& name : names) {
+		if (const ActionSequenceProfile* profile = FindActionSequenceProfile(name)) {
+			available.push_back(profile);
+		}
+	}
+
+	if (available.empty()) {
+		return nullptr;
+	}
+
+	static std::mt19937 rng(std::random_device{}());
+	std::uniform_int_distribution<size_t> dist(0, available.size() - 1);
+	return available[dist(rng)];
+}
+
+const ActionSequenceProfile* GameApp::PickCardUseSequenceProfile() const {
+	return PickSequenceFromNames_(cardUseSequenceNames_);
+}
+
+const ActionSequenceProfile* GameApp::PickCardEffectSequenceProfile(
+	int cardId,
+	const std::vector<std::string>& effectTypes) const {
+	auto cardIt = cardSequenceNames_.find(cardId);
+	if (cardIt != cardSequenceNames_.end()) {
+		if (const ActionSequenceProfile* profile = PickSequenceFromNames_(cardIt->second)) {
+			return profile;
+		}
+	}
+
+	for (const std::string& effectType : effectTypes) {
+		auto effectIt = effectSequenceNames_.find(effectType);
+		if (effectIt != effectSequenceNames_.end()) {
+			if (const ActionSequenceProfile* profile = PickSequenceFromNames_(effectIt->second)) {
+				return profile;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 void GameApp::SetDeckInstancesFromId(const std::vector<int>& ids) {

@@ -1,0 +1,38 @@
+{
+    "cardUse": [
+        "card_use_01"
+    ],
+    "effects": {
+        "Damage": [
+            "test_attack",
+            "test_attack_2",
+            "test_Attak"
+        ],
+        "DamageCrescent": [
+            "test_attack",
+            "test_attack_2",
+            "test_Attak"
+        ],
+        "DamageByBlock": [
+            "test_attack",
+            "test_attack_2"
+        ],
+        "DamageAll": [
+            "test_Attak_2"
+        ],
+        "Block": [
+            "block_01"
+        ],
+        "Heal": [
+            "heal_01"
+        ],
+        "PowerBoost": [
+            "buff_01"
+        ],
+        "NextTurnAtkUp": [
+            "buff_01"
+        ]
+    },
+    "cards": {
+    }
+}
