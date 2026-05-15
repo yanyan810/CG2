@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cstdint>
 #include "PropManager.h"
 #include "CardDatabase.h"
 #include "HandView3D.h"
@@ -24,6 +25,7 @@ class Player;
 class Enemy;
 class EnemyManager;
 class FieldUi;
+class ModelParticleManager;
 
 class BattleController {
 public:
@@ -76,6 +78,7 @@ public:
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
 	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
+	void DrawFieldFrameBloom(GameApp& app);
 	void DrawDamagePopups3D(GameApp& app);
 	void DrawField3D(GameApp& app);
 	void DrawCardArea3D(GameApp& app);
@@ -143,9 +146,11 @@ public:
 
 	void SetPlayer(Player* player);
 	void SetEnemyManager(EnemyManager* enemyMgr);
+	void SetFieldParticleManager(ModelParticleManager* particleMgr) { fieldParticleManager_ = particleMgr; }
 
 	void UpdateFieldCardTransform_(int index, bool hovered, float dt);
 	void RefreshAllFieldCardTransforms_(float dt);
+	void EmitFieldCardGlitter_(float dt);
 
 	PokerBonus GetCurrentPokerBonusForUi() const;
 
@@ -197,6 +202,7 @@ public:
 		objCom_ = nullptr;
 		dx_ = nullptr;
 		spriteCom_ = nullptr;
+		fieldParticleManager_ = nullptr;
 	}
 
 	bool IsPlayerTargeting() const {
@@ -295,6 +301,8 @@ private:
 	PokerChoiceState pokerChoiceState_ = PokerChoiceState::None;
 	PokerChoiceState pokerReturnState_ = PokerChoiceState::None;
 	PokerHandResult currentPoker_;
+	float fieldCardGlitterEmitTimer_ = 0.0f;
+	ModelParticleManager* fieldParticleManager_ = nullptr;
 
 	//キー用
 	bool prevY_ = false;
@@ -406,6 +414,7 @@ private:
 	void DrawCards_(int count);
 	void ApplyCardEffects_(const CardDef& def, int targetIndex = -1);
 	PokerHandResult EvaluatePokerHand_() const;
+	PokerHandResult EvaluatePokerHandForCards_(const std::vector<CardInstance>& cards) const;
 	const char* GetPokerHandName_(PokerHandRank rank) const;
 
 	PokerBonus GetPokerBonus_(PokerHandRank rank) const;
@@ -455,4 +464,14 @@ private:
 
 	void UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt);
 	void UpdateVisuals_(float dt);
+	void UpdateHandPokerPreviewEffects_();
+	void UpdateFieldReplacePreviewEffects_();
+	void EmitHandCardGlitter_(float dt);
+	uint64_t BuildHandPokerPreviewSignature_() const;
+
+	std::vector<PokerHandRank> handPreviewRanks_;
+	std::vector<PokerHandRank> fieldReplacePreviewRanks_;
+	std::vector<bool> fieldReplacePreviewActive_;
+	float handCardGlitterEmitTimer_ = 0.0f;
+	uint64_t handPreviewSignature_ = 0;
 };

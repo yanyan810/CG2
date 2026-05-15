@@ -336,6 +336,19 @@ void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const 
 	spriteCommon_->SetGraphicsPipelineState();
 }
 
+void GameApp::DrawModelParticlesObjectPost(ModelParticleManager* particles, const BloomParam& param)
+{
+	if (!particles) {
+		return;
+	}
+
+	objectPostEffect_->SetParam(param);
+	BeginObjectPostEffect();
+	particles->Draw();
+	EndObjectPostEffect();
+	objCommon_->SetGraphicsPipelineState();
+}
+
 void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param, int clipHeight)
 {
 	if (!particles) {

@@ -376,6 +376,11 @@ void GameScene::OnEnter(GameApp& app) {
 	particleManager_->RegisterEffect("Air_Fly", "Air_Fly.json");
 	particleManager_->RegisterEffect("Air_Hit", "Air_Hit.json");
 
+	fieldParticleManager_ = std::make_unique<ModelParticleManager>();
+	fieldParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+	fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
+	battle_.SetFieldParticleManager(fieldParticleManager_.get());
+
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 	ResetParticleObjectPostParam_();
@@ -429,6 +434,7 @@ void GameScene::OnExit(GameApp& app) {
 	cameraEditTarget_ = nullptr;
 	player_.reset();
 	skyDome_.reset();
+	fieldParticleManager_.reset();
 	camera_.reset();
 	battle_.Finalize();
 
@@ -439,16 +445,22 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive() || pausingUI_->GetIsSceneChangeRequested()) {
+	const auto isPlayerDead = [this]() {
+		return player_ && (player_->GetHP() <= 0 || !player_->GetIsAlive());
+	};
+
+	if (isPlayerDead()) {
+		RequestChangeScene_("GameOver");
+		return;
+	}
+
+	if (battle_.IsAllEnemiesDead() || pausingUI_->GetIsSceneChangeRequested()) {
 		battleEndTimer_--;
 	}
 
 	if (battleEndTimer_ <= 0) {
 		if (battle_.IsAllEnemiesDead()) {
 			RequestChangeScene_("GameClear");
-		}
-		if (!player_->GetIsAlive()) {
-			RequestChangeScene_("GameOver");
 		}
 		if (pausingUI_->GetIsSceneChangeRequested()) {
 			RequestChangeScene_("Title");
@@ -695,6 +707,11 @@ void GameScene::Update(GameApp& app, float dt) {
 		actionCamera->Update();
 	}
 
+	if (isPlayerDead()) {
+		RequestChangeScene_("GameOver");
+		return;
+	}
+
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
 		cardDescText_->SetPosition({ 40.0f, 80.0f });
@@ -779,8 +796,10 @@ void GameScene::Update(GameApp& app, float dt) {
 		effectSequencer_->Update(dt);
 	}
 
-	// 最後に1回だけDispatch
 	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+	if (fieldParticleManager_) {
+		fieldParticleManager_->Dispatch(1.0f / 60.0f, camera_.get());
+	}
 }
 
 
@@ -820,9 +839,23 @@ void GameScene::Draw3D(GameApp& app) {
 	battle_.DrawCardArea3D(app);
 
 	battle_.DrawPostEffect3D(app);
+	battle_.DrawFieldFrameBloom(app);
+
+	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+	app.Dx()->ClearDepthBuffer();
+	if (fieldParticleManager_) {
+		if (particleObjectPostEnabled_) {
+			app.DrawModelParticlesObjectPost(fieldParticleManager_.get(), particleObjectPostParam_);
+		} else {
+			fieldParticleManager_->Draw();
+			app.ObjCom()->SetGraphicsPipelineState();
+		}
+	}
 
 	// 最後にビューポートを元に戻す（2D描画等のため）
 	app.Dx()->SetViewport(windowW, windowH);
+	app.ObjCom()->SetGraphicsPipelineState();
+
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -1072,8 +1105,6 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	int battleHeight = static_cast<int>(windowH * splitRatio_);
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
-
-	app.ObjCom()->SetGraphicsPipelineState();
 
 	if (particleObjectPostEnabled_) {
 		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
