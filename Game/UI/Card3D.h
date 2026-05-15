@@ -25,8 +25,10 @@ public:
     void SetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale);
     void Update(float dt);
     void Draw();
+    void DrawFrameOnly();
 
     Vector3 GetWorldPos() const { return pos_; }
+    Vector3 GetWorldPointFromLocal(const Vector3& localOffset) const;
     void SetIsHand(bool isHand) { isHand_ = isHand; }
 
     void Setup(
@@ -55,7 +57,7 @@ public:
 
     void SetCount(int count);
 
-    void SetGlitter(float intensity) { glitterIntensity_ = intensity; }
+    void SetGlitter(float intensity);
 
 private:
 

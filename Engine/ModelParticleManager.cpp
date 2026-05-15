@@ -85,23 +85,24 @@ ModelParticleManager* ModelParticleManager::GetInstance()
     return &instance;
 }
 
-void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
+void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t maxInstances) {
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
+    maxInstance_ = std::max(1u, maxInstances);
 
     // 1. モデルの取得（ModelManagerを使用）
     ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
     model_ = ModelManager::GetInstance()->FindModel("triangleParticle.obj");
 
     // 2. インスタンシング用リソースの作成
-    instancingResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ModelParticleTransformationMatrix) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    instancingResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ModelParticleTransformationMatrix) * maxInstance_, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     
     // 2. UAVの作成 (Compute Shaderで書き込むため)
     uavIndexRenderData_ = srvManager_->Allocate();
     srvManager_->CreateUAVforStructuredBuffer(
         uavIndexRenderData_,
         instancingResource_.Get(),
-        kMaxInstance,
+        maxInstance_,
         sizeof(ModelParticleTransformationMatrix)
     );
     
@@ -110,7 +111,7 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     srvManager_->CreateSRVforStructuredBuffer(
         srvIndex_,
         instancingResource_.Get(),
-        kMaxInstance,
+        maxInstance_,
         sizeof(ModelParticleTransformationMatrix)
     );
 
@@ -151,14 +152,14 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     
 
     // 1. 物理バッファの作成 (Default Heap)
-    particleResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ParticleGPU) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    particleResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ParticleGPU) * maxInstance_, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
     // 3. UAVの作成 (SrvManagerにUAV作成機能がある想定)
     uavIndexParticles_ = srvManager_->Allocate();
-    srvManager_->CreateUAVforStructuredBuffer(uavIndexParticles_, particleResource_.Get(), kMaxInstance, sizeof(ParticleGPU));
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexParticles_, particleResource_.Get(), maxInstance_, sizeof(ParticleGPU));
 
     uavIndexRenderData_ = srvManager_->Allocate();
-    srvManager_->CreateUAVforStructuredBuffer(uavIndexRenderData_, instancingResource_.Get(), kMaxInstance, sizeof(ModelParticleTransformationMatrix));
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexRenderData_, instancingResource_.Get(), maxInstance_, sizeof(ModelParticleTransformationMatrix));
 
     computeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
     computeConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&computeConfigData_));
@@ -168,7 +169,7 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     computeSceneResource_->Map(0, nullptr, reinterpret_cast<void**>(&computeSceneData_));
 
     // Emit用の転送バッファ (1個分)
-    emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * kMaxInstance);
+    emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * maxInstance_);
 
     D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
     argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW; // DrawInstanced用
@@ -206,10 +207,10 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     dxCommon_->GetCommandList()->ResourceBarrier(1, &initBarrier);
 
-    // 1. AliveIndicesバッファの作成 (kMaxInstance分)
-    aliveIndicesResource_ = dxCommon_->CreateUAVBufferResource(sizeof(uint32_t) * kMaxInstance, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    // 1. AliveIndicesバッファの作成
+    aliveIndicesResource_ = dxCommon_->CreateUAVBufferResource(sizeof(uint32_t) * maxInstance_, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     uavIndexAliveIndices_ = srvManager_->Allocate();
-    srvManager_->CreateUAVforStructuredBuffer(uavIndexAliveIndices_, aliveIndicesResource_.Get(), kMaxInstance, sizeof(uint32_t));
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexAliveIndices_, aliveIndicesResource_.Get(), maxInstance_, sizeof(uint32_t));
 
     // 2. DrawArgsのUAV登録 (CSのu3にセットするため)
     uavIndexDrawArgs_ = srvManager_->Allocate();
@@ -266,12 +267,33 @@ void ModelParticleManager::Emit(const std::string& effectName, const Vector3& po
     OutputDebugStringA(buf);
 }
 
+void ModelParticleManager::Emit(const std::string& effectName, const Vector3& position, uint32_t count, const Vector4& color) {
+    if (effectLibrary_.find(effectName) == effectLibrary_.end()) {
+        RegisterEffect(effectName, effectName + ".json");
+    }
+
+    ParticleEmitterConfig config = effectLibrary_[effectName];
+    config.position = position;
+    config.startColor = color;
+    config.endColor = { color.x, color.y, color.z, 0.0f };
+    config.startColorRandom = { 0.05f, 0.05f, 0.05f, 0.0f };
+    config.endColorRandom = { 0.04f, 0.04f, 0.04f, 0.0f };
+
+    std::vector<Particle> particles;
+    particles.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        particles.push_back(MakeParticle(config));
+    }
+
+    EmitBatch(particles);
+}
+
 void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
     if (particles.empty()) return;
 
     // 今回発生させる数（念のためバッファを突き抜けないように制限）
-    size_t count = std::min(particles.size(), (size_t)1000);
-    if (freeIndex_ + count >= kMaxInstance) freeIndex_ = 0; // 簡易的なラップアラウンド処理
+    size_t count = std::min({ particles.size(), static_cast<size_t>(1000), static_cast<size_t>(maxInstance_) });
+    if (freeIndex_ + count >= maxInstance_) freeIndex_ = 0; // 簡易的なラップアラウンド処理
 
     std::vector<ParticleGPU> uploadData(count);
     for (size_t i = 0; i < count; ++i) {
@@ -391,7 +413,7 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
 
     // 1. 定数バッファの更新
     computeConfigData_->deltaTime = deltaTime;
-    computeConfigData_->maxParticles = kMaxInstance;
+    computeConfigData_->maxParticles = maxInstance_;
     computeSceneData_->viewProjection = camera->GetViewMatrix() * camera->GetProjectionMatrix();
     // --- 新機能: ビルボード用カメラ位置 ---
     computeSceneData_->cameraPosition = camera->GetTranslate();
@@ -412,7 +434,7 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
     commandList->SetComputeRootDescriptorTable(4, srvManager_->GetGPUDescriptionHandle(uavIndexAliveIndices_));
     commandList->SetComputeRootDescriptorTable(5, srvManager_->GetGPUDescriptionHandle(uavIndexDrawArgs_));
 
-    commandList->Dispatch((kMaxInstance + 1023) / 1024, 1, 1);
+    commandList->Dispatch((maxInstance_ + 1023) / 1024, 1, 1);
 
     // 4. 描画前にバリアを張る (RenderDataとDrawArgsの両方)
     D3D12_RESOURCE_BARRIER barriers[2];

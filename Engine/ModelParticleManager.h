@@ -239,7 +239,7 @@ public:
 	// パーティクルの最大数
 	static const uint32_t kMaxInstance = 1000000;
 
-	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
+	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t maxInstances = kMaxInstance);
 	void Dispatch(float deltaTime, Camera* camera);
 	void Draw();
 
@@ -258,6 +258,7 @@ public:
 
 	// --- 変更：名前指定でパーティクルを発生させる ---
 	void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
+	void Emit(const std::string& effectName, const Vector3& position, uint32_t count, const Vector4& color);
 private:
 	// エフェクト設定を名前で引けるようにする
 	std::map<std::string, ParticleEmitterConfig> effectLibrary_;
@@ -300,5 +301,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> resetResource_;
 
 	uint32_t freeIndex_ = 0;
+	uint32_t maxInstance_ = kMaxInstance;
 	
 };

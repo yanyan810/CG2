@@ -119,6 +119,7 @@ private:
     bool sameCameraLoopEnabled_ = false; // true: 同じアニメをループ
 
     ModelParticleManager* particleManager_;
+    std::unique_ptr<ModelParticleManager> fieldParticleManager_;
     bool particleObjectPostEnabled_ = true;
     BloomParam particleObjectPostParam_{};
 

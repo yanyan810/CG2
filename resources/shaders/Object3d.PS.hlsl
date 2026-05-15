@@ -12,7 +12,9 @@ struct Material
     float4x4 uvTransform;
 
     float shininess;
-    float3 _pad1;
+    float glitterIntensity;
+    float timer;
+    float _pad1;
 };
 
 struct DirectionalLight
@@ -72,6 +74,22 @@ struct PixelShaderOutput
     float4 color : SV_TARGET0;
 };
 
+float3 ApplyGlitter(float3 baseColor, float2 uv)
+{
+    float intensity = max(gMaterial.glitterIntensity, 0.0f);
+    if (intensity <= 0.001f)
+    {
+        return baseColor;
+    }
+
+    float t = gMaterial.timer;
+    float pulse = 0.5f + 0.5f * sin(t * 1.6f);
+    float3 glowColor = float3(1.0f, 0.82f, 0.28f);
+    float glow = intensity * 0.014f * pulse;
+
+    return baseColor + glowColor * glow;
+}
+
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
@@ -84,6 +102,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         discard;
 
     output.color = gMaterial.color * tex;
+    output.color.rgb = ApplyGlitter(output.color.rgb, uv.xy);
 
     if (gMaterial.enableLighting == 0)
         return output;
@@ -203,6 +222,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         diffuseD + specularD +
         diffuseP + specularP +
         diffuseS + specularS;
+    output.color.rgb = ApplyGlitter(output.color.rgb, uv.xy);
 
     output.color.a = gMaterial.color.a * tex.a;
     return output;

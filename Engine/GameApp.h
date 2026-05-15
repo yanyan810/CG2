@@ -56,6 +56,7 @@ public:
     void EndObjectPostEffect();
     void EndObjectPostEffectToBloomScene();
     void DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param);
+    void DrawModelParticlesObjectPost(ModelParticleManager* particles, const BloomParam& param);
     void DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param);
 
     Input* GetInput() { return input_.get(); }

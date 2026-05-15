@@ -162,7 +162,7 @@ void HandView3D::LayoutFan_()
 
 void HandView3D::Update(float dt)
 {
-    if (!layoutDirty_ && discardingCards_.empty()) {
+    if (!layoutDirty_ && discardingCards_.empty() && !cardEffectActive_) {
         return;
     }
 
@@ -260,8 +260,64 @@ void HandView3D::Update(float dt)
     if (!discardingCards_.empty()) {
         stillAnimating = true;
     }
+    if (cardEffectActive_) {
+        stillAnimating = true;
+    }
 
     layoutDirty_ = stillAnimating;
+}
+
+Card3D* HandView3D::GetCard(int index)
+{
+    if (index < 0 || index >= static_cast<int>(cards_.size())) {
+        return nullptr;
+    }
+    return cards_[index].get();
+}
+
+const Card3D* HandView3D::GetCard(int index) const
+{
+    if (index < 0 || index >= static_cast<int>(cards_.size())) {
+        return nullptr;
+    }
+    return cards_[index].get();
+}
+
+void HandView3D::SetCardEffect(int index, const Vector4& frameColor, float glitterIntensity)
+{
+    Card3D* card = GetCard(index);
+    if (!card) {
+        return;
+    }
+
+    card->SetFrameColor(frameColor);
+    card->SetGlitter(glitterIntensity);
+    cardEffectActive_ = true;
+    layoutDirty_ = true;
+}
+
+void HandView3D::ResetCardEffect(int index)
+{
+    Card3D* card = GetCard(index);
+    if (!card) {
+        return;
+    }
+
+    card->ResetFrameColor();
+    card->SetGlitter(0.0f);
+}
+
+void HandView3D::ClearCardEffects()
+{
+    for (auto& card : cards_) {
+        if (!card) {
+            continue;
+        }
+        card->ResetFrameColor();
+        card->SetGlitter(0.0f);
+    }
+    cardEffectActive_ = false;
+    layoutDirty_ = true;
 }
 
 void HandView3D::Draw()
@@ -359,6 +415,7 @@ void HandView3D::Clear()
     dragActive_ = false;
     prevHoverIndex_ = -1;
     layoutDirty_ = true;
+    cardEffectActive_ = false;
 
 }
 
