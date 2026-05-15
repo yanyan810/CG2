@@ -14,9 +14,6 @@
 
 class GameApp;
 
-
-
-
 class FieldUi {
 public:
 	enum class DescMode {

@@ -19,6 +19,7 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 
 	alive_ = true;
 	hp_ = 300;
+	block_ = 0;
 
 	model_ = std::make_unique<Object3d>();
 	model_->Initialize(objCommon_, dx_);
@@ -52,6 +53,21 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	model_->SetRotate(rot_);
 	model_->Update(0.0f);
 
+}
+
+void Enemy::ApplyStageConfig(const StageEnemyConfig& config)
+{
+	if (!config.behaviorJson.empty()) {
+		ai_.LoadPattern(config.behaviorJson);
+	}
+
+	if (config.maxHp > 0) {
+		SetMaxHp(config.maxHp, true);
+	}
+
+	if (config.hp >= 0) {
+		SetHp(config.hp);
+	}
 }
 
 void Enemy::PlayAttackAnim(const Vector3& targetPos) {
@@ -190,6 +206,14 @@ void EnemyManager::Spawn(EnemyType type, const Vector3& pos)
 {
 	Enemy e{};
 	e.Initialize(objCommon_, dx_, cam_, type, pos);
+	enemies_.push_back(std::move(e));
+}
+
+void EnemyManager::SpawnWithConfig(const StageEnemyConfig& config)
+{
+	Enemy e{};
+	e.Initialize(objCommon_, dx_, cam_, config.type, config.position);
+	e.ApplyStageConfig(config);
 	enemies_.push_back(std::move(e));
 }
 

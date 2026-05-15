@@ -31,7 +31,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/BloodyVengeance.png",
-      "desc": "敵単体に2ダメージ与えて、自身は1ダメージ食らう",
+      "desc": "敵単体に2ダメージ与えて、\n自身は1ダメージ食らう",
       "effects": [
         { "type": "SelfDamage", "value": 1 },
         { "type": "Damage", "value": 2 }
@@ -81,7 +81,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/CrescentMoon.png",
-      "desc": "敵単体に3ダメージ与える。現在のターン数が奇数ならさらに3ダメージ与える",
+      "desc": "敵単体に3ダメージ与える。\n現在のターン数が奇数なら\nさらに3ダメージ与える",
       "effects": [
         { "type": "DamageCrescent", "value": 3 }
       ]
@@ -93,7 +93,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/OverClock.png",
-      "desc": "敵単体に2ダメージを与える。これを二回行う",
+      "desc": "敵単体に2ダメージを与える。\nこれを二回行う",
       "effects": [
         { "type": "Damage", "value": 2 },
         { "type": "Damage", "value": 2 }
@@ -106,7 +106,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/ShieldBash.png",
-      "desc": "敵単体にブロック数x1ダメージ与える",
+      "desc": "敵単体に\nブロック数x1ダメージ与える",
       "effects": [
         { "type": "DamageByBlock", "value": 1 }
       ]
@@ -118,7 +118,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/GaeBolg.png",
-      "desc": "敵単体に1ダメージ与える。特殊効果発動時、スリーカードなら敵単体に100ダメージ与える",
+      "desc": "敵単体に1ダメージ与える。",
       "effects": [
         { "type": "Damage", "value": 1 }
       ],
@@ -301,7 +301,9 @@
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonBottle!.png",
       "desc": "敵単体に毒を１付与",
-      "effects": []
+      "effects": [
+        { "type": "Poison", "value": 1 }
+      ]
      },
       {
       "id": 22,
@@ -311,17 +313,21 @@
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/HardPoisonBottle!.png",
       "desc": "敵全体に毒を１付与",
-      "effects": []
+      "effects": [
+        { "type": "PoisonAll", "value": 1 }
+      ]
      },
       {
       "id": 23,
       "name": "PainAmplification",
-      "cost": 2,
+      "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PainAmplification.png",
       "desc": "敵全体の毒を倍の値にする",
-      "effects": []
+       "effects": [
+        { "type": "PoisonDouble", "value": 1 }
+      ]
      },
       {
       "id": 24,
@@ -331,7 +337,10 @@
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/RedSpiderLily.png",
       "desc": "敵単体に毒を２付与\nカードを２枚引く",
-      "effects": []
+       "effects": [
+        { "type": "Poison", "value": 2 },
+        { "type": "Draw", "value": 2 }
+      ]
      },
      {
       "id": 25,
@@ -341,7 +350,10 @@
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/Flowers.png",
       "desc": "敵全体に毒を２付与\nカードを２枚引く",
-      "effects": []
+       "effects": [
+        { "type": "PoisonAll", "value": 2 },
+        { "type": "Draw", "value": 2 }
+      ]
      },
      {
       "id": 26,
@@ -351,7 +363,10 @@
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonKnife.png",
       "desc": "敵単体に５ダメージと\n毒を１付与する",
-      "effects": []
+      "effects": [
+        { "type": "Damage", "value": 5 },
+        { "type": "Poison", "value": 1 }
+      ]
      },
      {
       "id": 27,
@@ -361,7 +376,10 @@
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonFollowUp.png",
       "desc": "敵全体に毒を５付与\nそのあと、毒ダメージを１度与える",
-      "effects": []
+       "effects": [
+        { "type": "PoisonAll", "value": 5 },
+        { "type": "PoisonDamage", "value": 1 }
+      ]
      },
       {
       "id": 28,
@@ -370,8 +388,10 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonDraw.png",
-      "desc": "このターン中、\n「カードを引くたび、敵全体に毒を１付与」\nを得る",
-      "effects": []
+      "desc": "このターン中、\n「毒を付与するたびにカードを１枚引く」\nを得る",
+       "effects": [
+        { "type": "PoisonDraw", "value": 1 }
+      ]
      },
        {
       "id": 29,
@@ -381,16 +401,22 @@
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/TheRodOfAsclepius.png",
       "desc": "敵全体に毒ダメージを２度与える\nそのあと、敵全体の毒を解除し、\nその値の合計値分体力を回復する",
-      "effects": []
+       "effects": [
+        { "type": "PoisonDamage", "value": 2 },
+        { "type": "PoisonRemove", "value": 1 },
+        { "type": "Poisonheal", "value": 2 }
+      ]
      },
       {
       "id": 30,
       "name": "FriendlyPoison",
-      "cost": 3,
+      "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/FriendlyPoison.png",
-      "desc": "敵全体の毒の合計値分体力を回復",
-      "effects": []
+      "desc": "敵全体の毒の合計値分\n体力を回復",
+      "effects": [
+        { "type": "PoisonHeal", "value": 1 }
+      ]
      }
     ]}

@@ -7,6 +7,12 @@
 #include <Windows.h>
 using json = nlohmann::json;
 
+namespace {
+    bool IsSupportedActionType_(const std::string& type)
+    {
+        return type == "Attack" || type == "Block" || type == "Heal";
+    }
+}
 
 void BossAI::Reset(int maxHP) {
     maxHP_ = std::max(1, maxHP);
@@ -21,23 +27,48 @@ void BossAI::LoadPattern(const std::string& filePath) {
         return;
     }
     json j;
-    file >> j;
+    try {
+        file >> j;
+    } catch (...) {
+        std::string errorMsg = "[BossAI] ERROR: JSON parse failed: " + filePath + "\n";
+        OutputDebugStringA(errorMsg.c_str());
+        return;
+    }
 
     // 最大HPの読み込み
-    if (j.contains("maxHp")) {
+    if (j.contains("maxHp") && j["maxHp"].is_number_integer()) {
         maxHP_ = j["maxHp"].get<int>();
     }
 
     // 行動リストの読み込み
     actionList_.clear();
-    if (j.contains("actions")) {
+    if (j.contains("actions") && j["actions"].is_array()) {
         for (const auto& item : j["actions"]) {
+            if (!item.is_object() ||
+                !item.contains("type") ||
+                !item.contains("value") ||
+                !item.contains("name") ||
+                !item["type"].is_string() ||
+                !item["value"].is_number_integer() ||
+                !item["name"].is_string()) {
+                OutputDebugStringA("[BossAI] WARN: invalid action skipped.\n");
+                continue;
+            }
+
             EnemyAction action;
             action.type = item["type"].get<std::string>();
             action.value = item["value"].get<int>();
             action.name = item["name"].get<std::string>();
+            if (!IsSupportedActionType_(action.type)) {
+                std::string warnMsg = "[BossAI] WARN: unknown action type skipped: " + action.type + "\n";
+                OutputDebugStringA(warnMsg.c_str());
+                continue;
+            }
+
             actionList_.push_back(action);
         }
+    } else {
+        OutputDebugStringA("[BossAI] WARN: actions array not found.\n");
     }
     std::string successMsg = "[BossAI] SUCCESS: JSONを読み込みました！技の数: " + std::to_string(actionList_.size()) + "\n";
     OutputDebugStringA(successMsg.c_str());

@@ -111,6 +111,9 @@ public:
 		trailConfig_ = config;
 	}
 
+	void SetPoisonDrawActive(bool active) { poisonDrawActive_ = active; }
+	bool GetPoisonDrawActive() const { return poisonDrawActive_; }
+
 private:
 #ifndef _DEBUG
 	void PlayReleaseIdleAnimation_();
@@ -132,6 +135,8 @@ private:
 
 	// 攻撃時に回復する量
 	int vampireHeal_ = 0;
+
+	bool poisonDrawActive_ = false;
 
 	AABB body_{};
 	enum class AnimState { Idle, AttackForward, AttackReturn, Damage };

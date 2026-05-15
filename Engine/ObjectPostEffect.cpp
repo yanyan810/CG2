@@ -44,6 +44,7 @@ void ObjectPostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManage
     param_.curvature = 0.0f;
     param_.borderSharp = 0.0f;
     param_.glitchAmount = 0.0f;
+    param_.radialBlurStrength = 0.0f;
     param_.dissolveAmount = -1.0f;
     param_.dissolveEdgeWidth = 0.08f;
     param_.dissolveEdgeIntensity = 2.0f;
@@ -78,7 +79,7 @@ void ObjectPostEffect::EndCapture()
     EndCaptureToRenderTarget({ 0 }, WinApp::kClientWidth, WinApp::kClientHeight);
 }
 
-void ObjectPostEffect::EndCaptureToRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE outputRTV, int width, int height)
+void ObjectPostEffect::EndCaptureToRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE outputRTV, int width, int height, int clipHeight)
 {
     Transition(objectRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -115,6 +116,9 @@ void ObjectPostEffect::EndCaptureToRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE outp
         dxCommon_->SetRenderTargetNoDepth(outputRTV);
     }
     dxCommon_->SetViewport(width, height);
+    if (clipHeight > 0) {
+        dxCommon_->SetScissorRect(0, 0, width, clipHeight);
+    }
     postEffect_->DrawObjectComposite(objectRT_->GetGPUHandle(), bloomRT_A_->GetGPUHandle());
 }
 

@@ -11,7 +11,9 @@
 #include "Card3D.h"
 #include <array>
 #include "Sprite.h"
+#include "TextSprite.h"
 #include <memory>
+#include "UI/BattleActionDirector.h"
 
 class GameApp;
 class Camera;
@@ -33,7 +35,8 @@ public:
 		Dragging,
 		Preview,
 		ChoosingFieldReplace,
-		ChoosingEnemyTarget
+		ChoosingEnemyTarget,
+		ExecutingSequence
 	};
 
 	enum class PokerChoiceState
@@ -76,8 +79,13 @@ public:
 	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
 	void DrawFieldFrameBloom(GameApp& app);
+	void DrawDamagePopups3D(GameApp& app);
+	void DrawField3D(GameApp& app);
+	void DrawCardArea3D(GameApp& app);
+	void DrawBattleOverlay3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
+	Camera* GetActionCamera() const;
 
 	const CardDef* GetPreviewCardDef() const;
 
@@ -98,6 +106,7 @@ public:
 	std::wstring GetEnergyText() const;
 	std::wstring GetPlayerHpTexts() const;
 	std::vector<std::wstring> GetEnemyHpTexts() const;
+	std::vector<std::wstring> GetEnemyPoisonTexts() const;
 	std::wstring GetPlayerPowerBoostText()const;
 	std::wstring GetPlayerBlockText()const;
 
@@ -178,6 +187,9 @@ public:
 		playerHpFg_.reset();
 		enemyHpBgs_.clear();
 		enemyHpFgs_.clear();
+		enemyBlockPredicts_.clear();
+		enemyIntentIcons_.clear();
+		enemyIntentTexts_.clear();
 
 		deck_.clear();
 		hand_.clear();
@@ -368,6 +380,15 @@ private:
 private:
 
 	SpriteCommon* spriteCom_ = nullptr;
+	BattleActionDirector actionDirector_;
+	std::vector<const ActionSequenceProfile*> actionSequenceQueue_;
+	size_t actionSequenceIndex_ = 0;
+	Enemy* actionSequenceTarget_ = nullptr;
+
+	void ExecutePendingAttack_(Enemy& targetEnemy);
+	std::vector<std::string> CollectEffectTypes_(const CardDef& def) const;
+	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, Enemy& targetEnemy);
+	bool StartNextActionSequence_();
 
 	std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
 	std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
@@ -378,8 +399,10 @@ private:
 
 	std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
 	std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
+	std::vector<std::unique_ptr<Sprite>> enemyBlockPredicts_;
 
 	std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
+	std::vector<std::unique_ptr<TextSprite>> enemyIntentTexts_;
 
 	std::unique_ptr<Sprite> highlightFilter_;
 
@@ -426,7 +449,7 @@ private:
 	void PreloadCardAssets_();
 
 	int CalcFinalAttackDamage_(int baseDamage) const;
-	void ApplyDamageToEnemy_(Enemy& enemy, int damage);
+	int ApplyDamageToEnemy_(Enemy& enemy, int damage);
 
 	void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 

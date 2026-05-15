@@ -102,6 +102,7 @@ private:
 
     std::unique_ptr<TextSprite> playerHpText_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
+    std::vector<std::unique_ptr<TextSprite>> enemyPoisonTexts_;
 
     ParticleEmitterConfig attackEffectConfig_;
     
@@ -111,6 +112,12 @@ private:
     std::unique_ptr<TextSprite> blockText_;
 
     std::unique_ptr<Sprite> highlightFilter_;
+    std::unique_ptr<Sprite> bossStageBannerEffectOverlay_;
+    std::unique_ptr<Sprite> bossStageBannerBg_;
+    std::unique_ptr<TextSprite> bossStageBannerGlowText_;
+    std::unique_ptr<TextSprite> bossStageBannerText_;
+    bool isBossStage_ = false;
+    float bossStageBannerTimer_ = 0.0f;
 
     //カメラアニメ
     std::vector<std::string> cameraFiles_;

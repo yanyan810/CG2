@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 #include <cstdint>
+#include <string>
 
 #include"Camera.h"
 #include "Vector3.h"
@@ -20,24 +21,61 @@ enum class EnemyType : uint8_t {
     Slime
 };
 
+struct StageEnemyConfig {
+    EnemyType type = EnemyType::Slime;
+    Vector3 position{ 0.0f, 0.0f, 0.0f };
+    int maxHp = -1;
+    int hp = -1;
+    std::string behaviorJson;
+};
+
 class Enemy {
 public:
     void Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam,
         EnemyType type, const Vector3& spawnXYZ);
+    void ApplyStageConfig(const StageEnemyConfig& config);
 
     void Update(float dt); // プレイヤー座標などを渡さないシンプルな形に
     void Draw();
 
     bool IsAlive() const { return alive_; }
-    void Damage(int damage) {
+    int Damage(int damage) {
+        if (damage <= 0) {
+            return 0;
+        }
+
+        if (block_ > 0) {
+            const int blocked = block_ < damage ? block_ : damage;
+            block_ -= blocked;
+            damage -= blocked;
+        }
+
+        if (damage <= 0) {
+            return 0;
+        }
+
+        const int beforeHp = hp_;
         hp_ -= damage;
-        if (hp_ < 0) {
+        if (hp_ <= 0) {
             hp_ = 0;
             alive_ = false;
         }
+        return beforeHp - hp_;
     }
     int GetHP() const { return hp_; }
     int GetMaxHP() const { return maxHp_; }
+    int GetBlock() const { return block_; }
+    void AddBlock(int value) {
+        if (value <= 0) {
+            return;
+        }
+
+        block_ += value;
+        if (block_ < 0) {
+            block_ = 0;
+        }
+    }
+    void ResetBlock() { block_ = 0; }
     void SetHighlight(bool enable) { isHighlighted_ = enable; }
     bool IsHighlighted() const { return isHighlighted_; }
     void Heal(int value) {
@@ -54,6 +92,12 @@ public:
     }
 
     Vector3 GetPos() const { return pos_; }
+    void SetPosition(const Vector3& pos) {
+        pos_ = pos;
+        if (model_) {
+            model_->SetTranslate(pos_);
+        }
+    }
     AABB GetBodyAABB() const { return body_; }
     BossAI& GetBossAI() { return ai_; }
     void SetLighting(const LightingParam& p);
@@ -74,12 +118,35 @@ public:
         return 0;
     }
 
+	/// ----- 毒の処理 ----- ///
+    void AddPoison(int value) {
+        SetPoison(poison_ + value);
+    }
+
+    int GetPoison() const { return poison_; }
+
+    void ApplyPoisonDamage() {
+        Damage(poison_);
+        SetPoison(poison_ / 2);
+    }
+
+    void PoisonDouble() {
+        SetPoison(poison_ * 2);
+    }
+
+    void PoisonDamage(int count) {
+        Damage(poison_ * count);
+    }
+
+    void PoisonRemove() {
+        SetPoison(0);
+    }
+
 public:
 
     //チュートリアル用
     void SetMaxHp(int maxHp, bool healToFull = true);
     void SetHp(int hp);
-   // int GetTutorialMaxHp() const { return maxHp_; }
 
 private:
 
@@ -93,6 +160,7 @@ private:
     EnemyType type_ = EnemyType::Boss;
     bool alive_ = true;
     int hp_ = 300;
+    int block_ = 0;
 
     Vector3 pos_{ 0,0,0 };
     Vector3 rot_{ 0,0,0 };
@@ -113,6 +181,13 @@ private:
     Vector3 targetPos_{};
 
     float flashTimer_ = 0.0f;
+
+    int poison_ = 0;
+
+    // 毒の値のセット（負数防止）を共通化
+    void SetPoison(int value) {
+        poison_ = (value < 0) ? 0 : value;
+    }
 };
 
 // ==========================================
@@ -123,6 +198,7 @@ public:
     void Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam);
 
     void Spawn(EnemyType type, const Vector3& pos);
+    void SpawnWithConfig(const StageEnemyConfig& config);
 
     void Update(float dt);
     void Draw();

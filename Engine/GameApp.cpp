@@ -9,7 +9,7 @@
 #include "TutorialScene.h"
 #include "StageSelectScene.h"
 #include "BattleController.h"
-
+#include "BattleAnimeEditerScene.h"
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
@@ -26,6 +26,9 @@
 #include "ParticleEditor.h"
 
 #include <Windows.h>
+#include <filesystem>
+#include <fstream>
+#include <random>
 
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
@@ -175,6 +178,7 @@ bool GameApp::Initialize_() {
 
 	Audio::GetInstance()->Initialize();
 	AudioManager::GetInstance()->LoadAllConfigs("resources/configs/audioSettings.json");
+	LoadActionSequenceProfiles_();
 
 	// SceneManager
 	sceneMgr_ = std::make_unique<SceneManager>();
@@ -186,30 +190,20 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("StageSelect", [] { return std::make_unique<StageSelectScene>(); });
 	sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  });
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
-
+	sceneMgr_->Register("BattleAnimeEditer", [] { return std::make_unique<BattleAnimeEditerScene>(); });
 
 	// デフォルトデッキ
-	for (int i = 0; i < 2; i++) {
-		deckInstances_.push_back(MakeCardInstance(9));
-		deckInstances_.push_back(MakeCardInstance(8));
-		deckInstances_.push_back(MakeCardInstance(7));
-		deckInstances_.push_back(MakeCardInstance(6));
-		deckInstances_.push_back(MakeCardInstance(5));
-		deckInstances_.push_back(MakeCardInstance(4));
-		deckInstances_.push_back(MakeCardInstance(3));
-		deckInstances_.push_back(MakeCardInstance(2));
-		deckInstances_.push_back(MakeCardInstance(1));
-		deckInstances_.push_back(MakeCardInstance(20));
-		deckInstances_.push_back(MakeCardInstance(19));
-		deckInstances_.push_back(MakeCardInstance(18));
-		deckInstances_.push_back(MakeCardInstance(17));
-		deckInstances_.push_back(MakeCardInstance(16));
-		deckInstances_.push_back(MakeCardInstance(15));
-		deckInstances_.push_back(MakeCardInstance(14));
-		deckInstances_.push_back(MakeCardInstance(13));
-		deckInstances_.push_back(MakeCardInstance(12));
-		deckInstances_.push_back(MakeCardInstance(11));
-		deckInstances_.push_back(MakeCardInstance(10));
+	for (int i = 0; i < 4; i++) {
+		deckInstances_.push_back(MakeCardInstance(21));
+		deckInstances_.push_back(MakeCardInstance(22));
+		deckInstances_.push_back(MakeCardInstance(23));
+		deckInstances_.push_back(MakeCardInstance(24));
+		deckInstances_.push_back(MakeCardInstance(25));
+		deckInstances_.push_back(MakeCardInstance(26));
+		deckInstances_.push_back(MakeCardInstance(27));
+		deckInstances_.push_back(MakeCardInstance(28));
+		deckInstances_.push_back(MakeCardInstance(29));
+		deckInstances_.push_back(MakeCardInstance(30));
 	}
 
 	cardDB_ = std::make_unique<CardDatabase>();
@@ -342,8 +336,7 @@ void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const 
 	spriteCommon_->SetGraphicsPipelineState();
 }
 
-void GameApp::DrawModelParticlesObjectPost(ModelParticleManager* particles, const BloomParam& param)
-{
+void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param, int clipHeight)
 	if (!particles) {
 		return;
 	}
@@ -363,13 +356,36 @@ void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* par
 
 	objectPostEffect_->SetParam(param);
 	BeginObjectPostEffect();
+	if (clipHeight > 0) {
+		dx_->SetScissorRect(0, 0, WinApp::kClientWidth, clipHeight);
+	}
 	particles->Draw();
 	objectPostEffect_->EndCaptureToRenderTarget(
 		bloom_->GetSceneRTVHandle(),
 		WinApp::kClientWidth,
-		WinApp::kClientHeight
+		WinApp::kClientHeight,
+		clipHeight
 	);
+	dx_->SetRenderTarget(bloom_->GetSceneRTVHandle());
+	dx_->SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+	if (clipHeight > 0) {
+		dx_->SetScissorRect(0, 0, WinApp::kClientWidth, clipHeight);
+	}
 	objCommon_->SetGraphicsPipelineState();
+}
+
+void GameApp::SetRadialBlur(float strength)
+{
+	if (bloom_) {
+		bloom_->SetRadialBlur(strength);
+	}
+}
+
+void GameApp::ResetRadialBlur()
+{
+	if (bloom_) {
+		bloom_->ResetRadialBlur();
+	}
 }
 
 void GameApp::WarmupAssets_() {
@@ -478,9 +494,163 @@ void GameApp::WarmupAssets_() {
 	OutputDebugStringA("[Warmup] END\n");
 }
 
+void GameApp::LoadActionSequenceProfiles_() {
+	actionSequenceProfiles_.clear();
+	cardUseSequenceNames_.clear();
+	effectSequenceNames_.clear();
+	cardSequenceNames_.clear();
+
+	const std::filesystem::path sequenceDir = "resources/sequences";
+	if (!std::filesystem::exists(sequenceDir)) {
+		OutputDebugStringA("[ActionSequence] resources/sequences not found\n");
+		return;
+	}
+
+	for (const auto& entry : std::filesystem::directory_iterator(sequenceDir)) {
+		if (!entry.is_regular_file() || entry.path().extension() != ".json") {
+			continue;
+		}
+		if (entry.path().filename() == "card_sequence_map.json") {
+			continue;
+		}
+		if (entry.path().stem().string().ends_with("_camera")) {
+			continue;
+		}
+
+		std::ifstream file(entry.path());
+		if (!file.is_open()) {
+			continue;
+		}
+
+		try {
+			nlohmann::json j;
+			file >> j;
+
+			ActionSequenceProfile profile;
+			profile.FromJson(j);
+
+			const std::string key = entry.path().stem().string();
+			actionSequenceProfiles_[key] = profile;
+
+			OutputDebugStringA(("[ActionSequence] loaded: " + key + "\n").c_str());
+		} catch (...) {
+			OutputDebugStringA(("[ActionSequence] failed: " + entry.path().string() + "\n").c_str());
+		}
+	}
+
+	const std::filesystem::path mapPath = sequenceDir / "card_sequence_map.json";
+	if (!std::filesystem::exists(mapPath)) {
+		return;
+	}
+
+	std::ifstream mapFile(mapPath);
+	if (!mapFile.is_open()) {
+		return;
+	}
+
+	try {
+		nlohmann::json j;
+		mapFile >> j;
+
+		if (j.contains("cardUse") && j["cardUse"].is_array()) {
+			for (const auto& name : j["cardUse"]) {
+				cardUseSequenceNames_.push_back(name.get<std::string>());
+			}
+		}
+
+		if (j.contains("effects") && j["effects"].is_object()) {
+			for (const auto& [effectType, names] : j["effects"].items()) {
+				if (!names.is_array()) {
+					continue;
+				}
+				auto& list = effectSequenceNames_[effectType];
+				for (const auto& name : names) {
+					list.push_back(name.get<std::string>());
+				}
+			}
+		}
+
+		if (j.contains("cards") && j["cards"].is_object()) {
+			for (const auto& [cardIdText, names] : j["cards"].items()) {
+				if (!names.is_array()) {
+					continue;
+				}
+				auto& list = cardSequenceNames_[std::stoi(cardIdText)];
+				for (const auto& name : names) {
+					list.push_back(name.get<std::string>());
+				}
+			}
+		}
+
+		OutputDebugStringA("[ActionSequence] loaded card_sequence_map\n");
+	} catch (...) {
+		OutputDebugStringA("[ActionSequence] failed: card_sequence_map.json\n");
+	}
+}
+
+const ActionSequenceProfile* GameApp::FindActionSequenceProfile(const std::string& name) const {
+	auto it = actionSequenceProfiles_.find(name);
+	if (it == actionSequenceProfiles_.end()) {
+		return nullptr;
+	}
+
+	return &it->second;
+}
+
+const ActionSequenceProfile* GameApp::PickSequenceFromNames_(const std::vector<std::string>& names) const {
+	std::vector<const ActionSequenceProfile*> available;
+	available.reserve(names.size());
+
+	for (const std::string& name : names) {
+		if (const ActionSequenceProfile* profile = FindActionSequenceProfile(name)) {
+			available.push_back(profile);
+		}
+	}
+
+	if (available.empty()) {
+		return nullptr;
+	}
+
+	static std::mt19937 rng(std::random_device{}());
+	std::uniform_int_distribution<size_t> dist(0, available.size() - 1);
+	return available[dist(rng)];
+}
+
+const ActionSequenceProfile* GameApp::PickCardUseSequenceProfile() const {
+	return PickSequenceFromNames_(cardUseSequenceNames_);
+}
+
+const ActionSequenceProfile* GameApp::PickCardEffectSequenceProfile(
+	int cardId,
+	const std::vector<std::string>& effectTypes) const {
+	auto cardIt = cardSequenceNames_.find(cardId);
+	if (cardIt != cardSequenceNames_.end()) {
+		if (const ActionSequenceProfile* profile = PickSequenceFromNames_(cardIt->second)) {
+			return profile;
+		}
+	}
+
+	for (const std::string& effectType : effectTypes) {
+		auto effectIt = effectSequenceNames_.find(effectType);
+		if (effectIt != effectSequenceNames_.end()) {
+			if (const ActionSequenceProfile* profile = PickSequenceFromNames_(effectIt->second)) {
+				return profile;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void GameApp::SetDeckInstancesFromId(const std::vector<int>& ids) {
 	deckInstances_.clear();
 	for (const auto& id : ids) {
 		deckInstances_.push_back(MakeCardInstance(id));
 	}
+}
+
+void GameApp::SetSelectedStage(int stageId, const std::string& configPath)
+{
+	selectedStageId_ = stageId;
+	selectedStageConfigPath_ = configPath;
 }
