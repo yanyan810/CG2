@@ -1802,6 +1802,31 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 	}
 }
 
+Vector4 GetPokerTransitionColor_(
+	BattleController::PokerHandRank beforeRank,
+	BattleController::PokerHandRank afterRank,
+	float time)
+{
+	const Vector4 beforeColor = GetPokerFrameColor_(beforeRank, time);
+	const Vector4 afterColor = GetPokerFrameColor_(afterRank, time);
+	const float pulse = 0.5f + 0.5f * std::sin(time * 1.6f);
+	return LerpColor_(beforeColor, afterColor, pulse);
+}
+
+float GetPokerGlitterIntensity_(BattleController::PokerHandRank rank)
+{
+	if (rank == BattleController::PokerHandRank::None) {
+		return 0.0f;
+	}
+	if (rank <= BattleController::PokerHandRank::TwoPair) {
+		return 5.0f;
+	}
+	if (rank <= BattleController::PokerHandRank::FullHouse) {
+		return 10.0f;
+	}
+	return 15.0f;
+}
+
 void BattleController::RefreshAllFieldCardTransforms_(float dt)
 {
 	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
