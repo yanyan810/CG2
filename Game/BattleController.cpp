@@ -155,6 +155,14 @@ namespace {
 		return { 0.85f, 0.85f, 0.85f };
 	}
 
+	int RollEnemyActionCount_()
+	{
+		static std::random_device rd;
+		static std::mt19937 gen(rd());
+		std::uniform_int_distribution<int> dist(3, 6);
+		return dist(gen);
+	}
+
 }
 
 //===============================
@@ -794,6 +802,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	enemyBlockPredicts_.clear();
 	enemyIntentIcons_.clear();
 	enemyIntentTexts_.clear();
+	enemyIntentCountTexts_.clear();
 
 	for (int i = 0; i < 3; ++i) {
 		auto bg = std::make_unique<Sprite>();
@@ -833,6 +842,16 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 		text->SetColor({ 1.0f, 1.0f, 1.0f });
 		text->SetPosition({ 0.0f, 0.0f });
 		enemyIntentTexts_.push_back(std::move(text));
+
+		auto countText = std::make_unique<TextSprite>();
+		countText->Initialize(spriteCom_, dx_);
+		countText->SetText(L"");
+		countText->SetFontSize(24);
+		countText->SetSize({ 0.75f, 0.75f, 1.0f });
+		countText->SetAlpha(1.0f);
+		countText->SetColor({ 1.0f, 0.92f, 0.35f });
+		countText->SetPosition({ 0.0f, 0.0f });
+		enemyIntentCountTexts_.push_back(std::move(countText));
 	}
 
 	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
@@ -850,6 +869,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	for (auto& block : enemyBlockPredicts_) { if (block) block->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 	for (auto& text : enemyIntentTexts_) { if (text) text->Update(viewMat, projMat); }
+	for (auto& text : enemyIntentCountTexts_) { if (text) text->Update(viewMat, projMat); }
 
 	// ここはコピーだけ
 	deck_ = prebuiltDeck_;
@@ -1305,11 +1325,18 @@ void BattleController::StartPlayerTurn_()
 		}
 	}
 	if (enemyMgr_) {
-		for (auto& e : enemyMgr_->GetEnemies()) {
-			if (e.IsAlive()) {
-				e.GetBossAI().DecideNextAction();
+		auto& enemies = enemyMgr_->GetEnemies();
+		enemyActionCounts_.assign(enemies.size(), 0);
+		enemyActedByCountThisTurn_.assign(enemies.size(), false);
+		for (size_t i = 0; i < enemies.size(); ++i) {
+			if (enemies[i].IsAlive()) {
+				enemies[i].GetBossAI().DecideNextAction();
+				enemyActionCounts_[i] = RollEnemyActionCount_();
 			}
 		}
+	} else {
+		enemyActionCounts_.clear();
+		enemyActedByCountThisTurn_.clear();
 	}
 }
 
@@ -2526,6 +2553,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								pendingCardView_ = std::move(usedCardView);
 								cardState_ = CardInputState::ChoosingFieldReplace;
 							}
+							OnPlayerCardUsed_();
 						} else {
 							cardState_ = CardInputState::Idle;
 						}
@@ -2697,7 +2725,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 			if (enemyMgr_ && player_) {
 				auto& enemies = enemyMgr_->GetEnemies();
-				while (currentEnemyIndex_ < enemies.size() && !enemies[currentEnemyIndex_].IsAlive()) {
+				while (currentEnemyIndex_ < enemies.size() &&
+					(!enemies[currentEnemyIndex_].IsAlive() ||
+						(currentEnemyIndex_ < enemyActedByCountThisTurn_.size() &&
+							enemyActedByCountThisTurn_[currentEnemyIndex_]))) {
 					currentEnemyIndex_++;
 				}
 
@@ -2708,19 +2739,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					Enemy& e = enemies[currentEnemyIndex_];
 					EnemyAction action = e.GetBossAI().GetNextAction();
 
-					if (action.type == "Attack") {
-						e.PlayAttackAnim(player_->GetPos());
-						player_->TriggerHitFlash(0.2f);
-						player_->PlayDamageAnim();
-						player_->Damage(action.value);
-						if (action.value > 0) {
-							SpawnDamagePopup(player_->GetPos(), action.value, true); // ★追加
-						}
-					} else if (action.type == "Heal") {
-						e.Heal(action.value);
-					} else if (action.type == "Block") {
-						e.AddBlock(action.value);
-					}
+					ExecuteEnemyAction_(e, action);
 
 					enemyWait_ = 1.0f;
 
@@ -2812,10 +2831,14 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
 				const bool hasIntent = !nextAct.type.empty() || !nextAct.name.empty();
+				const bool actedByCount =
+					i < enemyActedByCountThisTurn_.size() && enemyActedByCountThisTurn_[i];
 				if (hasIntent) {
 
 				// 行動タイプによって色を変える！
-                if (nextAct.type == "Attack") {
+                if (actedByCount) {
+                    enemyIntentIcons_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+                } else if (nextAct.type == "Attack") {
                     enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
                 } else if (nextAct.type == "Heal") {
                     enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
@@ -2829,14 +2852,27 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				// HPゲージの原点にもよりますが、左に30pxほどずらします
 				enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
 					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
-						enemyIntentTexts_[i]->SetText(GetEnemyIntentText_(nextAct));
+						enemyIntentTexts_[i]->SetText(actedByCount ? L"" : GetEnemyIntentText_(nextAct));
 						enemyIntentTexts_[i]->SetColor(GetEnemyIntentTextColor_(nextAct.type));
 						enemyIntentTexts_[i]->SetPosition({ posX - 100.0f, posY - 10.0f });
+					}
+					if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
+						const int count = i < enemyActionCounts_.size() ? enemyActionCounts_[i] : 0;
+						if (!actedByCount && count > 0) {
+							enemyIntentCountTexts_[i]->SetText(std::to_wstring(count));
+							enemyIntentCountTexts_[i]->SetColor({ 0.0f, 0.0f, 0.0f });
+							enemyIntentCountTexts_[i]->SetPosition({ posX - 37.0f, posY - 12.3f });
+						} else {
+							enemyIntentCountTexts_[i]->SetText(L"");
+						}
 					}
 				} else {
 					enemyIntentIcons_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
 					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
 						enemyIntentTexts_[i]->SetText(L"");
+					}
+					if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
+						enemyIntentCountTexts_[i]->SetText(L"");
 					}
 				}
 			} else {
@@ -2849,6 +2885,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				enemyIntentIcons_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
 				if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
 					enemyIntentTexts_[i]->SetText(L"");
+				}
+				if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
+					enemyIntentCountTexts_[i]->SetText(L"");
 				}
 			}
 		}
@@ -2921,6 +2960,7 @@ void BattleController::UpdateVisuals_(float dt)
 	for (auto& block : enemyBlockPredicts_) { if (block) block->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 	for (auto& text : enemyIntentTexts_) { if (text) text->Update(viewMat, projMat); }
+	for (auto& text : enemyIntentCountTexts_) { if (text) text->Update(viewMat, projMat); }
 	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
 	if (propManager_) {
@@ -3393,6 +3433,9 @@ void BattleController::Draw2D(GameApp& app)
 	}
 	for (auto& icon : enemyIntentIcons_) {
 		if (icon) icon->Draw();
+	}
+	for (auto& text : enemyIntentCountTexts_) {
+		if (text) text->Draw();
 	}
 	for (auto& text : enemyIntentTexts_) {
 		if (text) text->Draw();
@@ -4112,6 +4155,57 @@ bool BattleController::StartNextActionSequence_()
 	return true;
 }
 
+void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action)
+{
+	if (action.type == "Attack") {
+		if (!player_) {
+			return;
+		}
+		enemy.PlayAttackAnim(player_->GetPos());
+		player_->TriggerHitFlash(0.2f);
+		player_->PlayDamageAnim();
+		player_->Damage(action.value);
+		if (action.value > 0) {
+			SpawnDamagePopup(player_->GetPos(), action.value, true);
+		}
+	} else if (action.type == "Heal") {
+		enemy.Heal(action.value);
+	} else if (action.type == "Block") {
+		enemy.AddBlock(action.value);
+	}
+}
+
+void BattleController::OnPlayerCardUsed_()
+{
+	if (!enemyMgr_) {
+		return;
+	}
+
+	auto& enemies = enemyMgr_->GetEnemies();
+	if (enemyActionCounts_.size() != enemies.size()) {
+		enemyActionCounts_.assign(enemies.size(), 0);
+	}
+	if (enemyActedByCountThisTurn_.size() != enemies.size()) {
+		enemyActedByCountThisTurn_.assign(enemies.size(), false);
+	}
+
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		if (!enemies[i].IsAlive() || enemyActedByCountThisTurn_[i]) {
+			continue;
+		}
+		if (enemyActionCounts_[i] <= 0) {
+			continue;
+		}
+
+		enemyActionCounts_[i]--;
+		if (enemyActionCounts_[i] <= 0) {
+			ExecuteEnemyAction_(enemies[i], enemies[i].GetBossAI().GetNextAction());
+			enemyActedByCountThisTurn_[i] = true;
+			enemyActionCounts_[i] = 0;
+		}
+	}
+}
+
 void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 {
 	if (isPokerDamageTargeting_) {
@@ -4173,6 +4267,7 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 			pendingCardView_ = std::move(usedCardView);
 			cardState_ = CardInputState::ChoosingFieldReplace;
 		}
+		OnPlayerCardUsed_();
 	}
 }
 
