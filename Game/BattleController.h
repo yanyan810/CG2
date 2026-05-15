@@ -22,6 +22,7 @@ class SpriteCommon;
 
 class Player;
 class Enemy;
+struct EnemyAction;
 class EnemyManager;
 class FieldUi;
 
@@ -185,6 +186,9 @@ public:
 		enemyBlockPredicts_.clear();
 		enemyIntentIcons_.clear();
 		enemyIntentTexts_.clear();
+		enemyIntentCountTexts_.clear();
+		enemyActionCounts_.clear();
+		enemyActedByCountThisTurn_.clear();
 
 		deck_.clear();
 		hand_.clear();
@@ -378,6 +382,8 @@ private:
 	Enemy* actionSequenceTarget_ = nullptr;
 
 	void ExecutePendingAttack_(Enemy& targetEnemy);
+	void ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action);
+	void OnPlayerCardUsed_();
 	std::vector<std::string> CollectEffectTypes_(const CardDef& def) const;
 	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, Enemy& targetEnemy);
 	bool StartNextActionSequence_();
@@ -395,6 +401,9 @@ private:
 
 	std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
 	std::vector<std::unique_ptr<TextSprite>> enemyIntentTexts_;
+	std::vector<std::unique_ptr<TextSprite>> enemyIntentCountTexts_;
+	std::vector<int> enemyActionCounts_;
+	std::vector<bool> enemyActedByCountThisTurn_;
 
 	std::unique_ptr<Sprite> highlightFilter_;
 
