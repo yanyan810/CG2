@@ -2351,9 +2351,19 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 				);
 
+				Vector4 defaultColor{ 1.0f, 0.2f, 0.2f, 1.0f };
+
 				// マウスが重なっている敵を黄色く光らせる
 				if (hoverIndex >= 0) {
 					enemyMgr_->GetEnemies()[hoverIndex].SetHighlight(true);
+
+					for (int i = 0; i < enemyMgr_->GetEnemies().size(); i++) {
+						if (i == hoverIndex) {
+							enemyHpFgs_[i]->SetColor({ 1.0f, 1.0f, 0.0f, 1.0f });
+						} else {
+							enemyHpFgs_[i]->SetColor(defaultColor);
+						}
+					}
 				}
 
 				// 左クリックで決定して攻撃
@@ -2536,20 +2546,20 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				const bool hasIntent = !nextAct.type.empty() || !nextAct.name.empty();
 				if (hasIntent) {
 
-				// 行動タイプによって色を変える！
-                if (nextAct.type == "Attack") {
-                    enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
-                } else if (nextAct.type == "Heal") {
-                    enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
-                } else if (nextAct.type == "Block") {
-                    enemyIntentIcons_[i]->SetColor({ 0.25f, 0.55f, 1.0f, 1.0f });
-                } else {
-                    enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
-                }
+					// 行動タイプによって色を変える！
+					if (nextAct.type == "Attack") {
+						enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+					} else if (nextAct.type == "Heal") {
+						enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
+					} else if (nextAct.type == "Block") {
+						enemyIntentIcons_[i]->SetColor({ 0.25f, 0.55f, 1.0f, 1.0f });
+					} else {
+						enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
+					}
 
-				enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
-				// HPゲージの原点にもよりますが、左に30pxほどずらします
-				enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
+					enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
+					// HPゲージの原点にもよりますが、左に30pxほどずらします
+					enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
 					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
 						enemyIntentTexts_[i]->SetText(GetEnemyIntentText_(nextAct));
 						enemyIntentTexts_[i]->SetColor(GetEnemyIntentTextColor_(nextAct.type));
