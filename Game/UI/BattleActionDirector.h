@@ -29,6 +29,7 @@ struct ActionSequenceProfile {
 
     // 3. キャラクター設定
     Vector3 playerPos = { -5.0f, 0.0f, 5.0f };
+    Vector3 playerRot = { 0.0f, 0.0f, 0.0f };  // Blender からエクスポートされた向き
     Vector3 enemyPos = { 5.0f, 0.0f, 5.0f };
     std::string playerAttackAnim = ""; // 自作アニメーションパス
     float playerAttackAnimStartTime = 0.0f; // 再生開始時間(秒)
@@ -86,6 +87,9 @@ public:
     void LoadProfile(const std::string& path);
 
 private:
+    void SaveOriginalState_();
+    void RestoreOriginalState_();
+
     ActionPhase phase_ = ActionPhase::Idle;
     float timer_ = 0.0f;
     float duration_ = 1.0f;
@@ -111,4 +115,12 @@ private:
     // Animation trigger flags
     bool hasPlayedPlayerAnim_ = false;
     bool hasPlayedEnemyAnim_ = false;
+    bool cameraAnimIsStatic_ = false;
+
+    bool hasOriginalState_ = false;
+    Vector3 originalPlayerPos_{};
+    Vector3 originalEnemyPos_{};
+    Vector3 originalCameraPos_{};
+    Vector3 originalCameraRot_{};
+    float originalCameraFov_ = 0.8f;
 };

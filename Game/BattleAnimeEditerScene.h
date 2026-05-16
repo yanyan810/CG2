@@ -11,15 +11,21 @@
 #include "LightingParam.h"
 #include "AnimationEditorSession.h"
 #include "Camera/CameraAnimator.h"
+#include <vector>
+#include <string>
+#include <filesystem>
 
 class BattleAnimeEditerScene : public IScene {
 public:
     void OnEnter(GameApp& app) override;
     void OnExit(GameApp& app) override;
     void Update(GameApp& app, float dt) override;
+
     void Draw3D(GameApp& app) override;
     void Draw2D(GameApp& app) override;
     void DrawImGui(GameApp& app) override;
+    void DrawSkydome(GameApp& app) override;
+    void DrawPostEffect3D(GameApp& app) override;
 
 private:
     Input* input_ = nullptr;
@@ -58,10 +64,24 @@ private:
     bool sameCameraLoopEnabled_ = false;
 
     std::vector<std::string> animationFiles_;
+    std::vector<std::string> sequenceFiles_;
+    int currentSequenceIndex_ = -1;
+    bool liveCameraSyncEnabled_ = false;
+    std::string liveCameraPath_;
+    std::filesystem::file_time_type liveCameraLastWriteTime_{};
+    float liveCameraPollTimer_ = 0.0f;
+    std::string liveCameraStatus_ = "Live camera sync is waiting for a sequence.";
 
     void ReloadCameraFileList_();
     void ReloadAnimationFileList_();
+    void ReloadSequenceFileList_();
     bool LoadCameraByIndex_(int index);
     bool LoadCameraByPath_(const std::string& path);
+    bool LoadSequenceByIndex_(int index);
+    bool LoadSequenceByPath_(const std::string& path);
+    void RefreshLiveCameraPath_();
+    bool ReloadLiveCameraIfNeeded_(bool force);
+    void ApplyProfilePositions_(Enemy* targetEnemy, bool applyCamera);
+    void DrawSequenceDebugWindow_(GameApp& app, Enemy* targetEnemy);
     AnimationEditorSession::EditorContext BuildEditorContext_();
 };

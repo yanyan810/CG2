@@ -17,12 +17,17 @@ void BattleAnimeEditerScene::OnEnter(GameApp& app) {
 
     camera_ = std::make_unique<Camera>();
     camera_->SetTranslate({ 0.0f, 4.0f, -20.0f });
+    // Blender カメラ 50mm レンズ / センサー幅 36mm / 解像度 1280x720 に合わせた垂直FoV
+    // 計算: 2 * atan(sensor_height / (2 * focal_length)) = 2 * atan(20.25 / 100) ≈ 0.3994 rad
+    camera_->SetFovY(0.3994f);
+    camera_->Update();
     app.ObjCom()->SetDefaultCamera(camera_.get());
 
     cameraAnim_ = std::make_unique<CameraAnimator>();
     cameraAnim_->Initialize(camera_.get());
     ReloadCameraFileList_();
     ReloadAnimationFileList_();
+    ReloadSequenceFileList_();
 
     light_.lightingMode = 2;
     light_.dirIntensity = 1.6f;
@@ -58,6 +63,7 @@ void BattleAnimeEditerScene::OnEnter(GameApp& app) {
     enemyMgr_.SetLighting(light_);
 
     actionDirector_.Initialize(app.SpriteCom(), app.Dx());
+    LoadSequenceByPath_("resources/sequences/test_useCard_1.json");
 
     animationEditTarget_ = player_->GetObject3d();
     cameraEditTarget_ = camera_.get();
@@ -76,6 +82,14 @@ void BattleAnimeEditerScene::Update(GameApp& app, float dt) {
     if (input_->IsKeyPressed(DIK_ESCAPE)) {
         app.RequestQuit();
         return;
+    }
+
+    if (liveCameraSyncEnabled_ && !actionDirector_.IsPlaying()) {
+        liveCameraPollTimer_ += dt;
+        if (liveCameraPollTimer_ >= 0.2f) {
+            liveCameraPollTimer_ = 0.0f;
+            ReloadLiveCameraIfNeeded_(false);
+        }
     }
 
     // --- Animation/Camera Edit Logic ---
@@ -131,15 +145,27 @@ void BattleAnimeEditerScene::Update(GameApp& app, float dt) {
 
     // --- Action Director Update ---
     if (actionDirector_.IsPlaying()) {
-        if (actionDirector_.GetProfile().enableCameraWork && actionDirector_.GetCinematicCamera()) {
-            app.ObjCom()->SetDefaultCamera(actionDirector_.GetCinematicCamera());
+        Camera* cinCam = actionDirector_.GetCinematicCamera();
+        if (actionDirector_.GetProfile().enableCameraWork && cinCam) {
+            // SetDefaultCamera だけでは SetCamera() 済みのオブジェクトに効かないため
+            // 各オブジェクトにも直接シネマカメラを設定する
+            app.ObjCom()->SetDefaultCamera(cinCam);
+            if (skyDome_)  skyDome_->SetCamera(cinCam);
+            if (ground_)   ground_->SetCamera(cinCam);
+            if (player_ && player_->GetObject3d()) player_->GetObject3d()->SetCamera(cinCam);
+            enemyMgr_.UpdateCamera(cinCam);
         }
 
         if (actionDirector_.Update(dt)) {
-            // Sequence Finished
+            // Sequence Finished - デバッグカメラに戻す
             app.ObjCom()->SetDefaultCamera(camera_.get());
+            if (skyDome_)  skyDome_->SetCamera(camera_.get());
+            if (ground_)   ground_->SetCamera(camera_.get());
+            if (player_ && player_->GetObject3d()) player_->GetObject3d()->SetCamera(camera_.get());
+            enemyMgr_.UpdateCamera(camera_.get());
         }
     } else {
+        camera_->Update();
         app.ObjCom()->SetDefaultCamera(camera_.get());
     }
 
@@ -148,13 +174,29 @@ void BattleAnimeEditerScene::Update(GameApp& app, float dt) {
     enemyMgr_.Update(dt);
 }
 
-void BattleAnimeEditerScene::Draw3D(GameApp& app) {
-    app.Dx()->SetBackBuffer();
+void BattleAnimeEditerScene::DrawSkydome(GameApp& app) {
+    // bloom_->PreDraw() の前に呼ばれる。SceneRT に描画する段階でスカイドームを出す
+    app.Dx()->SetViewport(0, 0, WinApp::kClientWidth, WinApp::kClientHeight);
+    app.Dx()->SetScissorRect(0, 0, WinApp::kClientWidth, WinApp::kClientHeight);
     app.ObjCom()->SetGraphicsPipelineState();
     if (skyDome_) skyDome_->Draw();
+}
+
+void BattleAnimeEditerScene::DrawPostEffect3D(GameApp& app) {
+    // bloom_->PreDraw() 〜 bloom_->PostDraw() の間に呼ばれる (SceneRT に描画)
+    app.Dx()->SetViewport(0, 0, WinApp::kClientWidth, WinApp::kClientHeight);
+    app.Dx()->SetScissorRect(0, 0, WinApp::kClientWidth, WinApp::kClientHeight);
+    app.ObjCom()->SetGraphicsPipelineState();
+    app.Dx()->ClearDepthBuffer();
     if (ground_) ground_->Draw();
     if (player_) player_->Draw();
     enemyMgr_.Draw();
+}
+
+void BattleAnimeEditerScene::Draw3D(GameApp& app) {
+    // bloom_->PostDraw() の後に呼ばれる。バックバッファに直接描く追加描画があればここに
+    // (現在は DrawSkydome / DrawPostEffect3D に移動したため空)
+    (void)app;
 }
 
 void BattleAnimeEditerScene::Draw2D(GameApp& app) {
@@ -168,42 +210,10 @@ void BattleAnimeEditerScene::DrawImGui(GameApp& app) {
     if (!enemyMgr_.GetEnemies().empty()) {
         targetEnemy = &enemyMgr_.GetEnemies().back();
     }
-    actionDirector_.DrawImGuiEditor(camera_.get(), player_.get(), targetEnemy);
+    DrawSequenceDebugWindow_(app, targetEnemy);
 
     if (animationEditTarget_ || cameraEditTarget_) {
         animationEditor_.DrawImGui(BuildEditorContext_());
-    }
-
-    // Animation File Browser Window
-    if (editorTargetKind_ == EditorTargetKind::Animation) {
-        ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("Animation Browser")) {
-            if (ImGui::Button("Reload Files")) {
-                ReloadAnimationFileList_();
-            }
-
-            ImGui::Separator();
-            ImGui::Text("Animation Target:");
-            if (ImGui::RadioButton("Player", animationEditTarget_ == player_->GetObject3d())) {
-                animationEditTarget_ = player_->GetObject3d();
-            }
-            ImGui::SameLine();
-            if (ImGui::RadioButton("Boss", animationEditTarget_ == targetEnemy->GetObject3d())) {
-                animationEditTarget_ = targetEnemy->GetObject3d();
-            }
-            ImGui::Separator();
-
-            ImGui::Text("Found Animations (%d)", (int)animationFiles_.size());
-            ImGui::BeginChild("AnimList", ImVec2(0, 200), true);
-            for (int i = 0; i < animationFiles_.size(); ++i) {
-                if (ImGui::Selectable(fs::path(animationFiles_[i]).filename().string().c_str())) {
-                    animationEditor_.SetExportFileName(animationFiles_[i]);
-                }
-            }
-            ImGui::EndChild();
-            ImGui::TextWrapped("Select an animation above, then click 'Load JSON' in the Animation Toolbar!");
-        }
-        ImGui::End();
     }
 
 #endif
@@ -239,6 +249,29 @@ void BattleAnimeEditerScene::ReloadAnimationFileList_() {
     std::sort(animationFiles_.begin(), animationFiles_.end());
 }
 
+void BattleAnimeEditerScene::ReloadSequenceFileList_() {
+    sequenceFiles_.clear();
+    std::string path = "resources/sequences";
+    if (!fs::exists(path)) {
+        fs::create_directories(path);
+        return;
+    }
+
+    for (const auto& entry : fs::directory_iterator(path)) {
+        if (!entry.is_regular_file() || entry.path().extension() != ".json") {
+            continue;
+        }
+        if (entry.path().filename() == "card_sequence_map.json") {
+            continue;
+        }
+        if (entry.path().stem().string().ends_with("_camera")) {
+            continue;
+        }
+        sequenceFiles_.push_back(entry.path().string());
+    }
+    std::sort(sequenceFiles_.begin(), sequenceFiles_.end());
+}
+
 bool BattleAnimeEditerScene::LoadCameraByIndex_(int index) {
     if (index < 0 || index >= static_cast<int>(cameraFiles_.size())) return false;
     return LoadCameraByPath_(cameraFiles_[index]);
@@ -252,6 +285,183 @@ bool BattleAnimeEditerScene::LoadCameraByPath_(const std::string& path) {
     cameraAnim_->SetLoop(sameCameraLoopEnabled_);
     cameraAnim_->SetPlaying(true);
     return true;
+}
+
+bool BattleAnimeEditerScene::LoadSequenceByIndex_(int index) {
+    if (index < 0 || index >= static_cast<int>(sequenceFiles_.size())) return false;
+    return LoadSequenceByPath_(sequenceFiles_[index]);
+}
+
+bool BattleAnimeEditerScene::LoadSequenceByPath_(const std::string& path) {
+    actionDirector_.SetProfilePath(path);
+    actionDirector_.LoadProfile(path);
+
+    auto it = std::find(sequenceFiles_.begin(), sequenceFiles_.end(), path);
+    if (it != sequenceFiles_.end()) {
+        currentSequenceIndex_ = static_cast<int>(std::distance(sequenceFiles_.begin(), it));
+    }
+    RefreshLiveCameraPath_();
+    ApplyProfilePositions_(enemyMgr_.GetEnemies().empty() ? nullptr : &enemyMgr_.GetEnemies().back(), false);
+    if (liveCameraSyncEnabled_) {
+        ReloadLiveCameraIfNeeded_(true);
+    }
+    return true;
+}
+
+void BattleAnimeEditerScene::RefreshLiveCameraPath_() {
+    const std::string& cameraPath = actionDirector_.GetProfile().cameraAnimFile;
+    if (liveCameraPath_ == cameraPath) {
+        return;
+    }
+
+    liveCameraPath_ = cameraPath;
+    liveCameraLastWriteTime_ = {};
+    liveCameraStatus_ = liveCameraPath_.empty()
+        ? "Loaded sequence has no cameraAnimFile."
+        : "Watching " + liveCameraPath_;
+}
+
+bool BattleAnimeEditerScene::ReloadLiveCameraIfNeeded_(bool force) {
+    RefreshLiveCameraPath_();
+    if (liveCameraPath_.empty()) {
+        return false;
+    }
+    if (!fs::exists(liveCameraPath_)) {
+        liveCameraStatus_ = "Camera JSON not found: " + liveCameraPath_;
+        return false;
+    }
+
+    const auto writeTime = fs::last_write_time(liveCameraPath_);
+    if (!force && writeTime == liveCameraLastWriteTime_) {
+        return false;
+    }
+
+    if (!cameraAnim_ || !cameraAnim_->LoadFromJson(liveCameraPath_)) {
+        liveCameraStatus_ = "Failed to load camera JSON: " + liveCameraPath_;
+        return false;
+    }
+
+    liveCameraLastWriteTime_ = writeTime;
+    cameraAnim_->SetPlaying(false);
+    cameraAnim_->SampleAtTime(0.0f);
+    camera_->Update();
+    liveCameraStatus_ = "Synced " + fs::path(liveCameraPath_).filename().string();
+    return true;
+}
+
+void BattleAnimeEditerScene::ApplyProfilePositions_(Enemy* targetEnemy, bool applyCamera) {
+    const ActionSequenceProfile& profile = actionDirector_.GetProfile();
+    if (player_) {
+        player_->SetSpawnPos(profile.playerPos);
+        player_->SetRotation(profile.playerRot);
+        if (player_->GetObject3d()) {
+            player_->GetObject3d()->SetTranslate(profile.playerPos);
+            player_->GetObject3d()->SetRotate(profile.playerRot);
+        }
+    }
+    if (targetEnemy) {
+        targetEnemy->SetPosition(profile.enemyPos);
+    }
+    if (applyCamera && camera_) {
+        camera_->SetTranslate(profile.cameraPos);
+        camera_->SetRotate(profile.cameraRot);
+        camera_->SetFovY(profile.cameraFov);
+        camera_->Update();
+    }
+}
+
+void BattleAnimeEditerScene::DrawSequenceDebugWindow_(GameApp& app, Enemy* targetEnemy) {
+    (void)app;
+
+    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Battle Anime Editor")) {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::Button("Reload Sequences")) {
+        ReloadSequenceFileList_();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reload Camera")) {
+        ReloadLiveCameraIfNeeded_(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Play Loaded Sequence") && player_ && targetEnemy) {
+        actionDirector_.StartAction(player_.get(), targetEnemy);
+    }
+
+    if (ImGui::Checkbox("Live Blender Camera", &liveCameraSyncEnabled_)) {
+        if (liveCameraSyncEnabled_) {
+            ReloadLiveCameraIfNeeded_(true);
+        }
+    }
+    ImGui::TextWrapped("%s", liveCameraStatus_.c_str());
+    if (player_) {
+        bool releaseAnimationEnabled = player_->GetReleaseAnimationEnabled();
+        if (ImGui::Checkbox("Player Release Animations", &releaseAnimationEnabled)) {
+            player_->SetReleaseAnimationEnabled(releaseAnimationEnabled);
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Sequence Files");
+    ImGui::BeginChild("SequenceList", ImVec2(0, 160), true);
+    for (int i = 0; i < static_cast<int>(sequenceFiles_.size()); ++i) {
+        const std::string label = fs::path(sequenceFiles_[i]).filename().string();
+        if (ImGui::Selectable(label.c_str(), i == currentSequenceIndex_)) {
+            LoadSequenceByIndex_(i);
+        }
+    }
+    ImGui::EndChild();
+
+    const ActionSequenceProfile& profile = actionDirector_.GetProfile();
+    ImGui::Separator();
+    ImGui::Text("Profile: %s", currentSequenceIndex_ >= 0 ? fs::path(sequenceFiles_[currentSequenceIndex_]).filename().string().c_str() : "(none)");
+    ImGui::Text("Camera: %s", profile.cameraAnimFile.empty() ? "(none)" : profile.cameraAnimFile.c_str());
+    {
+        // シーケンス再生中はシネマカメラの値を表示、それ以外はデバッグカメラ
+        Camera* dispCam = (actionDirector_.IsPlaying() && actionDirector_.GetCinematicCamera())
+            ? actionDirector_.GetCinematicCamera()
+            : camera_.get();
+        if (dispCam) {
+            const Vector3 pos = dispCam->GetTranslate();
+            const Vector3 rot = dispCam->GetRotate();
+            ImGui::Text(actionDirector_.IsPlaying() ? "[Cinematic] Pos: %.3f, %.3f, %.3f" : "Camera Pos: %.3f, %.3f, %.3f", pos.x, pos.y, pos.z);
+            ImGui::Text(actionDirector_.IsPlaying() ? "[Cinematic] Rot: %.3f, %.3f, %.3f" : "Camera Rot: %.3f, %.3f, %.3f", rot.x, rot.y, rot.z);
+        }
+    }
+
+    if (ImGui::Button("Apply Profile Positions")) {
+        ApplyProfilePositions_(targetEnemy, true);
+        if (liveCameraSyncEnabled_) {
+            ReloadLiveCameraIfNeeded_(true);
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset Scene Positions")) {
+        if (player_) {
+            player_->SetSpawnPos({ -5.0f, 0.0f, 5.0f });
+            if (player_->GetObject3d()) {
+                player_->GetObject3d()->SetTranslate({ -5.0f, 0.0f, 5.0f });
+            }
+        }
+        if (targetEnemy) {
+            targetEnemy->SetPosition({ 5.0f, 0.0f, 5.0f });
+        }
+        if (camera_) {
+            camera_->SetTranslate({ 0.0f, 4.0f, -20.0f });
+            camera_->SetRotate({ 0.0f, 0.0f, 0.0f });
+            camera_->Update();
+        }
+        if (Camera* cinematicCamera = actionDirector_.GetCinematicCamera()) {
+            cinematicCamera->SetTranslate({ 0.0f, 4.0f, -20.0f });
+            cinematicCamera->SetRotate({ 0.0f, 0.0f, 0.0f });
+            cinematicCamera->Update();
+        }
+    }
+
+    ImGui::End();
 }
 
 AnimationEditorSession::EditorContext BattleAnimeEditerScene::BuildEditorContext_() {

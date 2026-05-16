@@ -113,13 +113,13 @@ public:
 
 	void SetPoisonDrawActive(bool active) { poisonDrawActive_ = active; }
 	bool GetPoisonDrawActive() const { return poisonDrawActive_; }
+	void SetReleaseAnimationEnabled(bool enabled) { releaseAnimationEnabled_ = enabled; }
+	bool GetReleaseAnimationEnabled() const { return releaseAnimationEnabled_; }
 
 private:
-#ifndef _DEBUG
 	void PlayReleaseIdleAnimation_();
 	void PlayRandomReleaseAttackAnimation_();
 	void PlayReleaseDamageAnimation_();
-#endif
 
 	std::unique_ptr<Object3d> model_;
 
@@ -154,9 +154,12 @@ private:
 
 	ParticleEmitterConfig attackEffectConfig_;
 
-//#ifndef _DEBUG
 	bool releaseAttackAnimationPlaying_ = false;
-//#endif
+#ifdef _DEBUG
+	bool releaseAnimationEnabled_ = false;
+#else
+	bool releaseAnimationEnabled_ = true;
+#endif
 
 	bool isRecordingTrail_ = false;
 
