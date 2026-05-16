@@ -1,6 +1,6 @@
 {
     "cardUse": [
-        "card_use_01"
+        "test_useCard_1"
     ],
     "effects": {
         "Damage": [
@@ -33,6 +33,5 @@
             "buff_01"
         ]
     },
-    "cards": {
-    }
+    "cards": {}
 }

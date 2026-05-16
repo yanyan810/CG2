@@ -87,6 +87,9 @@ public:
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
 	Camera* GetActionCamera() const;
+	bool IsActionSequencePlaying() const {
+		return actionDirector_.IsPlaying() || cardState_ == CardInputState::ExecutingSequence;
+	}
 
 	const CardDef* GetPreviewCardDef() const;
 

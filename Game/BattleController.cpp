@@ -3410,7 +3410,10 @@ void BattleController::DrawPreviewCard3D(GameApp& app) {
 
 void BattleController::Draw2D(GameApp& app)
 {
-
+	if (actionDirector_.IsPlaying()) {
+		actionDirector_.Draw2D();
+		return;
+	}
 
 	if (playerHpBg_) playerHpBg_->Draw();
 	if (playerHpPredict_)playerHpPredict_->Draw();

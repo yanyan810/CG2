@@ -34,6 +34,7 @@ nlohmann::json ActionSequenceProfile::ToJson() const {
         {"cameraFov", cameraFov},
         {"cameraAnimFile", cameraAnimFile},
         {"playerPos", {playerPos.x, playerPos.y, playerPos.z}},
+        {"playerRot", {playerRot.x, playerRot.y, playerRot.z}},
         {"enemyPos", {enemyPos.x, enemyPos.y, enemyPos.z}},
         {"approachDuration", approachDuration},
         {"attackWaitDuration", attackWaitDuration},
@@ -65,6 +66,9 @@ void ActionSequenceProfile::FromJson(const nlohmann::json& j) {
     if (j.contains("playerPos")) {
         playerPos = { j["playerPos"][0], j["playerPos"][1], j["playerPos"][2] };
     }
+    if (j.contains("playerRot")) {
+        playerRot = { j["playerRot"][0], j["playerRot"][1], j["playerRot"][2] };
+    }
     if (j.contains("enemyPos")) {
         enemyPos = { j["enemyPos"][0], j["enemyPos"][1], j["enemyPos"][2] };
     }
@@ -84,6 +88,42 @@ namespace {
     float EaseOutQuart(float t) {
         float t1 = t - 1.0f;
         return 1.0f - (t1 * t1 * t1 * t1);
+    }
+
+    float AbsSum(const Vector3& v) {
+        return std::abs(v.x) + std::abs(v.y) + std::abs(v.z);
+    }
+
+    bool IsCameraAnimStatic(const std::vector<CameraKeyframe>& keys) {
+        if (keys.size() <= 1) {
+            return true;
+        }
+
+        constexpr float kPositionEpsilon = 0.0001f;
+        constexpr float kRotationEpsilon = 0.0001f;
+        constexpr float kFovEpsilon = 0.0001f;
+        const CameraKeyframe& first = keys.front();
+
+        for (const CameraKeyframe& key : keys) {
+            Vector3 posDelta{
+                key.pos.x - first.pos.x,
+                key.pos.y - first.pos.y,
+                key.pos.z - first.pos.z
+            };
+            Vector3 rotDelta{
+                key.rot.x - first.rot.x,
+                key.rot.y - first.rot.y,
+                key.rot.z - first.rot.z
+            };
+
+            if (AbsSum(posDelta) > kPositionEpsilon ||
+                AbsSum(rotDelta) > kRotationEpsilon ||
+                std::abs(key.fov - first.fov) > kFovEpsilon) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -119,9 +159,50 @@ void BattleActionDirector::SetProfilePath(const std::string& path) {
     strcpy_s(profileFilename_, path.c_str());
 }
 
+void BattleActionDirector::SaveOriginalState_() {
+    hasOriginalState_ = true;
+
+    if (player_) {
+        originalPlayerPos_ = player_->GetPos();
+    }
+    if (target_) {
+        originalEnemyPos_ = target_->GetPos();
+    }
+    if (cinematicCam_) {
+        originalCameraPos_ = cinematicCam_->GetTranslate();
+        originalCameraRot_ = cinematicCam_->GetRotate();
+        originalCameraFov_ = cinematicCam_->GetFovY();
+    }
+}
+
+void BattleActionDirector::RestoreOriginalState_() {
+    if (!hasOriginalState_) {
+        return;
+    }
+
+    if (player_) {
+        player_->SetSpawnPos(originalPlayerPos_);
+        if (player_->GetObject3d()) {
+            player_->GetObject3d()->SetTranslate(originalPlayerPos_);
+        }
+    }
+    if (target_) {
+        target_->SetPosition(originalEnemyPos_);
+    }
+    if (cinematicCam_) {
+        cinematicCam_->SetTranslate(originalCameraPos_);
+        cinematicCam_->SetRotate(originalCameraRot_);
+        cinematicCam_->SetFovY(originalCameraFov_);
+        cinematicCam_->Update();
+    }
+
+    hasOriginalState_ = false;
+}
+
 void BattleActionDirector::StartAction(Player* player, Enemy* target) {
     player_ = player;
     target_ = target;
+    SaveOriginalState_();
     
     // いきなりアニメーション再生フェーズから開始する
     phase_ = ActionPhase::Attack;
@@ -129,7 +210,14 @@ void BattleActionDirector::StartAction(Player* player, Enemy* target) {
     duration_ = profile_.attackWaitDuration; 
 
     // Initial Placement
-    if (player_) player_->SetSpawnPos(profile_.playerPos);
+    if (player_) {
+        player_->SetSpawnPos(profile_.playerPos);
+        player_->SetRotation(profile_.playerRot);  // Blender の向きを反映
+        if (player_->GetObject3d()) {
+            player_->GetObject3d()->SetTranslate(profile_.playerPos);
+            player_->GetObject3d()->SetRotate(profile_.playerRot);
+        }
+    }
     if (target_) target_->SetPosition(profile_.enemyPos);
 
     // Preload Animation JSONs and inject to Model
@@ -150,11 +238,17 @@ void BattleActionDirector::StartAction(Player* player, Enemy* target) {
     }
 
     // カメラアニメーションもすぐに開始
+    cameraAnimIsStatic_ = false;
     if (!profile_.cameraAnimFile.empty()) {
         cinematicCamAnim_->LoadFromJson(profile_.cameraAnimFile);
+        cameraAnimIsStatic_ = IsCameraAnimStatic(cinematicCamAnim_->GetKeyframes());
         cinematicCamAnim_->SetLoop(false);
         cinematicCamAnim_->SetPlaying(true);
         cinematicCamAnim_->SetCurrentTime(0.0f);
+        cinematicCamAnim_->SampleAtTime(0.0f);
+        if (cinematicCam_) {
+            cinematicCam_->Update();
+        }
         
         float camDuration = cinematicCamAnim_->GetMaxTime();
         if (camDuration > 0.0f) {
@@ -176,8 +270,14 @@ bool BattleActionDirector::Update(float dt) {
     easeT_ = std::clamp(timer_ / std::max(duration_, 0.001f), 0.0f, 1.0f);
 
     if (profile_.enableCameraWork) {
-        if (phase_ == ActionPhase::Attack && cinematicCamAnim_ && !profile_.cameraAnimFile.empty()) {
+        const bool hasCameraAnim = cinematicCamAnim_ && !profile_.cameraAnimFile.empty();
+        if (phase_ == ActionPhase::Attack && hasCameraAnim && !cameraAnimIsStatic_) {
             cinematicCamAnim_->Update(dt);
+        } else if (hasCameraAnim) {
+            cinematicCamAnim_->SampleAtTime(0.0f);
+            if (cinematicCam_) {
+                cinematicCam_->Update();
+            }
         } else {
             cinematicCam_->SetTranslate(profile_.cameraPos);
             cinematicCam_->SetRotate(profile_.cameraRot);
@@ -237,6 +337,7 @@ bool BattleActionDirector::Update(float dt) {
 
         if (timer_ >= duration_) {
             phase_ = ActionPhase::Idle;
+            RestoreOriginalState_();
 
             // --- アクション終了時に待機モーションに戻す ---
             if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {

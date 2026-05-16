@@ -10,6 +10,8 @@ struct CameraKeyframe {
     Vector3 pos;
     Vector3 rot;
     float fov;
+    bool hasWorldMatrix = false;
+    Matrix4x4 worldMatrix{};
 };
 
 class CameraAnimator {

@@ -53,6 +53,8 @@ private:
     AnimationEditorSession::EditorContext BuildEditorContext_();
     void ResetParticleObjectPostParam_();
     void DrawParticleObjectPostEditor_();
+    void DrawBattleAnimationDebugWindow_();
+    void UpdateReleaseDebugText_();
 
 private:
     std::unique_ptr<Camera> camera_;
@@ -75,6 +77,7 @@ private:
     EditorTargetKind editorTargetKind_ = EditorTargetKind::Animation;
     bool battleDebugVisible_ = true;
     bool battleEffectsDebugVisible_ = true;
+    bool forceActionCameraLookAt_ = false;
     EnemyManager enemyMgr_;
 
     std::unique_ptr<Sprite> cardDescBg_;
@@ -103,6 +106,7 @@ private:
     std::unique_ptr<TextSprite> playerHpText_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
     std::vector<std::unique_ptr<TextSprite>> enemyPoisonTexts_;
+    std::unique_ptr<TextSprite> releaseDebugText_;
 
     ParticleEmitterConfig attackEffectConfig_;
     

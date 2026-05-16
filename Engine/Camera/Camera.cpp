@@ -20,7 +20,12 @@ Camera::Camera()
 
 void Camera::Update() {
 
-	worldMatrix_ = Matrix4x4::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	if (useWorldMatrixOverride_) {
+		worldMatrix_ = worldMatrixOverride_;
+		transform_.translate = { worldMatrix_.m[3][0], worldMatrix_.m[3][1], worldMatrix_.m[3][2] };
+	} else {
+		worldMatrix_ = Matrix4x4::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	}
 	viewMatrix_ = Matrix4x4::Inverse(worldMatrix_);
 
 	projectionMatrix_ =

@@ -8,6 +8,7 @@
 #include <random>
 #include <filesystem>
 #include <algorithm>
+#include <cwchar>
 #include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
@@ -23,6 +24,111 @@ static std::wstring Utf8ToWString(const std::string& s)
 }
 
 namespace {
+	void DrawVector3Debug_(const char* label, const Vector3& v)
+	{
+#ifdef USE_IMGUI
+		ImGui::Text("%s: %.3f, %.3f, %.3f", label, v.x, v.y, v.z);
+#else
+		(void)label;
+		(void)v;
+#endif
+	}
+
+	void DrawCameraDebug_(const char* label, Camera* camera)
+	{
+#ifdef USE_IMGUI
+		if (!camera) {
+			ImGui::Text("%s: null", label);
+			return;
+		}
+
+		ImGui::Text("%s: %p", label, static_cast<void*>(camera));
+		DrawVector3Debug_("  pos", camera->GetTranslate());
+		DrawVector3Debug_("  rot", camera->GetRotate());
+		ImGui::Text("  matrixOverride: %s", camera->UsesWorldMatrixOverride() ? "true" : "false");
+		ImGui::Text("  fov/aspect: %.3f / %.3f", camera->GetFovY(), camera->GetAspect());
+#else
+		(void)label;
+		(void)camera;
+#endif
+	}
+
+	void DrawClipDebug_(const char* label, const Vector3& worldPos, Camera* camera)
+	{
+#ifdef USE_IMGUI
+		if (!camera) {
+			ImGui::Text("%s clip: camera null", label);
+			return;
+		}
+
+		const Matrix4x4& vp = camera->GetViewProjectionMatrix();
+		Vector4 clip{};
+		clip.x = worldPos.x * vp.m[0][0] + worldPos.y * vp.m[1][0] + worldPos.z * vp.m[2][0] + vp.m[3][0];
+		clip.y = worldPos.x * vp.m[0][1] + worldPos.y * vp.m[1][1] + worldPos.z * vp.m[2][1] + vp.m[3][1];
+		clip.z = worldPos.x * vp.m[0][2] + worldPos.y * vp.m[1][2] + worldPos.z * vp.m[2][2] + vp.m[3][2];
+		clip.w = worldPos.x * vp.m[0][3] + worldPos.y * vp.m[1][3] + worldPos.z * vp.m[2][3] + vp.m[3][3];
+
+		if (std::abs(clip.w) < 0.0001f) {
+			ImGui::Text("%s clip: w is near zero", label);
+			return;
+		}
+
+		const float ndcX = clip.x / clip.w;
+		const float ndcY = clip.y / clip.w;
+		const float ndcZ = clip.z / clip.w;
+		const bool visible = clip.w > 0.0f &&
+			ndcX >= -1.0f && ndcX <= 1.0f &&
+			ndcY >= -1.0f && ndcY <= 1.0f &&
+			ndcZ >= 0.0f && ndcZ <= 1.0f;
+
+		ImGui::Text("%s clip: %.3f, %.3f, %.3f, %.3f", label, clip.x, clip.y, clip.z, clip.w);
+		ImGui::Text("%s ndc : %.3f, %.3f, %.3f visible=%s", label, ndcX, ndcY, ndcZ, visible ? "yes" : "no");
+#else
+		(void)label;
+		(void)worldPos;
+		(void)camera;
+#endif
+	}
+
+	Vector3 MakeLookAtRotation_(const Vector3& eye, const Vector3& target)
+	{
+		Vector3 dir = target - eye;
+		const float horizontal = std::sqrt(dir.x * dir.x + dir.z * dir.z);
+		if (horizontal < 0.0001f && std::abs(dir.y) < 0.0001f) {
+			return {};
+		}
+
+		const float yaw = std::atan2(dir.x, dir.z);
+		const float pitch = std::atan2(-dir.y, horizontal);
+		return { pitch, yaw, 0.0f };
+	}
+
+	void AppendVec3DebugLine_(std::wstring& text, const wchar_t* label, const Vector3& v)
+	{
+		wchar_t line[160]{};
+		swprintf_s(line, L"%s: %.3f, %.3f, %.3f\n", label, v.x, v.y, v.z);
+		text += line;
+	}
+
+	void AppendCameraDebugLines_(std::wstring& text, const wchar_t* label, Camera* camera)
+	{
+		text += label;
+		text += L"\n";
+		if (!camera) {
+			text += L"  null\n";
+			return;
+		}
+
+		AppendVec3DebugLine_(text, L"  pos", camera->GetTranslate());
+		AppendVec3DebugLine_(text, L"  rot", camera->GetRotate());
+
+		wchar_t line[160]{};
+		swprintf_s(line, L"  matrixOverride: %s\n", camera->UsesWorldMatrixOverride() ? L"true" : L"false");
+		text += line;
+		swprintf_s(line, L"  fov/aspect: %.3f / %.3f\n", camera->GetFovY(), camera->GetAspect());
+		text += line;
+	}
+
 	constexpr float kBossStageBannerDuration = 2.0f;
 	constexpr float kBossStageBannerX = 380.0f;
 	constexpr float kBossStageBannerY = 105.0f;
@@ -277,6 +383,14 @@ void GameScene::OnEnter(GameApp& app) {
 	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
 	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
 	playerHpText_->SetPosition({ 140.0f, 12.5f });
+
+	releaseDebugText_ = std::make_unique<TextSprite>();
+	releaseDebugText_->Initialize(app.SpriteCom(), app.Dx());
+	releaseDebugText_->SetFontSize(18);
+	releaseDebugText_->SetSize({ 1.0f, 1.0f, 1.0f });
+	releaseDebugText_->SetPosition({ 12.0f, 120.0f });
+	releaseDebugText_->SetColor({ 0.9f, 1.0f, 0.45f });
+	releaseDebugText_->SetText(L"");
 
 	// 敵HP数字
 	for (int i = 0; i < 3; i++) {
@@ -693,18 +807,44 @@ void GameScene::Update(GameApp& app, float dt) {
 	if (Camera* actionCamera = battle_.GetActionCamera()) {
 		int windowW = WinApp::kClientWidth;
 		int windowH = WinApp::kClientHeight;
-		int battleHeight = static_cast<int>(windowH * splitRatio_);
+		const bool isBattleAnimationPlaying = battle_.IsActionSequencePlaying();
+		int battleHeight = isBattleAnimationPlaying ? windowH : static_cast<int>(windowH * splitRatio_);
 		actionCamera->SetAspect((float)windowW / battleHeight);
 
-		float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
-		float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
-		actionCamera->SetFovY(correctedFovY);
-
 		Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
-		shiftBattle.m[1][1] = splitRatio_;
-		shiftBattle.m[3][1] = 1.0f - splitRatio_;
+		if (!isBattleAnimationPlaying) {
+			float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+			float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
+			actionCamera->SetFovY(correctedFovY);
+			shiftBattle.m[1][1] = splitRatio_;
+			shiftBattle.m[3][1] = 1.0f - splitRatio_;
+		}
 		actionCamera->SetProjectionShift(shiftBattle);
+
+		if (isBattleAnimationPlaying && forceActionCameraLookAt_ && player_) {
+			Vector3 target = player_->GetPos() + Vector3{ 0.0f, 1.0f, 0.0f };
+			actionCamera->SetRotate(MakeLookAtRotation_(actionCamera->GetTranslate(), target));
+		}
 		actionCamera->Update();
+
+		if (isBattleAnimationPlaying) {
+			if (skyDome_) {
+				skyDome_->SetCamera(actionCamera);
+				skyDome_->Update(0.0f);
+			}
+			if (player_) {
+				player_->SetCamera(actionCamera);
+				if (player_->GetObject3d()) {
+					player_->GetObject3d()->Update(0.0f);
+				}
+			}
+			for (auto& enemy : enemyMgr_.GetEnemies()) {
+				enemy.SetCamera(actionCamera);
+				if (enemy.GetObject3d()) {
+					enemy.GetObject3d()->Update(0.0f);
+				}
+			}
+		}
 	}
 
 	if (isPlayerDead()) {
@@ -787,6 +927,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
+	UpdateReleaseDebugText_();
 	trailManager_->Update(dt);
 
 	//particleManager_->Emit("particle_image", Vector3(0, 0.0f, 0), 10);
@@ -802,18 +943,62 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 }
 
+void GameScene::UpdateReleaseDebugText_()
+{
+	if (!releaseDebugText_) {
+		return;
+	}
+
+	const bool isActionPlaying = battle_.IsActionSequencePlaying();
+	Camera* actionCamera = battle_.GetActionCamera();
+	Camera* activeCamera = isActionPlaying && actionCamera ? actionCamera : camera_.get();
+
+	std::wstring text;
+	text.reserve(1024);
+	text += L"[Release Pos Debug]\n";
+	text += isActionPlaying ? L"ActionSequence: true\n" : L"ActionSequence: false\n";
+
+	if (player_) {
+		AppendVec3DebugLine_(text, L"Player logic", player_->GetPos());
+		AppendVec3DebugLine_(text, L"Player world", player_->GetWorldPos());
+		if (Object3d* playerObj = player_->GetObject3d()) {
+			AppendVec3DebugLine_(text, L"Player obj pos", playerObj->GetTranslate());
+			AppendVec3DebugLine_(text, L"Player obj rot", playerObj->GetRotate());
+		}
+	} else {
+		text += L"Player: null\n";
+	}
+
+	if (!enemyMgr_.GetEnemies().empty()) {
+		Enemy& enemy = enemyMgr_.GetEnemies().front();
+		AppendVec3DebugLine_(text, L"Enemy[0] logic", enemy.GetPos());
+		if (Object3d* enemyObj = enemy.GetObject3d()) {
+			AppendVec3DebugLine_(text, L"Enemy[0] obj pos", enemyObj->GetTranslate());
+		}
+	} else {
+		text += L"Enemy[0]: null\n";
+	}
+
+	AppendCameraDebugLines_(text, L"Active camera", activeCamera);
+	AppendCameraDebugLines_(text, L"Field camera", camera_.get());
+	AppendCameraDebugLines_(text, L"Action camera", actionCamera);
+
+	releaseDebugText_->SetText(text);
+}
 
 void GameScene::Draw3D(GameApp& app) {
 	app.Dx()->SetBackBuffer();
 
 	int windowW = WinApp::kClientWidth;
 	int windowH = WinApp::kClientHeight;
-	int battleHeight = static_cast<int>(windowH * splitRatio_);
+	const bool isBattleAnimationPlaying = battle_.IsActionSequencePlaying();
+	int battleHeight = isBattleAnimationPlaying ? windowH : static_cast<int>(windowH * splitRatio_);
 
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	app.ObjCom()->SetGraphicsPipelineState();
+	app.Dx()->ClearDepthBuffer();
 
 	if (player_) player_->Draw();
 	enemyMgr_.Draw();
@@ -824,19 +1009,20 @@ void GameScene::Draw3D(GameApp& app) {
 	}
 	battle_.DrawDamagePopups3D(app);
 
-	app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
-	app.ObjCom()->SetGraphicsPipelineState();
-	app.Dx()->ClearDepthBuffer();
-	battle_.DrawField3D(app);
+	if (!isBattleAnimationPlaying) {
+		app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
+		app.ObjCom()->SetGraphicsPipelineState();
+		app.Dx()->ClearDepthBuffer();
+		battle_.DrawField3D(app);
 
-	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
-	app.ObjCom()->SetGraphicsPipelineState();
-	battle_.DrawBattleOverlay3D(app);
+		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+		app.ObjCom()->SetGraphicsPipelineState();
+		battle_.DrawBattleOverlay3D(app);
 
-	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
-	app.ObjCom()->SetGraphicsPipelineState();
-	app.Dx()->ClearDepthBuffer();
-	battle_.DrawCardArea3D(app);
+		app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+		app.ObjCom()->SetGraphicsPipelineState();
+		app.Dx()->ClearDepthBuffer();
+		battle_.DrawCardArea3D(app);
 
 	battle_.DrawPostEffect3D(app);
 	battle_.DrawFieldFrameBloom(app);
@@ -850,6 +1036,8 @@ void GameScene::Draw3D(GameApp& app) {
 			fieldParticleManager_->Draw();
 			app.ObjCom()->SetGraphicsPipelineState();
 		}
+	}
+		battle_.DrawPostEffect3D(app);
 	}
 
 	// 最後にビューポートを元に戻す（2D描画等のため）
@@ -872,6 +1060,15 @@ void GameScene::Draw2D(GameApp& app) {
 	pausingUI_->Draw(app);
 
 	if (pausingUI_->GetIsPaused()) {
+		return;
+	}
+
+	if (battle_.IsActionSequencePlaying()) {
+		battle_.Draw2D(app);
+		if (releaseDebugText_) {
+			releaseDebugText_->Update(view, proj);
+			releaseDebugText_->Draw();
+		}
 		return;
 	}
 
@@ -946,6 +1143,11 @@ void GameScene::Draw2D(GameApp& app) {
 		text->Update(view, proj);
 		text->Draw();
 	}
+
+	if (releaseDebugText_) {
+		releaseDebugText_->Update(view, proj);
+		releaseDebugText_->Draw();
+	}
 }
 
 void GameScene::DrawImGui(GameApp& app) {
@@ -971,6 +1173,8 @@ void GameScene::DrawImGui(GameApp& app) {
 	ImGui::SliderFloat("Battle Camera Zoom", &battleCameraZoom_, 0.1f, 3.0f);
 	ImGui::SliderFloat("Battle Camera RotX Offset", &battleCameraRotXOffset_, -0.5f, 0.5f);
 	ImGui::End();
+
+	DrawBattleAnimationDebugWindow_();
 
 	ImGui::Begin("Battle Debug", &battleDebugVisible_);
 	battle_.DrawImGui();
@@ -1083,11 +1287,93 @@ void GameScene::DrawImGui(GameApp& app) {
 #endif
 }
 
+void GameScene::DrawBattleAnimationDebugWindow_()
+{
+#ifdef USE_IMGUI
+	ImGui::Begin("Battle Animation Scene Debug");
+
+	const bool isActionPlaying = battle_.IsActionSequencePlaying();
+	Camera* actionCamera = battle_.GetActionCamera();
+	Camera* editorCamera = isActionPlaying && actionCamera
+		? actionCamera
+		: (cameraEditTarget_ ? cameraEditTarget_ : camera_.get());
+
+	ImGui::Text("ActionSequencePlaying: %s", isActionPlaying ? "true" : "false");
+	ImGui::Checkbox("Force Action Camera LookAt", &forceActionCameraLookAt_);
+	ImGui::Text("SplitRatio: %.3f", splitRatio_);
+	ImGui::Text("Window: %d x %d", WinApp::kClientWidth, WinApp::kClientHeight);
+	ImGui::Text("BattleHeight: %d", isActionPlaying
+		? WinApp::kClientHeight
+		: static_cast<int>(WinApp::kClientHeight * splitRatio_));
+
+	ImGui::Separator();
+	ImGui::TextUnformatted("Player");
+	if (player_) {
+		DrawVector3Debug_("Player logic pos", player_->GetPos());
+		DrawVector3Debug_("Player world pos", player_->GetWorldPos());
+		ImGui::Text("Player HP/alive: %d / %s", player_->GetHP(), player_->GetIsAlive() ? "true" : "false");
+		bool releaseAnimationEnabled = player_->GetReleaseAnimationEnabled();
+		if (ImGui::Checkbox("Player Release Animations", &releaseAnimationEnabled)) {
+			player_->SetReleaseAnimationEnabled(releaseAnimationEnabled);
+		}
+		if (Object3d* playerObj = player_->GetObject3d()) {
+			DrawVector3Debug_("Player object pos", playerObj->GetTranslate());
+			DrawVector3Debug_("Player object rot", playerObj->GetRotate());
+			DrawVector3Debug_("Player object scale", playerObj->GetScale());
+			ImGui::Text("Player object camera: %p", static_cast<void*>(playerObj->GetCamera()));
+			ImGui::Text("Player model: %s", playerObj->GetModel() ? "loaded" : "null");
+			DrawClipDebug_("Player/actionCam", playerObj->GetTranslate(), actionCamera);
+			DrawClipDebug_("Player/editorCam", playerObj->GetTranslate(), editorCamera);
+
+			if (ImGui::Button("Refresh Player WVP")) {
+				playerObj->Update(0.0f);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Set Player Camera = Action") && actionCamera) {
+				player_->SetCamera(actionCamera);
+				playerObj->Update(0.0f);
+			}
+			if (ImGui::Button("LookAt Player/Enemy Now") && actionCamera) {
+				Vector3 target = player_->GetPos() + Vector3{ 0.0f, 1.0f, 0.0f };
+				actionCamera->SetRotate(MakeLookAtRotation_(actionCamera->GetTranslate(), target));
+				actionCamera->Update();
+				player_->SetCamera(actionCamera);
+				playerObj->Update(0.0f);
+			}
+		}
+	} else {
+		ImGui::TextUnformatted("player_: null");
+	}
+
+	ImGui::Separator();
+	ImGui::TextUnformatted("Enemy");
+	ImGui::Text("Enemy count: %d", static_cast<int>(enemyMgr_.GetEnemies().size()));
+	if (!enemyMgr_.GetEnemies().empty()) {
+		Enemy& enemy = enemyMgr_.GetEnemies().front();
+		DrawVector3Debug_("Enemy[0] pos", enemy.GetPos());
+		if (Object3d* enemyObj = enemy.GetObject3d()) {
+			DrawVector3Debug_("Enemy[0] object pos", enemyObj->GetTranslate());
+			ImGui::Text("Enemy[0] object camera: %p", static_cast<void*>(enemyObj->GetCamera()));
+			DrawClipDebug_("Enemy[0]/actionCam", enemyObj->GetTranslate(), actionCamera);
+		}
+	}
+
+	ImGui::Separator();
+	ImGui::TextUnformatted("Cameras");
+	DrawCameraDebug_("Field camera", camera_.get());
+	DrawCameraDebug_("Anim camera", animCamera_.get());
+	DrawCameraDebug_("Action camera", actionCamera);
+	DrawCameraDebug_("Editor camera", editorCamera);
+
+	ImGui::End();
+#endif
+}
+
 void GameScene::DrawSkydome(GameApp& app)
 {
 	int windowW = WinApp::kClientWidth;
 	int windowH = WinApp::kClientHeight;
-	int battleHeight = static_cast<int>(windowH * splitRatio_);
+	int battleHeight = battle_.IsActionSequencePlaying() ? windowH : static_cast<int>(windowH * splitRatio_);
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 
@@ -1102,7 +1388,7 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 {
 	int windowW = WinApp::kClientWidth;
 	int windowH = WinApp::kClientHeight;
-	int battleHeight = static_cast<int>(windowH * splitRatio_);
+	int battleHeight = battle_.IsActionSequencePlaying() ? windowH : static_cast<int>(windowH * splitRatio_);
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 
@@ -1286,7 +1572,8 @@ bool GameScene::LoadCameraByIndex_(int index) {
 
 AnimationEditorSession::EditorContext GameScene::BuildEditorContext_() {
 	AnimationEditorSession::EditorContext context{};
-	context.editorCamera = cameraEditTarget_ ? cameraEditTarget_ : camera_.get();
+	Camera* actionCamera = battle_.IsActionSequencePlaying() ? battle_.GetActionCamera() : nullptr;
+	context.editorCamera = actionCamera ? actionCamera : (cameraEditTarget_ ? cameraEditTarget_ : camera_.get());
 	context.cameraAnimator = cameraAnim_.get();
 	context.canEditAnimation = (animationEditTarget_ != nullptr);
 	context.canEditCamera = (cameraEditTarget_ != nullptr && cameraAnim_ != nullptr);

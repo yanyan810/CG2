@@ -11,9 +11,11 @@ public:
 	void Update();
 
 	//setter
-	void SetRotate(const Vector3& r) { transform_.rotate = r; }
-	void SetTranslate(const Vector3& t) { transform_.translate = t; }
+	void SetRotate(const Vector3& r) { transform_.rotate = r; ClearWorldMatrixOverride(); }
+	void SetTranslate(const Vector3& t) { transform_.translate = t; ClearWorldMatrixOverride(); }
 	void SetFovY(float fovY) { fovY_ = fovY; }
+	void SetWorldMatrixOverride(const Matrix4x4& worldMatrix) { worldMatrixOverride_ = worldMatrix; useWorldMatrixOverride_ = true; }
+	void ClearWorldMatrixOverride() { useWorldMatrixOverride_ = false; }
 	void SetAspect(float aspect) { aspect_ = aspect; }
 	void SetNearZ(float nearZ) { nearZ_ = nearZ; }
 	void SetFarClip(float farZ) { farZ_ = farZ; }
@@ -25,6 +27,8 @@ public:
 	const Vector3& GetRotate() const { return transform_.rotate; }
 	const Vector3& GetTranslate() const { return transform_.translate; }
 	float GetFovY() const { return fovY_; }
+	float GetAspect() const { return aspect_; }
+	bool UsesWorldMatrixOverride() const { return useWorldMatrixOverride_; }
 	const Transform GetTransform() const { return transform_; }
 
 	void SetProjectionShift(const Matrix4x4& shift) { projectionShift_ = shift; }
@@ -43,6 +47,8 @@ private:
 	Matrix4x4 viewProjectionMatrix_;
 
 	Matrix4x4 projectionShift_ = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 worldMatrixOverride_ = Matrix4x4::MakeIdentity4x4();
+	bool useWorldMatrixOverride_ = false;
 
 };
 
