@@ -39,7 +39,7 @@ void TestScene::OnEnter(GameApp& app) {
     const Vector3 enemyPos{ 0.0f, 0.0f, 5.0f };
     enemyMgr_.Spawn(EnemyType::Boss, enemyPos);
 
-    actionDirector_.Initialize(app.SpriteCom(), app.Dx());
+    actionDirector_.Initialize(app.SpriteCom(), app.Dx(), app.ObjCom());
     if (const ActionSequenceProfile* profile = app.FindActionSequenceProfile("test_attack")) {
         actionDirector_.SetProfile(*profile);
         actionDirector_.SetProfilePath("resources/sequences/test_attack.json");

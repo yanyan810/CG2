@@ -264,6 +264,17 @@ void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3&
 	transformDirty_ = true;
 }
 
+void Card3D::SetCamera(Camera* camera)
+{
+	if (frame_) frame_->SetCamera(camera);
+	if (art_) art_->SetCamera(camera);
+	if (costObj_) costObj_->SetCamera(camera);
+	if (suitObj_) suitObj_->SetCamera(camera);
+	if (numberObjTens_) numberObjTens_->SetCamera(camera);
+	if (numberObjOnes_) numberObjOnes_->SetCamera(camera);
+	if (countObj_) countObj_->SetCamera(camera);
+}
+
 void Card3D::SetTargetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale, bool instant)
 {
 	if (instant) {

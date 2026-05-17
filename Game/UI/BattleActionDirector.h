@@ -3,6 +3,8 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include "Vector3.h"
+#include "CardDef.h"
+#include "CardInstance.h"
 //#include "Vector4.h"
 
 class Player;
@@ -10,9 +12,28 @@ class Enemy;
 class Sprite;
 class SpriteCommon;
 class DirectXCommon;
+class Object3dCommon;
 class Camera;
 class CameraAnimator;
 class AnimationClipDocument;
+class Card3D;
+
+struct ActionCardRevealProfile {
+    bool enabled = false;
+    bool playerRelative = true;
+    float startTime = 0.0f;
+    float duration = 0.45f;
+    Vector3 startPos = { 0.0f, -1.0f, -1.0f };
+    Vector3 endPos = { 0.0f, 2.4f, -1.0f };
+    Vector3 startRot = { 0.0f, 3.14159265f, 0.0f };
+    Vector3 endRot = { 0.0f, 3.14159265f, 0.0f };
+    Vector3 startScale = { 0.8f, 0.8f, 0.8f };
+    Vector3 endScale = { 1.4f, 1.4f, 1.4f };
+    float glitter = 0.0f;
+
+    nlohmann::json ToJson() const;
+    void FromJson(const nlohmann::json& j);
+};
 
 struct ActionSequenceProfile {
     // 1. カットイン設定
@@ -35,6 +56,7 @@ struct ActionSequenceProfile {
     float playerAttackAnimStartTime = 0.0f; // 再生開始時間(秒)
     std::string enemyDamageAnim = "";  // 自作アニメーションパス
     float enemyDamageAnimStartTime = 0.0f; // 再生開始時間(秒)
+    ActionCardRevealProfile cardReveal;
 
     // 4. アクション時間設定
     float approachDuration = 0.3f;
@@ -60,14 +82,16 @@ public:
     BattleActionDirector() = default;
     ~BattleActionDirector() = default;
 
-    void Initialize(SpriteCommon* spriteCom, DirectXCommon* dx);
+    void Initialize(SpriteCommon* spriteCom, DirectXCommon* dx, Object3dCommon* objCom = nullptr);
 
     void StartAction(Player* player, Enemy* target);
+    void StartAction(Player* player, Enemy* target, const CardDef& cardDef, const CardInstance& cardInstance);
 
     // Returns true if the entire sequence is complete
     bool Update(float dt);
 
     void Draw2D();
+    void Draw3D();
 
     Camera* GetCinematicCamera() const { return cinematicCam_.get(); }
     bool IsPlaying() const { return phase_ != ActionPhase::Idle; }
@@ -89,6 +113,9 @@ public:
 private:
     void SaveOriginalState_();
     void RestoreOriginalState_();
+    void StartActionInternal_(Player* player, Enemy* target, const CardDef* cardDef, const CardInstance* cardInstance);
+    Vector3 ResolveCardRevealPos_(const Vector3& pos) const;
+    void UpdateCardReveal_(float dt);
 
     ActionPhase phase_ = ActionPhase::Idle;
     float timer_ = 0.0f;
@@ -105,6 +132,7 @@ private:
     // アニメーションローダーの保持
     std::unique_ptr<AnimationClipDocument> playerAnimDoc_;
     std::unique_ptr<AnimationClipDocument> enemyAnimDoc_;
+    std::unique_ptr<Card3D> cardReveal_;
 
     ActionSequenceProfile profile_;
     char profileFilename_[128] = "resources/sequences/default_attack.json";
@@ -116,9 +144,17 @@ private:
     bool hasPlayedPlayerAnim_ = false;
     bool hasPlayedEnemyAnim_ = false;
     bool cameraAnimIsStatic_ = false;
+    bool hasCardRevealCard_ = false;
+    bool cardRevealVisible_ = false;
+    float cardRevealTimer_ = 0.0f;
+
+    SpriteCommon* spriteCom_ = nullptr;
+    DirectXCommon* dx_ = nullptr;
+    Object3dCommon* objCom_ = nullptr;
 
     bool hasOriginalState_ = false;
     Vector3 originalPlayerPos_{};
+    Vector3 originalPlayerRot_{};
     Vector3 originalEnemyPos_{};
     Vector3 originalCameraPos_{};
     Vector3 originalCameraRot_{};

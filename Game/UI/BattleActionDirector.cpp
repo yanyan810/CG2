@@ -19,10 +19,53 @@
 #include "AnimationClipDocument.h"
 #include "Object3d.h"
 #include "Model.h"
+#include "Card3D.h"
 
 // =====================================
 // JSON Serialization
 // =====================================
+nlohmann::json ActionCardRevealProfile::ToJson() const {
+    return nlohmann::json{
+        {"enabled", enabled},
+        {"playerRelative", playerRelative},
+        {"startTime", startTime},
+        {"duration", duration},
+        {"startPos", {startPos.x, startPos.y, startPos.z}},
+        {"endPos", {endPos.x, endPos.y, endPos.z}},
+        {"startRot", {startRot.x, startRot.y, startRot.z}},
+        {"endRot", {endRot.x, endRot.y, endRot.z}},
+        {"startScale", {startScale.x, startScale.y, startScale.z}},
+        {"endScale", {endScale.x, endScale.y, endScale.z}},
+        {"glitter", glitter}
+    };
+}
+
+void ActionCardRevealProfile::FromJson(const nlohmann::json& j) {
+    enabled = j.value("enabled", enabled);
+    playerRelative = j.value("playerRelative", playerRelative);
+    startTime = j.value("startTime", startTime);
+    duration = j.value("duration", duration);
+    glitter = j.value("glitter", glitter);
+    if (j.contains("startPos")) {
+        startPos = { j["startPos"][0], j["startPos"][1], j["startPos"][2] };
+    }
+    if (j.contains("endPos")) {
+        endPos = { j["endPos"][0], j["endPos"][1], j["endPos"][2] };
+    }
+    if (j.contains("startRot")) {
+        startRot = { j["startRot"][0], j["startRot"][1], j["startRot"][2] };
+    }
+    if (j.contains("endRot")) {
+        endRot = { j["endRot"][0], j["endRot"][1], j["endRot"][2] };
+    }
+    if (j.contains("startScale")) {
+        startScale = { j["startScale"][0], j["startScale"][1], j["startScale"][2] };
+    }
+    if (j.contains("endScale")) {
+        endScale = { j["endScale"][0], j["endScale"][1], j["endScale"][2] };
+    }
+}
+
 nlohmann::json ActionSequenceProfile::ToJson() const {
     return nlohmann::json{
         {"cutinDuration", cutinDuration},
@@ -42,7 +85,8 @@ nlohmann::json ActionSequenceProfile::ToJson() const {
         {"playerAttackAnim", playerAttackAnim},
         {"playerAttackAnimStartTime", playerAttackAnimStartTime},
         {"enemyDamageAnim", enemyDamageAnim},
-        {"enemyDamageAnimStartTime", enemyDamageAnimStartTime}
+        {"enemyDamageAnimStartTime", enemyDamageAnimStartTime},
+        {"cardReveal", cardReveal.ToJson()}
     };
 }
 
@@ -79,6 +123,9 @@ void ActionSequenceProfile::FromJson(const nlohmann::json& j) {
     playerAttackAnimStartTime = j.value("playerAttackAnimStartTime", playerAttackAnimStartTime);
     enemyDamageAnim = j.value("enemyDamageAnim", enemyDamageAnim);
     enemyDamageAnimStartTime = j.value("enemyDamageAnimStartTime", enemyDamageAnimStartTime);
+    if (j.contains("cardReveal") && j["cardReveal"].is_object()) {
+        cardReveal.FromJson(j["cardReveal"]);
+    }
 }
 
 // =====================================
@@ -92,6 +139,14 @@ namespace {
 
     float AbsSum(const Vector3& v) {
         return std::abs(v.x) + std::abs(v.y) + std::abs(v.z);
+    }
+
+    Vector3 LerpVec3(const Vector3& a, const Vector3& b, float t) {
+        return {
+            a.x + (b.x - a.x) * t,
+            a.y + (b.y - a.y) * t,
+            a.z + (b.z - a.z) * t
+        };
     }
 
     bool IsCameraAnimStatic(const std::vector<CameraKeyframe>& keys) {
@@ -131,7 +186,11 @@ namespace {
 // BattleActionDirector
 // =====================================
 
-void BattleActionDirector::Initialize(SpriteCommon* spriteCom, DirectXCommon* dx) {
+void BattleActionDirector::Initialize(SpriteCommon* spriteCom, DirectXCommon* dx, Object3dCommon* objCom) {
+    spriteCom_ = spriteCom;
+    dx_ = dx;
+    objCom_ = objCom;
+
     cutinBg_ = std::make_unique<Sprite>();
     cutinBg_->Initialize(spriteCom, dx, "resources/ui/white.png");
     
@@ -164,6 +223,7 @@ void BattleActionDirector::SaveOriginalState_() {
 
     if (player_) {
         originalPlayerPos_ = player_->GetPos();
+        originalPlayerRot_ = player_->GetRotation();
     }
     if (target_) {
         originalEnemyPos_ = target_->GetPos();
@@ -182,8 +242,10 @@ void BattleActionDirector::RestoreOriginalState_() {
 
     if (player_) {
         player_->SetSpawnPos(originalPlayerPos_);
+        player_->SetRotation(originalPlayerRot_);
         if (player_->GetObject3d()) {
             player_->GetObject3d()->SetTranslate(originalPlayerPos_);
+            player_->GetObject3d()->SetRotate(originalPlayerRot_);
         }
     }
     if (target_) {
@@ -200,9 +262,21 @@ void BattleActionDirector::RestoreOriginalState_() {
 }
 
 void BattleActionDirector::StartAction(Player* player, Enemy* target) {
+    StartActionInternal_(player, target, nullptr, nullptr);
+}
+
+void BattleActionDirector::StartAction(Player* player, Enemy* target, const CardDef& cardDef, const CardInstance& cardInstance) {
+    StartActionInternal_(player, target, &cardDef, &cardInstance);
+}
+
+void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, const CardDef* cardDef, const CardInstance* cardInstance) {
     player_ = player;
     target_ = target;
     SaveOriginalState_();
+    cardReveal_.reset();
+    hasCardRevealCard_ = false;
+    cardRevealVisible_ = false;
+    cardRevealTimer_ = 0.0f;
     
     // いきなりアニメーション再生フェーズから開始する
     phase_ = ActionPhase::Attack;
@@ -219,6 +293,22 @@ void BattleActionDirector::StartAction(Player* player, Enemy* target) {
         }
     }
     if (target_) target_->SetPosition(profile_.enemyPos);
+
+    Camera* cardCamera = (profile_.enableCameraWork && cinematicCam_) ? cinematicCam_.get() : nullptr;
+    if (!cardCamera && player_ && player_->GetObject3d()) {
+        cardCamera = player_->GetObject3d()->GetCamera();
+    }
+    if (profile_.cardReveal.enabled && cardDef && cardInstance && objCom_ && dx_ && cardCamera) {
+        cardReveal_ = std::make_unique<Card3D>();
+        cardReveal_->Initialize(objCom_, dx_, cardCamera, *cardDef, *cardInstance);
+        cardReveal_->SetIsHand(false);
+        cardReveal_->SetGlitter(profile_.cardReveal.glitter);
+        cardReveal_->SetTransform(
+            ResolveCardRevealPos_(profile_.cardReveal.startPos),
+            profile_.cardReveal.startRot,
+            profile_.cardReveal.startScale);
+        hasCardRevealCard_ = true;
+    }
 
     // Preload Animation JSONs and inject to Model
     if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
@@ -285,6 +375,8 @@ bool BattleActionDirector::Update(float dt) {
             cinematicCam_->Update();
         }
     }
+
+    UpdateCardReveal_(dt);
 
     if (phase_ == ActionPhase::Cutin) {
         cutinBg_->SetColor(profile_.cutinBgColor);
@@ -369,6 +461,46 @@ bool BattleActionDirector::Update(float dt) {
     if (cutinLine_) cutinLine_->Update(viewMat, projMat);
 
     return false;
+}
+
+Vector3 BattleActionDirector::ResolveCardRevealPos_(const Vector3& pos) const {
+    if (!profile_.cardReveal.playerRelative || !player_) {
+        return pos;
+    }
+
+    const Vector3 base = player_->GetPos();
+    return { base.x + pos.x, base.y + pos.y, base.z + pos.z };
+}
+
+void BattleActionDirector::UpdateCardReveal_(float dt) {
+    if (!hasCardRevealCard_ || !cardReveal_) {
+        return;
+    }
+
+    if (profile_.enableCameraWork && cinematicCam_) {
+        cardReveal_->SetCamera(cinematicCam_.get());
+    }
+
+    if (timer_ < profile_.cardReveal.startTime) {
+        return;
+    }
+
+    cardRevealVisible_ = true;
+    cardRevealTimer_ += dt;
+    const float t = std::clamp(cardRevealTimer_ / std::max(profile_.cardReveal.duration, 0.001f), 0.0f, 1.0f);
+    const float eased = EaseOutQuart(t);
+
+    cardReveal_->SetTransform(
+        LerpVec3(ResolveCardRevealPos_(profile_.cardReveal.startPos), ResolveCardRevealPos_(profile_.cardReveal.endPos), eased),
+        LerpVec3(profile_.cardReveal.startRot, profile_.cardReveal.endRot, eased),
+        LerpVec3(profile_.cardReveal.startScale, profile_.cardReveal.endScale, eased));
+    cardReveal_->Update(dt);
+}
+
+void BattleActionDirector::Draw3D() {
+    if (cardRevealVisible_ && cardReveal_) {
+        cardReveal_->Draw();
+    }
 }
 
 void BattleActionDirector::Draw2D() {

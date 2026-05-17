@@ -30,6 +30,7 @@ public:
     Vector3 GetWorldPos() const { return pos_; }
     Vector3 GetWorldPointFromLocal(const Vector3& localOffset) const;
     void SetIsHand(bool isHand) { isHand_ = isHand; }
+    void SetCamera(Camera* camera);
 
     void Setup(
         Object3dCommon* objCom,

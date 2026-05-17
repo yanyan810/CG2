@@ -2,6 +2,7 @@
 #include "GameApp.h"
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
+#include "CardDatabase.h"
 #include <cmath>
 #include <algorithm>
 #include <filesystem>
@@ -62,8 +63,11 @@ void BattleAnimeEditerScene::OnEnter(GameApp& app) {
     enemyMgr_.Spawn(EnemyType::Boss, { 5.0f, 0.0f, 5.0f });
     enemyMgr_.SetLighting(light_);
 
-    actionDirector_.Initialize(app.SpriteCom(), app.Dx());
+    actionDirector_.Initialize(app.SpriteCom(), app.Dx(), app.ObjCom());
     LoadSequenceByPath_("resources/sequences/test_useCard_1.json");
+    testCard_.defId = testCardDefId_;
+    testCard_.number = 1;
+    testCard_.suit = CardSuit::Spade;
 
     animationEditTarget_ = player_->GetObject3d();
     cameraEditTarget_ = camera_.get();
@@ -189,6 +193,7 @@ void BattleAnimeEditerScene::DrawPostEffect3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
     app.Dx()->ClearDepthBuffer();
     if (ground_) ground_->Draw();
+    actionDirector_.Draw3D();
     if (player_) player_->Draw();
     enemyMgr_.Draw();
 }
@@ -388,7 +393,11 @@ void BattleAnimeEditerScene::DrawSequenceDebugWindow_(GameApp& app, Enemy* targe
     }
     ImGui::SameLine();
     if (ImGui::Button("Play Loaded Sequence") && player_ && targetEnemy) {
-        actionDirector_.StartAction(player_.get(), targetEnemy);
+        if (const CardDef* testDef = GetTestCardDef_(app)) {
+            actionDirector_.StartAction(player_.get(), targetEnemy, *testDef, testCard_);
+        } else {
+            actionDirector_.StartAction(player_.get(), targetEnemy);
+        }
     }
 
     if (ImGui::Checkbox("Live Blender Camera", &liveCameraSyncEnabled_)) {
@@ -461,7 +470,63 @@ void BattleAnimeEditerScene::DrawSequenceDebugWindow_(GameApp& app, Enemy* targe
         }
     }
 
+    DrawCardRevealEditor_(app);
+
     ImGui::End();
+}
+
+const CardDef* BattleAnimeEditerScene::GetTestCardDef_(GameApp& app) const {
+    CardDatabase* db = app.GetCardDB();
+    return db ? db->Find(testCardDefId_) : nullptr;
+}
+
+void BattleAnimeEditerScene::DrawCardRevealEditor_(GameApp& app) {
+    ActionSequenceProfile& profile = actionDirector_.GetProfileRef();
+    ActionCardRevealProfile& reveal = profile.cardReveal;
+
+    ImGui::Separator();
+    if (!ImGui::CollapsingHeader("Card Use Reveal", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+
+    ImGui::Checkbox("Enable Card Reveal", &reveal.enabled);
+    ImGui::Checkbox("Player Relative", &reveal.playerRelative);
+    ImGui::DragFloat("Start Time", &reveal.startTime, 0.01f, 0.0f, 10.0f);
+    ImGui::DragFloat("Duration", &reveal.duration, 0.01f, 0.01f, 10.0f);
+    ImGui::DragFloat3("Start Pos", &reveal.startPos.x, 0.05f);
+    ImGui::DragFloat3("End Pos", &reveal.endPos.x, 0.05f);
+    ImGui::DragFloat3("Start Rot", &reveal.startRot.x, 0.01f);
+    ImGui::DragFloat3("End Rot", &reveal.endRot.x, 0.01f);
+    ImGui::DragFloat3("Start Scale", &reveal.startScale.x, 0.02f, 0.01f, 10.0f);
+    ImGui::DragFloat3("End Scale", &reveal.endScale.x, 0.02f, 0.01f, 10.0f);
+    ImGui::DragFloat("Glitter", &reveal.glitter, 0.02f, 0.0f, 10.0f);
+
+    ImGui::Separator();
+    ImGui::DragInt("Test Card ID", &testCardDefId_, 1.0f, 1, 100);
+    testCard_.defId = testCardDefId_;
+    ImGui::DragInt("Test Number", &testCard_.number, 1.0f, 1, 13);
+    int suit = static_cast<int>(testCard_.suit);
+    if (ImGui::Combo("Test Suit", &suit, "Spade\0Heart\0Diamond\0Club\0")) {
+        testCard_.suit = static_cast<CardSuit>(std::clamp(suit, 0, 3));
+    }
+
+    if (ImGui::Button("Save Loaded Sequence")) {
+        if (currentSequenceIndex_ >= 0 && currentSequenceIndex_ < static_cast<int>(sequenceFiles_.size())) {
+            actionDirector_.SaveProfile(sequenceFiles_[currentSequenceIndex_]);
+            ReloadSequenceFileList_();
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Preview Card Reveal")) {
+        Enemy* targetEnemy = enemyMgr_.GetEnemies().empty() ? nullptr : &enemyMgr_.GetEnemies().back();
+        if (player_ && targetEnemy) {
+            if (const CardDef* testDef = GetTestCardDef_(app)) {
+                actionDirector_.StartAction(player_.get(), targetEnemy, *testDef, testCard_);
+            } else {
+                actionDirector_.StartAction(player_.get(), targetEnemy);
+            }
+        }
+    }
 }
 
 AnimationEditorSession::EditorContext BattleAnimeEditerScene::BuildEditorContext_() {
