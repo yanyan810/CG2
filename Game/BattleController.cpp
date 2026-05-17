@@ -772,7 +772,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	// まだ先読みされていなければここで保険として実行
 	Preload(app);
 
-	actionDirector_.Initialize(spriteCom_, dx_);
+	actionDirector_.Initialize(spriteCom_, dx_, objCom_);
 
 	// -----------------------------
 	// HPゲージ作成
@@ -2508,7 +2508,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								}
 							}
 
-							if (sequenceTarget && BeginCardActionSequence_(app, *def, *sequenceTarget)) {
+							if (sequenceTarget && BeginCardActionSequence_(app, *def, inst, *sequenceTarget)) {
 								handView_.SetFocusIndex(idx);
 								cardState_ = CardInputState::ExecutingSequence;
 
@@ -2676,7 +2676,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 						const CardInstance& inst = hand_[pendingCardHandIndex_];
 						const CardDef* def = db_.Find(inst.defId);
-						if (def && BeginCardActionSequence_(app, *def, targetEnemy)) {
+						if (def && BeginCardActionSequence_(app, *def, inst, targetEnemy)) {
 							cardState_ = CardInputState::ExecutingSequence;
 						} else {
 							actionSequenceTarget_ = &targetEnemy;
@@ -3259,6 +3259,7 @@ void BattleController::Draw3D(GameApp& app)
 void BattleController::DrawDamagePopups3D(GameApp& app)
 {
 	(void)app;
+	actionDirector_.Draw3D();
 	for (auto& popup : damagePopups_) {
 		for (auto& obj : popup.digitModels) {
 			if (obj) obj->Draw();
@@ -4121,11 +4122,13 @@ std::vector<std::string> BattleController::CollectEffectTypes_(const CardDef& de
 	return types;
 }
 
-bool BattleController::BeginCardActionSequence_(GameApp& app, const CardDef& def, Enemy& targetEnemy)
+bool BattleController::BeginCardActionSequence_(GameApp& app, const CardDef& def, const CardInstance& card, Enemy& targetEnemy)
 {
 	actionSequenceQueue_.clear();
 	actionSequenceIndex_ = 0;
 	actionSequenceTarget_ = &targetEnemy;
+	actionSequenceCardDef_ = &def;
+	actionSequenceCard_ = card;
 
 	if (const ActionSequenceProfile* useProfile = app.PickCardUseSequenceProfile()) {
 		actionSequenceQueue_.push_back(useProfile);
@@ -4145,6 +4148,7 @@ bool BattleController::StartNextActionSequence_()
 	if (!actionSequenceTarget_ || actionSequenceIndex_ >= actionSequenceQueue_.size()) {
 		actionSequenceQueue_.clear();
 		actionSequenceIndex_ = 0;
+		actionSequenceCardDef_ = nullptr;
 		return false;
 	}
 
@@ -4154,7 +4158,11 @@ bool BattleController::StartNextActionSequence_()
 	}
 
 	actionDirector_.SetProfile(*profile);
-	actionDirector_.StartAction(player_, actionSequenceTarget_);
+	if (actionSequenceCardDef_) {
+		actionDirector_.StartAction(player_, actionSequenceTarget_, *actionSequenceCardDef_, actionSequenceCard_);
+	} else {
+		actionDirector_.StartAction(player_, actionSequenceTarget_);
+	}
 	return true;
 }
 

@@ -391,12 +391,14 @@ private:
 	std::vector<const ActionSequenceProfile*> actionSequenceQueue_;
 	size_t actionSequenceIndex_ = 0;
 	Enemy* actionSequenceTarget_ = nullptr;
+	const CardDef* actionSequenceCardDef_ = nullptr;
+	CardInstance actionSequenceCard_{};
 
 	void ExecutePendingAttack_(Enemy& targetEnemy);
 	void ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action);
 	void OnPlayerCardUsed_();
 	std::vector<std::string> CollectEffectTypes_(const CardDef& def) const;
-	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, Enemy& targetEnemy);
+	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, const CardInstance& card, Enemy& targetEnemy);
 	bool StartNextActionSequence_();
 
 	std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景

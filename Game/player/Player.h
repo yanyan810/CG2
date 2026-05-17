@@ -71,6 +71,7 @@ public:
 	}
 	int GetMaxHP() const { return maxHp_; }
 	const Vector3& GetPos() const { return pos_; }
+	const Vector3& GetRotation() const { return rot_; }
 
 
 	int GetVampireHeal() const { return vampireHeal_; }
