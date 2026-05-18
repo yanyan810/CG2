@@ -5,6 +5,37 @@
 #include <cmath>
 #include <algorithm>
 
+namespace {
+	constexpr float kFacePlayerYaw = -1.5708f;
+	constexpr float kImportedEnemyYawCorrection = 1.5708f;
+
+	float GetEnemyYaw_(EnemyType type)
+	{
+		switch (type) {
+		case EnemyType::Goblin:
+		case EnemyType::Golem:
+		case EnemyType::Needle:
+			return kFacePlayerYaw + kImportedEnemyYawCorrection;
+		default:
+			return kFacePlayerYaw;
+		}
+	}
+
+	Vector3 GetEnemyScale_(EnemyType type)
+	{
+		switch (type) {
+		case EnemyType::Slime:
+			return { 1.5f, 1.5f, 1.5f };
+		case EnemyType::Goblin:
+			return { 0.45f, 0.45f, 0.45f };
+		case EnemyType::Golem:
+			return { 0.35f, 0.35f, 0.35f };
+		default:
+			return { 1.0f, 1.0f, 1.0f };
+		}
+	}
+}
+
 // ==========================================
 // Enemy 本体
 // ==========================================
@@ -26,18 +57,26 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	model_->SetCamera(cam_);
 
 	if (type_ == EnemyType::Boss) {
-		model_->SetModel("enemy/boss/boss.gltf");
-		model_->SetScale({ 1.0f, 1.0f, 1.0f });
+		model_->SetModel("enemy/boss/Boss.obj");
 		ai_.LoadPattern("resources/cards/Boos.json");
 	} else if (type_ == EnemyType::Slime) {
 
 		model_->SetModel("slime/slime.obj");
-		model_->SetScale({ 1.5f, 1.5f, 1.5f });
 		ai_.LoadPattern("resources/cards/Slime.json");
+	} else if (type_ == EnemyType::Goblin) {
+		model_->SetModel("Goblin/Goblin.obj");
+		ai_.LoadPattern("resources/cards/Goblin.json");
+	} else if (type_ == EnemyType::Golem) {
+		model_->SetModel("Golem/Golem.obj");
+		ai_.LoadPattern("resources/cards/Golem.json");
+	} else if (type_ == EnemyType::Needle) {
+		model_->SetModel("needle/needle.obj");
+		ai_.LoadPattern("resources/cards/needle.json");
 	}
+	model_->SetScale(GetEnemyScale_(type_));
 
 	// エネミーを左側（プレイヤー側）に向かせる
-	rot_ = { 0.0f, -1.5708f, 0.0f };
+	rot_ = { 0.0f, GetEnemyYaw_(type_), 0.0f };
 
 	if (model_->HasAnimation()) {
 		model_->PlayAnimation("Idle", true);

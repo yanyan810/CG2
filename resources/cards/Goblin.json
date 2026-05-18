@@ -1,0 +1,10 @@
+{
+  "name": "Goblin",
+  "maxHp": 100,
+  "actions": [
+    { "type": "Attack", "value": 10, "name": "切りつけ" },
+    { "type": "Attack", "value": 10, "name": "切りつけ" },
+    { "type": "Attack", "value": 22, "name": "奇襲攻撃" },
+    { "type": "Block",  "value": 10, "name": "身構える" }
+  ]
+}

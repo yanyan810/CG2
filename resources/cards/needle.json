@@ -1,0 +1,12 @@
+{
+  "name": "needle",
+  "maxHp": 110,
+  "actions": [
+    { "type": "Attack", "value": 22, "name": "棘攻撃" },
+    { "type": "Attack", "value": 22, "name": "棘攻撃" },
+    { "type": "Attack", "value": 22, "name": "棘攻撃" },
+    { "type": "Heal",   "value": 20, "name": "棘再生" },
+    { "type": "Heal",   "value": 20, "name": "棘再生" },
+    { "type": "Block",  "value": 8,  "name": "棘防御" }
+  ]
+}

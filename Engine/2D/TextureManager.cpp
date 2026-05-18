@@ -193,7 +193,7 @@ void TextureManager::LoadTextureFromMemory(const std::string& key, const uint8_t
 const TextureManager::TextureData&
 TextureManager::GetDataByPathOrWhite_(const std::string& filePath) const
 {
-    if (filePath.empty()) {
+    if (filePath.empty() || !textureDatas_.contains(filePath)) {
         return textureDatas_.at(kWhiteKey);
     }
     return textureDatas_.at(filePath);
@@ -202,7 +202,7 @@ TextureManager::GetDataByPathOrWhite_(const std::string& filePath) const
 TextureManager::TextureData&
 TextureManager::GetDataByPathOrWhite_(const std::string& filePath)
 {
-    if (filePath.empty()) {
+    if (filePath.empty() || !textureDatas_.contains(filePath)) {
         return textureDatas_.at(kWhiteKey);
     }
     return textureDatas_.at(filePath);

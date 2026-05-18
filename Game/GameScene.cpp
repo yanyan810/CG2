@@ -172,6 +172,15 @@ namespace {
 		if (type == "Boss" || type == "boss") {
 			return EnemyType::Boss;
 		}
+		if (type == "Goblin" || type == "goblin") {
+			return EnemyType::Goblin;
+		}
+		if (type == "Golem" || type == "golem") {
+			return EnemyType::Golem;
+		}
+		if (type == "needle" || type == "Needle") {
+			return EnemyType::Needle;
+		}
 		return EnemyType::Slime;
 	}
 
