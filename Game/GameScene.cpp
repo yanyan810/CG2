@@ -1067,7 +1067,7 @@ void GameScene::Draw2D(GameApp& app) {
 		battle_.Draw2D(app);
 		if (releaseDebugText_) {
 			releaseDebugText_->Update(view, proj);
-			releaseDebugText_->Draw();
+		//	releaseDebugText_->Draw();
 		}
 		return;
 	}
@@ -1146,7 +1146,7 @@ void GameScene::Draw2D(GameApp& app) {
 
 	if (releaseDebugText_) {
 		releaseDebugText_->Update(view, proj);
-		releaseDebugText_->Draw();
+		//releaseDebugText_->Draw();
 	}
 }
 
