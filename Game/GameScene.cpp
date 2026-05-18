@@ -24,6 +24,19 @@ static std::wstring Utf8ToWString(const std::string& s)
 }
 
 namespace {
+	constexpr Vector2 kDefenseUiTextureSize{ 64.0f, 64.0f };
+	constexpr Vector2 kPowerupUiTextureSize{ 48.0f, 48.0f };
+	constexpr std::array<Vector2, 8> kOutlineDirections{
+		Vector2{ -1.0f, 0.0f },
+		Vector2{ 1.0f, 0.0f },
+		Vector2{ 0.0f, -1.0f },
+		Vector2{ 0.0f, 1.0f },
+		Vector2{ -1.0f, -1.0f },
+		Vector2{ 1.0f, -1.0f },
+		Vector2{ -1.0f, 1.0f },
+		Vector2{ 1.0f, 1.0f },
+	};
+
 	void DrawVector3Debug_(const char* label, const Vector3& v)
 	{
 #ifdef USE_IMGUI
@@ -381,8 +394,15 @@ void GameScene::OnEnter(GameApp& app) {
 	// プレイヤーHP数字
 	playerHpText_ = std::make_unique<TextSprite>();
 	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
+	playerHpText_->SetFontSize(playerHpTextFontSize_);
 	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
-	playerHpText_->SetPosition({ 140.0f, 12.5f });
+	playerHpText_->SetPosition(playerHpTextPosition_);
+	for (auto& outlineText : playerHpOutlineTexts_) {
+		outlineText = std::make_unique<TextSprite>();
+		outlineText->Initialize(app.SpriteCom(), app.Dx());
+		outlineText->SetFontSize(playerHpTextFontSize_);
+		outlineText->SetSize({ 1.0f,1.0f,1.0f });
+	}
 
 	releaseDebugText_ = std::make_unique<TextSprite>();
 	releaseDebugText_->Initialize(app.SpriteCom(), app.Dx());
@@ -409,26 +429,43 @@ void GameScene::OnEnter(GameApp& app) {
 	}
 
 	// パワーブースト
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Powerup_UI.png");
 	powerBoostBg_ = std::make_unique<Sprite>();
-	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	powerBoostBg_->SetPosition({ 95.0f, 60.0f });
-	powerBoostBg_->SetScale({ 32.0f, 32.0f, 1.0f });
-	powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/gauge/Powerup_UI.png");
+	powerBoostBg_->SetPosition(powerupUiPosition_);
+	powerBoostBg_->SetScale({
+		powerupUiSize_.x / kPowerupUiTextureSize.x,
+		powerupUiSize_.y / kPowerupUiTextureSize.y,
+		1.0f
+		});
+	powerBoostBg_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 	powerBoostText_ = std::make_unique<TextSprite>();
 	powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
 	powerBoostText_->SetSize({ 1.f,1.f,0.5f });
-	powerBoostText_->SetPosition({ 88.f, 40.f });
+	powerBoostText_->SetPosition(powerBoostTextPosition_);
 
 	// ブロック
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Defense_UI.png");
 	blockBg_ = std::make_unique<Sprite>();
-	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	blockBg_->SetPosition({ 145.0f, 60.0f });
-	blockBg_->SetScale({ 32.0f, 32.0f, 1.0f });
-	blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
+	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/gauge/Defense_UI.png");
+	blockBg_->SetPosition(defenseUiPosition_);
+	blockBg_->SetScale({
+		defenseUiSize_.x / kDefenseUiTextureSize.x,
+		defenseUiSize_.y / kDefenseUiTextureSize.y,
+		1.0f
+		});
+	blockBg_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 	blockText_ = std::make_unique<TextSprite>();
 	blockText_->Initialize(app.SpriteCom(), app.Dx());
+	blockText_->SetFontSize(blockTextFontSize_);
 	blockText_->SetSize({ 1.f,1.f,0.5f });
-	blockText_->SetPosition({ 138.f, 40.f });
+	blockText_->SetPosition(blockTextPosition_);
+	for (auto& outlineText : blockOutlineTexts_) {
+		outlineText = std::make_unique<TextSprite>();
+		outlineText->Initialize(app.SpriteCom(), app.Dx());
+		outlineText->SetFontSize(blockTextFontSize_);
+		outlineText->SetSize({ 1.0f,1.0f,0.5f });
+	}
 
 	TextureManager::GetInstance()->LoadTexture("resources/gradation.png");
 
@@ -899,7 +936,13 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (playerHpText_) {
-		playerHpText_->SetText(battle_.GetPlayerHpTexts());
+		const std::wstring playerHpText = battle_.GetPlayerHpTexts();
+		playerHpText_->SetText(playerHpText);
+		for (auto& outlineText : playerHpOutlineTexts_) {
+			if (outlineText) {
+				outlineText->SetText(playerHpText);
+			}
+		}
 	}
 
 	if (powerBoostText_) {
@@ -907,7 +950,13 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (blockText_) {
-		blockText_->SetText(battle_.GetPlayerBlockText());
+		const std::wstring blockText = battle_.GetPlayerBlockText();
+		blockText_->SetText(blockText);
+		for (auto& outlineText : blockOutlineTexts_) {
+			if (outlineText) {
+				outlineText->SetText(blockText);
+			}
+		}
 	}
 
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
@@ -1100,21 +1149,84 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 	if (playerHpText_) {
+		playerHpText_->SetPosition(playerHpTextPosition_);
+		playerHpText_->SetColor({ playerHpTextColor_.x, playerHpTextColor_.y, playerHpTextColor_.z });
+		playerHpText_->SetAlpha(playerHpTextColor_.w);
+		if (playerHpOutlineEnabled_) {
+			for (size_t i = 0; i < playerHpOutlineTexts_.size(); ++i) {
+				auto& outlineText = playerHpOutlineTexts_[i];
+				if (!outlineText) {
+					continue;
+				}
+				outlineText->SetPosition({
+					playerHpTextPosition_.x + kOutlineDirections[i].x * playerHpOutlineThickness_,
+					playerHpTextPosition_.y + kOutlineDirections[i].y * playerHpOutlineThickness_
+					});
+				outlineText->SetColor({
+					playerHpOutlineColor_.x,
+					playerHpOutlineColor_.y,
+					playerHpOutlineColor_.z
+					});
+				outlineText->SetAlpha(playerHpOutlineColor_.w);
+				outlineText->Update(view, proj);
+				outlineText->Draw();
+			}
+		}
 		playerHpText_->Update(view, proj);
 		playerHpText_->Draw();
 	}
 
-	if (powerBoostText_) {
+	if (powerupUiVisible_ && powerBoostText_) {
+		if (powerBoostBg_) {
+			powerBoostBg_->SetPosition(powerupUiPosition_);
+			powerBoostBg_->SetScale({
+				powerupUiSize_.x / kPowerupUiTextureSize.x,
+				powerupUiSize_.y / kPowerupUiTextureSize.y,
+				1.0f
+				});
+			powerBoostBg_->Update(view, proj);
+			powerBoostBg_->Draw();
+		}
+		powerBoostText_->SetPosition(powerBoostTextPosition_);
 		powerBoostText_->Update(view, proj);
 		powerBoostText_->Draw();
-		powerBoostBg_->Update(view, proj);
-		powerBoostBg_->Draw();
 	}
 	if (blockText_) {
+		if (blockBg_) {
+			blockBg_->SetPosition(defenseUiPosition_);
+			blockBg_->SetScale({
+				defenseUiSize_.x / kDefenseUiTextureSize.x,
+				defenseUiSize_.y / kDefenseUiTextureSize.y,
+				1.0f
+				});
+			blockBg_->Update(view, proj);
+			blockBg_->Draw();
+		}
+		blockText_->SetPosition(blockTextPosition_);
+		blockText_->SetColor({ blockTextColor_.x, blockTextColor_.y, blockTextColor_.z });
+		blockText_->SetAlpha(blockTextColor_.w);
+		if (blockOutlineEnabled_) {
+			for (size_t i = 0; i < blockOutlineTexts_.size(); ++i) {
+				auto& outlineText = blockOutlineTexts_[i];
+				if (!outlineText) {
+					continue;
+				}
+				outlineText->SetPosition({
+					blockTextPosition_.x + kOutlineDirections[i].x * blockOutlineThickness_,
+					blockTextPosition_.y + kOutlineDirections[i].y * blockOutlineThickness_
+					});
+				outlineText->SetColor({
+					blockOutlineColor_.x,
+					blockOutlineColor_.y,
+					blockOutlineColor_.z
+					});
+				outlineText->SetAlpha(blockOutlineColor_.w);
+				outlineText->Update(view, proj);
+				outlineText->Draw();
+			}
+		}
 		blockText_->Update(view, proj);
 		blockText_->Draw();
-		blockBg_->Update(view, proj);
-		blockBg_->Draw();
 	}
 
 	for (auto& text : enemyHpTexts_) {
@@ -1162,6 +1274,8 @@ void GameScene::Draw2D(GameApp& app) {
 
 void GameScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
+	DrawPlayerHudImGui_();
+
 	ImGui::Begin("UI Visibility", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Checkbox("Battle Debug", &battleDebugVisible_);
 	ImGui::Checkbox("Battle Effects", &battleEffectsDebugVisible_);
@@ -1295,6 +1409,69 @@ void GameScene::DrawImGui(GameApp& app) {
 		effectSequencer_->DrawImGuiEditor(startPos, targetPos);
 	}
 
+#endif
+}
+
+void GameScene::DrawPlayerHudImGui_()
+{
+#ifdef USE_IMGUI
+	ImGui::Begin("Player UI Adjust", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+	if (ImGui::CollapsingHeader("HP Gauge", ImGuiTreeNodeFlags_DefaultOpen)) {
+		battle_.DrawPlayerHudImGuiControls();
+	}
+
+	if (ImGui::CollapsingHeader("HP Number", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragFloat2("HP Number Position", &playerHpTextPosition_.x, 1.0f);
+		if (ImGui::DragInt("HP Number Font Size", &playerHpTextFontSize_, 1.0f, 8, 128)) {
+			playerHpTextFontSize_ = std::max(8, playerHpTextFontSize_);
+			if (playerHpText_) {
+				playerHpText_->SetFontSize(playerHpTextFontSize_);
+			}
+			for (auto& outlineText : playerHpOutlineTexts_) {
+				if (outlineText) {
+					outlineText->SetFontSize(playerHpTextFontSize_);
+				}
+			}
+		}
+		ImGui::ColorEdit4("HP Number Color", &playerHpTextColor_.x);
+		ImGui::Checkbox("HP Outline Enabled", &playerHpOutlineEnabled_);
+		ImGui::DragFloat("HP Outline Thickness", &playerHpOutlineThickness_, 0.1f, 0.0f, 12.0f);
+		ImGui::ColorEdit4("HP Outline Color", &playerHpOutlineColor_.x);
+	}
+
+	if (ImGui::CollapsingHeader("Defense UI", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragFloat2("Defense Image Position", &defenseUiPosition_.x, 1.0f);
+		ImGui::DragFloat2("Defense Image Size", &defenseUiSize_.x, 1.0f, 1.0f, 512.0f);
+		defenseUiSize_.x = std::max(1.0f, defenseUiSize_.x);
+		defenseUiSize_.y = std::max(1.0f, defenseUiSize_.y);
+		ImGui::DragFloat2("Defense Number Position", &blockTextPosition_.x, 1.0f);
+		if (ImGui::DragInt("Defense Number Font Size", &blockTextFontSize_, 1.0f, 8, 128)) {
+			blockTextFontSize_ = std::max(8, blockTextFontSize_);
+			if (blockText_) {
+				blockText_->SetFontSize(blockTextFontSize_);
+			}
+			for (auto& outlineText : blockOutlineTexts_) {
+				if (outlineText) {
+					outlineText->SetFontSize(blockTextFontSize_);
+				}
+			}
+		}
+		ImGui::ColorEdit4("Defense Number Color", &blockTextColor_.x);
+		ImGui::Checkbox("Defense Outline Enabled", &blockOutlineEnabled_);
+		ImGui::DragFloat("Defense Outline Thickness", &blockOutlineThickness_, 0.1f, 0.0f, 12.0f);
+		ImGui::ColorEdit4("Defense Outline Color", &blockOutlineColor_.x);
+	}
+
+	if (ImGui::CollapsingHeader("Powerup UI", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Powerup UI Visible", &powerupUiVisible_);
+		ImGui::DragFloat2("Powerup Image Position", &powerupUiPosition_.x, 1.0f);
+		ImGui::DragFloat2("Powerup Image Size", &powerupUiSize_.x, 1.0f, 1.0f, 512.0f);
+		powerupUiSize_.x = std::max(1.0f, powerupUiSize_.x);
+		powerupUiSize_.y = std::max(1.0f, powerupUiSize_.y);
+	}
+
+	ImGui::End();
 #endif
 }
 
