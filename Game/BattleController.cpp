@@ -39,6 +39,17 @@ namespace {
 	float sHandCardGlitterEmitInterval = 0.12f;
 	int sHandCardGlitterCount = 3;
 	float sHandFrameBloomIntensity = 1.4f;
+	bool sEnemyIntentBloomEnabled = true;
+	float sEnemyIntentBloomIntensity = 1.8f;
+	float sEnemyIntentBloomMinPulse = 0.45f;
+	bool sEnemyTargetBloomEnabled = true;
+	float sEnemyTargetBloomIntensity = 2.1f;
+	float sEnemyTargetBloomChromAb = 0.002f;
+	bool sHpGaugeBloomEnabled = true;
+	float sHpGaugeBloomIntensity = 0.55f;
+	float sHpGaugeBloomMinPulse = 0.65f;
+	float sHpDamageBlinkSpeed = 6.0f;
+	float sHpDamageBloomIntensity = 1.05f;
 
 	Vector4 HsvToRgb_(float hue, float saturation, float value)
 	{
@@ -153,6 +164,104 @@ namespace {
 			return { 0.25f, 1.0f, 0.35f };
 		}
 		return { 0.85f, 0.85f, 0.85f };
+	}
+
+	Vector4 GetEnemyIntentGlowColor_(const std::string& type)
+	{
+		if (type == "Attack") {
+			return { 1.0f, 0.18f, 0.14f, 1.0f };
+		}
+		if (type == "Block") {
+			return { 0.24f, 0.58f, 1.0f, 1.0f };
+		}
+		if (type == "Heal") {
+			return { 0.20f, 1.0f, 0.38f, 1.0f };
+		}
+		return { 0.82f, 0.82f, 0.82f, 1.0f };
+	}
+
+	BloomParam MakeEnemyIntentBloomParam_(const BloomParam& baseParam, const std::string& type, float time)
+	{
+		const float pulse = sEnemyIntentBloomMinPulse +
+			(1.0f - sEnemyIntentBloomMinPulse) * (0.5f + 0.5f * std::sin(time * 4.2f));
+		BloomParam param = baseParam;
+		param.threshold = 0.0f;
+		param.intensity = sEnemyIntentBloomIntensity * pulse;
+		param.vignetteIntensity = 0.0f;
+		param.vignetteScale = 0.0f;
+		param.chromAbAmount = type == "Attack" ? 0.003f : 0.001f;
+		param.distortionAmount = 0.0f;
+		param.noiseIntensity = 0.0f;
+		param.scanlineIntensity = 0.0f;
+		param.curvature = 0.0f;
+		param.borderSharp = 0.0f;
+		param.glitchAmount = type == "Attack" ? 0.002f : 0.0f;
+		param.dissolveAmount = -1.0f;
+		return param;
+	}
+
+	BloomParam MakeEnemyTargetBloomParam_(const BloomParam& baseParam, float time)
+	{
+		const float pulse = 0.72f + 0.28f * (0.5f + 0.5f * std::sin(time * 5.0f));
+		BloomParam param = baseParam;
+		param.threshold = 0.0f;
+		param.intensity = sEnemyTargetBloomIntensity * pulse;
+		param.vignetteIntensity = 0.0f;
+		param.vignetteScale = 0.0f;
+		param.chromAbAmount = sEnemyTargetBloomChromAb;
+		param.distortionAmount = 0.0f;
+		param.noiseIntensity = 0.0f;
+		param.scanlineIntensity = 0.0f;
+		param.curvature = 0.0f;
+		param.borderSharp = 0.0f;
+		param.glitchAmount = 0.0f;
+		param.dissolveAmount = -1.0f;
+		return param;
+	}
+
+	BloomParam MakeHpGaugeBloomParam_(const BloomParam& baseParam, float intensity)
+	{
+		BloomParam param = baseParam;
+		param.threshold = 0.0f;
+		param.intensity = intensity;
+		param.vignetteIntensity = 0.0f;
+		param.vignetteScale = 0.0f;
+		param.chromAbAmount = 0.0f;
+		param.distortionAmount = 0.0f;
+		param.noiseIntensity = 0.0f;
+		param.scanlineIntensity = 0.0f;
+		param.curvature = 0.0f;
+		param.borderSharp = 0.0f;
+		param.glitchAmount = 0.0f;
+		param.dissolveAmount = -1.0f;
+		return param;
+	}
+
+	void DrawSpriteBloom_(
+		GameApp& app,
+		Sprite* sprite,
+		const Matrix4x4& view,
+		const Matrix4x4& proj,
+		const Vector4& color,
+		const BloomParam& param,
+		float scalePulse = 1.0f)
+	{
+		if (!sprite) {
+			return;
+		}
+
+		const Vector3 originalScale = sprite->GetScale();
+		const Vector4 originalColor = sprite->GetColor();
+		sprite->SetScale({
+			originalScale.x * scalePulse,
+			originalScale.y * scalePulse,
+			originalScale.z
+		});
+		sprite->SetColor(color);
+		app.DrawSpriteObjectPost(sprite, view, proj, param);
+		sprite->SetScale(originalScale);
+		sprite->SetColor(originalColor);
+		sprite->Update(view, proj);
 	}
 
 	int RollEnemyActionCount_()
@@ -2658,6 +2767,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				);
 
 				// マウスが重なっている敵を黄色く光らせる
+				for (auto& enemy : enemyMgr_->GetEnemies()) {
+					enemy.SetHighlight(false);
+				}
 				if (hoverIndex >= 0) {
 					enemyMgr_->GetEnemies()[hoverIndex].SetHighlight(true);
 				}
@@ -3317,6 +3429,24 @@ void BattleController::DrawBattleOverlay3D(GameApp& app)
 			// Zバッファをクリアして、黒背景（highlightFilter_）よりも手前に描画されるようにする
 			app.Dx()->ClearDepthBuffer();
 
+			bool hasHighlightedEnemy = false;
+			for (const auto& enemy : enemyMgr_->GetEnemies()) {
+				hasHighlightedEnemy = hasHighlightedEnemy || enemy.IsHighlighted();
+			}
+
+			if (sEnemyTargetBloomEnabled && hasHighlightedEnemy) {
+				BloomParam targetParam = MakeEnemyTargetBloomParam_(app.ObjectPost()->GetParam(), sPokerGlowRainbowTime);
+				app.ObjectPost()->SetParam(targetParam);
+				app.BeginObjectPostEffect();
+				for (auto& enemy : enemyMgr_->GetEnemies()) {
+					if (enemy.IsHighlighted()) {
+						enemy.Draw();
+					}
+				}
+				app.EndObjectPostEffect();
+				app.ObjCom()->SetGraphicsPipelineState();
+			}
+
 			for (auto& enemy : enemyMgr_->GetEnemies()) {
 				if (enemy.IsHighlighted()) {
 					enemy.Draw();
@@ -3416,6 +3546,27 @@ void BattleController::Draw2D(GameApp& app)
 		return;
 	}
 
+	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
+		0, 0,
+		float(WinApp::kClientWidth),
+		float(WinApp::kClientHeight),
+		0, 100
+	);
+	DrawHpGaugeBloom_(app, view, proj);
+
+	Vector4 originalPlayerPredictColor{};
+	const bool hasIncomingDamage = player_ && CalcTotalIncomingDamage() > 0;
+	if (hasIncomingDamage && playerHpPredict_) {
+		const float blink = 0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * sHpDamageBlinkSpeed);
+		originalPlayerPredictColor = playerHpPredict_->GetColor();
+		playerHpPredict_->SetColor(LerpColor_(
+			{ 0.18f, 0.95f, 0.20f, 0.55f },
+			{ 1.0f, 0.03f, 0.02f, 0.82f },
+			blink
+		));
+	}
+
 	if (playerHpBg_) playerHpBg_->Draw();
 	if (playerHpPredict_)playerHpPredict_->Draw();
 	if (playerBlockPredict_ && player_->GetBlock() > 0)playerBlockPredict_->Draw();
@@ -3435,6 +3586,53 @@ void BattleController::Draw2D(GameApp& app)
 	for (auto& fg : enemyHpFgs_) {
 		if (fg) fg->Draw();
 	}
+	if (sEnemyIntentBloomEnabled && enemyMgr_) {
+		Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+		Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
+			0, 0,
+			float(WinApp::kClientWidth),
+			float(WinApp::kClientHeight),
+			0, 100
+		);
+
+		auto& enemies = enemyMgr_->GetEnemies();
+		for (size_t i = 0; i < enemyIntentIcons_.size(); ++i) {
+			if (i >= enemies.size() || !enemyIntentIcons_[i] || !enemies[i].IsAlive()) {
+				continue;
+			}
+			const bool actedByCount =
+				i < enemyActedByCountThisTurn_.size() && enemyActedByCountThisTurn_[i];
+			if (actedByCount) {
+				continue;
+			}
+
+			const EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
+			if (nextAct.type.empty() && nextAct.name.empty()) {
+				continue;
+			}
+
+			Sprite* icon = enemyIntentIcons_[i].get();
+			const Vector3 originalScale = icon->GetScale();
+			const Vector4 originalColor = icon->GetColor();
+			const float scalePulse = 1.12f + 0.08f * (0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * 4.2f));
+
+			icon->SetScale({
+				originalScale.x * scalePulse,
+				originalScale.y * scalePulse,
+				originalScale.z
+			});
+			icon->SetColor(GetEnemyIntentGlowColor_(nextAct.type));
+			app.DrawSpriteObjectPost(
+				icon,
+				view,
+				proj,
+				MakeEnemyIntentBloomParam_(app.ObjectPost()->GetParam(), nextAct.type, sPokerGlowRainbowTime)
+			);
+			icon->SetScale(originalScale);
+			icon->SetColor(originalColor);
+			icon->Update(view, proj);
+		}
+	}
 	for (auto& icon : enemyIntentIcons_) {
 		if (icon) icon->Draw();
 	}
@@ -3445,7 +3643,64 @@ void BattleController::Draw2D(GameApp& app)
 		if (text) text->Draw();
 	}
 
+	if (hasIncomingDamage && playerHpPredict_) {
+		playerHpPredict_->SetColor(originalPlayerPredictColor);
+	}
+
 	actionDirector_.Draw2D();
+}
+
+void BattleController::DrawHpGaugeBloom_(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj)
+{
+	if (!sHpGaugeBloomEnabled) {
+		return;
+	}
+
+	const float pulse = sHpGaugeBloomMinPulse +
+		(1.0f - sHpGaugeBloomMinPulse) * (0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * 2.8f));
+	const float baseIntensity = sHpGaugeBloomIntensity * pulse;
+	const BloomParam baseParam = app.ObjectPost()->GetParam();
+	const BloomParam hpParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity);
+	const BloomParam shieldParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity * 1.15f);
+
+	if (playerHpFg_) {
+		DrawSpriteBloom_(app, playerHpFg_.get(), view, proj, { 0.25f, 1.0f, 0.28f, 0.55f }, hpParam, 1.015f);
+	}
+
+	if (player_ && playerBlockPredict_ && player_->GetBlock() > 0) {
+		DrawSpriteBloom_(app, playerBlockPredict_.get(), view, proj, { 0.20f, 0.45f, 1.0f, 0.42f }, shieldParam, 1.01f);
+	}
+
+	if (player_ && playerHpPredict_) {
+		const int incomingDamage = std::max(0, CalcTotalIncomingDamage());
+		if (incomingDamage > 0) {
+			const float blink = 0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * sHpDamageBlinkSpeed);
+			const Vector4 damageColor = LerpColor_(
+				{ 0.20f, 1.0f, 0.22f, 0.52f },
+				{ 1.0f, 0.02f, 0.02f, 0.88f },
+				blink
+			);
+			const BloomParam damageParam = MakeHpGaugeBloomParam_(
+				baseParam,
+				sHpDamageBloomIntensity * (0.65f + 0.35f * blink)
+			);
+			DrawSpriteBloom_(app, playerHpPredict_.get(), view, proj, damageColor, damageParam, 1.02f);
+		}
+	}
+
+	for (auto& fg : enemyHpFgs_) {
+		if (!fg || fg->GetScale().x <= 0.0f || fg->GetScale().y <= 0.0f) {
+			continue;
+		}
+		DrawSpriteBloom_(app, fg.get(), view, proj, { 1.0f, 0.20f, 0.18f, 0.42f }, hpParam, 1.01f);
+	}
+
+	for (auto& block : enemyBlockPredicts_) {
+		if (!block || block->GetScale().x <= 0.0f || block->GetScale().y <= 0.0f) {
+			continue;
+		}
+		DrawSpriteBloom_(app, block.get(), view, proj, { 0.18f, 0.48f, 1.0f, 0.36f }, shieldParam, 1.006f);
+	}
 }
 
 #ifdef USE_IMGUI
@@ -3498,6 +3753,38 @@ void BattleController::DrawImGui()
 			sHandFrameBloomIntensity = 1.15f;
 			sFieldFrameBloomMinPulse = 0.15f;
 			sFieldFrameBloomChromAb = 0.0015f;
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Enemy Bloom")) {
+		ImGui::Checkbox("Intent Bloom", &sEnemyIntentBloomEnabled);
+		ImGui::DragFloat("Intent Intensity", &sEnemyIntentBloomIntensity, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Intent Min Pulse", &sEnemyIntentBloomMinPulse, 0.01f, 0.0f, 1.0f);
+		ImGui::Checkbox("Target Bloom", &sEnemyTargetBloomEnabled);
+		ImGui::DragFloat("Target Intensity", &sEnemyTargetBloomIntensity, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Target ChromAb", &sEnemyTargetBloomChromAb, 0.0005f, 0.0f, 0.05f);
+		if (ImGui::Button("Reset Enemy Bloom")) {
+			sEnemyIntentBloomEnabled = true;
+			sEnemyIntentBloomIntensity = 1.8f;
+			sEnemyIntentBloomMinPulse = 0.45f;
+			sEnemyTargetBloomEnabled = true;
+			sEnemyTargetBloomIntensity = 2.1f;
+			sEnemyTargetBloomChromAb = 0.002f;
+		}
+	}
+
+	if (ImGui::CollapsingHeader("HP Gauge Bloom")) {
+		ImGui::Checkbox("HP Bloom", &sHpGaugeBloomEnabled);
+		ImGui::DragFloat("HP Bloom Intensity", &sHpGaugeBloomIntensity, 0.01f, 0.0f, 5.0f);
+		ImGui::DragFloat("HP Bloom Min Pulse", &sHpGaugeBloomMinPulse, 0.01f, 0.0f, 1.0f);
+		ImGui::DragFloat("Damage Blink Speed", &sHpDamageBlinkSpeed, 0.1f, 0.0f, 20.0f);
+		ImGui::DragFloat("Damage Bloom Intensity", &sHpDamageBloomIntensity, 0.01f, 0.0f, 5.0f);
+		if (ImGui::Button("Reset HP Gauge Bloom")) {
+			sHpGaugeBloomEnabled = true;
+			sHpGaugeBloomIntensity = 0.55f;
+			sHpGaugeBloomMinPulse = 0.65f;
+			sHpDamageBlinkSpeed = 6.0f;
+			sHpDamageBloomIntensity = 1.05f;
 		}
 	}
 

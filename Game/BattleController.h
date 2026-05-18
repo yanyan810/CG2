@@ -86,6 +86,7 @@ public:
 	void DrawBattleOverlay3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
+	void DrawHpGaugeBloom_(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj);
 	Camera* GetActionCamera() const;
 	bool IsActionSequencePlaying() const {
 		return actionDirector_.IsPlaying() || cardState_ == CardInputState::ExecutingSequence;

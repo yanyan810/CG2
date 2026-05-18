@@ -242,6 +242,7 @@ namespace {
 void GameScene::OnEnter(GameApp& app) {
 	isBossStage_ = false;
 	bossStageBannerTimer_ = 0.0f;
+	battleEndTimer_ = 180;
 	app.ResetRadialBlur();
 
 	// --------------------------------------------------
@@ -546,11 +547,11 @@ void GameScene::OnExit(GameApp& app) {
 
 	animationEditTarget_ = nullptr;
 	cameraEditTarget_ = nullptr;
+	battle_.Finalize();
 	player_.reset();
 	skyDome_.reset();
 	fieldParticleManager_.reset();
 	camera_.reset();
-	battle_.Finalize();
 
 	// EnemyManager に Clear() があるなら呼ぶ
 	// enemyMgr_.Clear();
@@ -568,17 +569,19 @@ void GameScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
-	if (battle_.IsAllEnemiesDead() || pausingUI_->GetIsSceneChangeRequested()) {
+	const bool isBattleClear = battle_.IsAllEnemiesDead();
+	const bool isTitleRequested = pausingUI_ && pausingUI_->GetIsSceneChangeRequested();
+	if (isBattleClear || isTitleRequested) {
 		battleEndTimer_--;
-	}
-
-	if (battleEndTimer_ <= 0) {
-		if (battle_.IsAllEnemiesDead()) {
-			RequestChangeScene_("GameClear");
+		if (battleEndTimer_ <= 0) {
+			app.ResetRadialBlur();
+			if (isBattleClear) {
+				RequestChangeScene_("GameClear");
+			} else {
+				RequestChangeScene_("Title");
+			}
 		}
-		if (pausingUI_->GetIsSceneChangeRequested()) {
-			RequestChangeScene_("Title");
-		}
+		return;
 	}
 
 	Input* input = app.GetInput();
