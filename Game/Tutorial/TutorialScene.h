@@ -73,6 +73,11 @@ private:
     std::unique_ptr<Sprite> blockBg_;
     std::unique_ptr<TextSprite> blockText_;
 
+    std::unique_ptr<Sprite> startFadeMask_;
+    float startFadeTimer_ = 0.0f;
+    float startFadeDuration_ = 0.75f;
+    bool startFadeActive_ = false;
+
     bool prevEsc_ = false;
 
     State state_ = State::EnterOpen;

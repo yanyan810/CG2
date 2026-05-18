@@ -3314,7 +3314,6 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		}
 
 		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage) {
-			TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
 			tutorialLockPokerTargetingCancel_ = true;
@@ -3388,7 +3387,6 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 	}
 
 	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage) {
-		TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 		pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 		isPokerDamageTargeting_ = true;
 		pokerQuickPreviewVisible_ = false;
@@ -4700,6 +4698,7 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 		if (pendingDamage_ > 0) {
 			SpawnDamagePopup(targetEnemy.GetPos(), actualDamage, false);
 		}
+		TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 
 		lastPokerTutorialResult_ = PokerTutorialResult::Activated;
 

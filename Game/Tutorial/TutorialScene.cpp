@@ -2,10 +2,22 @@
 #include "GameApp.h"
 #include "Input.h"
 #include "WinApp.h"
+#include "TextureManager.h"
+#include <algorithm>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
 #endif
+
+namespace {
+    constexpr float kSceneStartFadeDuration = 0.75f;
+
+    float SmoothStep01_(float t)
+    {
+        t = std::clamp(t, 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    }
+}
 
 void TutorialScene::OnEnter(GameApp& app) {
     camera_ = std::make_unique<Camera>();
@@ -111,6 +123,22 @@ void TutorialScene::OnEnter(GameApp& app) {
     tutorialUi_ = std::make_unique<TutorialUi>();
     tutorialUi_->Initialize(app);
 
+    startFadeMask_ = std::make_unique<Sprite>();
+    startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    startFadeMask_->SetAnchorPoint({ 0.0f, 0.0f });
+    startFadeMask_->SetPosition({ 0.0f, 0.0f });
+    const DirectX::TexMetadata& whiteMeta =
+        TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
+    startFadeMask_->SetScale({
+        float(WinApp::kClientWidth) / float(whiteMeta.width),
+        float(WinApp::kClientHeight) / float(whiteMeta.height),
+        1.0f
+        });
+    startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+    startFadeDuration_ = kSceneStartFadeDuration;
+    startFadeTimer_ = 0.0f;
+    startFadeActive_ = true;
+
     // 円マスク開始設定
     state_ = State::EnterOpen;
     circle_ = 0.0f;
@@ -123,6 +151,8 @@ void TutorialScene::OnExit(GameApp& app) {
     tutorialUi_.reset();
     tutorial_.reset();
     fieldUi_.reset();
+    startFadeMask_.reset();
+    startFadeActive_ = false;
 
     player_.reset();
     skyDome_.reset();
@@ -137,6 +167,21 @@ void TutorialScene::Update(GameApp& app, float dt) {
     Input* input = app.GetInput();
     if (!input) {
         return;
+    }
+
+    if (startFadeActive_) {
+        startFadeTimer_ += dt;
+        const float t = startFadeDuration_ > 0.0f ? startFadeTimer_ / startFadeDuration_ : 1.0f;
+        const float alpha = 1.0f - SmoothStep01_(t);
+        if (startFadeMask_) {
+            startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, alpha });
+        }
+        if (t >= 1.0f) {
+            startFadeActive_ = false;
+            if (startFadeMask_) {
+                startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+            }
+        }
     }
 
     // ---------------------------------
@@ -519,6 +564,12 @@ void TutorialScene::Draw2D(GameApp& app) {
 
     // 円形マスク描画
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
+
+    if (startFadeActive_ && startFadeMask_) {
+        app.SpriteCom()->SetGraphicsPipelineState();
+        startFadeMask_->Update(view, proj);
+        startFadeMask_->Draw();
+    }
 }
 
 void TutorialScene::DrawImGui(GameApp& app) {
