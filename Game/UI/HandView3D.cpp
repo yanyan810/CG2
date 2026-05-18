@@ -104,6 +104,7 @@ void HandView3D::Rebuild(const std::vector<CardInstance>& hand)
 
     hoverIndex_ = -1;
     previewIndex_ = -1;
+    focusIndex_ = -1;
     dragIndex_ = -1;
     dragDxPx_ = 0.0f;
     dragDyPx_ = 0.0f;
@@ -416,6 +417,7 @@ void HandView3D::Clear()
     prevHoverIndex_ = -1;
     layoutDirty_ = true;
     cardEffectActive_ = false;
+    discardingCards_.clear();
 
 }
 

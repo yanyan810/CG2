@@ -2450,6 +2450,32 @@ void BattleController::UpdateClearTransitionVisuals(float dt)
 	UpdateVisuals_(dt);
 }
 
+void BattleController::PrepareForClearTransition()
+{
+	cardState_ = CardInputState::Idle;
+	pokerChoiceState_ = PokerChoiceState::None;
+	pokerReturnState_ = PokerChoiceState::None;
+	pokerQuickPreviewVisible_ = false;
+	hasPendingCard_ = false;
+	pendingCard_ = {};
+	pendingCardView_.reset();
+	selectedIndex_ = -1;
+	fieldReplaceHoverIndex_ = -1;
+	prevFieldReplaceHoverIndex_ = -1;
+	isPokerDamageTargeting_ = false;
+	tutorialLockPokerTargetingCancel_ = false;
+	pendingDamage_ = 0;
+	handView_.SetHoverIndex(-1);
+	handView_.SetPreviewIndex(-1);
+	handView_.SetDrag(-1, 0.0f, 0.0f, false);
+	handView_.SetFocusIndex(-1);
+	if (enemyMgr_) {
+		for (auto& enemy : enemyMgr_->GetEnemies()) {
+			enemy.SetHighlight(false);
+		}
+	}
+}
+
 Camera* BattleController::GetActionCamera() const
 {
 	if (!actionDirector_.IsPlaying()) {
@@ -3106,6 +3132,11 @@ void BattleController::UpdateVisuals_(float dt)
 		turn_ == TurnState::Enemy;
 
 	if (actionOrEnemyAttack) {
+		handView_.Update(dt);
+		if (discardView_) {
+			discardView_->Update(dt);
+		}
+
 		for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
 			it->timer -= 1.0f;
 			it->pos.y += 0.05f;

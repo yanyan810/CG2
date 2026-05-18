@@ -58,6 +58,13 @@ void TutorialScene::OnEnter(GameApp& app) {
     battle_.SetEnemyManager(&enemyMgr_);
     battle_.SetTutorialOpeningHand(openingHand);
     battle_.Initialize(app, camera_.get());
+
+    fieldParticleManager_ = std::make_unique<ModelParticleManager>();
+    fieldParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+    fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
+    battle_.SetFieldParticleManager(fieldParticleManager_.get());
+    ResetParticleObjectPostParam_();
+
     if (Enemy* enemy = enemyMgr_.GetEnemy(0)) {
         enemy->SetMaxHp(141, true);
     }
@@ -123,6 +130,7 @@ void TutorialScene::OnExit(GameApp& app) {
     tutorialUi_.reset();
     tutorial_.reset();
     fieldUi_.reset();
+    fieldParticleManager_.reset();
 
     player_.reset();
     skyDome_.reset();
@@ -415,6 +423,9 @@ void TutorialScene::Update(GameApp& app, float dt) {
         }
     }
 
+    if (fieldParticleManager_) {
+        fieldParticleManager_->Dispatch(1.0f / 60.0f, camera_.get());
+    }
 }
 
 void TutorialScene::Draw3D(GameApp& app) {
@@ -449,6 +460,18 @@ void TutorialScene::Draw3D(GameApp& app) {
     battle_.DrawCardArea3D(app);
 
     battle_.DrawPostEffect3D(app);
+    battle_.DrawFieldFrameBloom(app);
+
+    app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+    app.Dx()->ClearDepthBuffer();
+    if (fieldParticleManager_) {
+        if (particleObjectPostEnabled_) {
+            app.DrawModelParticlesObjectPost(fieldParticleManager_.get(), particleObjectPostParam_);
+        } else {
+            fieldParticleManager_->Draw();
+            app.ObjCom()->SetGraphicsPipelineState();
+        }
+    }
 }
 
 void TutorialScene::Draw2D(GameApp& app) {
@@ -585,4 +608,28 @@ void TutorialScene::DrawPostEffect3D(GameApp& app) {
 
 void TutorialScene::DrawPostEffect2D(GameApp& app) {
     (void)app;
+}
+
+void TutorialScene::ResetParticleObjectPostParam_()
+{
+    particleObjectPostParam_ = {};
+    particleObjectPostParam_.threshold = 0.0f;
+    particleObjectPostParam_.intensity = 1.7f;
+    particleObjectPostParam_.vignetteIntensity = 0.0f;
+    particleObjectPostParam_.vignetteScale = 0.0f;
+    particleObjectPostParam_.distortionAmount = 0.0f;
+    particleObjectPostParam_.chromAbAmount = 0.003f;
+    particleObjectPostParam_.isGrayscale = 0.0f;
+    particleObjectPostParam_.isInverted = 0.0f;
+    particleObjectPostParam_.noiseIntensity = 0.0f;
+    particleObjectPostParam_.scanlineIntensity = 0.0f;
+    particleObjectPostParam_.scanlineFrequency = 100.0f;
+    particleObjectPostParam_.curvature = 0.0f;
+    particleObjectPostParam_.borderSharp = 0.0f;
+    particleObjectPostParam_.glitchAmount = 0.0f;
+    particleObjectPostParam_.dissolveAmount = -1.0f;
+    particleObjectPostParam_.dissolveEdgeWidth = 0.08f;
+    particleObjectPostParam_.dissolveEdgeIntensity = 2.0f;
+    particleObjectPostParam_.dissolveNoiseScale = 36.0f;
+    particleObjectPostParam_.dissolveEdgeColor = { 0.15f, 0.8f, 1.0f, 1.0f };
 }
