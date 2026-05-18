@@ -119,6 +119,7 @@ private:
 
     bool hasOriginalState_ = false;
     Vector3 originalPlayerPos_{};
+    Vector3 originalPlayerRot_{};
     Vector3 originalEnemyPos_{};
     Vector3 originalCameraPos_{};
     Vector3 originalCameraRot_{};

@@ -164,6 +164,7 @@ void BattleActionDirector::SaveOriginalState_() {
 
     if (player_) {
         originalPlayerPos_ = player_->GetPos();
+        originalPlayerRot_ = player_->GetRotation();
     }
     if (target_) {
         originalEnemyPos_ = target_->GetPos();
@@ -182,8 +183,10 @@ void BattleActionDirector::RestoreOriginalState_() {
 
     if (player_) {
         player_->SetSpawnPos(originalPlayerPos_);
+        player_->SetRotation(originalPlayerRot_);
         if (player_->GetObject3d()) {
             player_->GetObject3d()->SetTranslate(originalPlayerPos_);
+            player_->GetObject3d()->SetRotate(originalPlayerRot_);
         }
     }
     if (target_) {
