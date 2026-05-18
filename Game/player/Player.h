@@ -118,6 +118,9 @@ public:
 	void SetReleaseAnimationEnabled(bool enabled) { releaseAnimationEnabled_ = enabled; }
 	bool GetReleaseAnimationEnabled() const { return releaseAnimationEnabled_; }
 
+	void SetFrostBiteActive(bool active) { frostBiteActive_ = active; }
+	bool GetFrostBiteActive() const { return frostBiteActive_; }
+
 private:
 	void PlayReleaseIdleAnimation_();
 	void PlayRandomReleaseAttackAnimation_();
@@ -139,6 +142,7 @@ private:
 	int vampireHeal_ = 0;
 
 	bool poisonDrawActive_ = false;
+	bool frostBiteActive_ = false;
 
 	AABB body_{};
 	enum class AnimState { Idle, AttackForward, AttackReturn, Damage };
@@ -183,6 +187,9 @@ private:
 	bool effectFired_ = false;                  // エフェクト二重発射防止フラグ
 	int currentAttackIndex_ = -1;              // 現在実行中の攻撃技インデックス
 	Vector3 attackTargetPos_{};                 // 攻撃対象の座標
+
+	// EffectJSONキャッシュ（同じJSONは再読み込みしない）
+	std::string cachedEffectJSONPath_;          // 前回ロードしたeffectJSONのパス
 
 	// EffectSequencer初期化用の参照保持
 	Object3dCommon* objCommon_ = nullptr;

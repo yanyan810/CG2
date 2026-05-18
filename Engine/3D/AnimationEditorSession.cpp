@@ -258,7 +258,6 @@ AnimationEditorSession::LayoutRects AnimationEditorSession::ComputeLayout_() con
 
 void AnimationEditorSession::DrawImGui(const EditorContext& context) {
 #ifdef USE_IMGUI
-    OutputDebugStringA("[AnimEditor] Session DrawImGui\n");
 
     enum class ShortcutCommand {
         None,

@@ -913,6 +913,18 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	actionDirector_.Initialize(spriteCom_, dx_, objCom_);
 
+	// ダメージポップアップ用の数字モデル(0-9)を事前にロードしてプール化
+	for (int d = 0; d <= 9; ++d) {
+		std::string path = "cards/models/";
+		path += static_cast<char>('0' + d);
+		path += ".obj";
+		auto obj = std::make_unique<Object3d>();
+		obj->Initialize(objCom_, dx_);
+		obj->SetModel(path); // ここで1回だけロード＆GPUバッファ作成
+		obj->SetCamera(cam_);
+		digitModelPool_[d] = std::move(obj);
+	}
+
 	// -----------------------------
 	// HPゲージ作成
 	// -----------------------------
@@ -1087,6 +1099,11 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
 						int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
+
+						if (e.GetBC() == Enemy::BadCondition::kFrost) {
+							totalDamage += e.GetBCPoint();
+						}
+
 						const int actualDamage = ApplyDamageToEnemy_(e, totalDamage);
 						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
 					}
@@ -1250,12 +1267,13 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
-						e.AddPoison(effect.value);
+						e.SetBC(Enemy::BadCondition::kPoison);
+						e.AddBC(effect.value);
 					}
 				} else {
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (e.IsAlive()) {
-							e.AddPoison(effect.value);
+							e.AddBC(effect.value);
 							break;
 						}
 					}
@@ -1268,18 +1286,21 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.AddPoison(effect.value);
+						e.SetBC(Enemy::BadCondition::kPoison);
+						e.AddBC(effect.value);
 					}
 				}
 			}
 			if (player_->GetPoisonDrawActive()) {
 				DrawCards_(1); // ポイズンドロー状態なら1枚引く
 			}
-		} else if (effect.type == "PoisonDouble") {
+		} else if (effect.type == "PoisonAmplify") {
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.PoisonDouble();
+						if (e.GetBC() == Enemy::BadCondition::kPoison) {
+							e.AmplifyBC(effect.value);
+						}
 					}
 				}
 			}
@@ -1287,20 +1308,37 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.PoisonDamage(effect.value);
+						e.SetBC(Enemy::BadCondition::kPoison);
+						e.DamageBC(effect.value);
 					}
 				}
 			}
 		} else if (effect.type == "PoisonDraw") {
 
-			player_->SetPoisonDrawActive(true);
+			bool isActivated = player_->GetPoisonDrawActive();
+
+			if (!isActivated) {
+				player_->SetPoisonDrawActive(true);
+			} else {
+				if (enemyMgr_) {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.SetBC(Enemy::BadCondition::kPoison);
+							e.AddBC(effect.value);
+						}
+					}
+				}
+				if (player_->GetPoisonDrawActive()) {
+					DrawCards_(1); // ポイズンドロー状態なら1枚引く
+				}
+			}
 
 		} else if (effect.type == "PoisonRemove") {
 
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.PoisonRemove();
+						e.RemoveBC();
 					}
 				}
 			}
@@ -1311,13 +1349,75 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						healAmount += e.GetPoison();
+					// 毒状態ならその分回復
+					if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
+						e.SetBC(Enemy::BadCondition::kPoison);
+						healAmount += e.GetBCPoint();
 					}
 				}
 			}
 
 			player_->Heal(healAmount);
+
+		} else if (effect.type == "Frost") {
+			if (enemyMgr_) {
+				// 単体ターゲットが指定されている場合
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()) {
+						e.SetBC(Enemy::BadCondition::kFrost);
+						e.AddBC(effect.value);
+					}
+				} else {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(effect.value);
+							break;
+						}
+					}
+				}
+			}
+
+		} else if (effect.type == "FrostAll") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.SetBC(Enemy::BadCondition::kFrost);
+						e.AddBC(effect.value);
+					}
+				}
+			}
+
+		} else if (effect.type == "FrostBite") {
+			bool isActivated = player_->GetFrostBiteActive();
+
+			if (!isActivated) {
+				player_->SetFrostBiteActive(true);
+			} else {
+				if (enemyMgr_) {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(effect.value);
+						}
+					}
+				}
+				//if (player_->GetFrostBiteActive()) {
+				//	DrawCards_(1); // フロストバイト状態なら1枚引く
+				//}
+			}
+
+		} else if (effect.type == "FrostAmplify") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						if (e.GetBC() == Enemy::BadCondition::kFrost) {
+							e.AmplifyBC(effect.value);
+						}
+					}
+				}
+			}
 
 		} else if (effect.type == "ChangeNumber") {
 			// 後で対象指定が必要
@@ -2294,6 +2394,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			}
 		}
 
+		if (actionDirector_.Update(dt, app.GetInput())) {
 		const bool sequenceFinished = actionDirector_.Update(dt);
 		const bool isFinalActionSequence =
 			cardState_ == CardInputState::ExecutingSequence &&
@@ -2788,12 +2889,22 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 				);
 
+				Vector4 defaultColor{ 1.0f, 0.2f, 0.2f, 1.0f };
+
 				// マウスが重なっている敵を黄色く光らせる
 				for (auto& enemy : enemyMgr_->GetEnemies()) {
 					enemy.SetHighlight(false);
 				}
 				if (hoverIndex >= 0) {
 					enemyMgr_->GetEnemies()[hoverIndex].SetHighlight(true);
+
+					for (int i = 0; i < enemyMgr_->GetEnemies().size(); i++) {
+						if (i == hoverIndex) {
+							enemyHpFgs_[i]->SetColor({ 1.0f, 1.0f, 0.0f, 1.0f });
+						} else {
+							enemyHpFgs_[i]->SetColor(defaultColor);
+						}
+					}
 				}
 
 				// 左クリックで決定して攻撃
@@ -2883,13 +2994,13 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				} else {
 					// 全ての敵の行動が終わった場合
 
-					// 毒ダメージ付加
+					// 状態異常ダメージ処理
 					if (enemyMgr_) {
 						// 全ての敵に対してループ処理を行う
 						for (auto& enemy : enemyMgr_->GetEnemies()) {
 							// 生きている敵のみに付与
 							if (enemy.IsAlive()) {
-								enemy.ApplyPoisonDamage();
+								enemy.TurnEndApplyBC();
 
 								// 必要であれば各敵の頭上にエフェクトや数値を出す
 								// SpawnDamagePopup(enemy.GetPos(), effect.value, false); 
@@ -2954,9 +3065,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
                     enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
                 }
 
-				enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
-				// HPゲージの原点にもよりますが、左に30pxほどずらします
-				enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
+					enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
+					// HPゲージの原点にもよりますが、左に30pxほどずらします
+					enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
 					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
 						enemyIntentTexts_[i]->SetText(actedByCount ? L"" : GetEnemyIntentText_(nextAct));
 						enemyIntentTexts_[i]->SetColor(GetEnemyIntentTextColor_(nextAct.type));
@@ -4148,15 +4259,15 @@ void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isP
 	std::string dmgStr = std::to_string(damage);
 	for (char c : dmgStr) {
 		if (c >= '0' && c <= '9') {
-			// コストと同じようにモデルのパスを作る（例："cards/models/5.obj"）
-			std::string path = "cards/models/";
-			path += c;
-			path += ".obj";
+			int digit = c - '0';
 
+			// プールのモデルポインタを流用してObject3dを作成（GPU再確保なし）
 			auto obj = std::make_unique<Object3d>();
-
 			obj->Initialize(objCom_, dx_);
-			obj->SetModel(path);
+			if (digitModelPool_[digit]) {
+				// Model*を直接渡す（SetModel(path)よりはるかに軽い）
+				obj->SetModel(digitModelPool_[digit]->GetModel());
+			}
 			obj->SetCamera(cam_);
 
 			p.digitModels.push_back(std::move(obj));
@@ -4384,18 +4495,26 @@ std::vector<std::wstring> BattleController::GetEnemyHpTexts() const {
 	return hpTexts;
 }
 
-std::vector<std::wstring> BattleController::GetEnemyPoisonTexts() const {
-	std::vector<std::wstring> poisonTexts;
+std::vector<std::wstring> BattleController::GetEnemyBCTexts() const {
+	std::vector<std::wstring> bcTexts;
 	auto& enemies = enemyMgr_->GetEnemies();
 
 	for (const auto& enemy : enemies) {
 		if (enemy.IsAlive()) {
 			// "100 / 100" という形式の文字列を作成
-			std::wstring text = std::to_wstring(enemy.GetPoison());
-			poisonTexts.push_back(text);
+			int bcPoint = enemy.GetBCPoint();
+
+			std::wstring text;
+
+			if (bcPoint == 0) {
+				text = L"";
+			} else {
+				text = std::to_wstring(enemy.GetBCPoint());
+			}
+			bcTexts.push_back(text);
 		}
 	}
-	return poisonTexts;
+	return bcTexts;
 }
 
 
@@ -4452,6 +4571,7 @@ int BattleController::CalcTotalIncomingDamage() const {
 
 	for (auto& enemy : enemyMgr_->GetEnemies()) {
 		if (enemy.IsAlive()) {
+
 			// 敵が次のターンに行う攻撃力を取得（シールド等があればここで減算処理）
 			total += enemy.GetIncomingDamage() - player_->GetBlock();
 		}
