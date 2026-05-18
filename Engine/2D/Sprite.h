@@ -22,6 +22,26 @@ class Sprite {
 
 
 public:
+    struct HealthGaugeParam {
+        Vector4 hpColor{ 0.22f, 0.85f, 0.22f, 1.0f };
+        Vector4 damageColor{ 1.0f, 0.08f, 0.04f, 1.0f };
+        Vector4 shieldColor{ 0.15f, 0.45f, 1.0f, 1.0f };
+        Vector4 bgColor{ 0.06f, 0.08f, 0.06f, 0.78f };
+        Vector4 borderColor{ 0.96f, 0.96f, 0.90f, 1.0f };
+        Vector4 shadowColor{ 0.0f, 0.0f, 0.0f, 0.45f };
+        float hpRatio = 1.0f;
+        float damageStartRatio = 1.0f;
+        float damageEndRatio = 1.0f;
+        float shieldStartRatio = 1.0f;
+        float shieldEndRatio = 1.0f;
+        float skew = 0.08f;
+        float borderWidth = 0.10f;
+        float blink = 0.0f;
+        float glow = 0.0f;
+        float alpha = 1.0f;
+        float pad[2]{};
+    };
+
 	void Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx,std::string textureFilePath);
 
 	// === New: 位置と色（スライド準拠） ===
@@ -54,6 +74,8 @@ public:
 
 	// === 引数なし Draw（内部でPSOとSRVをセット） ===
 	void Draw();
+    void SetHealthGaugeParam(const HealthGaugeParam& param);
+    void DrawHealthGauge();
 
 	//getter
 	const Vector2& GetAnchorPoint() const { return anchorPoint; }
@@ -131,6 +153,8 @@ private:
 	// 変換（既存）
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformResource_;
 	TransformationMatrix* transformData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> healthGaugeResource_;
+    HealthGaugeParam* healthGaugeData_ = nullptr;
 
 	// === 内部状態 ===
 	Vector2 position_{ 0.0f, 0.0f };     // スライドの「座標」メンバ変数

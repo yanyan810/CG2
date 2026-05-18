@@ -8,6 +8,7 @@
 #include <random>
 #include <filesystem>
 #include <algorithm>
+#include <cmath>
 #include <cwchar>
 #include <nlohmann/json.hpp>
 
@@ -26,6 +27,11 @@ static std::wstring Utf8ToWString(const std::string& s)
 namespace {
 	constexpr Vector2 kDefenseUiTextureSize{ 64.0f, 64.0f };
 	constexpr Vector2 kPowerupUiTextureSize{ 48.0f, 48.0f };
+	constexpr float kClearTransitionDuration = 2.0f;
+	constexpr float kFinisherHitStopDuration = 0.12f;
+	constexpr float kFinisherSlowDuration = 0.85f;
+	constexpr float kFinisherShakeDuration = 0.65f;
+	constexpr float kFinisherShakeMagnitude = 0.34f;
 	constexpr std::array<Vector2, 8> kOutlineDirections{
 		Vector2{ -1.0f, 0.0f },
 		Vector2{ 1.0f, 0.0f },
@@ -255,6 +261,13 @@ namespace {
 void GameScene::OnEnter(GameApp& app) {
 	isBossStage_ = false;
 	bossStageBannerTimer_ = 0.0f;
+	battleEndTimer_ = 120;
+	clearTransitionActive_ = false;
+	clearTransitionTimer_ = 0.0f;
+	clearBaseFieldCameraPos_ = {};
+	clearBaseFieldCameraRot_ = {};
+	clearBaseBattleCameraPos_ = {};
+	clearBaseBattleCameraRot_ = {};
 	app.ResetRadialBlur();
 
 	// --------------------------------------------------
@@ -571,6 +584,8 @@ void GameScene::OnEnter(GameApp& app) {
 
 void GameScene::OnExit(GameApp& app) {
 	app.ResetRadialBlur();
+	clearTransitionActive_ = false;
+	clearTransitionTimer_ = 0.0f;
 	fieldUi_.reset();
 	bossStageBannerGlowText_.reset();
 	bossStageBannerText_.reset();
@@ -583,11 +598,11 @@ void GameScene::OnExit(GameApp& app) {
 
 	animationEditTarget_ = nullptr;
 	cameraEditTarget_ = nullptr;
+	battle_.Finalize();
 	player_.reset();
 	skyDome_.reset();
 	fieldParticleManager_.reset();
 	camera_.reset();
-	battle_.Finalize();
 
 	// EnemyManager に Clear() があるなら呼ぶ
 	// enemyMgr_.Clear();
@@ -605,17 +620,136 @@ void GameScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
-	if (battle_.IsAllEnemiesDead() || pausingUI_->GetIsSceneChangeRequested()) {
-		battleEndTimer_--;
-	}
+	const bool isBattleClear = battle_.IsAllEnemiesDead();
+	const bool isTitleRequested = pausingUI_ && pausingUI_->GetIsSceneChangeRequested();
+	if (isBattleClear) {
+		Camera* clearBattleCamera = battle_.GetActionCamera();
+		if (!clearBattleCamera) {
+			clearBattleCamera = animCamera_.get();
+		}
+		if (!clearTransitionActive_) {
+			clearTransitionActive_ = true;
+			clearTransitionTimer_ = 0.0f;
+			clearBaseFieldCameraPos_ = camera_ ? camera_->GetTranslate() : Vector3{};
+			clearBaseFieldCameraRot_ = camera_ ? camera_->GetRotate() : Vector3{};
+			clearBaseBattleCameraPos_ = clearBattleCamera ? clearBattleCamera->GetTranslate() : Vector3{};
+			clearBaseBattleCameraRot_ = clearBattleCamera ? clearBattleCamera->GetRotate() : Vector3{};
+		}
 
-	if (battleEndTimer_ <= 0) {
-		if (battle_.IsAllEnemiesDead()) {
+		clearTransitionTimer_ += dt;
+		const float t = std::clamp(clearTransitionTimer_ / kClearTransitionDuration, 0.0f, 1.0f);
+		const bool inHitStop = clearTransitionTimer_ < kFinisherHitStopDuration;
+		const float slowScale = inHitStop
+			? 0.0f
+			: (clearTransitionTimer_ < kFinisherSlowDuration ? 0.18f : 0.62f);
+		const float visualDt = dt * slowScale;
+
+		float shakePower = 0.0f;
+		if (clearTransitionTimer_ < kFinisherShakeDuration) {
+			const float shakeT = std::clamp(clearTransitionTimer_ / kFinisherShakeDuration, 0.0f, 1.0f);
+			const float falloff = 1.0f - shakeT;
+			shakePower = kFinisherShakeMagnitude * falloff * falloff;
+			if (inHitStop) {
+				shakePower *= 1.25f;
+			}
+		}
+		const Vector3 shakeOffset{
+			std::sin(clearTransitionTimer_ * 91.0f) * shakePower,
+			std::cos(clearTransitionTimer_ * 67.0f) * shakePower * 0.55f,
+			std::sin(clearTransitionTimer_ * 49.0f) * shakePower * 0.18f
+		};
+
+		if (camera_) {
+			const int windowW = WinApp::kClientWidth;
+			const int windowH = WinApp::kClientHeight;
+			const int fieldHeight = windowH - static_cast<int>(windowH * splitRatio_);
+			camera_->SetAspect((float)windowW / fieldHeight);
+
+			float origFovY = 0.45f;
+			float zoomRatio = ((float)fieldHeight / windowH) / fieldCameraZoom_;
+			float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
+			camera_->SetFovY(newFovY);
+
+			Matrix4x4 shiftField = Matrix4x4::MakeIdentity4x4();
+			shiftField.m[1][1] = 1.0f - splitRatio_;
+			shiftField.m[3][1] = -splitRatio_;
+			camera_->SetProjectionShift(shiftField);
+			camera_->SetTranslate(clearBaseFieldCameraPos_ + shakeOffset);
+			camera_->SetRotate(clearBaseFieldCameraRot_);
+			camera_->Update();
+		}
+
+		if (clearBattleCamera) {
+			const int windowW = WinApp::kClientWidth;
+			const int windowH = WinApp::kClientHeight;
+			const bool isBattleAnimationPlaying = battle_.IsActionSequencePlaying();
+			const int battleHeight = isBattleAnimationPlaying
+				? windowH
+				: static_cast<int>(windowH * splitRatio_);
+			clearBattleCamera->SetAspect((float)windowW / battleHeight);
+
+			float origFovY = 0.45f;
+			float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+			float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
+			if (!isBattleAnimationPlaying) {
+				clearBattleCamera->SetFovY(newFovY);
+			}
+
+			Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
+			if (!isBattleAnimationPlaying) {
+				shiftBattle.m[1][1] = splitRatio_;
+				shiftBattle.m[3][1] = 1.0f - splitRatio_;
+			}
+			clearBattleCamera->SetProjectionShift(shiftBattle);
+			clearBattleCamera->SetTranslate(clearBaseBattleCameraPos_ + shakeOffset);
+			clearBattleCamera->SetRotate(clearBaseBattleCameraRot_);
+			clearBattleCamera->Update();
+		}
+
+		app.ObjCom()->SetDefaultCamera(clearBattleCamera);
+		if (skyDome_) {
+			skyDome_->SetCamera(clearBattleCamera);
+			skyDome_->Update(visualDt);
+		}
+		if (player_) {
+			player_->SetCamera(clearBattleCamera);
+			player_->Update(visualDt);
+		}
+		for (auto& enemy : enemyMgr_.GetEnemies()) {
+			enemy.SetCamera(clearBattleCamera);
+			if (enemy.GetObject3d()) {
+				enemy.GetObject3d()->Update(visualDt);
+			}
+		}
+
+		battle_.UpdateClearTransitionVisuals(visualDt);
+		if (trailManager_) {
+			trailManager_->Update(visualDt);
+		}
+		if (effectSequencer_) {
+			effectSequencer_->Update(visualDt);
+		}
+		if (particleManager_) {
+			particleManager_->Dispatch(visualDt, clearBattleCamera);
+		}
+
+		app.SetRadialBlur((0.09f + (inHitStop ? 0.035f : 0.0f)) * (1.0f - t));
+		UpdateReleaseDebugText_();
+
+		if (clearTransitionTimer_ >= kClearTransitionDuration) {
+			app.ResetRadialBlur();
 			RequestChangeScene_("GameClear");
 		}
-		if (pausingUI_->GetIsSceneChangeRequested()) {
+		return;
+	}
+
+	if (isTitleRequested) {
+		battleEndTimer_--;
+		if (battleEndTimer_ <= 0) {
+			app.ResetRadialBlur();
 			RequestChangeScene_("Title");
 		}
+		return;
 	}
 
 	Input* input = app.GetInput();

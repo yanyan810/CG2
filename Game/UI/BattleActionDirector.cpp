@@ -282,13 +282,22 @@ void BattleActionDirector::SetProfilePath(const std::string& path) {
 }
 
 void BattleActionDirector::SetDebugPlaybackTime(float time) {
-    if (phase_ == ActionPhase::Idle) {
-        return;
-    }
+	if (phase_ == ActionPhase::Idle) {
+		return;
+	}
 
-    timer_ = std::clamp(time, 0.0f, std::max(duration_, 0.0f));
-    easeT_ = std::clamp(timer_ / std::max(duration_, 0.001f), 0.0f, 1.0f);
-    SamplePreviewAtCurrentTime_();
+	timer_ = std::clamp(time, 0.0f, std::max(duration_, 0.0f));
+	easeT_ = std::clamp(timer_ / std::max(duration_, 0.001f), 0.0f, 1.0f);
+	hasReachedImpact_ = phase_ == ActionPhase::Attack && timer_ >= GetImpactTime();
+	SamplePreviewAtCurrentTime_();
+}
+
+float BattleActionDirector::GetImpactTime() const {
+	const float fallbackImpact = std::max(0.0f, duration_);
+	const float profileImpact = profile_.enemyDamageAnimStartTime > 0.0f
+		? profile_.enemyDamageAnimStartTime
+		: fallbackImpact;
+	return std::clamp(profileImpact, 0.0f, fallbackImpact);
 }
 
 bool BattleActionDirector::ReloadCardMotionFromProfile() {
@@ -537,8 +546,9 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     }
 
     // アニメーション再生フラグをリセット。実際の再生はUpdateで行う
-    hasPlayedPlayerAnim_ = false;
-    hasPlayedEnemyAnim_ = false;
+	hasPlayedPlayerAnim_ = false;
+	hasPlayedEnemyAnim_ = false;
+	hasReachedImpact_ = false;
 }
 
 bool BattleActionDirector::Update(float dt, Input* input) {
@@ -620,6 +630,10 @@ bool BattleActionDirector::Update(float dt, Input* input) {
         }
     }
     else if (phase_ == ActionPhase::Attack) {
+        if (timer_ >= GetImpactTime()) {
+            hasReachedImpact_ = true;
+        }
+
         // キャラクターアニメーションのディレイ再生
         if (!hasPlayedPlayerAnim_ && timer_ >= profile_.playerAttackAnimStartTime) {
             if (player_ && player_->GetObject3d() && playerAnimDoc_->HasValidClip()) {
