@@ -28,9 +28,6 @@ private:
     float circle_ = 0.0f;     // 0..1
     float softness_ = 0.6f;
 
-    bool prevSpace_ = false;
-    bool prevEnter_ = false;
-
     const char* kNextTitle_ = "Title";
 
     std::unique_ptr<Object3d> damageObj_; // ここは「Clear演出用モデル」にしてもOK

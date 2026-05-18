@@ -11,6 +11,7 @@
 
 #include "Object3d.h"
 #include "ModelManager.h"
+#include "Input.h"
 
 static float Clamp01(float x) { return std::clamp(x, 0.0f, 1.0f); }
 
@@ -29,9 +30,6 @@ void GameClearScene::OnEnter(GameApp& app) {
 
     circle_ = 0.0f;
     softness_ = 0.6f;
-
-    prevSpace_ = false;
-    prevEnter_ = false;
 
     objScaleT_ = 0.0f;
 
@@ -128,15 +126,6 @@ void GameClearScene::OnExit(GameApp&) {
 
 
 void GameClearScene::Update(GameApp& app, float dt) {
-    bool spaceNow = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
-    bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
-
-    bool spaceTrig = spaceNow && !prevSpace_;
-    bool enterTrig = enterNow && !prevEnter_;
-
-    prevSpace_ = spaceNow;
-    prevEnter_ = enterNow;
-
     skyDome_->Update(dt);
 
     uiTime_ += dt;
@@ -157,7 +146,7 @@ void GameClearScene::Update(GameApp& app, float dt) {
         break;
 
 
-    case State::Idle:
+    case State::Idle: {
 
         // 動画の更新（映像 + 音）
         if (enableVideo_ && video_) {
@@ -170,10 +159,14 @@ void GameClearScene::Update(GameApp& app, float dt) {
         idleTime_ += dt;
 
         // 30秒経過 or 決定で戻る
-        if (idleTime_ >= kAutoReturnSeconds_ || spaceTrig || enterTrig) {
+        const Input* input = app.GetInput();
+        const bool clickTrig = input && input->IsMouseTrigger(0);
+
+        if (idleTime_ >= kAutoReturnSeconds_ || clickTrig) {
             state_ = State::ExitClose;
         }
         break;
+    }
 
 
     case State::ExitClose:
