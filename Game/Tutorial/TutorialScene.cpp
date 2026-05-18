@@ -411,26 +411,28 @@ void TutorialScene::Update(GameApp& app, float dt) {
         tutorial_->Update(battle_);
     }
 
-    if (fieldUi_) {
-        fieldUi_->Update(app, battle_);
-    }
-
     battle_.Update(app, *fieldUi_, dt);
     if (Camera* actionCamera = battle_.GetActionCamera()) {
         int windowW = WinApp::kClientWidth;
         int windowH = WinApp::kClientHeight;
-        int battleHeight = static_cast<int>(windowH * splitRatio_);
+        const bool isBattleAnimationPlaying = battle_.IsActionSequencePlaying();
+        int battleHeight = isBattleAnimationPlaying ? windowH : static_cast<int>(windowH * splitRatio_);
         actionCamera->SetAspect((float)windowW / battleHeight);
 
-        float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
-        float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
-        actionCamera->SetFovY(correctedFovY);
-
         Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
-        shiftBattle.m[1][1] = splitRatio_;
-        shiftBattle.m[3][1] = 1.0f - splitRatio_;
+        if (!isBattleAnimationPlaying) {
+            float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+            float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
+            actionCamera->SetFovY(correctedFovY);
+            shiftBattle.m[1][1] = splitRatio_;
+            shiftBattle.m[3][1] = 1.0f - splitRatio_;
+        }
         actionCamera->SetProjectionShift(shiftBattle);
         actionCamera->Update();
+    }
+
+    if (fieldUi_) {
+        fieldUi_->Update(app, battle_);
     }
 
     if (tutorialUi_ && tutorial_ && fieldUi_) {
@@ -467,11 +469,13 @@ void TutorialScene::Draw3D(GameApp& app) {
 
     int windowW = WinApp::kClientWidth;
     int windowH = WinApp::kClientHeight;
-    int battleHeight = static_cast<int>(windowH * splitRatio_);
+    const bool isBattleAnimationPlaying = battle_.IsActionSequencePlaying();
+    int battleHeight = isBattleAnimationPlaying ? windowH : static_cast<int>(windowH * splitRatio_);
 
     app.Dx()->SetViewport(0, 0, windowW, windowH);
     app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
     app.ObjCom()->SetGraphicsPipelineState();
+    app.Dx()->ClearDepthBuffer();
 
     if (player_) {
         player_->Draw();
@@ -479,21 +483,26 @@ void TutorialScene::Draw3D(GameApp& app) {
     enemyMgr_.Draw();
     battle_.DrawDamagePopups3D(app);
 
-    app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
-    app.ObjCom()->SetGraphicsPipelineState();
-    app.Dx()->ClearDepthBuffer();
-    battle_.DrawField3D(app);
+    if (!isBattleAnimationPlaying) {
+        app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
+        app.ObjCom()->SetGraphicsPipelineState();
+        app.Dx()->ClearDepthBuffer();
+        battle_.DrawField3D(app);
 
-    app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
-    app.ObjCom()->SetGraphicsPipelineState();
-    battle_.DrawBattleOverlay3D(app);
+        app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+        app.ObjCom()->SetGraphicsPipelineState();
+        battle_.DrawBattleOverlay3D(app);
+
+        app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+        app.ObjCom()->SetGraphicsPipelineState();
+        app.Dx()->ClearDepthBuffer();
+        battle_.DrawCardArea3D(app);
+
+        battle_.DrawPostEffect3D(app);
+    }
 
     app.Dx()->SetScissorRect(0, 0, windowW, windowH);
     app.ObjCom()->SetGraphicsPipelineState();
-    app.Dx()->ClearDepthBuffer();
-    battle_.DrawCardArea3D(app);
-
-    battle_.DrawPostEffect3D(app);
 }
 
 void TutorialScene::Draw2D(GameApp& app) {
@@ -506,6 +515,17 @@ void TutorialScene::Draw2D(GameApp& app) {
         float(WinApp::kClientHeight),
         0, 100
     );
+
+    if (battle_.IsActionSequencePlaying()) {
+        battle_.Draw2D(app);
+        app.SpriteCom()->DrawCircleMask(circle_, softness_);
+        if (startFadeActive_ && startFadeMask_) {
+            app.SpriteCom()->SetGraphicsPipelineState();
+            startFadeMask_->Update(view, proj);
+            startFadeMask_->Draw();
+        }
+        return;
+    }
 
     battle_.Draw2D(app);
 
@@ -619,7 +639,7 @@ void TutorialScene::DrawImGui(GameApp& app) {
 void TutorialScene::DrawSkydome(GameApp& app) {
     int windowW = WinApp::kClientWidth;
     int windowH = WinApp::kClientHeight;
-    int battleHeight = static_cast<int>(windowH * splitRatio_);
+    int battleHeight = battle_.IsActionSequencePlaying() ? windowH : static_cast<int>(windowH * splitRatio_);
     app.Dx()->SetViewport(0, 0, windowW, windowH);
     app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 
