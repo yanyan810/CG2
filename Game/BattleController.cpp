@@ -24,6 +24,7 @@
 
 namespace {
 	float sPokerGlowRainbowTime = 0.0f;
+	constexpr Vector2 kPlayerHpGaugeTextureSize{ 351.0f, 32.0f };
 	Vector3 sFieldCardGlitterLocalOffset = { 0.0f, 3.0f, 0.0f };
 	float sFieldCardGlitterSpreadX = 2.0f;
 	float sFieldCardGlitterSpreadY = 0.0f;
@@ -777,25 +778,35 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	// -----------------------------
 	// HPゲージ作成
 	// -----------------------------
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/HP_gauge.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/HP_gaugelost.png");
+
+	playerHpFrame_ = std::make_unique<Sprite>();
+	playerHpFrame_->Initialize(spriteCom_, dx_, "resources/ui/gauge/HP_gauge.png");
+	playerHpFrame_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+
 	playerHpBg_ = std::make_unique<Sprite>();
 	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-	playerHpBg_->SetScale({ 250.0f, 18.0f, 1.0f });
-	playerHpBg_->SetPosition({ 80.0f, 40.0f });
 
 	playerHpFg_ = std::make_unique<Sprite>();
 	playerHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f });
-	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
-	playerHpFg_->SetPosition({ 80.0f, 40.0f });
+
+	playerHpDamageFlash_ = std::make_unique<Sprite>();
+	playerHpDamageFlash_->Initialize(spriteCom_, dx_, "resources/ui/gauge/HP_gaugelost.png");
+	playerHpDamageFlash_->SetColor({ 1.0f, 1.0f, 1.0f, 0.0f });
 
 	playerHpPredict_ = std::make_unique<Sprite>();
-	playerHpPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	playerHpPredict_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+	playerHpPredict_->Initialize(spriteCom_, dx_, "resources/ui/gauge/HP_gaugelost.png");
+	playerHpPredict_->SetColor({ 1.0f, 1.0f, 1.0f, playerAttackPreviewAlpha_ });
 
 	playerBlockPredict_ = std::make_unique<Sprite>();
 	playerBlockPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerBlockPredict_->SetColor({ 0.0f, 0.0f, 1.0f, 1.f });
+
+	ApplyPlayerHudLayout_();
+	playerLastHp_ = player_ ? player_->GetHP() : -1;
 
 	enemyHpBgs_.clear();
 	enemyHpFgs_.clear();
@@ -859,8 +870,10 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	float height = (float)WinApp::kClientHeight;
 	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
 
+	if (playerHpFrame_) playerHpFrame_->Update(viewMat, projMat);
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (playerHpDamageFlash_) playerHpDamageFlash_->Update(viewMat, projMat);
 	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
 	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
 
@@ -2785,14 +2798,24 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	if (discardView_) {
 		discardView_->Update(dt);
 	}
+	if (player_) {
+		const int currentPlayerHp = player_->GetHP();
+		if (playerLastHp_ >= 0 && currentPlayerHp < playerLastHp_ && playerDamageFlashEnabled_) {
+			playerDamageFlashTimer_ = playerDamageFlashFadeDuration_;
+		}
+		playerLastHp_ = currentPlayerHp;
+	}
+	if (playerDamageFlashTimer_ > 0.0f) {
+		playerDamageFlashTimer_ = std::max(0.0f, playerDamageFlashTimer_ - dt);
+	}
 	// HPゲージの長さと位置を毎フレーム更新する
 	// プレイヤーのHPゲージ計算
 	if (player_ && playerHpFg_) {
 		float hpRatio = (float)player_->GetHP() / (float)player_->GetMaxHP();
 		if (hpRatio < 0.0f) hpRatio = 0.0f;
 
-		//playerHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
-		playerHpFg_->SetPosition({ 80.0f, 40.0f });
+		//playerHpFg_->SetScale({ playerHpFillSize_.x * hpRatio, playerHpFillSize_.y, 1.0f });
+		playerHpFg_->SetPosition(playerHpFillPosition_);
 	}
 
 	// ボスのHPゲージ計算
@@ -2951,8 +2974,10 @@ void BattleController::UpdateVisuals_(float dt)
 	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
 	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix((float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
 
+	if (playerHpFrame_) playerHpFrame_->Update(viewMat, projMat);
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (playerHpDamageFlash_) playerHpDamageFlash_->Update(viewMat, projMat);
 	if (playerHpPredict_) playerHpPredict_->Update(viewMat, projMat);
 	if (playerBlockPredict_) playerBlockPredict_->Update(viewMat, projMat);
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
@@ -3416,10 +3441,11 @@ void BattleController::Draw2D(GameApp& app)
 		return;
 	}
 
+	if (playerHpFrame_) playerHpFrame_->Draw();
 	if (playerHpBg_) playerHpBg_->Draw();
-	if (playerHpPredict_)playerHpPredict_->Draw();
-	if (playerBlockPredict_ && player_->GetBlock() > 0)playerBlockPredict_->Draw();
+	if (playerHpPredict_ && playerAttackPreviewEnabled_ && playerAttackPreviewVisible_) playerHpPredict_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
+	if (playerHpDamageFlash_ && playerDamageFlashEnabled_ && playerDamageFlashTimer_ > 0.0f) playerHpDamageFlash_->Draw();
 
 	for (auto& bg : enemyHpBgs_) {
 		if (bg) bg->Draw();
@@ -3450,6 +3476,39 @@ void BattleController::Draw2D(GameApp& app)
 
 #ifdef USE_IMGUI
 #include <imgui.h>
+void BattleController::DrawPlayerHudImGuiControls()
+{
+	bool layoutChanged = false;
+	layoutChanged |= ImGui::DragFloat2("HP Gauge Image Position", &playerHpFramePosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("HP Gauge Image Size", &playerHpFrameSize_.x, 1.0f, 1.0f, 2000.0f);
+	layoutChanged |= ImGui::DragFloat2("HP Fill Bar Position", &playerHpFillPosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("HP Fill Bar Size", &playerHpFillSize_.x, 1.0f, 1.0f, 2000.0f);
+	layoutChanged |= ImGui::DragFloat2("Damage Flash Position", &playerDamageFlashPosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("Damage Flash Size", &playerDamageFlashSize_.x, 1.0f, 1.0f, 2000.0f);
+	ImGui::Checkbox("Damage Flash Enabled", &playerDamageFlashEnabled_);
+	ImGui::DragFloat("Damage Flash Initial Alpha", &playerDamageFlashInitialAlpha_, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Damage Flash Fade Time", &playerDamageFlashFadeDuration_, 0.01f, 0.01f, 5.0f);
+	layoutChanged |= ImGui::DragFloat2("Attack Preview Position", &playerAttackPreviewPosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("Attack Preview Size", &playerAttackPreviewSize_.x, 1.0f, 1.0f, 2000.0f);
+	ImGui::Checkbox("Attack Preview Enabled", &playerAttackPreviewEnabled_);
+	ImGui::DragFloat("Attack Preview Alpha", &playerAttackPreviewAlpha_, 0.01f, 0.0f, 1.0f);
+	playerDamageFlashInitialAlpha_ = std::clamp(playerDamageFlashInitialAlpha_, 0.0f, 1.0f);
+	playerDamageFlashFadeDuration_ = std::max(0.01f, playerDamageFlashFadeDuration_);
+	playerAttackPreviewAlpha_ = std::clamp(playerAttackPreviewAlpha_, 0.0f, 1.0f);
+
+	if (layoutChanged) {
+		playerHpFrameSize_.x = std::max(1.0f, playerHpFrameSize_.x);
+		playerHpFrameSize_.y = std::max(1.0f, playerHpFrameSize_.y);
+		playerHpFillSize_.x = std::max(1.0f, playerHpFillSize_.x);
+		playerHpFillSize_.y = std::max(1.0f, playerHpFillSize_.y);
+		playerDamageFlashSize_.x = std::max(1.0f, playerDamageFlashSize_.x);
+		playerDamageFlashSize_.y = std::max(1.0f, playerDamageFlashSize_.y);
+		playerAttackPreviewSize_.x = std::max(1.0f, playerAttackPreviewSize_.x);
+		playerAttackPreviewSize_.y = std::max(1.0f, playerAttackPreviewSize_.y);
+		ApplyPlayerHudLayout_();
+	}
+}
+
 void BattleController::DrawImGui()
 {
 	Card3D::DrawAdjustImGui();
@@ -4043,6 +4102,36 @@ std::wstring BattleController::GetPlayerBlockText()const {
 	return text;
 }
 
+void BattleController::ApplyPlayerHudLayout_()
+{
+	if (playerHpFrame_) {
+		playerHpFrame_->SetPosition(playerHpFramePosition_);
+		playerHpFrame_->SetScale({
+			playerHpFrameSize_.x / kPlayerHpGaugeTextureSize.x,
+			playerHpFrameSize_.y / kPlayerHpGaugeTextureSize.y,
+			1.0f
+			});
+	}
+	if (playerHpBg_) {
+		playerHpBg_->SetPosition(playerHpFillPosition_);
+		playerHpBg_->SetScale({ playerHpFillSize_.x, playerHpFillSize_.y, 1.0f });
+	}
+	if (playerHpFg_) {
+		playerHpFg_->SetPosition(playerHpFillPosition_);
+	}
+	if (playerHpDamageFlash_) {
+		playerHpDamageFlash_->SetPosition(playerDamageFlashPosition_);
+		playerHpDamageFlash_->SetScale({
+			playerDamageFlashSize_.x / kPlayerHpGaugeTextureSize.x,
+			playerDamageFlashSize_.y / kPlayerHpGaugeTextureSize.y,
+			1.0f
+			});
+	}
+	if (playerHpPredict_) {
+		playerHpPredict_->SetPosition(playerAttackPreviewPosition_);
+	}
+}
+
 int BattleController::CalcTotalIncomingDamage() const {
 	int total = 0;
 	if (!enemyMgr_) return 0;
@@ -4072,6 +4161,7 @@ void BattleController::UpdateHpGauges() {
 		predictedHP = currentHP;
 	}
 	float predictedRatio = predictedHP / maxHP;
+	const float incomingDamageRatio = std::max(0.0f, currentRatio - predictedRatio);
 
 	int currentBlock = player_->GetBlock();
 	float predictedRatioBlock = float(currentBlock) / maxHP;
@@ -4082,15 +4172,37 @@ void BattleController::UpdateHpGauges() {
 	// 「元あった場所が赤く残る」という表現になります。
 
 	if (turn_ == TurnState::Player) {
-		playerHpFg_->SetScale({ 250.0f * predictedRatio, 18.0f, 1.0f });
+		playerHpFg_->SetScale({ playerHpFillSize_.x * predictedRatio, playerHpFillSize_.y, 1.0f });
 	}
-	playerHpPredict_->SetScale({ 250.0f * currentRatio, 18.0f, 1.0f });
-	playerHpPredict_->SetPosition(playerHpFg_->GetPosition());
+	playerAttackPreviewVisible_ = playerAttackPreviewEnabled_ && incomingDamageRatio > 0.0f;
+	if (playerHpPredict_) {
+		playerHpPredict_->SetPosition(playerAttackPreviewPosition_);
+		playerHpPredict_->SetColor({ 1.0f, 1.0f, 1.0f, playerAttackPreviewAlpha_ });
+		if (playerAttackPreviewVisible_) {
+			playerHpPredict_->SetScale({
+				playerAttackPreviewSize_.x * currentRatio / kPlayerHpGaugeTextureSize.x,
+				playerAttackPreviewSize_.y / kPlayerHpGaugeTextureSize.y,
+				1.0f
+				});
+		} else {
+			playerHpPredict_->SetScale({ 0.0f, 0.0f, 1.0f });
+		}
+	}
+
+	if (playerHpDamageFlash_) {
+		const float fadeRatio = playerDamageFlashFadeDuration_ > 0.0f
+			? std::clamp(playerDamageFlashTimer_ / playerDamageFlashFadeDuration_, 0.0f, 1.0f)
+			: 0.0f;
+		const float alpha = playerDamageFlashEnabled_
+			? playerDamageFlashInitialAlpha_ * fadeRatio
+			: 0.0f;
+		playerHpDamageFlash_->SetColor({ 1.0f, 1.0f, 1.0f, alpha });
+	}
 
 	float offset = 5.f;
 
-	playerBlockPredict_->SetScale({ 250.0f * predictedRatioBlock + offset,18.0f + (offset * 2.f), 1.0f });
-	playerBlockPredict_->SetPosition({ 80.f - offset,40.f - offset });
+	playerBlockPredict_->SetScale({ playerHpFillSize_.x * predictedRatioBlock + offset,playerHpFillSize_.y + (offset * 2.f), 1.0f });
+	playerBlockPredict_->SetPosition({ playerHpFillPosition_.x - offset,playerHpFillPosition_.y - offset });
 
 }
 
