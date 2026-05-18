@@ -1,0 +1,51 @@
+{
+    "cutinDuration": 0.6000000238418579,
+    "cutinBgColor": [
+        0.0,
+        0.0,
+        0.0,
+        0.7
+    ],
+    "cutinLineColor": [
+        1.0,
+        0.3,
+        0.1,
+        1.0
+    ],
+    "enableCameraWork": true,
+    "approachDuration": 0.30000001192092896,
+    "attackWaitDuration": 0.5,
+    "returnDuration": 0.30000001192092896,
+    "cameraPos": [
+        -3.9061169624328613,
+        1.2008259296417236,
+        -0.15863895416259766
+    ],
+    "cameraRot": [
+        -0.07399988311751501,
+        0.7453916897628272,
+        0.07399988326777464
+    ],
+    "cameraFov": 1.0615204475952782,
+    "cameraAnimFile": "resources/sequences/test_useCard_1_camera.json",
+    "playerPos": [
+        0.0,
+        -0.8139153122901917,
+        1.4742012023925781
+    ],
+    "enemyPos": [
+        -20.844820022583008,
+        -8.434311866760254,
+        0.0
+    ],
+    "playerAttackAnim": "resources/CustomAnim/CustomAnim_attack_1.json",
+    "playerAttackAnimStartTime": 0.0,
+    "enemyDamageAnim": "resources/CustomAnim/CustomAnim_attack_received_1.json",
+    "enemyDamageAnimStartTime": 0.0,
+    "cardMotionFile": "resources/sequences/test_useCard_1_card.json",
+    "playerRot": [
+        0.0,
+        3.9269908169872414,
+        0.0
+    ]
+}

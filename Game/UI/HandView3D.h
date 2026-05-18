@@ -22,6 +22,12 @@ public:
     void Draw();
     void DrawDiscardingCardsObjectPost(GameApp& app);
     void DrawPreviewCard();
+    Card3D* GetCard(int index);
+    const Card3D* GetCard(int index) const;
+    int GetCardCount() const { return static_cast<int>(cards_.size()); }
+    void SetCardEffect(int index, const Vector4& frameColor, float glitterIntensity);
+    void ResetCardEffect(int index);
+    void ClearCardEffects();
 
     void Clear();
     void AddCard(const CardInstance& inst);
@@ -82,6 +88,7 @@ private:
     int previewIndex_ = -1;
 
     bool layoutDirty_ = true;
+    bool cardEffectActive_ = false;
 
     int focusIndex_ = -1;
 };

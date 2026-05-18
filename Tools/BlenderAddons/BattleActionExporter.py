@@ -10,8 +10,13 @@ bl_info = {
 
 import bpy
 import json
+import math
 import mathutils
 import os
+import time
+
+
+_last_live_camera_export_time = 0.0
 
 
 def load_json_to_action(context, obj, filepath, frame_offset, fps, scale, settings):
@@ -133,6 +138,219 @@ def vec3(value):
     return [float(value[0]), float(value[1]), float(value[2])]
 
 
+def sequence_coord_mode(settings):
+    return getattr(settings, "sequence_coord_mode", "ZUP_TO_YUP") if settings else "ZUP_TO_YUP"
+
+
+def blender_to_engine_basis(settings):
+    mode = sequence_coord_mode(settings)
+    if mode == "RAW":
+        return mathutils.Matrix.Identity(3)
+    if mode == "X_FLIP":
+        return mathutils.Matrix((
+            (-1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),
+        ))
+    if mode == "X_FLIP_ZUP_TO_YUP":
+        return mathutils.Matrix((
+            (-1.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0),
+            (0.0, 1.0, 0.0),
+        ))
+    return mathutils.Matrix((
+        (1.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (0.0, 1.0, 0.0),
+    ))
+
+
+def vec3_to_engine(value, settings):
+    converted = blender_to_engine_basis(settings) @ mathutils.Vector((value[0], value[1], value[2]))
+    return vec3(converted)
+
+
+def character_position_basis(settings):
+    mode = sequence_coord_mode(settings)
+    flip_x = getattr(settings, "sequence_flip_character_position_x", False)
+
+    if mode == "RAW":
+        return mathutils.Matrix.Identity(3)
+    if mode == "X_FLIP":
+        return mathutils.Matrix((
+            (-1.0 if flip_x else 1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),
+        ))
+    if mode == "X_FLIP_ZUP_TO_YUP" or mode == "ZUP_TO_YUP":
+        return mathutils.Matrix((
+            (-1.0 if flip_x else 1.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0),
+            (0.0, 1.0, 0.0),
+        ))
+    return blender_to_engine_basis(settings)
+
+
+def character_position_to_engine(value, settings):
+    converted = character_position_basis(settings) @ mathutils.Vector((value[0], value[1], value[2]))
+    return vec3(converted)
+
+
+def object_world_bounds(obj):
+    if not obj:
+        return None
+
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    candidates = []
+
+    if obj.type == "MESH":
+        candidates.append(obj)
+
+    for child in obj.children_recursive:
+        if child.type == "MESH":
+            candidates.append(child)
+
+    for mesh_obj in bpy.data.objects:
+        if mesh_obj.type != "MESH" or mesh_obj in candidates:
+            continue
+        if any(mod.type == "ARMATURE" and mod.object == obj for mod in mesh_obj.modifiers):
+            candidates.append(mesh_obj)
+
+    points = []
+    for candidate in candidates:
+        try:
+            eval_obj = candidate.evaluated_get(depsgraph)
+            matrix = eval_obj.matrix_world
+            for corner in eval_obj.bound_box:
+                points.append(matrix @ mathutils.Vector(corner))
+        except Exception:
+            continue
+
+    if not points:
+        return None
+
+    min_v = mathutils.Vector((
+        min(point.x for point in points),
+        min(point.y for point in points),
+        min(point.z for point in points),
+    ))
+    max_v = mathutils.Vector((
+        max(point.x for point in points),
+        max(point.y for point in points),
+        max(point.z for point in points),
+    ))
+    return min_v, max_v
+
+
+def object_sequence_position(obj, settings):
+    source = getattr(settings, "sequence_character_position_source", "ORIGIN")
+    bounds = object_world_bounds(obj) if source != "ORIGIN" else None
+
+    if bounds:
+        min_v, max_v = bounds
+        center = (min_v + max_v) * 0.5
+        if source == "BOUNDS_BOTTOM_CENTER":
+            return mathutils.Vector((center.x, center.y, min_v.z))
+        return center
+
+    return obj.matrix_world.translation
+
+
+def euler_to_engine(value, settings):
+    basis = blender_to_engine_basis(settings)
+    rot = value.to_matrix()
+    converted = basis @ rot @ basis.inverted()
+    return vec3(converted.to_euler("XYZ"))
+
+
+def character_euler_to_engine(value, settings):
+    converted = euler_to_engine(value, settings)
+    if getattr(settings, "sequence_flip_character_forward", False):
+        converted[1] += 3.141592653589793
+    converted[1] += math.radians(getattr(settings, "sequence_character_yaw_offset_deg", 0.0))
+    return converted
+
+
+def engine_euler_from_matrix(matrix):
+    import math
+
+    sy = max(-1.0, min(1.0, -matrix[0][2]))
+    y = math.asin(sy)
+    cy = math.cos(y)
+
+    if abs(cy) > 1e-5:
+        x = math.atan2(matrix[1][2], matrix[2][2])
+        z = math.atan2(matrix[0][1], matrix[0][0])
+    else:
+        x = math.atan2(-matrix[2][1], matrix[1][1])
+        z = 0.0
+
+    return [float(x), float(y), float(z)]
+
+
+def camera_euler_to_engine(value, settings):
+    import math
+    rot = value.to_matrix()
+    mode = sequence_coord_mode(settings)
+
+    if mode == "X_FLIP_ZUP_TO_YUP":
+        # Blender カメラ local -Z 方向をワールド座標に変換
+        look_world = rot @ mathutils.Vector((0.0, 0.0, -1.0))
+        up_world   = rot @ mathutils.Vector((0.0, 1.0,  0.0))
+
+        # X_FLIP_ZUP_TO_YUP: Blender(bx, by, bz) → Engine(-bx, bz, by)
+        lx = -look_world.x
+        ly =  look_world.z
+        lz =  look_world.y
+
+        ux = -up_world.x
+        uy =  up_world.z
+        uz =  up_world.y
+
+        # Pitch / Yaw を look ベクトルから算出
+        horiz = math.sqrt(lx * lx + lz * lz)
+        pitch = math.atan2(-ly, horiz)   # X 軸回転
+        yaw   = math.atan2(lx, lz)       # Y 軸回転
+
+        # Roll: up ベクトルを使って算出
+        # カメラの right ベクトル = look × world_up（near-zenith 時は uz を使う）
+        roll = 0.0
+        if horiz > 1e-4:
+            right_x = math.cos(yaw)
+            right_z = -math.sin(yaw)
+            roll = math.atan2(ux * right_z - uz * right_x, uy)
+
+        return [pitch, yaw, roll]
+    else:
+        basis = blender_to_engine_basis(settings)
+        camera_local_to_engine = mathutils.Matrix((
+            (1.0, 0.0,  0.0),
+            (0.0, 1.0,  0.0),
+            (0.0, 0.0, -1.0),
+        ))
+        converted = basis @ rot @ camera_local_to_engine
+        return vec3(converted.to_euler("XYZ"))
+
+
+def camera_world_matrix_to_engine(camera_obj, settings):
+    basis = blender_to_engine_basis(settings)
+    world = camera_obj.matrix_world
+    rot = world.to_3x3()
+
+    right = basis @ (rot @ mathutils.Vector((1.0, 0.0, 0.0)))
+    up = basis @ (rot @ mathutils.Vector((0.0, 1.0, 0.0)))
+    forward = basis @ (rot @ mathutils.Vector((0.0, 0.0, -1.0)))
+    pos = basis @ world.translation
+
+    return [
+        float(right.x), float(right.y), float(right.z), 0.0,
+        float(up.x), float(up.y), float(up.z), 0.0,
+        float(forward.x), float(forward.y), float(forward.z), 0.0,
+        float(pos.x), float(pos.y), float(pos.z), 1.0,
+    ]
+
+
+
 def export_dir(settings):
     return settings.sequence_export_dir or "resources/sequences"
 
@@ -147,6 +365,10 @@ def sequence_profile_path(settings):
 
 def sequence_camera_path(settings):
     return os.path.join(export_dir(settings), profile_name(settings) + "_camera.json")
+
+
+def sequence_card_motion_path(settings):
+    return os.path.join(export_dir(settings), profile_name(settings) + "_card.json")
 
 
 def fallback_anim_path(settings, suffix):
@@ -175,6 +397,10 @@ def sequence_effect_type(settings):
         return settings.sequence_custom_effect_type.strip()
     if settings.sequence_map_type in {"NONE", "CARD_USE"}:
         return ""
+    if settings.sequence_map_type in {"DamageCrescent", "DamageByBlock"}:
+        return "Damage"
+    if settings.sequence_map_type not in {"Damage", "DamageAll"}:
+        return "SpecialEffect"
     return settings.sequence_map_type
 
 
@@ -241,6 +467,7 @@ def update_sequence_map_json(settings):
 def export_sequence_json(settings):
     profile_path = sequence_profile_path(settings)
     camera_path = sequence_camera_path(settings)
+    card_motion_path = sequence_card_motion_path(settings)
     data = {
         "cutinDuration": settings.sequence_cutin_duration,
         "cutinBgColor": [0.0, 0.0, 0.0, 0.7],
@@ -259,14 +486,18 @@ def export_sequence_json(settings):
         "playerAttackAnimStartTime": settings.sequence_player_anim_start_time,
         "enemyDamageAnim": game_path(enemy_damage_path(settings)),
         "enemyDamageAnimStartTime": settings.sequence_enemy_anim_start_time,
+        "cardMotionFile": game_path(card_motion_path) if settings.card_obj else "",
     }
 
     if settings.player_obj:
-        data["playerPos"] = vec3(settings.player_obj.location)
+        data["playerPos"] = character_position_to_engine(object_sequence_position(settings.player_obj, settings), settings)
+        # プレイヤーの向き（Y軸=上方向周りの回転 = YawのみEuler XYZ で Z成分を使う）
+        player_euler = settings.player_obj.rotation_euler
+        data["playerRot"] = character_euler_to_engine(player_euler, settings)
     if settings.enemy_obj:
-        data["enemyPos"] = vec3(settings.enemy_obj.location)
+        data["enemyPos"] = character_position_to_engine(object_sequence_position(settings.enemy_obj, settings), settings)
     if settings.camera_obj:
-        pos, rot, fov = camera_state_to_engine(settings.camera_obj)
+        pos, rot, fov, world_matrix = camera_state_to_engine(settings.camera_obj, settings)
         data["cameraPos"] = pos
         data["cameraRot"] = rot
         data["cameraFov"] = fov
@@ -276,10 +507,24 @@ def export_sequence_json(settings):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-def camera_state_to_engine(camera_obj):
+def camera_state_to_engine(camera_obj, settings):
+    import math
     rotation = camera_obj.rotation_euler.to_matrix().to_euler("XYZ")
-    fov = camera_obj.data.angle if camera_obj.type == "CAMERA" else 0.8
-    return vec3(camera_obj.location), vec3(rotation), float(fov)
+    if camera_obj.type == "CAMERA":
+        # Blender camera.data.angle は水平FoV (ラジアン)
+        # ゲームエンジンは垂直FoV (SetFovY) を使うため変換が必要
+        # ゲーム解像度 1280x720 (16:9) のアスペクト比で変換
+        horizontal_fov = camera_obj.data.angle
+        aspect = 1280.0 / 720.0  # ゲームの解像度に合わせる
+        fov = 2.0 * math.atan(math.tan(horizontal_fov / 2.0) / aspect)
+    else:
+        fov = 0.45  # デフォルト垂直FoV
+    return (
+        vec3_to_engine(camera_obj.location, settings),
+        camera_euler_to_engine(rotation, settings),
+        float(fov),
+        camera_world_matrix_to_engine(camera_obj, settings),
+    )
 
 
 def collect_key_times(obj, frame_start, frame_end, action=None):
@@ -309,12 +554,13 @@ def export_camera_json(context, settings):
 
     for frame in frames:
         scene.frame_set(frame)
-        pos, rot, fov = camera_state_to_engine(camera_obj)
+        pos, rot, fov, world_matrix = camera_state_to_engine(camera_obj, settings)
         keyframes.append({
             "time": float((frame - settings.sequence_frame_start) / fps),
             "pos": pos,
             "rot": rot,
             "fov": fov,
+            "worldMatrix": world_matrix,
         })
 
     scene.frame_set(current_frame)
@@ -322,6 +568,54 @@ def export_camera_json(context, settings):
     camera_path = sequence_camera_path(settings)
     ensure_dir(camera_path)
     with open(bpy.path.abspath(camera_path), "w", encoding="utf-8") as f:
+        json.dump({"loop": False, "keyframes": keyframes}, f, ensure_ascii=False, indent=4)
+
+    return True
+
+
+def card_state_to_engine(card_obj, settings):
+    loc, rot, scale = card_obj.matrix_world.decompose()
+    rot.normalize()
+    engine_rot = euler_to_engine(rot.to_euler("XYZ"), settings)
+    offset = getattr(settings, "sequence_card_rot_offset_deg", (0.0, 0.0, 0.0))
+    engine_rot = [
+        engine_rot[0] + offset[0],
+        engine_rot[1] + offset[1],
+        engine_rot[2] + offset[2],
+    ]
+    return (
+        vec3_to_engine(loc, settings),
+        engine_rot,
+        [float(scale.x), float(scale.y), float(scale.z)],
+    )
+
+
+def export_card_motion_json(context, settings):
+    card_obj = settings.card_obj
+    if not card_obj:
+        return False
+
+    scene = context.scene
+    fps = scene.render.fps / scene.render.fps_base
+    current_frame = scene.frame_current
+    frames = collect_key_times(card_obj, settings.sequence_frame_start, settings.sequence_frame_end)
+    keyframes = []
+
+    for frame in frames:
+        scene.frame_set(frame)
+        pos, rot, scale = card_state_to_engine(card_obj, settings)
+        keyframes.append({
+            "time": float((frame - settings.sequence_frame_start) / fps),
+            "pos": pos,
+            "rot": rot,
+            "scale": scale,
+        })
+
+    scene.frame_set(current_frame)
+
+    card_path = sequence_card_motion_path(settings)
+    ensure_dir(card_path)
+    with open(bpy.path.abspath(card_path), "w", encoding="utf-8") as f:
         json.dump({"loop": False, "keyframes": keyframes}, f, ensure_ascii=False, indent=4)
 
     return True
@@ -347,6 +641,32 @@ def export_armature_animation_json(context, obj, filepath, settings, action=None
             return pose_bone.parent.bone.matrix_local.inverted() @ bone.matrix_local
         return bone.matrix_local.copy()
 
+    def is_side_bone(pose_bone):
+        bone = pose_bone.bone
+        center_x = (bone.head_local.x + bone.tail_local.x) * 0.5
+        return abs(center_x) > 0.05
+
+    def export_bone_translation(pose_bone, loc):
+        if getattr(settings, "sequence_convert_character_animation_lh", True):
+            value = [-float(loc.x), float(loc.y), float(loc.z)]
+        else:
+            value = [float(loc.x), float(loc.y), float(loc.z)]
+
+        if getattr(settings, "sequence_mirror_character_animation_x", False) and is_side_bone(pose_bone):
+            value[0] = -value[0]
+        return value
+
+    def export_bone_rotation(pose_bone, rot):
+        if getattr(settings, "sequence_convert_character_animation_lh", True):
+            value = [float(rot.x), -float(rot.y), -float(rot.z), float(rot.w)]
+        else:
+            value = [float(rot.x), float(rot.y), float(rot.z), float(rot.w)]
+
+        if getattr(settings, "sequence_mirror_character_animation_x", False) and is_side_bone(pose_bone):
+            value[1] = -value[1]
+            value[2] = -value[2]
+        return value
+
     for pose_bone in obj.pose.bones:
         node_anims[pose_bone.name] = {
             "translate": [],
@@ -371,11 +691,11 @@ def export_armature_animation_json(context, obj, filepath, settings, action=None
             node_anim = node_anims[pose_bone.name]
             node_anim["translate"].append({
                 "time": time,
-                "value": [-float(loc.x), float(loc.y), float(loc.z)],
+                "value": export_bone_translation(pose_bone, loc),
             })
             node_anim["rotate"].append({
                 "time": time,
-                "value": [float(rot.x), -float(rot.y), -float(rot.z), float(rot.w)],
+                "value": export_bone_rotation(pose_bone, rot),
             })
             node_anim["scale"].append({
                 "time": time,
@@ -402,6 +722,7 @@ class BattleAnimeSettings(bpy.types.PropertyGroup):
     player_obj: bpy.props.PointerProperty(name="Player", type=bpy.types.Object)
     enemy_obj: bpy.props.PointerProperty(name="Enemy", type=bpy.types.Object)
     camera_obj: bpy.props.PointerProperty(name="Camera", type=bpy.types.Object)
+    card_obj: bpy.props.PointerProperty(name="Card", type=bpy.types.Object)
     player_idle_action: bpy.props.PointerProperty(name="Idle Action", type=bpy.types.Action)
     player_attack_action: bpy.props.PointerProperty(name="Attack Action", type=bpy.types.Action)
     enemy_idle_action: bpy.props.PointerProperty(name="Idle Action", type=bpy.types.Action)
@@ -468,6 +789,66 @@ class BattleAnimeSettings(bpy.types.PropertyGroup):
     sequence_player_anim_start_time: bpy.props.FloatProperty(name="Player Anim Start", default=0.0, min=0.0)
     sequence_enemy_anim_start_time: bpy.props.FloatProperty(name="Enemy Anim Start", default=0.0, min=0.0)
     sequence_enable_camera_work: bpy.props.BoolProperty(name="Enable Camera Work", default=True)
+    sequence_card_rot_offset_deg: bpy.props.FloatVectorProperty(
+        name="Card Rot Offset",
+        description="Degrees added to exported card rotation so the Blender guide object matches the in-game Card3D facing",
+        subtype="EULER",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+    )
+    sequence_live_camera_export: bpy.props.BoolProperty(
+        name="Live Camera Export",
+        description="Continuously export the selected camera JSON while editing in Blender",
+        default=False,
+    )
+    sequence_flip_character_forward: bpy.props.BoolProperty(
+        name="Flip Character Forward",
+        description="Add 180 degrees around engine Y when the engine character faces opposite to Blender",
+        default=False,
+    )
+    sequence_character_yaw_offset_deg: bpy.props.FloatProperty(
+        name="Character Yaw Offset",
+        description="Extra engine Y rotation in degrees for player/enemy facing",
+        default=0.0,
+        soft_min=-180.0,
+        soft_max=180.0,
+    )
+    sequence_flip_character_position_x: bpy.props.BoolProperty(
+        name="Flip Character Position X",
+        description="Mirror exported player/enemy X positions. Keep off when moving right in Blender should move right in the game",
+        default=False,
+    )
+    sequence_mirror_character_animation_x: bpy.props.BoolProperty(
+        name="Mirror Character Animation X",
+        description="Mirror local bone animation on X. Turn off when right and left arms are swapped in the game",
+        default=False,
+    )
+    sequence_convert_character_animation_lh: bpy.props.BoolProperty(
+        name="Convert Character Animation LH",
+        description="Export bone animation in the same left-hand format as engine-loaded glTF animations",
+        default=True,
+    )
+    sequence_character_position_source: bpy.props.EnumProperty(
+        name="Character Position Source",
+        description="How player/enemy positions are exported to the sequence JSON",
+        items=[
+            ("ORIGIN", "Object Origin", "Use the selected object's world origin"),
+            ("BOUNDS_CENTER", "Bounds Center", "Use the visual center of the mesh bounds"),
+            ("BOUNDS_BOTTOM_CENTER", "Bounds Bottom Center", "Use the visual bottom-center of the mesh bounds"),
+        ],
+        default="BOUNDS_BOTTOM_CENTER",
+    )
+    sequence_coord_mode: bpy.props.EnumProperty(
+        name="Sequence Coord Mode",
+        description="Coordinate conversion for sequence object and camera transforms",
+        items=[
+            ("ZUP_TO_YUP", "Blender Z-up -> Engine Y-up", "Export Blender (X,Y,Z) as engine (X,Z,Y)"),
+            ("X_FLIP_ZUP_TO_YUP", "Z-up -> Y-up + Flip X (DirectX)", "Export Blender (X,Y,Z) as engine (-X,Z,Y) — correct for DirectX left-hand coord"),
+            ("X_FLIP", "Legacy X Flip", "Export Blender (X,Y,Z) as engine (-X,Y,Z)"),
+            ("RAW", "Raw", "Export Blender transforms without coordinate conversion"),
+        ],
+        default="X_FLIP_ZUP_TO_YUP",
+    )
     sequence_auto_register: bpy.props.BoolProperty(
         name="Update Map JSON",
         description="Register this profile in resources/sequences/card_sequence_map.json when exporting",
@@ -490,6 +871,7 @@ class BattleAnimeSettings(bpy.types.PropertyGroup):
             ("Draw", "Draw", "Draw cards"),
             ("EnergyCharge", "Energy Charge", "EnergyCharge cards"),
             ("SelfDamage", "Self Damage", "SelfDamage cards"),
+            ("SpecialEffect", "Special Effect", "Shared non-damage effect animation"),
             ("CUSTOM", "Custom Effect", "Use the custom effect type below"),
         ],
         default="Damage",
@@ -565,6 +947,19 @@ class BATTLE_PT_export_panel(bpy.types.Panel):
         camera_box.label(text="Camera Settings")
         camera_box.prop(settings, "camera_obj", text="Camera Object")
         camera_box.prop(settings, "sequence_enable_camera_work")
+        camera_box.prop(settings, "sequence_live_camera_export")
+        camera_box.prop(settings, "sequence_flip_character_forward")
+        camera_box.prop(settings, "sequence_character_yaw_offset_deg")
+        camera_box.prop(settings, "sequence_flip_character_position_x")
+        camera_box.prop(settings, "sequence_mirror_character_animation_x")
+        camera_box.prop(settings, "sequence_convert_character_animation_lh")
+        camera_box.prop(settings, "sequence_character_position_source")
+        camera_box.prop(settings, "sequence_coord_mode")
+
+        card_box = layout.box()
+        card_box.label(text="Card Motion")
+        card_box.prop(settings, "card_obj", text="Card Object")
+        card_box.prop(settings, "sequence_card_rot_offset_deg")
 
         convert_box = layout.box()
         convert_box.label(text="Import / Conversion")
@@ -650,6 +1045,8 @@ class EXPORT_OT_battle_sequence_json(bpy.types.Operator):
         exported = []
         if export_camera_json(context, settings):
             exported.append("camera")
+        if export_card_motion_json(context, settings):
+            exported.append("card motion")
         if settings.sequence_player_idle_path:
             if export_armature_animation_json(
                 context,
@@ -694,6 +1091,25 @@ class EXPORT_OT_battle_sequence_json(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def live_camera_export_handler(scene):
+    global _last_live_camera_export_time
+
+    settings = getattr(scene, "battle_anime_settings", None)
+    if not settings or not settings.sequence_live_camera_export:
+        return
+    if not settings.camera_obj or settings.camera_obj.type != "CAMERA":
+        return
+
+    now = time.monotonic()
+    if now - _last_live_camera_export_time < 0.2:
+        return
+
+    _last_live_camera_export_time = now
+    export_camera_json(bpy.context, settings)
+    export_card_motion_json(bpy.context, settings)
+    export_sequence_json(settings)
+
+
 classes = (
     BattleAnimeSettings,
     BATTLE_PT_export_panel,
@@ -707,9 +1123,13 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.Scene.battle_anime_settings = bpy.props.PointerProperty(type=BattleAnimeSettings)
+    if live_camera_export_handler not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.append(live_camera_export_handler)
 
 
 def unregister():
+    if live_camera_export_handler in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(live_camera_export_handler)
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.battle_anime_settings

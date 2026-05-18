@@ -8,6 +8,7 @@
 #include <random>
 #include <filesystem>
 #include <algorithm>
+#include <cwchar>
 #include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
@@ -23,6 +24,132 @@ static std::wstring Utf8ToWString(const std::string& s)
 }
 
 namespace {
+	constexpr Vector2 kDefenseUiTextureSize{ 64.0f, 64.0f };
+	constexpr Vector2 kPowerupUiTextureSize{ 48.0f, 48.0f };
+	constexpr std::array<Vector2, 8> kOutlineDirections{
+		Vector2{ -1.0f, 0.0f },
+		Vector2{ 1.0f, 0.0f },
+		Vector2{ 0.0f, -1.0f },
+		Vector2{ 0.0f, 1.0f },
+		Vector2{ -1.0f, -1.0f },
+		Vector2{ 1.0f, -1.0f },
+		Vector2{ -1.0f, 1.0f },
+		Vector2{ 1.0f, 1.0f },
+	};
+
+	void DrawVector3Debug_(const char* label, const Vector3& v)
+	{
+#ifdef USE_IMGUI
+		ImGui::Text("%s: %.3f, %.3f, %.3f", label, v.x, v.y, v.z);
+#else
+		(void)label;
+		(void)v;
+#endif
+	}
+
+	void DrawCameraDebug_(const char* label, Camera* camera)
+	{
+#ifdef USE_IMGUI
+		if (!camera) {
+			ImGui::Text("%s: null", label);
+			return;
+		}
+
+		ImGui::Text("%s: %p", label, static_cast<void*>(camera));
+		DrawVector3Debug_("  pos", camera->GetTranslate());
+		DrawVector3Debug_("  rot", camera->GetRotate());
+		ImGui::Text("  matrixOverride: %s", camera->UsesWorldMatrixOverride() ? "true" : "false");
+		ImGui::Text("  fov/aspect: %.3f / %.3f", camera->GetFovY(), camera->GetAspect());
+#else
+		(void)label;
+		(void)camera;
+#endif
+	}
+
+	void DrawClipDebug_(const char* label, const Vector3& worldPos, Camera* camera)
+	{
+#ifdef USE_IMGUI
+		if (!camera) {
+			ImGui::Text("%s clip: camera null", label);
+			return;
+		}
+
+		const Matrix4x4& vp = camera->GetViewProjectionMatrix();
+		Vector4 clip{};
+		clip.x = worldPos.x * vp.m[0][0] + worldPos.y * vp.m[1][0] + worldPos.z * vp.m[2][0] + vp.m[3][0];
+		clip.y = worldPos.x * vp.m[0][1] + worldPos.y * vp.m[1][1] + worldPos.z * vp.m[2][1] + vp.m[3][1];
+		clip.z = worldPos.x * vp.m[0][2] + worldPos.y * vp.m[1][2] + worldPos.z * vp.m[2][2] + vp.m[3][2];
+		clip.w = worldPos.x * vp.m[0][3] + worldPos.y * vp.m[1][3] + worldPos.z * vp.m[2][3] + vp.m[3][3];
+
+		if (std::abs(clip.w) < 0.0001f) {
+			ImGui::Text("%s clip: w is near zero", label);
+			return;
+		}
+
+		const float ndcX = clip.x / clip.w;
+		const float ndcY = clip.y / clip.w;
+		const float ndcZ = clip.z / clip.w;
+		const bool visible = clip.w > 0.0f &&
+			ndcX >= -1.0f && ndcX <= 1.0f &&
+			ndcY >= -1.0f && ndcY <= 1.0f &&
+			ndcZ >= 0.0f && ndcZ <= 1.0f;
+
+		ImGui::Text("%s clip: %.3f, %.3f, %.3f, %.3f", label, clip.x, clip.y, clip.z, clip.w);
+		ImGui::Text("%s ndc : %.3f, %.3f, %.3f visible=%s", label, ndcX, ndcY, ndcZ, visible ? "yes" : "no");
+#else
+		(void)label;
+		(void)worldPos;
+		(void)camera;
+#endif
+	}
+
+	Vector3 MakeLookAtRotation_(const Vector3& eye, const Vector3& target)
+	{
+		Vector3 dir = target - eye;
+		const float horizontal = std::sqrt(dir.x * dir.x + dir.z * dir.z);
+		if (horizontal < 0.0001f && std::abs(dir.y) < 0.0001f) {
+			return {};
+		}
+
+		const float yaw = std::atan2(dir.x, dir.z);
+		const float pitch = std::atan2(-dir.y, horizontal);
+		return { pitch, yaw, 0.0f };
+	}
+
+	void AppendVec3DebugLine_(std::wstring& text, const wchar_t* label, const Vector3& v)
+	{
+		wchar_t line[160]{};
+		swprintf_s(line, L"%s: %.3f, %.3f, %.3f\n", label, v.x, v.y, v.z);
+		text += line;
+	}
+
+	void AppendCameraDebugLines_(std::wstring& text, const wchar_t* label, Camera* camera)
+	{
+		text += label;
+		text += L"\n";
+		if (!camera) {
+			text += L"  null\n";
+			return;
+		}
+
+		AppendVec3DebugLine_(text, L"  pos", camera->GetTranslate());
+		AppendVec3DebugLine_(text, L"  rot", camera->GetRotate());
+
+		wchar_t line[160]{};
+		swprintf_s(line, L"  matrixOverride: %s\n", camera->UsesWorldMatrixOverride() ? L"true" : L"false");
+		text += line;
+		swprintf_s(line, L"  fov/aspect: %.3f / %.3f\n", camera->GetFovY(), camera->GetAspect());
+		text += line;
+	}
+
+	constexpr float kBossStageBannerDuration = 2.0f;
+	constexpr float kBossStageBannerX = 380.0f;
+	constexpr float kBossStageBannerY = 105.0f;
+	constexpr float kBossStageBannerWidth = 520.0f;
+	constexpr float kBossStageBannerHeight = 86.0f;
+	constexpr float kBossStageTextX = kBossStageBannerX + 110.0f;
+	constexpr float kBossStageTextY = kBossStageBannerY;
+
 	EnemyType ParseEnemyType_(const std::string& type)
 	{
 		if (type == "Boss" || type == "boss") {
@@ -103,11 +230,32 @@ namespace {
 		enemyMgr.Spawn(EnemyType::Boss, { 7.0f, 0.0f, 15.0f });
 		enemyMgr.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 25.0f });
 	}
+
+	BloomParam MakeBossStageBannerEffectParam_(const BloomParam& baseParam, float strength)
+	{
+		const float t = std::clamp(strength, 0.0f, 1.0f);
+		BloomParam param = baseParam;
+		param.threshold = 0.0f;
+		param.intensity = 0.75f + 0.25f * t;
+		param.vignetteIntensity = 0.0f;
+		param.vignetteScale = 0.0f;
+		param.chromAbAmount = 0.004f + 0.008f * t;
+		param.distortionAmount = 0.0006f + 0.0008f * t;
+		param.noiseIntensity = 0.10f + 0.20f * t;
+		param.scanlineIntensity = 0.08f + 0.18f * t;
+		param.scanlineFrequency = 120.0f;
+		param.curvature = 0.0f;
+		param.borderSharp = 0.0f;
+		param.glitchAmount = 0.004f + 0.016f * t;
+		param.dissolveAmount = -1.0f;
+		return param;
+	}
 }
 
 void GameScene::OnEnter(GameApp& app) {
 	isBossStage_ = false;
 	bossStageBannerTimer_ = 0.0f;
+	app.ResetRadialBlur();
 
 	// --------------------------------------------------
 	// 1. カメラの初期化と設定
@@ -206,7 +354,7 @@ void GameScene::OnEnter(GameApp& app) {
 		isBossStage_ = false;
 		SpawnDefaultEnemies_(enemyMgr_);
 	}
-	bossStageBannerTimer_ = isBossStage_ ? 3.0f : 0.0f;
+	bossStageBannerTimer_ = isBossStage_ ? kBossStageBannerDuration : 0.0f;
 
 	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Game" : stageBgmId);
 	// --------------------------------------------------
@@ -246,8 +394,23 @@ void GameScene::OnEnter(GameApp& app) {
 	// プレイヤーHP数字
 	playerHpText_ = std::make_unique<TextSprite>();
 	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
+	playerHpText_->SetFontSize(playerHpTextFontSize_);
 	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
-	playerHpText_->SetPosition({ 140.0f, 12.5f });
+	playerHpText_->SetPosition(playerHpTextPosition_);
+	for (auto& outlineText : playerHpOutlineTexts_) {
+		outlineText = std::make_unique<TextSprite>();
+		outlineText->Initialize(app.SpriteCom(), app.Dx());
+		outlineText->SetFontSize(playerHpTextFontSize_);
+		outlineText->SetSize({ 1.0f,1.0f,1.0f });
+	}
+
+	releaseDebugText_ = std::make_unique<TextSprite>();
+	releaseDebugText_->Initialize(app.SpriteCom(), app.Dx());
+	releaseDebugText_->SetFontSize(18);
+	releaseDebugText_->SetSize({ 1.0f, 1.0f, 1.0f });
+	releaseDebugText_->SetPosition({ 12.0f, 120.0f });
+	releaseDebugText_->SetColor({ 0.9f, 1.0f, 0.45f });
+	releaseDebugText_->SetText(L"");
 
 	// 敵HP数字
 	for (int i = 0; i < 3; i++) {
@@ -266,26 +429,43 @@ void GameScene::OnEnter(GameApp& app) {
 	}
 
 	// パワーブースト
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Powerup_UI.png");
 	powerBoostBg_ = std::make_unique<Sprite>();
-	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	powerBoostBg_->SetPosition({ 95.0f, 60.0f });
-	powerBoostBg_->SetScale({ 32.0f, 32.0f, 1.0f });
-	powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/gauge/Powerup_UI.png");
+	powerBoostBg_->SetPosition(powerupUiPosition_);
+	powerBoostBg_->SetScale({
+		powerupUiSize_.x / kPowerupUiTextureSize.x,
+		powerupUiSize_.y / kPowerupUiTextureSize.y,
+		1.0f
+		});
+	powerBoostBg_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 	powerBoostText_ = std::make_unique<TextSprite>();
 	powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
 	powerBoostText_->SetSize({ 1.f,1.f,0.5f });
-	powerBoostText_->SetPosition({ 88.f, 40.f });
+	powerBoostText_->SetPosition(powerBoostTextPosition_);
 
 	// ブロック
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Defense_UI.png");
 	blockBg_ = std::make_unique<Sprite>();
-	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	blockBg_->SetPosition({ 145.0f, 60.0f });
-	blockBg_->SetScale({ 32.0f, 32.0f, 1.0f });
-	blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
+	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/gauge/Defense_UI.png");
+	blockBg_->SetPosition(defenseUiPosition_);
+	blockBg_->SetScale({
+		defenseUiSize_.x / kDefenseUiTextureSize.x,
+		defenseUiSize_.y / kDefenseUiTextureSize.y,
+		1.0f
+		});
+	blockBg_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 	blockText_ = std::make_unique<TextSprite>();
 	blockText_->Initialize(app.SpriteCom(), app.Dx());
+	blockText_->SetFontSize(blockTextFontSize_);
 	blockText_->SetSize({ 1.f,1.f,0.5f });
-	blockText_->SetPosition({ 138.f, 40.f });
+	blockText_->SetPosition(blockTextPosition_);
+	for (auto& outlineText : blockOutlineTexts_) {
+		outlineText = std::make_unique<TextSprite>();
+		outlineText->Initialize(app.SpriteCom(), app.Dx());
+		outlineText->SetFontSize(blockTextFontSize_);
+		outlineText->SetSize({ 1.0f,1.0f,0.5f });
+	}
 
 	TextureManager::GetInstance()->LoadTexture("resources/gradation.png");
 
@@ -306,16 +486,30 @@ void GameScene::OnEnter(GameApp& app) {
 
 	bossStageBannerBg_ = std::make_unique<Sprite>();
 	bossStageBannerBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	bossStageBannerBg_->SetPosition({ 380.0f, 105.0f });
-	bossStageBannerBg_->SetScale({ 520.0f, 86.0f, 1.0f });
+	bossStageBannerBg_->SetPosition({ kBossStageBannerX, kBossStageBannerY });
+	bossStageBannerBg_->SetScale({ kBossStageBannerWidth, kBossStageBannerHeight, 1.0f });
 	bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f });
+
+	bossStageBannerEffectOverlay_ = std::make_unique<Sprite>();
+	bossStageBannerEffectOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	bossStageBannerEffectOverlay_->SetPosition({ kBossStageBannerX - 24.0f, kBossStageBannerY - 12.0f });
+	bossStageBannerEffectOverlay_->SetScale({ kBossStageBannerWidth + 48.0f, kBossStageBannerHeight + 24.0f, 1.0f });
+	bossStageBannerEffectOverlay_->SetColor({ 1.0f, 0.02f, 0.0f, 0.18f });
+
+	bossStageBannerGlowText_ = std::make_unique<TextSprite>();
+	bossStageBannerGlowText_->Initialize(app.SpriteCom(), app.Dx());
+	bossStageBannerGlowText_->SetText(L"BOSS STAGE");
+	bossStageBannerGlowText_->SetFontSize(56);
+	bossStageBannerGlowText_->SetColor({ 1.0f, 0.18f, 0.04f });
+	bossStageBannerGlowText_->SetPosition({ kBossStageTextX, kBossStageTextY });
+	bossStageBannerGlowText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
 	bossStageBannerText_ = std::make_unique<TextSprite>();
 	bossStageBannerText_->Initialize(app.SpriteCom(), app.Dx());
 	bossStageBannerText_->SetText(L"BOSS STAGE");
 	bossStageBannerText_->SetFontSize(56);
 	bossStageBannerText_->SetColor({ 1.0f, 0.78f, 0.2f });
-	bossStageBannerText_->SetPosition({ 430.0f, 120.0f });
+	bossStageBannerText_->SetPosition({ kBossStageTextX, kBossStageTextY });
 	bossStageBannerText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
 	particleManager_ = ModelParticleManager::GetInstance();
@@ -332,6 +526,11 @@ void GameScene::OnEnter(GameApp& app) {
 	
 	particleManager_->RegisterEffect("Air_Fly", "Air_Fly.json");
 	particleManager_->RegisterEffect("Air_Hit", "Air_Hit.json");
+
+	fieldParticleManager_ = std::make_unique<ModelParticleManager>();
+	fieldParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+	fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
+	battle_.SetFieldParticleManager(fieldParticleManager_.get());
 
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
@@ -371,9 +570,12 @@ void GameScene::OnEnter(GameApp& app) {
 }
 
 void GameScene::OnExit(GameApp& app) {
+	app.ResetRadialBlur();
 	fieldUi_.reset();
+	bossStageBannerGlowText_.reset();
 	bossStageBannerText_.reset();
 	bossStageBannerBg_.reset();
+	bossStageBannerEffectOverlay_.reset();
 	cardDescBg_.reset();
 	cardDescText_.reset();
 	isBossStage_ = false;
@@ -383,6 +585,7 @@ void GameScene::OnExit(GameApp& app) {
 	cameraEditTarget_ = nullptr;
 	player_.reset();
 	skyDome_.reset();
+	fieldParticleManager_.reset();
 	camera_.reset();
 	battle_.Finalize();
 
@@ -393,7 +596,16 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
-	if (battle_.IsAllEnemiesDead() || !player_->GetIsAlive() || pausingUI_->GetIsSceneChangeRequested()) {
+	const auto isPlayerDead = [this]() {
+		return player_ && (player_->GetHP() <= 0 || !player_->GetIsAlive());
+	};
+
+	if (isPlayerDead()) {
+		RequestChangeScene_("GameOver");
+		return;
+	}
+
+	if (battle_.IsAllEnemiesDead() || pausingUI_->GetIsSceneChangeRequested()) {
 		battleEndTimer_--;
 	}
 
@@ -401,20 +613,21 @@ void GameScene::Update(GameApp& app, float dt) {
 		if (battle_.IsAllEnemiesDead()) {
 			RequestChangeScene_("GameClear");
 		}
-		if (!player_->GetIsAlive()) {
-			RequestChangeScene_("GameOver");
-		}
 		if (pausingUI_->GetIsSceneChangeRequested()) {
 			RequestChangeScene_("Title");
 		}
 	}
 
 	Input* input = app.GetInput();
-	if (!input) return;
+	if (!input) {
+		app.ResetRadialBlur();
+		return;
+	}
 
 	pausingUI_->Update(app, input);
 
 	if (pausingUI_->GetIsPaused()) {
+		app.ResetRadialBlur();
 		return;
 	}
 
@@ -423,6 +636,13 @@ void GameScene::Update(GameApp& app, float dt) {
 		if (bossStageBannerTimer_ < 0.0f) {
 			bossStageBannerTimer_ = 0.0f;
 		}
+	}
+
+	if (isBossStage_ && bossStageBannerTimer_ > 0.0f) {
+		const float t = std::clamp(bossStageBannerTimer_ / kBossStageBannerDuration, 0.0f, 1.0f);
+		app.SetRadialBlur(0.055f * t);
+	} else {
+		app.ResetRadialBlur();
 	}
 
 	if (cameraAnim_ && cameraAnim_->IsEditing()) {
@@ -624,18 +844,59 @@ void GameScene::Update(GameApp& app, float dt) {
 	if (Camera* actionCamera = battle_.GetActionCamera()) {
 		int windowW = WinApp::kClientWidth;
 		int windowH = WinApp::kClientHeight;
-		int battleHeight = static_cast<int>(windowH * splitRatio_);
+		const bool isBattleAnimationPlaying = battle_.IsActionSequencePlaying();
+		int battleHeight = isBattleAnimationPlaying ? windowH : static_cast<int>(windowH * splitRatio_);
 		actionCamera->SetAspect((float)windowW / battleHeight);
 
-		float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
-		float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
-		actionCamera->SetFovY(correctedFovY);
-
 		Matrix4x4 shiftBattle = Matrix4x4::MakeIdentity4x4();
-		shiftBattle.m[1][1] = splitRatio_;
-		shiftBattle.m[3][1] = 1.0f - splitRatio_;
+		if (!isBattleAnimationPlaying) {
+			float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
+			float correctedFovY = 2.0f * std::atan(zoomRatio * std::tan(actionCamera->GetFovY() / 2.0f));
+			actionCamera->SetFovY(correctedFovY);
+			shiftBattle.m[1][1] = splitRatio_;
+			shiftBattle.m[3][1] = 1.0f - splitRatio_;
+		}
 		actionCamera->SetProjectionShift(shiftBattle);
+
+		if (isBattleAnimationPlaying && forceActionCameraLookAt_ && player_) {
+			Vector3 target = player_->GetPos() + Vector3{ 0.0f, 1.0f, 0.0f };
+			actionCamera->SetRotate(MakeLookAtRotation_(actionCamera->GetTranslate(), target));
+		}
 		actionCamera->Update();
+
+		if (isBattleAnimationPlaying) {
+			if (skyDome_) {
+				skyDome_->SetCamera(actionCamera);
+				skyDome_->Update(0.0f);
+			}
+			if (player_) {
+				player_->SetCamera(actionCamera);
+				if (player_->GetObject3d()) {
+					player_->GetObject3d()->Update(0.0f);
+				}
+			}
+			for (auto& enemy : enemyMgr_.GetEnemies()) {
+				enemy.SetCamera(actionCamera);
+				if (enemy.GetObject3d()) {
+					enemy.GetObject3d()->Update(0.0f);
+				}
+			}
+		}
+	}
+
+	if (isPlayerDead()) {
+		RequestChangeScene_("GameOver");
+		return;
+	}
+
+	if (battle_.IsActionSequencePlaying()) {
+		trailManager_->Update(dt);
+		if (effectSequencer_) {
+			effectSequencer_->Update(dt);
+		}
+		particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+		UpdateReleaseDebugText_();
+		return;
 	}
 
 	if (battle_.HasPokerChoiceUi()) {
@@ -675,7 +936,13 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (playerHpText_) {
-		playerHpText_->SetText(battle_.GetPlayerHpTexts());
+		const std::wstring playerHpText = battle_.GetPlayerHpTexts();
+		playerHpText_->SetText(playerHpText);
+		for (auto& outlineText : playerHpOutlineTexts_) {
+			if (outlineText) {
+				outlineText->SetText(playerHpText);
+			}
+		}
 	}
 
 	if (powerBoostText_) {
@@ -683,7 +950,13 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (blockText_) {
-		blockText_->SetText(battle_.GetPlayerBlockText());
+		const std::wstring blockText = battle_.GetPlayerBlockText();
+		blockText_->SetText(blockText);
+		for (auto& outlineText : blockOutlineTexts_) {
+			if (outlineText) {
+				outlineText->SetText(blockText);
+			}
+		}
 	}
 
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
@@ -722,22 +995,69 @@ void GameScene::Update(GameApp& app, float dt) {
 		effectSequencer_->Update(dt);
 	}
 
-	// 最後に1回だけDispatch
 	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+	if (fieldParticleManager_) {
+		fieldParticleManager_->Dispatch(1.0f / 60.0f, camera_.get());
+	}
+
 }
 
+void GameScene::UpdateReleaseDebugText_()
+{
+	if (!releaseDebugVisible_ || !releaseDebugText_) {
+		return;
+	}
+
+	const bool isActionPlaying = battle_.IsActionSequencePlaying();
+	Camera* actionCamera = battle_.GetActionCamera();
+	Camera* activeCamera = isActionPlaying && actionCamera ? actionCamera : camera_.get();
+
+	std::wstring text;
+	text.reserve(1024);
+	text += L"[Release Pos Debug]\n";
+	text += isActionPlaying ? L"ActionSequence: true\n" : L"ActionSequence: false\n";
+
+	if (player_) {
+		AppendVec3DebugLine_(text, L"Player logic", player_->GetPos());
+		AppendVec3DebugLine_(text, L"Player world", player_->GetWorldPos());
+		if (Object3d* playerObj = player_->GetObject3d()) {
+			AppendVec3DebugLine_(text, L"Player obj pos", playerObj->GetTranslate());
+			AppendVec3DebugLine_(text, L"Player obj rot", playerObj->GetRotate());
+		}
+	} else {
+		text += L"Player: null\n";
+	}
+
+	if (!enemyMgr_.GetEnemies().empty()) {
+		Enemy& enemy = enemyMgr_.GetEnemies().front();
+		AppendVec3DebugLine_(text, L"Enemy[0] logic", enemy.GetPos());
+		if (Object3d* enemyObj = enemy.GetObject3d()) {
+			AppendVec3DebugLine_(text, L"Enemy[0] obj pos", enemyObj->GetTranslate());
+		}
+	} else {
+		text += L"Enemy[0]: null\n";
+	}
+
+	AppendCameraDebugLines_(text, L"Active camera", activeCamera);
+	AppendCameraDebugLines_(text, L"Field camera", camera_.get());
+	AppendCameraDebugLines_(text, L"Action camera", actionCamera);
+
+	releaseDebugText_->SetText(text);
+}
 
 void GameScene::Draw3D(GameApp& app) {
 	app.Dx()->SetBackBuffer();
 
 	int windowW = WinApp::kClientWidth;
 	int windowH = WinApp::kClientHeight;
-	int battleHeight = static_cast<int>(windowH * splitRatio_);
+	const bool isBattleAnimationPlaying = battle_.IsActionSequencePlaying();
+	int battleHeight = isBattleAnimationPlaying ? windowH : static_cast<int>(windowH * splitRatio_);
 
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	app.ObjCom()->SetGraphicsPipelineState();
+	app.Dx()->ClearDepthBuffer();
 
 	if (player_) player_->Draw();
 	enemyMgr_.Draw();
@@ -748,24 +1068,41 @@ void GameScene::Draw3D(GameApp& app) {
 	}
 	battle_.DrawDamagePopups3D(app);
 
-	app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
-	app.ObjCom()->SetGraphicsPipelineState();
-	app.Dx()->ClearDepthBuffer();
-	battle_.DrawField3D(app);
+	if (!isBattleAnimationPlaying) {
+		app.Dx()->SetScissorRect(0, battleHeight, windowW, windowH);
+		app.ObjCom()->SetGraphicsPipelineState();
+		app.Dx()->ClearDepthBuffer();
+		battle_.DrawField3D(app);
 
-	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
-	app.ObjCom()->SetGraphicsPipelineState();
-	battle_.DrawBattleOverlay3D(app);
+		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+		app.ObjCom()->SetGraphicsPipelineState();
+		battle_.DrawBattleOverlay3D(app);
 
-	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
-	app.ObjCom()->SetGraphicsPipelineState();
-	app.Dx()->ClearDepthBuffer();
-	battle_.DrawCardArea3D(app);
+		app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+		app.ObjCom()->SetGraphicsPipelineState();
+		app.Dx()->ClearDepthBuffer();
+		battle_.DrawCardArea3D(app);
 
 	battle_.DrawPostEffect3D(app);
+	battle_.DrawFieldFrameBloom(app);
+
+	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
+	app.Dx()->ClearDepthBuffer();
+	if (fieldParticleManager_) {
+		if (particleObjectPostEnabled_) {
+			app.DrawModelParticlesObjectPost(fieldParticleManager_.get(), particleObjectPostParam_);
+		} else {
+			fieldParticleManager_->Draw();
+			app.ObjCom()->SetGraphicsPipelineState();
+		}
+	}
+		battle_.DrawPostEffect3D(app);
+	}
 
 	// 最後にビューポートを元に戻す（2D描画等のため）
 	app.Dx()->SetViewport(windowW, windowH);
+	app.ObjCom()->SetGraphicsPipelineState();
+
 }
 
 void GameScene::Draw2D(GameApp& app) {
@@ -782,6 +1119,15 @@ void GameScene::Draw2D(GameApp& app) {
 	pausingUI_->Draw(app);
 
 	if (pausingUI_->GetIsPaused()) {
+		return;
+	}
+
+	if (battle_.IsActionSequencePlaying()) {
+		battle_.Draw2D(app);
+		if (releaseDebugVisible_ && releaseDebugText_) {
+			releaseDebugText_->Update(view, proj);
+			releaseDebugText_->Draw();
+		}
 		return;
 	}
 
@@ -803,21 +1149,84 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 	if (playerHpText_) {
+		playerHpText_->SetPosition(playerHpTextPosition_);
+		playerHpText_->SetColor({ playerHpTextColor_.x, playerHpTextColor_.y, playerHpTextColor_.z });
+		playerHpText_->SetAlpha(playerHpTextColor_.w);
+		if (playerHpOutlineEnabled_) {
+			for (size_t i = 0; i < playerHpOutlineTexts_.size(); ++i) {
+				auto& outlineText = playerHpOutlineTexts_[i];
+				if (!outlineText) {
+					continue;
+				}
+				outlineText->SetPosition({
+					playerHpTextPosition_.x + kOutlineDirections[i].x * playerHpOutlineThickness_,
+					playerHpTextPosition_.y + kOutlineDirections[i].y * playerHpOutlineThickness_
+					});
+				outlineText->SetColor({
+					playerHpOutlineColor_.x,
+					playerHpOutlineColor_.y,
+					playerHpOutlineColor_.z
+					});
+				outlineText->SetAlpha(playerHpOutlineColor_.w);
+				outlineText->Update(view, proj);
+				outlineText->Draw();
+			}
+		}
 		playerHpText_->Update(view, proj);
 		playerHpText_->Draw();
 	}
 
-	if (powerBoostText_) {
+	if (powerupUiVisible_ && powerBoostText_) {
+		if (powerBoostBg_) {
+			powerBoostBg_->SetPosition(powerupUiPosition_);
+			powerBoostBg_->SetScale({
+				powerupUiSize_.x / kPowerupUiTextureSize.x,
+				powerupUiSize_.y / kPowerupUiTextureSize.y,
+				1.0f
+				});
+			powerBoostBg_->Update(view, proj);
+			powerBoostBg_->Draw();
+		}
+		powerBoostText_->SetPosition(powerBoostTextPosition_);
 		powerBoostText_->Update(view, proj);
 		powerBoostText_->Draw();
-		powerBoostBg_->Update(view, proj);
-		powerBoostBg_->Draw();
 	}
 	if (blockText_) {
+		if (blockBg_) {
+			blockBg_->SetPosition(defenseUiPosition_);
+			blockBg_->SetScale({
+				defenseUiSize_.x / kDefenseUiTextureSize.x,
+				defenseUiSize_.y / kDefenseUiTextureSize.y,
+				1.0f
+				});
+			blockBg_->Update(view, proj);
+			blockBg_->Draw();
+		}
+		blockText_->SetPosition(blockTextPosition_);
+		blockText_->SetColor({ blockTextColor_.x, blockTextColor_.y, blockTextColor_.z });
+		blockText_->SetAlpha(blockTextColor_.w);
+		if (blockOutlineEnabled_) {
+			for (size_t i = 0; i < blockOutlineTexts_.size(); ++i) {
+				auto& outlineText = blockOutlineTexts_[i];
+				if (!outlineText) {
+					continue;
+				}
+				outlineText->SetPosition({
+					blockTextPosition_.x + kOutlineDirections[i].x * blockOutlineThickness_,
+					blockTextPosition_.y + kOutlineDirections[i].y * blockOutlineThickness_
+					});
+				outlineText->SetColor({
+					blockOutlineColor_.x,
+					blockOutlineColor_.y,
+					blockOutlineColor_.z
+					});
+				outlineText->SetAlpha(blockOutlineColor_.w);
+				outlineText->Update(view, proj);
+				outlineText->Draw();
+			}
+		}
 		blockText_->Update(view, proj);
 		blockText_->Draw();
-		blockBg_->Update(view, proj);
-		blockBg_->Draw();
 	}
 
 	for (auto& text : enemyHpTexts_) {
@@ -827,10 +1236,22 @@ void GameScene::Draw2D(GameApp& app) {
 
 	if (isBossStage_ && bossStageBannerTimer_ > 0.0f) {
 		const float alpha = bossStageBannerTimer_ < 1.0f ? bossStageBannerTimer_ : 1.0f;
+		const float effectStrength = std::clamp(bossStageBannerTimer_ / kBossStageBannerDuration, 0.0f, 1.0f);
+		if (bossStageBannerEffectOverlay_) {
+			const float effectAlpha = (0.10f + 0.18f * effectStrength) * alpha;
+			bossStageBannerEffectOverlay_->SetColor({ 1.0f, 0.02f, 0.0f, effectAlpha });
+			BloomParam bannerParam = MakeBossStageBannerEffectParam_(app.ObjectPost()->GetParam(), effectStrength);
+			app.DrawSpriteObjectPost(bossStageBannerEffectOverlay_.get(), view, proj, bannerParam);
+		}
 		if (bossStageBannerBg_) {
 			bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f * alpha });
 			bossStageBannerBg_->Update(view, proj);
 			bossStageBannerBg_->Draw();
+		}
+		if (bossStageBannerGlowText_) {
+			bossStageBannerGlowText_->SetAlpha(0.16f * alpha);
+			bossStageBannerGlowText_->Update(view, proj);
+			bossStageBannerGlowText_->Draw();
 		}
 		if (bossStageBannerText_) {
 			bossStageBannerText_->SetAlpha(alpha);
@@ -844,13 +1265,21 @@ void GameScene::Draw2D(GameApp& app) {
 		text->Update(view, proj);
 		text->Draw();
 	}
+
+	if (releaseDebugVisible_ && releaseDebugText_) {
+		releaseDebugText_->Update(view, proj);
+		releaseDebugText_->Draw();
+	}
 }
 
 void GameScene::DrawImGui(GameApp& app) {
 #ifdef USE_IMGUI
+	DrawPlayerHudImGui_();
+
 	ImGui::Begin("UI Visibility", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Checkbox("Battle Debug", &battleDebugVisible_);
 	ImGui::Checkbox("Battle Effects", &battleEffectsDebugVisible_);
+	ImGui::Checkbox("Release Pos Debug Text", &releaseDebugVisible_);
 	ImGui::Separator();
 	ImGui::TextUnformatted("Animation Editor");
 	auto& editorWindows = animationEditor_.GetWindowVisibility();
@@ -869,6 +1298,8 @@ void GameScene::DrawImGui(GameApp& app) {
 	ImGui::SliderFloat("Battle Camera Zoom", &battleCameraZoom_, 0.1f, 3.0f);
 	ImGui::SliderFloat("Battle Camera RotX Offset", &battleCameraRotXOffset_, -0.5f, 0.5f);
 	ImGui::End();
+
+	DrawBattleAnimationDebugWindow_();
 
 	ImGui::Begin("Battle Debug", &battleDebugVisible_);
 	battle_.DrawImGui();
@@ -981,11 +1412,156 @@ void GameScene::DrawImGui(GameApp& app) {
 #endif
 }
 
+void GameScene::DrawPlayerHudImGui_()
+{
+#ifdef USE_IMGUI
+	ImGui::Begin("Player UI Adjust", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+	if (ImGui::CollapsingHeader("HP Gauge", ImGuiTreeNodeFlags_DefaultOpen)) {
+		battle_.DrawPlayerHudImGuiControls();
+	}
+
+	if (ImGui::CollapsingHeader("HP Number", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragFloat2("HP Number Position", &playerHpTextPosition_.x, 1.0f);
+		if (ImGui::DragInt("HP Number Font Size", &playerHpTextFontSize_, 1.0f, 8, 128)) {
+			playerHpTextFontSize_ = std::max(8, playerHpTextFontSize_);
+			if (playerHpText_) {
+				playerHpText_->SetFontSize(playerHpTextFontSize_);
+			}
+			for (auto& outlineText : playerHpOutlineTexts_) {
+				if (outlineText) {
+					outlineText->SetFontSize(playerHpTextFontSize_);
+				}
+			}
+		}
+		ImGui::ColorEdit4("HP Number Color", &playerHpTextColor_.x);
+		ImGui::Checkbox("HP Outline Enabled", &playerHpOutlineEnabled_);
+		ImGui::DragFloat("HP Outline Thickness", &playerHpOutlineThickness_, 0.1f, 0.0f, 12.0f);
+		ImGui::ColorEdit4("HP Outline Color", &playerHpOutlineColor_.x);
+	}
+
+	if (ImGui::CollapsingHeader("Defense UI", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragFloat2("Defense Image Position", &defenseUiPosition_.x, 1.0f);
+		ImGui::DragFloat2("Defense Image Size", &defenseUiSize_.x, 1.0f, 1.0f, 512.0f);
+		defenseUiSize_.x = std::max(1.0f, defenseUiSize_.x);
+		defenseUiSize_.y = std::max(1.0f, defenseUiSize_.y);
+		ImGui::DragFloat2("Defense Number Position", &blockTextPosition_.x, 1.0f);
+		if (ImGui::DragInt("Defense Number Font Size", &blockTextFontSize_, 1.0f, 8, 128)) {
+			blockTextFontSize_ = std::max(8, blockTextFontSize_);
+			if (blockText_) {
+				blockText_->SetFontSize(blockTextFontSize_);
+			}
+			for (auto& outlineText : blockOutlineTexts_) {
+				if (outlineText) {
+					outlineText->SetFontSize(blockTextFontSize_);
+				}
+			}
+		}
+		ImGui::ColorEdit4("Defense Number Color", &blockTextColor_.x);
+		ImGui::Checkbox("Defense Outline Enabled", &blockOutlineEnabled_);
+		ImGui::DragFloat("Defense Outline Thickness", &blockOutlineThickness_, 0.1f, 0.0f, 12.0f);
+		ImGui::ColorEdit4("Defense Outline Color", &blockOutlineColor_.x);
+	}
+
+	if (ImGui::CollapsingHeader("Powerup UI", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Powerup UI Visible", &powerupUiVisible_);
+		ImGui::DragFloat2("Powerup Image Position", &powerupUiPosition_.x, 1.0f);
+		ImGui::DragFloat2("Powerup Image Size", &powerupUiSize_.x, 1.0f, 1.0f, 512.0f);
+		powerupUiSize_.x = std::max(1.0f, powerupUiSize_.x);
+		powerupUiSize_.y = std::max(1.0f, powerupUiSize_.y);
+	}
+
+	ImGui::End();
+#endif
+}
+
+void GameScene::DrawBattleAnimationDebugWindow_()
+{
+#ifdef USE_IMGUI
+	ImGui::Begin("Battle Animation Scene Debug");
+
+	const bool isActionPlaying = battle_.IsActionSequencePlaying();
+	Camera* actionCamera = battle_.GetActionCamera();
+	Camera* editorCamera = isActionPlaying && actionCamera
+		? actionCamera
+		: (cameraEditTarget_ ? cameraEditTarget_ : camera_.get());
+
+	ImGui::Text("ActionSequencePlaying: %s", isActionPlaying ? "true" : "false");
+	ImGui::Checkbox("Force Action Camera LookAt", &forceActionCameraLookAt_);
+	ImGui::Text("SplitRatio: %.3f", splitRatio_);
+	ImGui::Text("Window: %d x %d", WinApp::kClientWidth, WinApp::kClientHeight);
+	ImGui::Text("BattleHeight: %d", isActionPlaying
+		? WinApp::kClientHeight
+		: static_cast<int>(WinApp::kClientHeight * splitRatio_));
+
+	ImGui::Separator();
+	ImGui::TextUnformatted("Player");
+	if (player_) {
+		DrawVector3Debug_("Player logic pos", player_->GetPos());
+		DrawVector3Debug_("Player world pos", player_->GetWorldPos());
+		ImGui::Text("Player HP/alive: %d / %s", player_->GetHP(), player_->GetIsAlive() ? "true" : "false");
+		bool releaseAnimationEnabled = player_->GetReleaseAnimationEnabled();
+		if (ImGui::Checkbox("Player Release Animations", &releaseAnimationEnabled)) {
+			player_->SetReleaseAnimationEnabled(releaseAnimationEnabled);
+		}
+		if (Object3d* playerObj = player_->GetObject3d()) {
+			DrawVector3Debug_("Player object pos", playerObj->GetTranslate());
+			DrawVector3Debug_("Player object rot", playerObj->GetRotate());
+			DrawVector3Debug_("Player object scale", playerObj->GetScale());
+			ImGui::Text("Player object camera: %p", static_cast<void*>(playerObj->GetCamera()));
+			ImGui::Text("Player model: %s", playerObj->GetModel() ? "loaded" : "null");
+			DrawClipDebug_("Player/actionCam", playerObj->GetTranslate(), actionCamera);
+			DrawClipDebug_("Player/editorCam", playerObj->GetTranslate(), editorCamera);
+
+			if (ImGui::Button("Refresh Player WVP")) {
+				playerObj->Update(0.0f);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Set Player Camera = Action") && actionCamera) {
+				player_->SetCamera(actionCamera);
+				playerObj->Update(0.0f);
+			}
+			if (ImGui::Button("LookAt Player/Enemy Now") && actionCamera) {
+				Vector3 target = player_->GetPos() + Vector3{ 0.0f, 1.0f, 0.0f };
+				actionCamera->SetRotate(MakeLookAtRotation_(actionCamera->GetTranslate(), target));
+				actionCamera->Update();
+				player_->SetCamera(actionCamera);
+				playerObj->Update(0.0f);
+			}
+		}
+	} else {
+		ImGui::TextUnformatted("player_: null");
+	}
+
+	ImGui::Separator();
+	ImGui::TextUnformatted("Enemy");
+	ImGui::Text("Enemy count: %d", static_cast<int>(enemyMgr_.GetEnemies().size()));
+	if (!enemyMgr_.GetEnemies().empty()) {
+		Enemy& enemy = enemyMgr_.GetEnemies().front();
+		DrawVector3Debug_("Enemy[0] pos", enemy.GetPos());
+		if (Object3d* enemyObj = enemy.GetObject3d()) {
+			DrawVector3Debug_("Enemy[0] object pos", enemyObj->GetTranslate());
+			ImGui::Text("Enemy[0] object camera: %p", static_cast<void*>(enemyObj->GetCamera()));
+			DrawClipDebug_("Enemy[0]/actionCam", enemyObj->GetTranslate(), actionCamera);
+		}
+	}
+
+	ImGui::Separator();
+	ImGui::TextUnformatted("Cameras");
+	DrawCameraDebug_("Field camera", camera_.get());
+	DrawCameraDebug_("Anim camera", animCamera_.get());
+	DrawCameraDebug_("Action camera", actionCamera);
+	DrawCameraDebug_("Editor camera", editorCamera);
+
+	ImGui::End();
+#endif
+}
+
 void GameScene::DrawSkydome(GameApp& app)
 {
 	int windowW = WinApp::kClientWidth;
 	int windowH = WinApp::kClientHeight;
-	int battleHeight = static_cast<int>(windowH * splitRatio_);
+	int battleHeight = battle_.IsActionSequencePlaying() ? windowH : static_cast<int>(windowH * splitRatio_);
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 
@@ -1000,14 +1576,12 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 {
 	int windowW = WinApp::kClientWidth;
 	int windowH = WinApp::kClientHeight;
-	int battleHeight = static_cast<int>(windowH * splitRatio_);
+	int battleHeight = battle_.IsActionSequencePlaying() ? windowH : static_cast<int>(windowH * splitRatio_);
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 
-	app.ObjCom()->SetGraphicsPipelineState();
-
 	if (particleObjectPostEnabled_) {
-		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_, battleHeight);
+		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
 		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	} else {
 		particleManager_->Draw();
@@ -1186,7 +1760,8 @@ bool GameScene::LoadCameraByIndex_(int index) {
 
 AnimationEditorSession::EditorContext GameScene::BuildEditorContext_() {
 	AnimationEditorSession::EditorContext context{};
-	context.editorCamera = cameraEditTarget_ ? cameraEditTarget_ : camera_.get();
+	Camera* actionCamera = battle_.IsActionSequencePlaying() ? battle_.GetActionCamera() : nullptr;
+	context.editorCamera = actionCamera ? actionCamera : (cameraEditTarget_ ? cameraEditTarget_ : camera_.get());
 	context.cameraAnimator = cameraAnim_.get();
 	context.canEditAnimation = (animationEditTarget_ != nullptr);
 	context.canEditCamera = (cameraEditTarget_ != nullptr && cameraAnim_ != nullptr);

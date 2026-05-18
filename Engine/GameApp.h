@@ -63,10 +63,11 @@ public:
     void EndObjectPostEffect();
     void EndObjectPostEffectToBloomScene();
     void DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const Matrix4x4& proj, const BloomParam& param);
-    void DrawModelParticlesObjectPostToBloomScene(
-        ModelParticleManager* particles,
-        const BloomParam& param,
-        int clipHeight = 0);
+    void DrawModelParticlesObjectPost(ModelParticleManager* particles, const BloomParam& param);
+    void DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param, int clipHeight = 0);
+    void SetRadialBlur(float strength);
+    void ResetRadialBlur();
+    int clipHeight = 0;
 
     Input* GetInput() { return input_.get(); }
     const Input* GetInput() const { return input_.get(); }
@@ -94,6 +95,7 @@ private:
     void WarmupAssets_();
     void LoadActionSequenceProfiles_();
     const ActionSequenceProfile* PickSequenceFromNames_(const std::vector<std::string>& names) const;
+    std::string NormalizeActionSequenceEffectType_(const std::string& effectType) const;
 private:
     bool quit_ = false;
 

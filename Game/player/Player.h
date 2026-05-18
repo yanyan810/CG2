@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "Vector3.h"
 #include "AABB.h"
@@ -71,6 +72,7 @@ public:
 	}
 	int GetMaxHP() const { return maxHp_; }
 	const Vector3& GetPos() const { return pos_; }
+	const Vector3& GetRotation() const { return rot_; }
 
 
 	int GetVampireHeal() const { return vampireHeal_; }
@@ -91,7 +93,7 @@ public:
 	// 攻撃技リストへのアクセス
 	std::vector<AttackMove>& GetAttackList() { return attackList_; }
 	const std::vector<AttackMove>& GetAttackList() const { return attackList_; }
-	void AddAttackMove(const AttackMove& move) { attackList_.push_back(move); }
+	void AddAttackMove(const AttackMove& move);
 
 	// EffectSequencerへのアクセス
 	EffectSequencer& GetEffectSequencer() { return effectSequencer_; }
@@ -113,16 +115,16 @@ public:
 
 	void SetPoisonDrawActive(bool active) { poisonDrawActive_ = active; }
 	bool GetPoisonDrawActive() const { return poisonDrawActive_; }
+	void SetReleaseAnimationEnabled(bool enabled) { releaseAnimationEnabled_ = enabled; }
+	bool GetReleaseAnimationEnabled() const { return releaseAnimationEnabled_; }
 
 	void SetFrostBiteActive(bool active) { frostBiteActive_ = active; }
 	bool GetFrostBiteActive() const { return frostBiteActive_; }
 
 private:
-#ifndef _DEBUG
 	void PlayReleaseIdleAnimation_();
 	void PlayRandomReleaseAttackAnimation_();
 	void PlayReleaseDamageAnimation_();
-#endif
 
 	std::unique_ptr<Object3d> model_;
 
@@ -158,9 +160,12 @@ private:
 
 	ParticleEmitterConfig attackEffectConfig_;
 
-//#ifndef _DEBUG
 	bool releaseAttackAnimationPlaying_ = false;
-//#endif
+#ifdef _DEBUG
+	bool releaseAnimationEnabled_ = false;
+#else
+	bool releaseAnimationEnabled_ = true;
+#endif
 
 	bool isRecordingTrail_ = false;
 
@@ -176,6 +181,7 @@ private:
 
 	// === 攻撃エフェクト連動 ===
 	std::vector<AttackMove> attackList_;       // 使用可能な技のリスト
+	std::unordered_map<std::string, EffectProfile> effectProfileCache_;
 	EffectSequencer effectSequencer_;           // プレイヤー専用のシーケンサー
 	float attackEffectTimer_ = 0.0f;            // 現在の攻撃アニメーション経過時間
 	bool effectFired_ = false;                  // エフェクト二重発射防止フラグ

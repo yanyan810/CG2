@@ -1,13 +1,11 @@
 #include "Player.h"
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
-#ifndef _DEBUG
+#include "ModelManager.h"
 #include <array>
 #include <random>
 #include <vector>
-#endif
 
-#ifndef _DEBUG
 namespace {
     bool HasAnimationNamed(const Object3d* object, const char* name) {
         if (!object || !object->GetModel()) {
@@ -18,7 +16,24 @@ namespace {
         return animations.find(name) != animations.end();
     }
 }
-#endif
+
+void Player::AddAttackMove(const AttackMove& move) {
+    attackList_.push_back(move);
+
+    if (move.effectJSON.empty()) {
+        return;
+    }
+
+    EffectProfile profile;
+    if (!EffectSequencer::LoadProfileCached(move.effectJSON, profile)) {
+        return;
+    }
+
+    effectProfileCache_[move.effectJSON] = profile;
+    if (!profile.projectile.modelPath.empty()) {
+        ModelManager::GetInstance()->LoadModel(profile.projectile.modelPath);
+    }
+}
 
 void Player::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam,
     ModelParticleManager* particleMgr, TrailManager* trailMgr) {
@@ -66,9 +81,9 @@ void Player::PlayAttackAnim(const Vector3& targetPos) {
     // 相手の位置の少し手前まで移動
     targetPos_ = Lerp(basePos_, targetPos, 0.8f);
 
-#ifndef _DEBUG
-    PlayRandomReleaseAttackAnimation_();
-#endif
+    if (releaseAnimationEnabled_) {
+        PlayRandomReleaseAttackAnimation_();
+    }
 }
 
 void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
@@ -98,11 +113,20 @@ void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
     const AttackMove& move = attackList_[index];
 
     // エフェクトプロファイルをJSONから読み込む
-    EffectProfile profile;
+    auto cachedProfile = effectProfileCache_.find(move.effectJSON);
     if (!move.effectJSON.empty()) {
-        if (EffectSequencer::LoadProfile(move.effectJSON, profile)) {
+        if (cachedProfile != effectProfileCache_.end()) {
             // プロファイルに fireDelay などの設定が含まれていることを確認
-            effectSequencer_.SetProfile(profile);
+            effectSequencer_.SetProfile(cachedProfile->second);
+        } else {
+            EffectProfile profile;
+            if (EffectSequencer::LoadProfileCached(move.effectJSON, profile)) {
+                effectProfileCache_[move.effectJSON] = profile;
+                if (!profile.projectile.modelPath.empty()) {
+                    ModelManager::GetInstance()->LoadModel(profile.projectile.modelPath);
+                }
+                effectSequencer_.SetProfile(profile);
+            }
         }
     }
 
@@ -110,9 +134,7 @@ void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
     if (!move.animationName.empty() && model_) {
         // model_内のアニメーション存在チェックを簡略化して確実に再生
         model_->PlayAnimation(move.animationName, false);
-#ifndef _DEBUG
-        releaseAttackAnimationPlaying_ = true;
-#endif
+        releaseAttackAnimationPlaying_ = releaseAnimationEnabled_;
     }
 }
 
@@ -208,11 +230,9 @@ void Player::Update(float dt) {
         // アニメーションの更新
         model_->Update(dt);
 
-#ifndef _DEBUG
-        if (releaseAttackAnimationPlaying_ && model_->IsAnimationFinished()) {
+        if (releaseAnimationEnabled_ && releaseAttackAnimationPlaying_ && model_->IsAnimationFinished()) {
             PlayReleaseIdleAnimation_();
         }
-#endif
     }
 
     // 敵の弾などが当たったか判定するための箱（AABB）を自分の位置に合わせて更新
@@ -221,7 +241,6 @@ void Player::Update(float dt) {
     
 }
 
-#ifndef _DEBUG
 void Player::PlayReleaseIdleAnimation_() {
     if (!HasAnimationNamed(model_.get(), "CustomAnim")) {
         releaseAttackAnimationPlaying_ = false;
@@ -280,7 +299,6 @@ void Player::PlayReleaseDamageAnimation_() {
     model_->PlayAnimation(animationName, false);
     releaseAttackAnimationPlaying_ = true;
 }
-#endif
 
 void Player::Draw() {
     if (model_&&isAlive_) {
@@ -322,14 +340,14 @@ void Player::Damage(int damage)
 
     hp_ -= damage;
 
-    if (hp_ < 0) {
+    if (hp_ <= 0) {
         hp_ = 0;
         isAlive_ = false;
     }
 
-#ifndef _DEBUG
-    PlayReleaseDamageAnimation_();
-#endif
+    if (releaseAnimationEnabled_) {
+        PlayReleaseDamageAnimation_();
+    }
 }
 
 Vector3 Player::GetWeaponTipPos() {

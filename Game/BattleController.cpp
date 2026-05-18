@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <set>
 #include <random>
 
@@ -19,9 +20,26 @@
 
 #include "FieldUi.h"
 #include "AudioManager.h"
+#include "ModelParticleManager.h"
 
 namespace {
 	float sPokerGlowRainbowTime = 0.0f;
+	constexpr Vector2 kPlayerHpGaugeTextureSize{ 351.0f, 32.0f };
+	Vector3 sFieldCardGlitterLocalOffset = { 0.0f, 3.0f, 0.0f };
+	float sFieldCardGlitterSpreadX = 2.0f;
+	float sFieldCardGlitterSpreadY = 0.0f;
+	float sFieldCardGlitterEmitInterval = 0.12f;
+	int sFieldCardGlitterNormalCount = 0;
+	int sFieldCardGlitterHighlightCount = 10;
+	bool sFieldFrameBloomEnabled = true;
+	float sFieldFrameBloomThreshold = 0.0f;
+	float sFieldFrameBloomIntensity = 1.4f;
+	float sFieldFrameBloomMinPulse = 0.0f;
+	float sFieldFrameBloomChromAb = 0.0f;
+	bool sHandPokerPreviewEnabled = true;
+	float sHandCardGlitterEmitInterval = 0.12f;
+	int sHandCardGlitterCount = 3;
+	float sHandFrameBloomIntensity = 1.4f;
 
 	Vector4 HsvToRgb_(float hue, float saturation, float value)
 	{
@@ -83,11 +101,23 @@ namespace {
 		}
 	}
 
+	Vector4 LerpColor_(const Vector4& a, const Vector4& b, float t)
+	{
+		t = std::clamp(t, 0.0f, 1.0f);
+		return {
+			a.x + (b.x - a.x) * t,
+			a.y + (b.y - a.y) * t,
+			a.z + (b.z - a.z) * t,
+			a.w + (b.w - a.w) * t
+		};
+	}
+
 	std::wstring Utf8ToWString_(const std::string& text)
 	{
 		if (text.empty()) {
 			return L"";
 		}
+
 
 		const int size = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
 		if (size <= 1) {
@@ -126,6 +156,14 @@ namespace {
 		return { 0.85f, 0.85f, 0.85f };
 	}
 
+	int RollEnemyActionCount_()
+	{
+		static std::random_device rd;
+		static std::mt19937 gen(rd());
+		std::uniform_int_distribution<int> dist(3, 6);
+		return dist(gen);
+	}
+
 }
 
 //===============================
@@ -151,9 +189,14 @@ const char* BattleController::GetPokerHandName_(PokerHandRank rank) const
 
 BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
 {
+	return EvaluatePokerHandForCards_(field_);
+}
+
+BattleController::PokerHandResult BattleController::EvaluatePokerHandForCards_(const std::vector<CardInstance>& cards) const
+{
 	PokerHandResult result{};
 
-	if (field_.size() != 5) {
+	if (cards.size() != 5) {
 		result.rank = PokerHandRank::None;
 		result.power = 0;
 		return result;
@@ -165,7 +208,7 @@ BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
 	std::vector<int> numbers;
 	numbers.reserve(5);
 
-	for (const auto& c : field_) {
+	for (const auto& c : cards) {
 		if (c.number >= 1 && c.number <= 13) {
 			countNumber[c.number]++;
 			numbers.push_back(c.number);
@@ -281,35 +324,6 @@ BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
 	} else {
 		result.rank = PokerHandRank::None;
 		result.power = 0;
-	}
-
-	{
-		const char* rankName = "None";
-		switch (result.rank) {
-		case PokerHandRank::OnePair: rankName = "OnePair"; break;
-		case PokerHandRank::TwoPair: rankName = "TwoPair"; break;
-		case PokerHandRank::ThreeOfAKind: rankName = "ThreeOfAKind"; break;
-		case PokerHandRank::Straight: rankName = "Straight"; break;
-		case PokerHandRank::Flush: rankName = "Flush"; break;
-		case PokerHandRank::FullHouse: rankName = "FullHouse"; break;
-		case PokerHandRank::FourOfAKind: rankName = "FourOfAKind"; break;
-		case PokerHandRank::StraightFlush: rankName = "StraightFlush"; break;
-		case PokerHandRank::RoyalStraightFlush: rankName = "RoyalStraightFlush"; break;
-		case PokerHandRank::None:
-		default:
-			break;
-		}
-
-		char buf[256];
-		std::snprintf(
-			buf,
-			sizeof(buf),
-			"[PokerEval] straight=%d flush=%d royal=%d rank=%s\n",
-			isStraight ? 1 : 0,
-			isFlush ? 1 : 0,
-			isRoyal ? 1 : 0,
-			rankName);
-		OutputDebugStringA(buf);
 	}
 
 	return result;
@@ -759,36 +773,47 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	// まだ先読みされていなければここで保険として実行
 	Preload(app);
 
-	actionDirector_.Initialize(spriteCom_, dx_);
+	actionDirector_.Initialize(spriteCom_, dx_, objCom_);
 
 	// -----------------------------
 	// HPゲージ作成
 	// -----------------------------
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/HP_gauge.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/HP_gaugelost.png");
+
+	playerHpFrame_ = std::make_unique<Sprite>();
+	playerHpFrame_->Initialize(spriteCom_, dx_, "resources/ui/gauge/HP_gauge.png");
+	playerHpFrame_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+
 	playerHpBg_ = std::make_unique<Sprite>();
 	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-	playerHpBg_->SetScale({ 250.0f, 18.0f, 1.0f });
-	playerHpBg_->SetPosition({ 80.0f, 40.0f });
 
 	playerHpFg_ = std::make_unique<Sprite>();
 	playerHpFg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerHpFg_->SetColor({ 0.2f, 0.8f, 0.2f, 1.0f });
-	playerHpFg_->SetScale({ 250.0f, 18.0f, 1.0f });
-	playerHpFg_->SetPosition({ 80.0f, 40.0f });
+
+	playerHpDamageFlash_ = std::make_unique<Sprite>();
+	playerHpDamageFlash_->Initialize(spriteCom_, dx_, "resources/ui/gauge/HP_gaugelost.png");
+	playerHpDamageFlash_->SetColor({ 1.0f, 1.0f, 1.0f, 0.0f });
 
 	playerHpPredict_ = std::make_unique<Sprite>();
-	playerHpPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	playerHpPredict_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
+	playerHpPredict_->Initialize(spriteCom_, dx_, "resources/ui/gauge/HP_gaugelost.png");
+	playerHpPredict_->SetColor({ 1.0f, 1.0f, 1.0f, playerAttackPreviewAlpha_ });
 
 	playerBlockPredict_ = std::make_unique<Sprite>();
 	playerBlockPredict_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
 	playerBlockPredict_->SetColor({ 0.0f, 0.0f, 1.0f, 1.f });
+
+	ApplyPlayerHudLayout_();
+	playerLastHp_ = player_ ? player_->GetHP() : -1;
 
 	enemyHpBgs_.clear();
 	enemyHpFgs_.clear();
 	enemyBlockPredicts_.clear();
 	enemyIntentIcons_.clear();
 	enemyIntentTexts_.clear();
+	enemyIntentCountTexts_.clear();
 
 	for (int i = 0; i < 3; ++i) {
 		auto bg = std::make_unique<Sprite>();
@@ -828,6 +853,16 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 		text->SetColor({ 1.0f, 1.0f, 1.0f });
 		text->SetPosition({ 0.0f, 0.0f });
 		enemyIntentTexts_.push_back(std::move(text));
+
+		auto countText = std::make_unique<TextSprite>();
+		countText->Initialize(spriteCom_, dx_);
+		countText->SetText(L"");
+		countText->SetFontSize(24);
+		countText->SetSize({ 0.75f, 0.75f, 1.0f });
+		countText->SetAlpha(1.0f);
+		countText->SetColor({ 1.0f, 0.92f, 0.35f });
+		countText->SetPosition({ 0.0f, 0.0f });
+		enemyIntentCountTexts_.push_back(std::move(countText));
 	}
 
 	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
@@ -835,8 +870,10 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	float height = (float)WinApp::kClientHeight;
 	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
 
+	if (playerHpFrame_) playerHpFrame_->Update(viewMat, projMat);
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (playerHpDamageFlash_) playerHpDamageFlash_->Update(viewMat, projMat);
 	if (playerHpPredict_)playerHpPredict_->Update(viewMat, projMat);
 	if (playerBlockPredict_)playerBlockPredict_->Update(viewMat, projMat);
 
@@ -845,6 +882,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	for (auto& block : enemyBlockPredicts_) { if (block) block->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 	for (auto& text : enemyIntentTexts_) { if (text) text->Update(viewMat, projMat); }
+	for (auto& text : enemyIntentCountTexts_) { if (text) text->Update(viewMat, projMat); }
 
 	// ここはコピーだけ
 	deck_ = prebuiltDeck_;
@@ -1388,11 +1426,18 @@ void BattleController::StartPlayerTurn_()
 		}
 	}
 	if (enemyMgr_) {
-		for (auto& e : enemyMgr_->GetEnemies()) {
-			if (e.IsAlive()) {
-				e.GetBossAI().DecideNextAction();
+		auto& enemies = enemyMgr_->GetEnemies();
+		enemyActionCounts_.assign(enemies.size(), 0);
+		enemyActedByCountThisTurn_.assign(enemies.size(), false);
+		for (size_t i = 0; i < enemies.size(); ++i) {
+			if (enemies[i].IsAlive()) {
+				enemies[i].GetBossAI().DecideNextAction();
+				enemyActionCounts_[i] = RollEnemyActionCount_();
 			}
 		}
+	} else {
+		enemyActionCounts_.clear();
+		enemyActedByCountThisTurn_.clear();
 	}
 }
 
@@ -1885,10 +1930,33 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 	}
 }
 
+Vector4 GetPokerTransitionColor_(
+	BattleController::PokerHandRank beforeRank,
+	BattleController::PokerHandRank afterRank,
+	float time)
+{
+	const Vector4 beforeColor = GetPokerFrameColor_(beforeRank, time);
+	const Vector4 afterColor = GetPokerFrameColor_(afterRank, time);
+	const float pulse = 0.5f + 0.5f * std::sin(time * 1.6f);
+	return LerpColor_(beforeColor, afterColor, pulse);
+}
+
+float GetPokerGlitterIntensity_(BattleController::PokerHandRank rank)
+{
+	if (rank == BattleController::PokerHandRank::None) {
+		return 0.0f;
+	}
+	if (rank <= BattleController::PokerHandRank::TwoPair) {
+		return 5.0f;
+	}
+	if (rank <= BattleController::PokerHandRank::FullHouse) {
+		return 10.0f;
+	}
+	return 15.0f;
+}
+
 void BattleController::RefreshAllFieldCardTransforms_(float dt)
 {
-	sPokerGlowRainbowTime += dt;
-
 	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
 		const bool hovered =
 			(cardState_ == CardInputState::ChoosingFieldReplace && i == fieldReplaceHoverIndex_) ||
@@ -1904,17 +1972,265 @@ void BattleController::RefreshAllFieldCardTransforms_(float dt)
 		currentPoker_.power = 0;
 	}
 
+	UpdateFieldReplacePreviewEffects_();
+
 	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
 	const Vector4 frameColor = GetPokerFrameColor_(currentPoker_.rank, sPokerGlowRainbowTime);
+	const bool inReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_;
 	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
 		if (!fieldViews_[i]) {
 			continue;
 		}
 
-		if (i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None) {
+		PokerHandRank replacePreviewRank = PokerHandRank::None;
+		if (i < static_cast<int>(fieldReplacePreviewRanks_.size())) {
+			replacePreviewRank = fieldReplacePreviewRanks_[i];
+		}
+		const bool replacePreviewActive =
+			i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
+			fieldReplacePreviewActive_[i];
+
+		if (replacePreviewActive) {
+			fieldViews_[i]->SetFrameColor(GetPokerTransitionColor_(currentPoker_.rank, replacePreviewRank, sPokerGlowRainbowTime));
+			const float previewIntensity = std::max(
+				GetPokerGlitterIntensity_(currentPoker_.rank),
+				GetPokerGlitterIntensity_(replacePreviewRank));
+			fieldViews_[i]->SetGlitter(previewIntensity > 0.0f ? previewIntensity : 4.0f);
+		} else if (!inReplacePreview && i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None) {
 			fieldViews_[i]->SetFrameColor(frameColor);
+			fieldViews_[i]->SetGlitter(GetPokerGlitterIntensity_(currentPoker_.rank));
 		} else {
 			fieldViews_[i]->ResetFrameColor();
+			fieldViews_[i]->SetGlitter(0.0f);
+		}
+	}
+}
+
+void BattleController::UpdateFieldReplacePreviewEffects_()
+{
+	fieldReplacePreviewRanks_.assign(fieldViews_.size(), PokerHandRank::None);
+	fieldReplacePreviewActive_.assign(fieldViews_.size(), false);
+
+	if (cardState_ != CardInputState::ChoosingFieldReplace ||
+		!hasPendingCard_ ||
+		field_.size() != 5 ||
+		fieldViews_.size() < 5) {
+		return;
+	}
+
+	PokerHandRank bestRank = PokerHandRank::None;
+	std::array<PokerHandRank, 5> ranks{};
+	ranks.fill(PokerHandRank::None);
+
+	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
+		std::vector<CardInstance> candidate = field_;
+		candidate[replaceIndex] = pendingCard_;
+		const PokerHandRank rank = EvaluatePokerHandForCards_(candidate).rank;
+		ranks[replaceIndex] = rank;
+		if (rank > bestRank) {
+			bestRank = rank;
+		}
+	}
+
+	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
+		fieldReplacePreviewRanks_[replaceIndex] = ranks[replaceIndex];
+	}
+
+	if (fieldReplaceHoverIndex_ >= 0 && fieldReplaceHoverIndex_ < 5) {
+		fieldReplacePreviewActive_[fieldReplaceHoverIndex_] = true;
+		return;
+	}
+
+	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
+		if (ranks[replaceIndex] == bestRank && bestRank != PokerHandRank::None) {
+			fieldReplacePreviewActive_[replaceIndex] = true;
+		}
+	}
+}
+
+void BattleController::EmitFieldCardGlitter_(float dt)
+{
+	if (fieldViews_.empty()) {
+		fieldCardGlitterEmitTimer_ = 0.0f;
+		return;
+	}
+
+	fieldCardGlitterEmitTimer_ += dt;
+	if (fieldCardGlitterEmitTimer_ < sFieldCardGlitterEmitInterval) {
+		return;
+	}
+	fieldCardGlitterEmitTimer_ = 0.0f;
+
+	const bool hasPoker = currentPoker_.rank != PokerHandRank::None;
+	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
+	const Vector4 pokerColor = GetPokerFrameColor_(currentPoker_.rank, sPokerGlowRainbowTime);
+	const bool useReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && !fieldReplacePreviewRanks_.empty();
+	ModelParticleManager* particles = fieldParticleManager_;
+	if (!particles) {
+		return;
+	}
+
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		if (!fieldViews_[i]) {
+			continue;
+		}
+
+		PokerHandRank replacePreviewRank = PokerHandRank::None;
+		if (i < static_cast<int>(fieldReplacePreviewRanks_.size())) {
+			replacePreviewRank = fieldReplacePreviewRanks_[i];
+		}
+		const bool replacePreviewActive =
+			i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
+			fieldReplacePreviewActive_[i];
+
+		const bool highlighted = replacePreviewActive || (hasPoker && i < 5 && highlightMask[i]);
+		if (useReplacePreview && !replacePreviewActive) {
+			continue;
+		}
+
+		const uint32_t emitCount = static_cast<uint32_t>(std::max(0, highlighted ? sFieldCardGlitterHighlightCount : sFieldCardGlitterNormalCount));
+		const Vector4 highlightColor = replacePreviewActive
+			? GetPokerTransitionColor_(currentPoker_.rank, replacePreviewRank, sPokerGlowRainbowTime)
+			: pokerColor;
+
+		for (uint32_t emitIndex = 0; emitIndex < emitCount; ++emitIndex) {
+			const Vector3 localOffset = {
+				sFieldCardGlitterLocalOffset.x + Rand(-sFieldCardGlitterSpreadX, sFieldCardGlitterSpreadX),
+				sFieldCardGlitterLocalOffset.y + Rand(-sFieldCardGlitterSpreadY, sFieldCardGlitterSpreadY),
+				sFieldCardGlitterLocalOffset.z
+			};
+			Vector3 pos = fieldViews_[i]->GetWorldPointFromLocal(localOffset);
+			const Vector4 color = highlighted ? highlightColor : Vector4{ 1.0f, 1.0f, 1.0f, 0.55f };
+			particles->Emit("card_glitter", pos, 1u, color);
+		}
+	}
+}
+
+uint64_t BattleController::BuildHandPokerPreviewSignature_() const
+{
+	uint64_t hash = 1469598103934665603ull;
+	auto mix = [&hash](uint64_t value) {
+		hash ^= value + 0x9e3779b97f4a7c15ull + (hash << 6) + (hash >> 2);
+		hash *= 1099511628211ull;
+	};
+
+	mix(sHandPokerPreviewEnabled ? 1ull : 0ull);
+	mix(static_cast<uint64_t>(currentPoker_.rank));
+	mix(static_cast<uint64_t>(field_.size()));
+	for (const auto& card : field_) {
+		mix(static_cast<uint64_t>(card.defId));
+		mix(static_cast<uint64_t>(card.number));
+		mix(static_cast<uint64_t>(card.suit));
+	}
+
+	mix(static_cast<uint64_t>(hand_.size()));
+	for (const auto& card : hand_) {
+		mix(static_cast<uint64_t>(card.defId));
+		mix(static_cast<uint64_t>(card.number));
+		mix(static_cast<uint64_t>(card.suit));
+	}
+
+	mix(static_cast<uint64_t>(handView_.GetCardCount()));
+	return hash;
+}
+
+void BattleController::UpdateHandPokerPreviewEffects_()
+{
+	const uint64_t signature = BuildHandPokerPreviewSignature_();
+	if (signature == handPreviewSignature_) {
+		return;
+	}
+	handPreviewSignature_ = signature;
+
+	handPreviewRanks_.assign(hand_.size(), PokerHandRank::None);
+
+	if (!sHandPokerPreviewEnabled || hand_.empty()) {
+		handView_.ClearCardEffects();
+		return;
+	}
+
+	bool anyPreview = false;
+	const int handCount = std::min<int>(static_cast<int>(hand_.size()), handView_.GetCardCount());
+
+	for (int handIndex = 0; handIndex < handCount; ++handIndex) {
+		PokerHandRank bestRank = PokerHandRank::None;
+
+		if (field_.size() < 5) {
+			std::vector<CardInstance> candidate = field_;
+			candidate.push_back(hand_[handIndex]);
+			if (candidate.size() == 5) {
+				bestRank = EvaluatePokerHandForCards_(candidate).rank;
+			}
+		} else if (field_.size() == 5) {
+			for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
+				std::vector<CardInstance> candidate = field_;
+				candidate[replaceIndex] = hand_[handIndex];
+				const PokerHandRank rank = EvaluatePokerHandForCards_(candidate).rank;
+				if (rank > bestRank) {
+					bestRank = rank;
+				}
+			}
+		}
+
+		if (bestRank <= currentPoker_.rank) {
+			bestRank = PokerHandRank::None;
+		}
+
+		handPreviewRanks_[handIndex] = bestRank;
+
+		if (bestRank != PokerHandRank::None) {
+			const Vector4 color = GetPokerFrameColor_(bestRank, sPokerGlowRainbowTime);
+			handView_.SetCardEffect(handIndex, color, GetPokerGlitterIntensity_(bestRank));
+			anyPreview = true;
+		} else {
+			handView_.ResetCardEffect(handIndex);
+		}
+	}
+
+	if (!anyPreview) {
+		handView_.ClearCardEffects();
+	}
+}
+
+void BattleController::EmitHandCardGlitter_(float dt)
+{
+	if (!sHandPokerPreviewEnabled || handPreviewRanks_.empty()) {
+		handCardGlitterEmitTimer_ = 0.0f;
+		return;
+	}
+
+	handCardGlitterEmitTimer_ += dt;
+	if (handCardGlitterEmitTimer_ < sHandCardGlitterEmitInterval) {
+		return;
+	}
+	handCardGlitterEmitTimer_ = 0.0f;
+
+	ModelParticleManager* particles = fieldParticleManager_;
+	if (!particles) {
+		return;
+	}
+
+	const int handCount = std::min<int>(static_cast<int>(handPreviewRanks_.size()), handView_.GetCardCount());
+	for (int i = 0; i < handCount; ++i) {
+		const PokerHandRank rank = handPreviewRanks_[i];
+		if (rank == PokerHandRank::None) {
+			continue;
+		}
+
+		Card3D* card = handView_.GetCard(i);
+		if (!card) {
+			continue;
+		}
+
+		const Vector4 color = GetPokerFrameColor_(rank, sPokerGlowRainbowTime);
+		const uint32_t emitCount = static_cast<uint32_t>(std::max(0, sHandCardGlitterCount));
+		for (uint32_t emitIndex = 0; emitIndex < emitCount; ++emitIndex) {
+			const Vector3 localOffset = {
+				sFieldCardGlitterLocalOffset.x + Rand(-sFieldCardGlitterSpreadX, sFieldCardGlitterSpreadX),
+				sFieldCardGlitterLocalOffset.y + Rand(-sFieldCardGlitterSpreadY, sFieldCardGlitterSpreadY),
+				sFieldCardGlitterLocalOffset.z
+			};
+			particles->Emit("card_glitter", card->GetWorldPointFromLocal(localOffset), 1u, color);
 		}
 	}
 }
@@ -2000,6 +2316,8 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 	UpdateLogic_(app, fieldUi, dt);
 
 	UpdateVisuals_(dt);
+	EmitFieldCardGlitter_(dt);
+	EmitHandCardGlitter_(dt);
 }
 
 Camera* BattleController::GetActionCamera() const
@@ -2291,7 +2609,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								}
 							}
 
-							if (sequenceTarget && BeginCardActionSequence_(app, *def, *sequenceTarget)) {
+							if (sequenceTarget && BeginCardActionSequence_(app, *def, inst, *sequenceTarget)) {
 								handView_.SetFocusIndex(idx);
 								cardState_ = CardInputState::ExecutingSequence;
 
@@ -2336,6 +2654,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								pendingCardView_ = std::move(usedCardView);
 								cardState_ = CardInputState::ChoosingFieldReplace;
 							}
+							OnPlayerCardUsed_();
 						} else {
 							cardState_ = CardInputState::Idle;
 						}
@@ -2468,7 +2787,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 						const CardInstance& inst = hand_[pendingCardHandIndex_];
 						const CardDef* def = db_.Find(inst.defId);
-						if (def && BeginCardActionSequence_(app, *def, targetEnemy)) {
+						if (def && BeginCardActionSequence_(app, *def, inst, targetEnemy)) {
 							cardState_ = CardInputState::ExecutingSequence;
 						} else {
 							actionSequenceTarget_ = &targetEnemy;
@@ -2517,7 +2836,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 			if (enemyMgr_ && player_) {
 				auto& enemies = enemyMgr_->GetEnemies();
-				while (currentEnemyIndex_ < enemies.size() && !enemies[currentEnemyIndex_].IsAlive()) {
+				while (currentEnemyIndex_ < enemies.size() &&
+					(!enemies[currentEnemyIndex_].IsAlive() ||
+						(currentEnemyIndex_ < enemyActedByCountThisTurn_.size() &&
+							enemyActedByCountThisTurn_[currentEnemyIndex_]))) {
 					currentEnemyIndex_++;
 				}
 
@@ -2528,19 +2850,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					Enemy& e = enemies[currentEnemyIndex_];
 					EnemyAction action = e.GetBossAI().GetNextAction();
 
-					if (action.type == "Attack") {
-						e.PlayAttackAnim(player_->GetPos());
-						player_->TriggerHitFlash(0.2f);
-						player_->PlayDamageAnim();
-						player_->Damage(action.value);
-						if (action.value > 0) {
-							SpawnDamagePopup(player_->GetPos(), action.value, true); // ★追加
-						}
-					} else if (action.type == "Heal") {
-						e.Heal(action.value);
-					} else if (action.type == "Block") {
-						e.AddBlock(action.value);
-					}
+					ExecuteEnemyAction_(e, action);
 
 					enemyWait_ = 1.0f;
 
@@ -2586,14 +2896,24 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	if (discardView_) {
 		discardView_->Update(dt);
 	}
+	if (player_) {
+		const int currentPlayerHp = player_->GetHP();
+		if (playerLastHp_ >= 0 && currentPlayerHp < playerLastHp_ && playerDamageFlashEnabled_) {
+			playerDamageFlashTimer_ = playerDamageFlashFadeDuration_;
+		}
+		playerLastHp_ = currentPlayerHp;
+	}
+	if (playerDamageFlashTimer_ > 0.0f) {
+		playerDamageFlashTimer_ = std::max(0.0f, playerDamageFlashTimer_ - dt);
+	}
 	// HPゲージの長さと位置を毎フレーム更新する
 	// プレイヤーのHPゲージ計算
 	if (player_ && playerHpFg_) {
 		float hpRatio = (float)player_->GetHP() / (float)player_->GetMaxHP();
 		if (hpRatio < 0.0f) hpRatio = 0.0f;
 
-		//playerHpFg_->SetScale({ 250.0f * hpRatio, 18.0f, 1.0f });
-		playerHpFg_->SetPosition({ 80.0f, 40.0f });
+		//playerHpFg_->SetScale({ playerHpFillSize_.x * hpRatio, playerHpFillSize_.y, 1.0f });
+		playerHpFg_->SetPosition(playerHpFillPosition_);
 	}
 
 	// ボスのHPゲージ計算
@@ -2632,31 +2952,48 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
 				const bool hasIntent = !nextAct.type.empty() || !nextAct.name.empty();
+				const bool actedByCount =
+					i < enemyActedByCountThisTurn_.size() && enemyActedByCountThisTurn_[i];
 				if (hasIntent) {
 
-					// 行動タイプによって色を変える！
-					if (nextAct.type == "Attack") {
-						enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
-					} else if (nextAct.type == "Heal") {
-						enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
-					} else if (nextAct.type == "Block") {
-						enemyIntentIcons_[i]->SetColor({ 0.25f, 0.55f, 1.0f, 1.0f });
-					} else {
-						enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
-					}
+				// 行動タイプによって色を変える！
+                if (actedByCount) {
+                    enemyIntentIcons_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+                } else if (nextAct.type == "Attack") {
+                    enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+                } else if (nextAct.type == "Heal") {
+                    enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
+                } else if (nextAct.type == "Block") {
+                    enemyIntentIcons_[i]->SetColor({ 0.25f, 0.55f, 1.0f, 1.0f });
+                } else {
+                    enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
+                }
 
 					enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
 					// HPゲージの原点にもよりますが、左に30pxほどずらします
 					enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
 					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
-						enemyIntentTexts_[i]->SetText(GetEnemyIntentText_(nextAct));
+						enemyIntentTexts_[i]->SetText(actedByCount ? L"" : GetEnemyIntentText_(nextAct));
 						enemyIntentTexts_[i]->SetColor(GetEnemyIntentTextColor_(nextAct.type));
 						enemyIntentTexts_[i]->SetPosition({ posX - 100.0f, posY - 10.0f });
+					}
+					if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
+						const int count = i < enemyActionCounts_.size() ? enemyActionCounts_[i] : 0;
+						if (!actedByCount && count > 0) {
+							enemyIntentCountTexts_[i]->SetText(std::to_wstring(count));
+							enemyIntentCountTexts_[i]->SetColor({ 0.0f, 0.0f, 0.0f });
+							enemyIntentCountTexts_[i]->SetPosition({ posX - 37.0f, posY - 12.3f });
+						} else {
+							enemyIntentCountTexts_[i]->SetText(L"");
+						}
 					}
 				} else {
 					enemyIntentIcons_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
 					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
 						enemyIntentTexts_[i]->SetText(L"");
+					}
+					if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
+						enemyIntentCountTexts_[i]->SetText(L"");
 					}
 				}
 			} else {
@@ -2670,6 +3007,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
 					enemyIntentTexts_[i]->SetText(L"");
 				}
+				if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
+					enemyIntentCountTexts_[i]->SetText(L"");
+				}
 			}
 		}
 	}
@@ -2677,17 +3017,47 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 void BattleController::UpdateVisuals_(float dt)
 {
-	// 1. 手札の更新
-	handView_.Update(dt);
+	sPokerGlowRainbowTime += dt;
 
-	// 2. フィールドカードの更新（ラメ・アニメーションの進行）
+	const bool actionOrEnemyAttack =
+		actionDirector_.IsPlaying() ||
+		cardState_ == CardInputState::ExecutingSequence ||
+		turn_ == TurnState::Enemy;
+
+	if (actionOrEnemyAttack) {
+		for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
+			it->timer -= 1.0f;
+			it->pos.y += 0.05f;
+			if (it->timer <= 0.0f) {
+				it = damagePopups_.erase(it);
+			} else {
+				const float gap = 0.8f;
+				const int count = static_cast<int>(it->digitModels.size());
+				const float startX = -gap * 0.5f * (count - 1);
+				for (size_t i = 0; i < it->digitModels.size(); ++i) {
+					Vector3 digitPos = it->pos;
+					digitPos.x += startX + gap * i;
+					digitPos.z -= 1.0f;
+
+					it->digitModels[i]->SetTranslate(digitPos);
+					it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
+					it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
+					it->digitModels[i]->Update(dt);
+				}
+				++it;
+			}
+		}
+		return;
+	}
+
+	// 1. フィールドカードの更新（ラメ・アニメーションの進行）
 	for (auto& cardView : fieldViews_) {
 		if (cardView) {
 			cardView->Update(dt); // これが呼ばれればどんな状態でもラメが動きます
 		}
 	}
 
-	// 3. 座標の移動更新（目標地点へスムーズに動かす）
+	// 2. 座標の移動更新（目標地点へスムーズに動かす）
 	if (fieldLayoutDirty_ ||
 		cardState_ == CardInputState::ChoosingFieldReplace ||
 		pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi)
@@ -2695,6 +3065,10 @@ void BattleController::UpdateVisuals_(float dt)
 		RefreshAllFieldCardTransforms_(dt);
 		// ※ Refresh~ の中で fieldLayoutDirty_ = false; をしていることを確認
 	}
+
+	// 3. 手札の「出すと作れる最高役」プレビューを反映してから更新
+	UpdateHandPokerPreviewEffects_();
+	handView_.Update(dt);
 
 	// 4. 墓地・数字ポップアップの更新
 	if (discardView_) discardView_->Update(dt);
@@ -2729,8 +3103,10 @@ void BattleController::UpdateVisuals_(float dt)
 	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
 	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix((float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
 
+	if (playerHpFrame_) playerHpFrame_->Update(viewMat, projMat);
 	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
 	if (playerHpFg_) playerHpFg_->Update(viewMat, projMat);
+	if (playerHpDamageFlash_) playerHpDamageFlash_->Update(viewMat, projMat);
 	if (playerHpPredict_) playerHpPredict_->Update(viewMat, projMat);
 	if (playerBlockPredict_) playerBlockPredict_->Update(viewMat, projMat);
 	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
@@ -2738,6 +3114,7 @@ void BattleController::UpdateVisuals_(float dt)
 	for (auto& block : enemyBlockPredicts_) { if (block) block->Update(viewMat, projMat); }
 	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
 	for (auto& text : enemyIntentTexts_) { if (text) text->Update(viewMat, projMat); }
+	for (auto& text : enemyIntentCountTexts_) { if (text) text->Update(viewMat, projMat); }
 	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
 	if (propManager_) {
@@ -3036,6 +3413,7 @@ void BattleController::Draw3D(GameApp& app)
 void BattleController::DrawDamagePopups3D(GameApp& app)
 {
 	(void)app;
+	actionDirector_.Draw3D();
 	for (auto& popup : damagePopups_) {
 		for (auto& obj : popup.digitModels) {
 			if (obj) obj->Draw();
@@ -3108,6 +3486,75 @@ void BattleController::DrawPostEffect3D(GameApp& app)
 	handView_.DrawDiscardingCardsObjectPost(app);
 }
 
+void BattleController::DrawFieldFrameBloom(GameApp& app)
+{
+	if (!sFieldFrameBloomEnabled) {
+		return;
+	}
+
+	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
+	bool hasBloomTarget = false;
+	const bool inReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_;
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		const bool replacePreview = i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
+			fieldReplacePreviewActive_[i];
+		if (fieldViews_[i] && (replacePreview || (!inReplacePreview && i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None))) {
+			hasBloomTarget = true;
+			break;
+		}
+	}
+	for (PokerHandRank rank : handPreviewRanks_) {
+		if (rank != PokerHandRank::None) {
+			hasBloomTarget = true;
+			break;
+		}
+	}
+	if (!hasBloomTarget) {
+		return;
+	}
+
+	BloomParam param = app.ObjectPost()->GetParam();
+	param.threshold = sFieldFrameBloomThreshold;
+	const float pulse = sFieldFrameBloomMinPulse + (1.0f - sFieldFrameBloomMinPulse) * (0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * 1.6f));
+	param.intensity = std::max(sFieldFrameBloomIntensity, sHandFrameBloomIntensity) * pulse;
+	param.vignetteIntensity = 0.0f;
+	param.vignetteScale = 0.0f;
+	param.distortionAmount = 0.0f;
+	param.chromAbAmount = sFieldFrameBloomChromAb;
+	param.isGrayscale = 0.0f;
+	param.isInverted = 0.0f;
+	param.noiseIntensity = 0.0f;
+	param.scanlineIntensity = 0.0f;
+	param.curvature = 0.0f;
+	param.borderSharp = 0.0f;
+	param.glitchAmount = 0.0f;
+	param.dissolveAmount = -1.0f;
+
+	app.ObjectPost()->SetParam(param);
+	app.BeginObjectPostEffect();
+	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
+		const bool replacePreview = i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
+			fieldReplacePreviewActive_[i];
+		const bool currentHighlight = !inReplacePreview && i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None;
+		if (!fieldViews_[i] || (!replacePreview && !currentHighlight)) {
+			continue;
+		}
+		fieldViews_[i]->DrawFrameOnly();
+	}
+	const int handCount = std::min<int>(static_cast<int>(handPreviewRanks_.size()), handView_.GetCardCount());
+	for (int i = 0; i < handCount; ++i) {
+		if (handPreviewRanks_[i] == PokerHandRank::None) {
+			continue;
+		}
+		Card3D* card = handView_.GetCard(i);
+		if (card) {
+			card->DrawFrameOnly();
+		}
+	}
+	app.EndObjectPostEffect();
+	app.ObjCom()->SetGraphicsPipelineState();
+}
+
 void BattleController::DrawPreviewCard3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 	if (cardState_ == CardInputState::Preview && pendingCardView_) {
@@ -3118,12 +3565,16 @@ void BattleController::DrawPreviewCard3D(GameApp& app) {
 
 void BattleController::Draw2D(GameApp& app)
 {
+	if (actionDirector_.IsPlaying()) {
+		actionDirector_.Draw2D();
+		return;
+	}
 
-
+	if (playerHpFrame_) playerHpFrame_->Draw();
 	if (playerHpBg_) playerHpBg_->Draw();
-	if (playerHpPredict_)playerHpPredict_->Draw();
-	if (playerBlockPredict_ && player_->GetBlock() > 0)playerBlockPredict_->Draw();
+	if (playerHpPredict_ && playerAttackPreviewEnabled_ && playerAttackPreviewVisible_) playerHpPredict_->Draw();
 	if (playerHpFg_) playerHpFg_->Draw();
+	if (playerHpDamageFlash_ && playerDamageFlashEnabled_ && playerDamageFlashTimer_ > 0.0f) playerHpDamageFlash_->Draw();
 
 	for (auto& bg : enemyHpBgs_) {
 		if (bg) bg->Draw();
@@ -3142,6 +3593,9 @@ void BattleController::Draw2D(GameApp& app)
 	for (auto& icon : enemyIntentIcons_) {
 		if (icon) icon->Draw();
 	}
+	for (auto& text : enemyIntentCountTexts_) {
+		if (text) text->Draw();
+	}
 	for (auto& text : enemyIntentTexts_) {
 		if (text) text->Draw();
 	}
@@ -3151,6 +3605,39 @@ void BattleController::Draw2D(GameApp& app)
 
 #ifdef USE_IMGUI
 #include <imgui.h>
+void BattleController::DrawPlayerHudImGuiControls()
+{
+	bool layoutChanged = false;
+	layoutChanged |= ImGui::DragFloat2("HP Gauge Image Position", &playerHpFramePosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("HP Gauge Image Size", &playerHpFrameSize_.x, 1.0f, 1.0f, 2000.0f);
+	layoutChanged |= ImGui::DragFloat2("HP Fill Bar Position", &playerHpFillPosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("HP Fill Bar Size", &playerHpFillSize_.x, 1.0f, 1.0f, 2000.0f);
+	layoutChanged |= ImGui::DragFloat2("Damage Flash Position", &playerDamageFlashPosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("Damage Flash Size", &playerDamageFlashSize_.x, 1.0f, 1.0f, 2000.0f);
+	ImGui::Checkbox("Damage Flash Enabled", &playerDamageFlashEnabled_);
+	ImGui::DragFloat("Damage Flash Initial Alpha", &playerDamageFlashInitialAlpha_, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Damage Flash Fade Time", &playerDamageFlashFadeDuration_, 0.01f, 0.01f, 5.0f);
+	layoutChanged |= ImGui::DragFloat2("Attack Preview Position", &playerAttackPreviewPosition_.x, 1.0f);
+	layoutChanged |= ImGui::DragFloat2("Attack Preview Size", &playerAttackPreviewSize_.x, 1.0f, 1.0f, 2000.0f);
+	ImGui::Checkbox("Attack Preview Enabled", &playerAttackPreviewEnabled_);
+	ImGui::DragFloat("Attack Preview Alpha", &playerAttackPreviewAlpha_, 0.01f, 0.0f, 1.0f);
+	playerDamageFlashInitialAlpha_ = std::clamp(playerDamageFlashInitialAlpha_, 0.0f, 1.0f);
+	playerDamageFlashFadeDuration_ = std::max(0.01f, playerDamageFlashFadeDuration_);
+	playerAttackPreviewAlpha_ = std::clamp(playerAttackPreviewAlpha_, 0.0f, 1.0f);
+
+	if (layoutChanged) {
+		playerHpFrameSize_.x = std::max(1.0f, playerHpFrameSize_.x);
+		playerHpFrameSize_.y = std::max(1.0f, playerHpFrameSize_.y);
+		playerHpFillSize_.x = std::max(1.0f, playerHpFillSize_.x);
+		playerHpFillSize_.y = std::max(1.0f, playerHpFillSize_.y);
+		playerDamageFlashSize_.x = std::max(1.0f, playerDamageFlashSize_.x);
+		playerDamageFlashSize_.y = std::max(1.0f, playerDamageFlashSize_.y);
+		playerAttackPreviewSize_.x = std::max(1.0f, playerAttackPreviewSize_.x);
+		playerAttackPreviewSize_.y = std::max(1.0f, playerAttackPreviewSize_.y);
+		ApplyPlayerHudLayout_();
+	}
+}
+
 void BattleController::DrawImGui()
 {
 	Card3D::DrawAdjustImGui();
@@ -3161,6 +3648,46 @@ void BattleController::DrawImGui()
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
 	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
 	ImGui::Text("field: %d", (int)field_.size());
+
+	if (ImGui::CollapsingHeader("Field Card Glitter")) {
+		ImGui::DragFloat3("Emitter Local Offset", &sFieldCardGlitterLocalOffset.x, 0.01f);
+		ImGui::DragFloat("Emitter Spread X", &sFieldCardGlitterSpreadX, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Emitter Spread Y", &sFieldCardGlitterSpreadY, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Emit Interval", &sFieldCardGlitterEmitInterval, 0.01f, 0.01f, 2.0f);
+		ImGui::SliderInt("Normal Count", &sFieldCardGlitterNormalCount, 0, 30);
+		ImGui::SliderInt("Highlight Count", &sFieldCardGlitterHighlightCount, 0, 60);
+		ImGui::Checkbox("Hand Poker Preview", &sHandPokerPreviewEnabled);
+		ImGui::DragFloat("Hand Emit Interval", &sHandCardGlitterEmitInterval, 0.01f, 0.01f, 2.0f);
+		ImGui::SliderInt("Hand Count", &sHandCardGlitterCount, 0, 60);
+		if (ImGui::Button("Reset Field Card Glitter")) {
+			sFieldCardGlitterLocalOffset = { 0.0f, 2.2f, 0.12f };
+			sFieldCardGlitterSpreadX = 1.05f;
+			sFieldCardGlitterSpreadY = 0.08f;
+			sFieldCardGlitterEmitInterval = 0.12f;
+			sFieldCardGlitterNormalCount = 2;
+			sFieldCardGlitterHighlightCount = 5;
+			sHandPokerPreviewEnabled = true;
+			sHandCardGlitterEmitInterval = 0.12f;
+			sHandCardGlitterCount = 3;
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Field Frame Bloom")) {
+		ImGui::Checkbox("Enable Frame Bloom", &sFieldFrameBloomEnabled);
+		ImGui::DragFloat("Frame Bloom Threshold", &sFieldFrameBloomThreshold, 0.01f, 0.0f, 3.0f);
+		ImGui::DragFloat("Frame Bloom Intensity", &sFieldFrameBloomIntensity, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Hand Bloom Intensity", &sHandFrameBloomIntensity, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Frame Bloom Min Pulse", &sFieldFrameBloomMinPulse, 0.01f, 0.0f, 1.0f);
+		ImGui::DragFloat("Frame Bloom ChromAb", &sFieldFrameBloomChromAb, 0.0005f, 0.0f, 0.05f);
+		if (ImGui::Button("Reset Field Frame Bloom")) {
+			sFieldFrameBloomEnabled = true;
+			sFieldFrameBloomThreshold = 0.35f;
+			sFieldFrameBloomIntensity = 1.45f;
+			sHandFrameBloomIntensity = 1.15f;
+			sFieldFrameBloomMinPulse = 0.15f;
+			sFieldFrameBloomChromAb = 0.0015f;
+		}
+	}
 
 	if (ImGui::CollapsingHeader("Character Scale")) {
 		if (player_ && player_->GetObject3d()) {
@@ -3712,6 +4239,36 @@ std::wstring BattleController::GetPlayerBlockText()const {
 	return text;
 }
 
+void BattleController::ApplyPlayerHudLayout_()
+{
+	if (playerHpFrame_) {
+		playerHpFrame_->SetPosition(playerHpFramePosition_);
+		playerHpFrame_->SetScale({
+			playerHpFrameSize_.x / kPlayerHpGaugeTextureSize.x,
+			playerHpFrameSize_.y / kPlayerHpGaugeTextureSize.y,
+			1.0f
+			});
+	}
+	if (playerHpBg_) {
+		playerHpBg_->SetPosition(playerHpFillPosition_);
+		playerHpBg_->SetScale({ playerHpFillSize_.x, playerHpFillSize_.y, 1.0f });
+	}
+	if (playerHpFg_) {
+		playerHpFg_->SetPosition(playerHpFillPosition_);
+	}
+	if (playerHpDamageFlash_) {
+		playerHpDamageFlash_->SetPosition(playerDamageFlashPosition_);
+		playerHpDamageFlash_->SetScale({
+			playerDamageFlashSize_.x / kPlayerHpGaugeTextureSize.x,
+			playerDamageFlashSize_.y / kPlayerHpGaugeTextureSize.y,
+			1.0f
+			});
+	}
+	if (playerHpPredict_) {
+		playerHpPredict_->SetPosition(playerAttackPreviewPosition_);
+	}
+}
+
 int BattleController::CalcTotalIncomingDamage() const {
 	int total = 0;
 	if (!enemyMgr_) return 0;
@@ -3742,6 +4299,7 @@ void BattleController::UpdateHpGauges() {
 		predictedHP = currentHP;
 	}
 	float predictedRatio = predictedHP / maxHP;
+	const float incomingDamageRatio = std::max(0.0f, currentRatio - predictedRatio);
 
 	int currentBlock = player_->GetBlock();
 	float predictedRatioBlock = float(currentBlock) / maxHP;
@@ -3752,15 +4310,37 @@ void BattleController::UpdateHpGauges() {
 	// 「元あった場所が赤く残る」という表現になります。
 
 	if (turn_ == TurnState::Player) {
-		playerHpFg_->SetScale({ 250.0f * predictedRatio, 18.0f, 1.0f });
+		playerHpFg_->SetScale({ playerHpFillSize_.x * predictedRatio, playerHpFillSize_.y, 1.0f });
 	}
-	playerHpPredict_->SetScale({ 250.0f * currentRatio, 18.0f, 1.0f });
-	playerHpPredict_->SetPosition(playerHpFg_->GetPosition());
+	playerAttackPreviewVisible_ = playerAttackPreviewEnabled_ && incomingDamageRatio > 0.0f;
+	if (playerHpPredict_) {
+		playerHpPredict_->SetPosition(playerAttackPreviewPosition_);
+		playerHpPredict_->SetColor({ 1.0f, 1.0f, 1.0f, playerAttackPreviewAlpha_ });
+		if (playerAttackPreviewVisible_) {
+			playerHpPredict_->SetScale({
+				playerAttackPreviewSize_.x * currentRatio / kPlayerHpGaugeTextureSize.x,
+				playerAttackPreviewSize_.y / kPlayerHpGaugeTextureSize.y,
+				1.0f
+				});
+		} else {
+			playerHpPredict_->SetScale({ 0.0f, 0.0f, 1.0f });
+		}
+	}
+
+	if (playerHpDamageFlash_) {
+		const float fadeRatio = playerDamageFlashFadeDuration_ > 0.0f
+			? std::clamp(playerDamageFlashTimer_ / playerDamageFlashFadeDuration_, 0.0f, 1.0f)
+			: 0.0f;
+		const float alpha = playerDamageFlashEnabled_
+			? playerDamageFlashInitialAlpha_ * fadeRatio
+			: 0.0f;
+		playerHpDamageFlash_->SetColor({ 1.0f, 1.0f, 1.0f, alpha });
+	}
 
 	float offset = 5.f;
 
-	playerBlockPredict_->SetScale({ 250.0f * predictedRatioBlock + offset,18.0f + (offset * 2.f), 1.0f });
-	playerBlockPredict_->SetPosition({ 80.f - offset,40.f - offset });
+	playerBlockPredict_->SetScale({ playerHpFillSize_.x * predictedRatioBlock + offset,playerHpFillSize_.y + (offset * 2.f), 1.0f });
+	playerBlockPredict_->SetPosition({ playerHpFillPosition_.x - offset,playerHpFillPosition_.y - offset });
 
 }
 
@@ -3792,11 +4372,13 @@ std::vector<std::string> BattleController::CollectEffectTypes_(const CardDef& de
 	return types;
 }
 
-bool BattleController::BeginCardActionSequence_(GameApp& app, const CardDef& def, Enemy& targetEnemy)
+bool BattleController::BeginCardActionSequence_(GameApp& app, const CardDef& def, const CardInstance& card, Enemy& targetEnemy)
 {
 	actionSequenceQueue_.clear();
 	actionSequenceIndex_ = 0;
 	actionSequenceTarget_ = &targetEnemy;
+	actionSequenceCardDef_ = &def;
+	actionSequenceCard_ = card;
 
 	if (const ActionSequenceProfile* useProfile = app.PickCardUseSequenceProfile()) {
 		actionSequenceQueue_.push_back(useProfile);
@@ -3816,6 +4398,7 @@ bool BattleController::StartNextActionSequence_()
 	if (!actionSequenceTarget_ || actionSequenceIndex_ >= actionSequenceQueue_.size()) {
 		actionSequenceQueue_.clear();
 		actionSequenceIndex_ = 0;
+		actionSequenceCardDef_ = nullptr;
 		return false;
 	}
 
@@ -3825,8 +4408,63 @@ bool BattleController::StartNextActionSequence_()
 	}
 
 	actionDirector_.SetProfile(*profile);
-	actionDirector_.StartAction(player_, actionSequenceTarget_);
+	if (actionSequenceCardDef_) {
+		actionDirector_.StartAction(player_, actionSequenceTarget_, *actionSequenceCardDef_, actionSequenceCard_);
+	} else {
+		actionDirector_.StartAction(player_, actionSequenceTarget_);
+	}
 	return true;
+}
+
+void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action)
+{
+	if (action.type == "Attack") {
+		if (!player_) {
+			return;
+		}
+		enemy.PlayAttackAnim(player_->GetPos());
+		player_->TriggerHitFlash(0.2f);
+		player_->PlayDamageAnim();
+		player_->Damage(action.value);
+		if (action.value > 0) {
+			SpawnDamagePopup(player_->GetPos(), action.value, true);
+		}
+	} else if (action.type == "Heal") {
+		enemy.Heal(action.value);
+	} else if (action.type == "Block") {
+		enemy.AddBlock(action.value);
+	}
+}
+
+void BattleController::OnPlayerCardUsed_()
+{
+	if (!enemyMgr_) {
+		return;
+	}
+
+	auto& enemies = enemyMgr_->GetEnemies();
+	if (enemyActionCounts_.size() != enemies.size()) {
+		enemyActionCounts_.assign(enemies.size(), 0);
+	}
+	if (enemyActedByCountThisTurn_.size() != enemies.size()) {
+		enemyActedByCountThisTurn_.assign(enemies.size(), false);
+	}
+
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		if (!enemies[i].IsAlive() || enemyActedByCountThisTurn_[i]) {
+			continue;
+		}
+		if (enemyActionCounts_[i] <= 0) {
+			continue;
+		}
+
+		enemyActionCounts_[i]--;
+		if (enemyActionCounts_[i] <= 0) {
+			ExecuteEnemyAction_(enemies[i], enemies[i].GetBossAI().GetNextAction());
+			enemyActedByCountThisTurn_[i] = true;
+			enemyActionCounts_[i] = 0;
+		}
+	}
 }
 
 void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
@@ -3890,6 +4528,7 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 			pendingCardView_ = std::move(usedCardView);
 			cardState_ = CardInputState::ChoosingFieldReplace;
 		}
+		OnPlayerCardUsed_();
 	}
 }
 

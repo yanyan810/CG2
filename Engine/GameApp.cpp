@@ -346,6 +346,19 @@ void GameApp::DrawSpriteObjectPost(Sprite* sprite, const Matrix4x4& view, const 
 	spriteCommon_->SetGraphicsPipelineState();
 }
 
+void GameApp::DrawModelParticlesObjectPost(ModelParticleManager* particles, const BloomParam& param)
+{
+	if (!particles) {
+		return;
+	}
+
+	objectPostEffect_->SetParam(param);
+	BeginObjectPostEffect();
+	particles->Draw();
+	EndObjectPostEffect();
+	objCommon_->SetGraphicsPipelineState();
+}
+
 void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* particles, const BloomParam& param, int clipHeight)
 {
 	if (!particles) {
@@ -370,6 +383,20 @@ void GameApp::DrawModelParticlesObjectPostToBloomScene(ModelParticleManager* par
 		dx_->SetScissorRect(0, 0, WinApp::kClientWidth, clipHeight);
 	}
 	objCommon_->SetGraphicsPipelineState();
+}
+
+void GameApp::SetRadialBlur(float strength)
+{
+	if (bloom_) {
+		bloom_->SetRadialBlur(strength);
+	}
+}
+
+void GameApp::ResetRadialBlur()
+{
+	if (bloom_) {
+		bloom_->ResetRadialBlur();
+	}
 }
 
 void GameApp::WarmupAssets_() {
@@ -497,7 +524,8 @@ void GameApp::LoadActionSequenceProfiles_() {
 		if (entry.path().filename() == "card_sequence_map.json") {
 			continue;
 		}
-		if (entry.path().stem().string().ends_with("_camera")) {
+		const std::string stem = entry.path().stem().string();
+		if (stem.ends_with("_camera") || stem.ends_with("_card")) {
 			continue;
 		}
 
@@ -547,7 +575,7 @@ void GameApp::LoadActionSequenceProfiles_() {
 				if (!names.is_array()) {
 					continue;
 				}
-				auto& list = effectSequenceNames_[effectType];
+				auto& list = effectSequenceNames_[NormalizeActionSequenceEffectType_(effectType)];
 				for (const auto& name : names) {
 					list.push_back(name.get<std::string>());
 				}
@@ -604,6 +632,18 @@ const ActionSequenceProfile* GameApp::PickCardUseSequenceProfile() const {
 	return PickSequenceFromNames_(cardUseSequenceNames_);
 }
 
+std::string GameApp::NormalizeActionSequenceEffectType_(const std::string& effectType) const {
+	if (effectType == "Damage" ||
+		effectType == "DamageCrescent" ||
+		effectType == "DamageByBlock") {
+		return "Damage";
+	}
+	if (effectType == "DamageAll") {
+		return "DamageAll";
+	}
+	return "SpecialEffect";
+}
+
 const ActionSequenceProfile* GameApp::PickCardEffectSequenceProfile(
 	int cardId,
 	const std::vector<std::string>& effectTypes) const {
@@ -615,7 +655,7 @@ const ActionSequenceProfile* GameApp::PickCardEffectSequenceProfile(
 	}
 
 	for (const std::string& effectType : effectTypes) {
-		auto effectIt = effectSequenceNames_.find(effectType);
+		auto effectIt = effectSequenceNames_.find(NormalizeActionSequenceEffectType_(effectType));
 		if (effectIt != effectSequenceNames_.end()) {
 			if (const ActionSequenceProfile* profile = PickSequenceFromNames_(effectIt->second)) {
 				return profile;

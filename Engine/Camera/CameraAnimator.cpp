@@ -39,6 +39,31 @@ void CameraAnimator::SetMaxTime(float value) {
     }
 }
 
+namespace {
+    Matrix4x4 LerpMatrix_(const Matrix4x4& a, const Matrix4x4& b, float t)
+    {
+        Matrix4x4 result{};
+        for (int y = 0; y < 4; ++y) {
+            for (int x = 0; x < 4; ++x) {
+                result.m[y][x] = a.m[y][x] + (b.m[y][x] - a.m[y][x]) * t;
+            }
+        }
+        return result;
+    }
+
+    void ApplyCameraKeyframe_(Camera& camera, const CameraKeyframe& key)
+    {
+        if (key.hasWorldMatrix) {
+            camera.SetWorldMatrixOverride(key.worldMatrix);
+        } else {
+            camera.ClearWorldMatrixOverride();
+            camera.SetTranslate(key.pos);
+            camera.SetRotate(key.rot);
+        }
+        camera.SetFovY(key.fov);
+    }
+}
+
 void CameraAnimator::SampleAtTime(float time) {
     if (!camera_) {
         return;
@@ -51,16 +76,12 @@ void CameraAnimator::SampleAtTime(float time) {
     }
 
     if (keyframes_.size() == 1 || currentTime_ <= keyframes_.front().time) {
-        camera_->SetTranslate(keyframes_.front().pos);
-        camera_->SetRotate(keyframes_.front().rot);
-        camera_->SetFovY(keyframes_.front().fov);
+        ApplyCameraKeyframe_(*camera_, keyframes_.front());
         return;
     }
 
     if (currentTime_ >= keyframes_.back().time) {
-        camera_->SetTranslate(keyframes_.back().pos);
-        camera_->SetRotate(keyframes_.back().rot);
-        camera_->SetFovY(keyframes_.back().fov);
+        ApplyCameraKeyframe_(*camera_, keyframes_.back());
         return;
     }
 
@@ -78,8 +99,13 @@ void CameraAnimator::SampleAtTime(float time) {
         }
 
         float t = (currentTime_ - keyframes_[i].time) / duration;
-        camera_->SetTranslate(Lerp(keyframes_[i].pos, keyframes_[i + 1].pos, t));
-        camera_->SetRotate(Lerp(keyframes_[i].rot, keyframes_[i + 1].rot, t));
+        if (keyframes_[i].hasWorldMatrix && keyframes_[i + 1].hasWorldMatrix) {
+            camera_->SetWorldMatrixOverride(LerpMatrix_(keyframes_[i].worldMatrix, keyframes_[i + 1].worldMatrix, t));
+        } else {
+            camera_->ClearWorldMatrixOverride();
+            camera_->SetTranslate(Lerp(keyframes_[i].pos, keyframes_[i + 1].pos, t));
+            camera_->SetRotate(Lerp(keyframes_[i].rot, keyframes_[i + 1].rot, t));
+        }
         camera_->SetFovY(LerpFloat(keyframes_[i].fov, keyframes_[i + 1].fov, t));
         return;
     }
@@ -220,6 +246,15 @@ bool CameraAnimator::LoadFromJson(const std::string& filepath) {
             frame.rot.z = k["rot"][2];
             frame.fov = k.contains("fov") ? k["fov"].get<float>() : (camera_ ? camera_->GetFovY() : 0.45f);
 
+            if (k.contains("worldMatrix") && k["worldMatrix"].is_array() && k["worldMatrix"].size() == 16) {
+                frame.hasWorldMatrix = true;
+                for (int y = 0; y < 4; ++y) {
+                    for (int x = 0; x < 4; ++x) {
+                        frame.worldMatrix.m[y][x] = k["worldMatrix"][y * 4 + x].get<float>();
+                    }
+                }
+            }
+
             keyframes_.push_back(frame);
         }
     }
@@ -308,8 +343,13 @@ bool CameraAnimator::Update(float dt) {
             Vector3 currentRot = Lerp(keyframes_[i].rot, keyframes_[i + 1].rot, t);
             float currentFov = LerpFloat(keyframes_[i].fov, keyframes_[i + 1].fov, t);
 
-            camera_->SetTranslate(currentPos);
-            camera_->SetRotate(currentRot);
+            if (keyframes_[i].hasWorldMatrix && keyframes_[i + 1].hasWorldMatrix) {
+                camera_->SetWorldMatrixOverride(LerpMatrix_(keyframes_[i].worldMatrix, keyframes_[i + 1].worldMatrix, t));
+            } else {
+                camera_->ClearWorldMatrixOverride();
+                camera_->SetTranslate(currentPos);
+                camera_->SetRotate(currentRot);
+            }
             camera_->SetFovY(currentFov);
             break;
         }

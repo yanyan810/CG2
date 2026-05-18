@@ -63,6 +63,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.curvature = 0.0f;
     bloomParam_.borderSharp = 0.0f;
     bloomParam_.glitchAmount = 0.001f;
+    bloomParam_.radialBlurStrength = 0.0f;
 
     bloomCB_->Update(bloomParam_);
 
@@ -85,6 +86,7 @@ void Bloom::Update() {
     ImGui::DragFloat("Curvature", &bloomParam_.curvature, 0.001f);   // 画面の膨らみ
     ImGui::DragFloat("Border Sharp", &bloomParam_.borderSharp, 0.001f); // 角の丸み
     ImGui::DragFloat("glitchAmount", &bloomParam_.glitchAmount, 0.001f); // 角の丸み
+    ImGui::DragFloat("RadialBlur Strength", &bloomParam_.radialBlurStrength, 0.001f, 0.0f, 0.1f);
 
     // bool値を float(0.0 or 1.0) に変換して送る
     static bool grayFlag = false;
@@ -110,6 +112,7 @@ void Bloom::Update() {
         bloomParam_.curvature = 0.0f;
         bloomParam_.borderSharp = 0.0f;
         bloomParam_.glitchAmount = 0.0f;
+        bloomParam_.radialBlurStrength = 0.0f;
         grayFlag = false;
         invertFlag = false;
     }
@@ -123,6 +126,16 @@ void Bloom::Update() {
 
     bloomParam_.timer = timer_;
 
+}
+
+void Bloom::SetRadialBlur(float strength)
+{
+    bloomParam_.radialBlurStrength = strength < 0.0f ? 0.0f : strength;
+}
+
+void Bloom::ResetRadialBlur()
+{
+    bloomParam_.radialBlurStrength = 0.0f;
 }
 
 void Bloom::PreDraw() {

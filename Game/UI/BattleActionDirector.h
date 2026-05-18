@@ -1,8 +1,11 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <vector>
 #include <nlohmann/json.hpp>
 #include "Vector3.h"
+#include "CardDef.h"
+#include "CardInstance.h"
 //#include "Vector4.h"
 
 class Player;
@@ -10,9 +13,11 @@ class Enemy;
 class Sprite;
 class SpriteCommon;
 class DirectXCommon;
+class Object3dCommon;
 class Camera;
 class CameraAnimator;
 class AnimationClipDocument;
+class Card3D;
 
 struct ActionSequenceProfile {
     // 1. カットイン設定
@@ -29,11 +34,13 @@ struct ActionSequenceProfile {
 
     // 3. キャラクター設定
     Vector3 playerPos = { -5.0f, 0.0f, 5.0f };
+    Vector3 playerRot = { 0.0f, 0.0f, 0.0f };  // Blender からエクスポートされた向き
     Vector3 enemyPos = { 5.0f, 0.0f, 5.0f };
     std::string playerAttackAnim = ""; // 自作アニメーションパス
     float playerAttackAnimStartTime = 0.0f; // 再生開始時間(秒)
     std::string enemyDamageAnim = "";  // 自作アニメーションパス
     float enemyDamageAnimStartTime = 0.0f; // 再生開始時間(秒)
+    std::string cardMotionFile = "";
 
     // 4. アクション時間設定
     float approachDuration = 0.3f;
@@ -59,18 +66,26 @@ public:
     BattleActionDirector() = default;
     ~BattleActionDirector() = default;
 
-    void Initialize(SpriteCommon* spriteCom, DirectXCommon* dx);
+    void Initialize(SpriteCommon* spriteCom, DirectXCommon* dx, Object3dCommon* objCom = nullptr);
 
     void StartAction(Player* player, Enemy* target);
+    void StartAction(Player* player, Enemy* target, const CardDef& cardDef, const CardInstance& cardInstance);
 
     // Returns true if the entire sequence is complete
     bool Update(float dt);
 
     void Draw2D();
+    void Draw3D();
 
     Camera* GetCinematicCamera() const { return cinematicCam_.get(); }
     bool IsPlaying() const { return phase_ != ActionPhase::Idle; }
     ActionPhase GetPhase() const { return phase_; }
+    float GetPlaybackTime() const { return timer_; }
+    float GetPlaybackDuration() const { return duration_; }
+    bool IsDebugPaused() const { return debugPaused_; }
+    void SetDebugPaused(bool paused) { debugPaused_ = paused; }
+    void SetDebugPlaybackTime(float time);
+    bool ReloadCardMotionFromProfile();
 
     const ActionSequenceProfile& GetProfile() const { return profile_; }
     ActionSequenceProfile& GetProfileRef() { return profile_; }
@@ -86,6 +101,21 @@ public:
     void LoadProfile(const std::string& path);
 
 private:
+    struct CardMotionKeyframe {
+        float time = 0.0f;
+        Vector3 pos{ 0.0f, 0.0f, 0.0f };
+        Vector3 rot{ 0.0f, 0.0f, 0.0f };
+        Vector3 scale{ 1.0f, 1.0f, 1.0f };
+    };
+
+    void SaveOriginalState_();
+    void RestoreOriginalState_();
+    void StartActionInternal_(Player* player, Enemy* target, const CardDef* cardDef, const CardInstance* cardInstance);
+    void SamplePreviewAtCurrentTime_();
+    bool LoadCardMotion_(const std::string& path, bool forceReload = false);
+    CardMotionKeyframe SampleCardMotion_(float time) const;
+    void UpdateCardMotion_(float dt);
+
     ActionPhase phase_ = ActionPhase::Idle;
     float timer_ = 0.0f;
     float duration_ = 1.0f;
@@ -101,6 +131,8 @@ private:
     // アニメーションローダーの保持
     std::unique_ptr<AnimationClipDocument> playerAnimDoc_;
     std::unique_ptr<AnimationClipDocument> enemyAnimDoc_;
+    std::unique_ptr<Card3D> cardMotionCard_;
+    std::vector<CardMotionKeyframe> cardMotionKeyframes_;
 
     ActionSequenceProfile profile_;
     char profileFilename_[128] = "resources/sequences/default_attack.json";
@@ -111,4 +143,19 @@ private:
     // Animation trigger flags
     bool hasPlayedPlayerAnim_ = false;
     bool hasPlayedEnemyAnim_ = false;
+    bool cameraAnimIsStatic_ = false;
+    bool cardMotionVisible_ = false;
+    bool debugPaused_ = false;
+
+    SpriteCommon* spriteCom_ = nullptr;
+    DirectXCommon* dx_ = nullptr;
+    Object3dCommon* objCom_ = nullptr;
+
+    bool hasOriginalState_ = false;
+    Vector3 originalPlayerPos_{};
+    Vector3 originalPlayerRot_{};
+    Vector3 originalEnemyPos_{};
+    Vector3 originalCameraPos_{};
+    Vector3 originalCameraRot_{};
+    float originalCameraFov_ = 0.8f;
 };

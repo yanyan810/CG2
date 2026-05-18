@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cstdint>
 #include "PropManager.h"
 #include "CardDatabase.h"
 #include "HandView3D.h"
@@ -22,8 +23,10 @@ class SpriteCommon;
 
 class Player;
 class Enemy;
+struct EnemyAction;
 class EnemyManager;
 class FieldUi;
+class ModelParticleManager;
 
 class BattleController {
 public:
@@ -76,6 +79,7 @@ public:
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
 	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
+	void DrawFieldFrameBloom(GameApp& app);
 	void DrawDamagePopups3D(GameApp& app);
 	void DrawField3D(GameApp& app);
 	void DrawCardArea3D(GameApp& app);
@@ -83,6 +87,9 @@ public:
 	void DrawPreviewCard3D(GameApp& app);
 	void Draw2D(GameApp& app);
 	Camera* GetActionCamera() const;
+	bool IsActionSequencePlaying() const {
+		return actionDirector_.IsPlaying() || cardState_ == CardInputState::ExecutingSequence;
+	}
 
 	const CardDef* GetPreviewCardDef() const;
 
@@ -120,6 +127,7 @@ public:
 
 #ifdef USE_IMGUI
 	void DrawImGui();
+	void DrawPlayerHudImGuiControls();
 #endif
 
 	//役
@@ -143,9 +151,11 @@ public:
 
 	void SetPlayer(Player* player);
 	void SetEnemyManager(EnemyManager* enemyMgr);
+	void SetFieldParticleManager(ModelParticleManager* particleMgr) { fieldParticleManager_ = particleMgr; }
 
 	void UpdateFieldCardTransform_(int index, bool hovered, float dt);
 	void RefreshAllFieldCardTransforms_(float dt);
+	void EmitFieldCardGlitter_(float dt);
 
 	PokerBonus GetCurrentPokerBonusForUi() const;
 
@@ -178,13 +188,19 @@ public:
 		discardView_.reset();
 		costDigitModels_.clear();
 
+		playerHpFrame_.reset();
 		playerHpBg_.reset();
 		playerHpFg_.reset();
+		playerHpDamageFlash_.reset();
+		playerHpPredict_.reset();
 		enemyHpBgs_.clear();
 		enemyHpFgs_.clear();
 		enemyBlockPredicts_.clear();
 		enemyIntentIcons_.clear();
 		enemyIntentTexts_.clear();
+		enemyIntentCountTexts_.clear();
+		enemyActionCounts_.clear();
+		enemyActedByCountThisTurn_.clear();
 
 		deck_.clear();
 		hand_.clear();
@@ -197,6 +213,7 @@ public:
 		objCom_ = nullptr;
 		dx_ = nullptr;
 		spriteCom_ = nullptr;
+		fieldParticleManager_ = nullptr;
 	}
 
 	bool IsPlayerTargeting() const {
@@ -295,6 +312,8 @@ private:
 	PokerChoiceState pokerChoiceState_ = PokerChoiceState::None;
 	PokerChoiceState pokerReturnState_ = PokerChoiceState::None;
 	PokerHandResult currentPoker_;
+	float fieldCardGlitterEmitTimer_ = 0.0f;
+	ModelParticleManager* fieldParticleManager_ = nullptr;
 
 	//キー用
 	bool prevY_ = false;
@@ -376,18 +395,42 @@ private:
 	std::vector<const ActionSequenceProfile*> actionSequenceQueue_;
 	size_t actionSequenceIndex_ = 0;
 	Enemy* actionSequenceTarget_ = nullptr;
+	const CardDef* actionSequenceCardDef_ = nullptr;
+	CardInstance actionSequenceCard_{};
 
 	void ExecutePendingAttack_(Enemy& targetEnemy);
+	void ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action);
+	void OnPlayerCardUsed_();
+	void ApplyPlayerHudLayout_();
 	std::vector<std::string> CollectEffectTypes_(const CardDef& def) const;
-	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, Enemy& targetEnemy);
+	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, const CardInstance& card, Enemy& targetEnemy);
 	bool StartNextActionSequence_();
 
+	std::unique_ptr<Sprite> playerHpFrame_;
 	std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
 	std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
 
+	std::unique_ptr<Sprite> playerHpDamageFlash_;
 	std::unique_ptr<Sprite> playerHpPredict_;
 
 	std::unique_ptr<Sprite> playerBlockPredict_;
+
+	Vector2 playerHpFramePosition_{ 60.0f, 18.0f };
+	Vector2 playerHpFrameSize_{ 351.0f, 32.0f };
+	Vector2 playerHpFillPosition_{ 67.0f, 25.0f };
+	Vector2 playerHpFillSize_{ 337.0f, 18.0f };
+	Vector2 playerDamageFlashPosition_{ 60.0f, 18.0f };
+	Vector2 playerDamageFlashSize_{ 351.0f, 32.0f };
+	float playerDamageFlashInitialAlpha_ = 0.8f;
+	float playerDamageFlashFadeDuration_ = 0.45f;
+	float playerDamageFlashTimer_ = 0.0f;
+	bool playerDamageFlashEnabled_ = true;
+	int playerLastHp_ = -1;
+	Vector2 playerAttackPreviewPosition_{ 67.0f, 25.0f };
+	Vector2 playerAttackPreviewSize_{ 337.0f, 18.0f };
+	float playerAttackPreviewAlpha_ = 0.8f;
+	bool playerAttackPreviewEnabled_ = true;
+	bool playerAttackPreviewVisible_ = false;
 
 	std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
 	std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
@@ -395,6 +438,9 @@ private:
 
 	std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
 	std::vector<std::unique_ptr<TextSprite>> enemyIntentTexts_;
+	std::vector<std::unique_ptr<TextSprite>> enemyIntentCountTexts_;
+	std::vector<int> enemyActionCounts_;
+	std::vector<bool> enemyActedByCountThisTurn_;
 
 	std::unique_ptr<Sprite> highlightFilter_;
 
@@ -406,6 +452,7 @@ private:
 	void DrawCards_(int count);
 	void ApplyCardEffects_(const CardDef& def, int targetIndex = -1);
 	PokerHandResult EvaluatePokerHand_() const;
+	PokerHandResult EvaluatePokerHandForCards_(const std::vector<CardInstance>& cards) const;
 	const char* GetPokerHandName_(PokerHandRank rank) const;
 
 	PokerBonus GetPokerBonus_(PokerHandRank rank) const;
@@ -455,4 +502,14 @@ private:
 
 	void UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt);
 	void UpdateVisuals_(float dt);
+	void UpdateHandPokerPreviewEffects_();
+	void UpdateFieldReplacePreviewEffects_();
+	void EmitHandCardGlitter_(float dt);
+	uint64_t BuildHandPokerPreviewSignature_() const;
+
+	std::vector<PokerHandRank> handPreviewRanks_;
+	std::vector<PokerHandRank> fieldReplacePreviewRanks_;
+	std::vector<bool> fieldReplacePreviewActive_;
+	float handCardGlitterEmitTimer_ = 0.0f;
+	uint64_t handPreviewSignature_ = 0;
 };

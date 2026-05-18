@@ -63,6 +63,21 @@ static Vector3 CalcLocalOffset(const Vector3& offset, const Vector3& cardScale, 
 	return { v.x, v.y, v.z };
 }
 
+Vector3 Card3D::GetWorldPointFromLocal(const Vector3& localOffset) const
+{
+	Vector3 fixRot = rot_;
+	fixRot.x += modelFixRot_.x;
+	fixRot.y += modelFixRot_.y;
+	fixRot.z += modelFixRot_.z;
+
+	Vector3 rotatedOffset = CalcLocalOffset(localOffset, scale_, fixRot);
+	return {
+		pos_.x + rotatedOffset.x,
+		pos_.y + rotatedOffset.y,
+		pos_.z + rotatedOffset.z
+	};
+}
+
 void Card3D::Initialize(
 	Object3dCommon* objCom,
 	DirectXCommon* dx,
@@ -136,6 +151,10 @@ void Card3D::Setup(
 
 void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
 {
+	if (IsSameCardData(def, inst)) {
+		return;
+	}
+
 	ScopedTimer timer("Card3D::SetCardData");
 
 	if (!frame_ || !art_ || !costObj_ || !suitObj_ || !numberObjTens_ || !numberObjOnes_) {
@@ -234,6 +253,16 @@ void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
 	transformDirty_ = true;
 	frameColorDirty_ = true;
 	hasSubmittedOnce_ = false;
+	currentDefId_ = def.id;
+	currentNumber_ = inst.number;
+	currentSuit_ = inst.suit;
+}
+
+bool Card3D::IsSameCardData(const CardDef& def, const CardInstance& inst) const
+{
+	return currentDefId_ == def.id &&
+		currentNumber_ == inst.number &&
+		currentSuit_ == inst.suit;
 }
 
 void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale)
@@ -247,6 +276,17 @@ void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3&
 	targetRot_ = rot;
 	targetScale_ = scale;
 	transformDirty_ = true;
+}
+
+void Card3D::SetCamera(Camera* camera)
+{
+	if (frame_) frame_->SetCamera(camera);
+	if (art_) art_->SetCamera(camera);
+	if (costObj_) costObj_->SetCamera(camera);
+	if (suitObj_) suitObj_->SetCamera(camera);
+	if (numberObjTens_) numberObjTens_->SetCamera(camera);
+	if (numberObjOnes_) numberObjOnes_->SetCamera(camera);
+	if (countObj_) countObj_->SetCamera(camera);
 }
 
 void Card3D::SetTargetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale, bool instant)
@@ -264,6 +304,8 @@ void Card3D::SetTargetTransform(const Vector3& pos, const Vector3& rot, const Ve
 void Card3D::Update(float dt)
 {
 	if (!frame_ || !art_) return;
+
+	glitterTimer_ += dt;
 
 	float dx = targetPos_.x - pos_.x;
 	float dy = targetPos_.y - pos_.y;
@@ -290,7 +332,8 @@ void Card3D::Update(float dt)
 		pos_ = targetPos_; rot_ = targetRot_; scale_ = targetScale_;
 	}
 
-	if (hasSubmittedOnce_ && !transformDirty_ && !frameColorDirty_) {
+	const bool glitterActive = glitterIntensity_ > 0.001f;
+	if (hasSubmittedOnce_ && !transformDirty_ && !frameColorDirty_ && !glitterActive) {
 		return;
 	}
 
@@ -305,9 +348,6 @@ void Card3D::Update(float dt)
 	if (frameColorDirty_) {
 		frame_->SetMaterialColor(frameColor_);
 	}
-
-	// キラキラ用タイマーを進める
-	glitterTimer_ += dt;
 
 	// フレーム（枠）のマテリアルを更新
 	if (frame_) {
@@ -331,7 +371,7 @@ void Card3D::Update(float dt)
 	if (art_) {
 		auto* material = art_->GetMaterial();
 		if (material) {
-			material->glitterIntensity = glitterIntensity_;
+			material->glitterIntensity = 0.0f;
 			material->timer = glitterTimer_;
 		}
 	}
@@ -478,6 +518,13 @@ void Card3D::Draw()
 	if (countObj_ && isPreview_ == true) countObj_->Draw();
 
 }
+
+void Card3D::DrawFrameOnly()
+{
+	if (!frame_) return;
+	frame_->Draw();
+}
+
 void Card3D::SetFrameColor(const Vector4& color)
 {
 	if (frameColor_.x == color.x && frameColor_.y == color.y &&
@@ -493,6 +540,17 @@ void Card3D::SetFrameColor(const Vector4& color)
 void Card3D::ResetFrameColor()
 {
 	SetFrameColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+}
+
+void Card3D::SetGlitter(float intensity)
+{
+	intensity = std::max(0.0f, intensity);
+	if (std::abs(glitterIntensity_ - intensity) <= 0.0001f) {
+		return;
+	}
+
+	glitterIntensity_ = intensity;
+	frameColorDirty_ = true;
 }
 
 #ifdef USE_IMGUI

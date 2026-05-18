@@ -8,6 +8,7 @@
 #include "TrailInstance.h"
 #include "ModelManager.h"
 #include <algorithm>
+#include <unordered_map>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -278,6 +279,22 @@ bool EffectSequencer::LoadProfile(const std::string& path, EffectProfile& profil
 		return true;
 	}
 	return false;
+}
+
+bool EffectSequencer::LoadProfileCached(const std::string& path, EffectProfile& profile) {
+	static std::unordered_map<std::string, EffectProfile> profileCache;
+	auto cached = profileCache.find(path);
+	if (cached != profileCache.end()) {
+		profile = cached->second;
+		return true;
+	}
+
+	if (!LoadProfile(path, profile)) {
+		return false;
+	}
+
+	profileCache[path] = profile;
+	return true;
 }
 
 // =============================================

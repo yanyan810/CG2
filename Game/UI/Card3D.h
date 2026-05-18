@@ -25,9 +25,12 @@ public:
     void SetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale);
     void Update(float dt);
     void Draw();
+    void DrawFrameOnly();
 
     Vector3 GetWorldPos() const { return pos_; }
+    Vector3 GetWorldPointFromLocal(const Vector3& localOffset) const;
     void SetIsHand(bool isHand) { isHand_ = isHand; }
+    void SetCamera(Camera* camera);
 
     void Setup(
         Object3dCommon* objCom,
@@ -35,6 +38,7 @@ public:
         Camera* cam);
 
     void SetCardData(const CardDef& def, const CardInstance& inst);
+    bool IsSameCardData(const CardDef& def, const CardInstance& inst) const;
 
 
     //特定のカードの枠の変更
@@ -55,7 +59,7 @@ public:
 
     void SetCount(int count);
 
-    void SetGlitter(float intensity) { glitterIntensity_ = intensity; }
+    void SetGlitter(float intensity);
 
 private:
 
@@ -91,6 +95,9 @@ private:
     bool isPreview_;
 
     int count_ = 0;
+    int currentDefId_ = -1;
+    int currentNumber_ = -1;
+    CardSuit currentSuit_ = CardSuit::Spade;
 
     float glitterIntensity_ = 0.0f;
     float glitterTimer_ = 0.0f;
