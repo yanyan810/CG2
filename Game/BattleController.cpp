@@ -957,6 +957,11 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
 						int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
+
+						if (e.GetBC() == Enemy::BadCondition::kFrost) {
+							totalDamage += e.GetBCPoint();
+						}
+
 						const int actualDamage = ApplyDamageToEnemy_(e, totalDamage);
 						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
 					}
@@ -1120,12 +1125,13 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
-						e.AddPoison(effect.value);
+						e.SetBC(Enemy::BadCondition::kPoison);
+						e.AddBC(effect.value);
 					}
 				} else {
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (e.IsAlive()) {
-							e.AddPoison(effect.value);
+							e.AddBC(effect.value);
 							break;
 						}
 					}
@@ -1138,18 +1144,21 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.AddPoison(effect.value);
+						e.SetBC(Enemy::BadCondition::kPoison);
+						e.AddBC(effect.value);
 					}
 				}
 			}
 			if (player_->GetPoisonDrawActive()) {
 				DrawCards_(1); // ポイズンドロー状態なら1枚引く
 			}
-		} else if (effect.type == "PoisonDouble") {
+		} else if (effect.type == "PoisonAmplify") {
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.PoisonDouble();
+						if (e.GetBC() == Enemy::BadCondition::kPoison) {
+							e.AmplifyBC(effect.value);
+						}
 					}
 				}
 			}
@@ -1157,20 +1166,37 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.PoisonDamage(effect.value);
+						e.SetBC(Enemy::BadCondition::kPoison);
+						e.DamageBC(effect.value);
 					}
 				}
 			}
 		} else if (effect.type == "PoisonDraw") {
 
-			player_->SetPoisonDrawActive(true);
+			bool isActivated = player_->GetPoisonDrawActive();
+
+			if (!isActivated) {
+				player_->SetPoisonDrawActive(true);
+			} else {
+				if (enemyMgr_) {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.SetBC(Enemy::BadCondition::kPoison);
+							e.AddBC(effect.value);
+						}
+					}
+				}
+				if (player_->GetPoisonDrawActive()) {
+					DrawCards_(1); // ポイズンドロー状態なら1枚引く
+				}
+			}
 
 		} else if (effect.type == "PoisonRemove") {
 
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
 					if (e.IsAlive()) {
-						e.PoisonRemove();
+						e.RemoveBC();
 					}
 				}
 			}
@@ -1181,13 +1207,75 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						healAmount += e.GetPoison();
+					// 毒状態ならその分回復
+					if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
+						e.SetBC(Enemy::BadCondition::kPoison);
+						healAmount += e.GetBCPoint();
 					}
 				}
 			}
 
 			player_->Heal(healAmount);
+
+		} else if (effect.type == "Frost") {
+			if (enemyMgr_) {
+				// 単体ターゲットが指定されている場合
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()) {
+						e.SetBC(Enemy::BadCondition::kFrost);
+						e.AddBC(effect.value);
+					}
+				} else {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(effect.value);
+							break;
+						}
+					}
+				}
+			}
+
+		} else if (effect.type == "FrostAll") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.SetBC(Enemy::BadCondition::kFrost);
+						e.AddBC(effect.value);
+					}
+				}
+			}
+
+		} else if (effect.type == "FrostBite") {
+			bool isActivated = player_->GetFrostBiteActive();
+
+			if (!isActivated) {
+				player_->SetFrostBiteActive(true);
+			} else {
+				if (enemyMgr_) {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(effect.value);
+						}
+					}
+				}
+				//if (player_->GetFrostBiteActive()) {
+				//	DrawCards_(1); // フロストバイト状態なら1枚引く
+				//}
+			}
+
+		} else if (effect.type == "FrostAmplify") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						if (e.GetBC() == Enemy::BadCondition::kFrost) {
+							e.AmplifyBC(effect.value);
+						}
+					}
+				}
+			}
 
 		} else if (effect.type == "ChangeNumber") {
 			// 後で対象指定が必要
@@ -2462,13 +2550,13 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				} else {
 					// 全ての敵の行動が終わった場合
 
-					// 毒ダメージ付加
+					// 状態異常ダメージ処理
 					if (enemyMgr_) {
 						// 全ての敵に対してループ処理を行う
 						for (auto& enemy : enemyMgr_->GetEnemies()) {
 							// 生きている敵のみに付与
 							if (enemy.IsAlive()) {
-								enemy.ApplyPoisonDamage();
+								enemy.TurnEndApplyBC();
 
 								// 必要であれば各敵の頭上にエフェクトや数値を出す
 								// SpawnDamagePopup(enemy.GetPos(), effect.value, false); 
@@ -3562,18 +3650,26 @@ std::vector<std::wstring> BattleController::GetEnemyHpTexts() const {
 	return hpTexts;
 }
 
-std::vector<std::wstring> BattleController::GetEnemyPoisonTexts() const {
-	std::vector<std::wstring> poisonTexts;
+std::vector<std::wstring> BattleController::GetEnemyBCTexts() const {
+	std::vector<std::wstring> bcTexts;
 	auto& enemies = enemyMgr_->GetEnemies();
 
 	for (const auto& enemy : enemies) {
 		if (enemy.IsAlive()) {
 			// "100 / 100" という形式の文字列を作成
-			std::wstring text = std::to_wstring(enemy.GetPoison());
-			poisonTexts.push_back(text);
+			int bcPoint = enemy.GetBCPoint();
+
+			std::wstring text;
+
+			if (bcPoint == 0) {
+				text = L"";
+			} else {
+				text = std::to_wstring(enemy.GetBCPoint());
+			}
+			bcTexts.push_back(text);
 		}
 	}
-	return poisonTexts;
+	return bcTexts;
 }
 
 
@@ -3622,6 +3718,7 @@ int BattleController::CalcTotalIncomingDamage() const {
 
 	for (auto& enemy : enemyMgr_->GetEnemies()) {
 		if (enemy.IsAlive()) {
+
 			// 敵が次のターンに行う攻撃力を取得（シールド等があればここで減算処理）
 			total += enemy.GetIncomingDamage() - player_->GetBlock();
 		}

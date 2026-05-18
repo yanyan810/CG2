@@ -295,55 +295,30 @@
      },
     {
       "id": 21,
-      "name": "PoisonBottle!",
-      "cost": 1,
-      "frameModel": "cards/models/frame.obj",
-      "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Poison/PoisonBottle!.png",
-      "desc": "敵単体に毒を１付与",
-      "effects": [
-        { "type": "Poison", "value": 1 }
-      ]
-     },
-      {
-      "id": 22,
       "name": "HardPoisonBottle!",
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/HardPoisonBottle!.png",
-      "desc": "敵全体に毒を１付与",
+      "desc": "敵全体に毒を2付与",
       "effects": [
-        { "type": "PoisonAll", "value": 1 }
-      ]
-     },
-      {
-      "id": 23,
-      "name": "PainAmplification",
-      "cost": 5,
-      "frameModel": "cards/models/frame.obj",
-      "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Poison/PainAmplification.png",
-      "desc": "敵全体の毒を倍の値にする",
-       "effects": [
-        { "type": "PoisonDouble", "value": 1 }
-      ]
-     },
-      {
-      "id": 24,
-      "name": "RedSpiderLily",
-      "cost": 2,
-      "frameModel": "cards/models/frame.obj",
-      "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Poison/RedSpiderLily.png",
-      "desc": "敵単体に毒を２付与\nカードを２枚引く",
-       "effects": [
-        { "type": "Poison", "value": 2 },
-        { "type": "Draw", "value": 2 }
+        { "type": "PoisonAll", "value": 2 }
+      ],
+       "subEffects": [
+        {
+          "trigger": "OnTurnStartWithPoker",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "OnePair"
+          },
+          "effects": [
+           { "type": "PoisonAll", "value": 2 }
+          ]
+        }
       ]
      },
      {
-      "id": 25,
+      "id": 22,
       "name": "Flowers",
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
@@ -356,20 +331,7 @@
       ]
      },
      {
-      "id": 26,
-      "name": "PoisonKnife",
-      "cost": 2,
-      "frameModel": "cards/models/frame.obj",
-      "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Poison/PoisonKnife.png",
-      "desc": "敵単体に５ダメージと\n毒を１付与する",
-      "effects": [
-        { "type": "Damage", "value": 5 },
-        { "type": "Poison", "value": 1 }
-      ]
-     },
-     {
-      "id": 27,
+      "id": 23,
       "name": "PoisonFollowUp",
       "cost": 5,
       "frameModel": "cards/models/frame.obj",
@@ -379,22 +341,34 @@
        "effects": [
         { "type": "PoisonAll", "value": 5 },
         { "type": "PoisonDamage", "value": 1 }
+      ],
+       "subEffects": [
+        {
+          "trigger": "OnTurnStartWithPoker",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "FullHouse"
+          },
+          "effects": [
+           { "type": "PoisonAmplify", "value": 3 }
+          ]
+        }
       ]
      },
       {
-      "id": 28,
+      "id": 24,
       "name": "PoisonDraw",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonDraw.png",
-      "desc": "このターン中、\n「毒を付与するたびにカードを１枚引く」\nを得る",
+      "desc": "このターン中、\n「毒を付与するたびにカードを１枚引く」\nを得る\nすでに付与されているなら\n敵全体に毒を１付与",
        "effects": [
         { "type": "PoisonDraw", "value": 1 }
       ]
      },
        {
-      "id": 29,
+      "id": 25,
       "name": "TheRodOfAsclepius",
       "cost": 6,
       "frameModel": "cards/models/frame.obj",
@@ -405,18 +379,80 @@
         { "type": "PoisonDamage", "value": 2 },
         { "type": "PoisonRemove", "value": 1 },
         { "type": "Poisonheal", "value": 2 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "ThreeOfAKind"
+          },
+          "effects": [
+            { "type": "PosionAll", "value": 20 }
+          ]
+        }
+      ]
+     },
+      {
+      "id": 26,
+      "name": "BelowFreezing",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵単体に５ダメージ\n敵単体に凍結を２付与",
+       "effects": [
+        { "type": "Damage", "value": 5 },
+        { "type": "Frost", "value": 2 }
+      ]
+     },
+        {
+      "id": 27,
+      "name": "AbsoluteZero",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵全体に５ダメー\n敵単体に凍結を２付与",
+       "effects": [
+        { "type": "DamageAll", "value": 5 },
+        { "type": "FrostAll", "value": 2 }
+      ]
+     },
+         {
+      "id": 28,
+      "name": "EdgeHammer",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵単体に10ダメージ",
+       "effects": [
+        { "type": "Damage", "value": 10 }
+      ]
+     },
+         {
+      "id": 29,
+      "name": "FrostedKnife",
+      "cost": 4,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "このターン中、\n「ダメージを与えるたびに\n凍結を１付与」\nを得る\nすでに付与されているなら\n敵全体に凍結を１付与",
+       "effects": [
+         { "type": "FrostBite", "value": 1 }
       ]
      },
       {
       "id": 30,
-      "name": "FriendlyPoison",
+      "name": "IceAge",
       "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Poison/FriendlyPoison.png",
-      "desc": "敵全体の毒の合計値分\n体力を回復",
-      "effects": [
-        { "type": "PoisonHeal", "value": 1 }
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵全体の凍結を２倍にする",
+       "effects": [
+         { "type": "FrostAmplify", "value": 2 }
       ]
      }
     ]}

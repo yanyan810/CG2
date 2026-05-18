@@ -194,11 +194,11 @@ bool GameApp::Initialize_() {
 
 	// デフォルトデッキ
 	for (int i = 0; i < 4; i++) {
-		deckInstances_.push_back(MakeCardInstance(21));
-		deckInstances_.push_back(MakeCardInstance(22));
-		deckInstances_.push_back(MakeCardInstance(23));
-		deckInstances_.push_back(MakeCardInstance(24));
-		deckInstances_.push_back(MakeCardInstance(25));
+		deckInstances_.push_back(MakeCardInstance(6));
+		deckInstances_.push_back(MakeCardInstance(2));
+		deckInstances_.push_back(MakeCardInstance(3));
+		deckInstances_.push_back(MakeCardInstance(4));
+		deckInstances_.push_back(MakeCardInstance(5));
 		deckInstances_.push_back(MakeCardInstance(26));
 		deckInstances_.push_back(MakeCardInstance(27));
 		deckInstances_.push_back(MakeCardInstance(28));

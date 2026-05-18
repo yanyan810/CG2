@@ -114,6 +114,9 @@ public:
 	void SetPoisonDrawActive(bool active) { poisonDrawActive_ = active; }
 	bool GetPoisonDrawActive() const { return poisonDrawActive_; }
 
+	void SetFrostBiteActive(bool active) { frostBiteActive_ = active; }
+	bool GetFrostBiteActive() const { return frostBiteActive_; }
+
 private:
 #ifndef _DEBUG
 	void PlayReleaseIdleAnimation_();
@@ -137,6 +140,7 @@ private:
 	int vampireHeal_ = 0;
 
 	bool poisonDrawActive_ = false;
+	bool frostBiteActive_ = false;
 
 	AABB body_{};
 	enum class AnimState { Idle, AttackForward, AttackReturn, Damage };
