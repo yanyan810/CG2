@@ -16,14 +16,14 @@
       "bossFlag": false
     },
     {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
-      "maxHp": 70,
-      "hp": 70,
-      "attack": 7,
+      "enemyType": "Goblin",
+      "enemyName": "Goblin",
+      "maxHp": 80,
+      "hp": 80,
+      "attack": 10,
       "defense": 0,
       "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/Goblin.json",
       "bossFlag": false
     },
     {
