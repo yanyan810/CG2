@@ -247,8 +247,7 @@ void GameApp::Finalize_() {
 }
 
 void GameApp::Update(float dt) {
-	OutputDebugStringA("[GameApp] Update\n");
-
+	// ★毎フレームOutputDebugStringAは削除（重いため）
 	input_->Update();
 
 #ifdef USE_IMGUI

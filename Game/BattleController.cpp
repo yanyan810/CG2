@@ -774,6 +774,18 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	actionDirector_.Initialize(spriteCom_, dx_, objCom_);
 
+	// ダメージポップアップ用の数字モデル(0-9)を事前にロードしてプール化
+	for (int d = 0; d <= 9; ++d) {
+		std::string path = "cards/models/";
+		path += static_cast<char>('0' + d);
+		path += ".obj";
+		auto obj = std::make_unique<Object3d>();
+		obj->Initialize(objCom_, dx_);
+		obj->SetModel(path); // ここで1回だけロード＆GPUバッファ作成
+		obj->SetCamera(cam_);
+		digitModelPool_[d] = std::move(obj);
+	}
+
 	// -----------------------------
 	// HPゲージ作成
 	// -----------------------------
@@ -2189,7 +2201,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			}
 		}
 
-		if (actionDirector_.Update(dt)) {
+		if (actionDirector_.Update(dt, app.GetInput())) {
 			app.ObjCom()->SetDefaultCamera(cam_);
 			if (player_) {
 				player_->SetCamera(cam_);
@@ -3753,15 +3765,15 @@ void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isP
 	std::string dmgStr = std::to_string(damage);
 	for (char c : dmgStr) {
 		if (c >= '0' && c <= '9') {
-			// コストと同じようにモデルのパスを作る（例："cards/models/5.obj"）
-			std::string path = "cards/models/";
-			path += c;
-			path += ".obj";
+			int digit = c - '0';
 
+			// プールのモデルポインタを流用してObject3dを作成（GPU再確保なし）
 			auto obj = std::make_unique<Object3d>();
-
 			obj->Initialize(objCom_, dx_);
-			obj->SetModel(path);
+			if (digitModelPool_[digit]) {
+				// Model*を直接渡す（SetModel(path)よりはるかに軽い）
+				obj->SetModel(digitModelPool_[digit]->GetModel());
+			}
 			obj->SetCamera(cam_);
 
 			p.digitModels.push_back(std::move(obj));

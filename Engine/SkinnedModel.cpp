@@ -370,29 +370,12 @@ void SkinnedModel::LoadFbx_(const std::string& filePath)
 	texturePath_ = "resources/white1x1.png";
 	TextureManager::GetInstance()->LoadTexture(texturePath_);
 
-	// ==== デバッグ: 読み込んだアニメ情報をログ ====
-	{
-		std::string out =
-			"[SkinnedModel] Anim name=" + anime_.name +
-			", duration=" + std::to_string(anime_.duration) +
-			" sec, ticksPerSec=" + std::to_string(anime_.ticksPerSecond) +
-			", channels=" + std::to_string(anime_.channels.size()) + "\n";
+	// ==== デバッグ: 読み込んだアニメ情報をログ（初回のみ・コメントアウト可能）====
+	// {
+	// 	std::string out = "[SkinnedModel] Anim name=" + anime_.name + ...
+	// 	OutputDebugStringA(out.c_str());
+	// }
 
-		OutputDebugStringA(out.c_str());
-
-		int mappedChannels = 0;
-		for (auto& ch : anime_.channels) {
-			if (ch.boneIndex >= 0) {
-				++mappedChannels;
-			}
-		}
-
-		std::string out2 =
-			"[SkinnedModel] bones=" + std::to_string(bones_.size()) +
-			", mappedChannels=" + std::to_string(mappedChannels) + "\n";
-
-		OutputDebugStringA(out2.c_str());
-	}
 
 	globalInverse_ = Matrix4x4::Inverse(
 		Matrix4x4::FromAiMatrix(scene->mRootNode->mTransformation)

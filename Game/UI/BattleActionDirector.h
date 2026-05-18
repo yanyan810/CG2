@@ -18,6 +18,8 @@ class Camera;
 class CameraAnimator;
 class AnimationClipDocument;
 class Card3D;
+class Input;  // スキップ用
+
 
 struct ActionSequenceProfile {
     // 1. カットイン設定
@@ -72,7 +74,8 @@ public:
     void StartAction(Player* player, Enemy* target, const CardDef& cardDef, const CardInstance& cardInstance);
 
     // Returns true if the entire sequence is complete
-    bool Update(float dt);
+    // input: マウスクリックでスキップする場合は Input* を渡す（nullptrでスキップ無効）
+    bool Update(float dt, Input* input = nullptr);
 
     void Draw2D();
     void Draw3D();
@@ -86,6 +89,8 @@ public:
     void SetDebugPaused(bool paused) { debugPaused_ = paused; }
     void SetDebugPlaybackTime(float time);
     bool ReloadCardMotionFromProfile();
+    void SetSkipEnabled(bool enabled) { skipEnabled_ = enabled; }
+    bool GetSkipEnabled() const { return skipEnabled_; }
 
     const ActionSequenceProfile& GetProfile() const { return profile_; }
     ActionSequenceProfile& GetProfileRef() { return profile_; }
@@ -146,6 +151,7 @@ private:
     bool cameraAnimIsStatic_ = false;
     bool cardMotionVisible_ = false;
     bool debugPaused_ = false;
+    bool skipEnabled_ = true;   // マウスクリックでスキップできるか
 
     SpriteCommon* spriteCom_ = nullptr;
     DirectXCommon* dx_ = nullptr;
@@ -158,4 +164,20 @@ private:
     Vector3 originalCameraPos_{};
     Vector3 originalCameraRot_{};
     float originalCameraFov_ = 0.8f;
+
+    // JSONロードキャッシュ（同じファイルは再読み込みしない）
+    std::string cachedPlayerAnimPath_;
+    std::string cachedEnemyAnimPath_;
+    std::string cachedCameraAnimPath_;
+    std::string cachedCardMotionPath_;
+
+    // AddAnimationキャッシュ（同じアニメを同じモデルに二度コピーしない）
+    void*       cachedPlayerAnimModel_    = nullptr; // 登録済みモデルポインタ
+    std::string cachedPlayerAnimInjected_;           // 登録済みアニメパス
+    void*       cachedEnemyAnimModel_     = nullptr;
+    std::string cachedEnemyAnimInjected_;
+
+    // Card3D再利用キャッシュ（Initializeは最初の1回だけ）
+    int cachedCardDefId_ = -1;       // 前回のCardDef::id
+    CardInstance cachedCardInst_{};  // 前回のCardInstance
 };

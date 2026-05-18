@@ -93,13 +93,16 @@ void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
     // 選択された技のデータを取得
     const AttackMove& move = attackList_[index];
 
-    // エフェクトプロファイルをJSONから読み込む
-    EffectProfile profile;
+    // エフェクトプロファイルをJSONから読み込む（同じファイルならスキップ）
     if (!move.effectJSON.empty()) {
-        if (EffectSequencer::LoadProfile(move.effectJSON, profile)) {
-            // プロファイルに fireDelay などの設定が含まれていることを確認
-            effectSequencer_.SetProfile(profile);
+        if (move.effectJSON != cachedEffectJSONPath_) {
+            EffectProfile profile;
+            if (EffectSequencer::LoadProfile(move.effectJSON, profile)) {
+                effectSequencer_.SetProfile(profile);
+                cachedEffectJSONPath_ = move.effectJSON;
+            }
         }
+        // 同じJSONなら既にSetProfile済みなのでそのまま使う
     }
 
     // アニメーションの再生

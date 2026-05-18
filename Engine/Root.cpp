@@ -1,4 +1,4 @@
-Release Pos Debug#include "Root.h"
+#include "Root.h"
 
 void Root::InitalizeForModelParticle()
 {
