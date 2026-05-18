@@ -193,17 +193,27 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("BattleAnimeEditer", [] { return std::make_unique<BattleAnimeEditerScene>(); });
 
 	// デフォルトデッキ
-	for (int i = 0; i < 4; i++) {
-		deckInstances_.push_back(MakeCardInstance(6));
+	for (int i = 0; i < 2; i++) {
+		deckInstances_.push_back(MakeCardInstance(1));
 		deckInstances_.push_back(MakeCardInstance(2));
 		deckInstances_.push_back(MakeCardInstance(3));
 		deckInstances_.push_back(MakeCardInstance(4));
 		deckInstances_.push_back(MakeCardInstance(5));
-		deckInstances_.push_back(MakeCardInstance(26));
-		deckInstances_.push_back(MakeCardInstance(27));
-		deckInstances_.push_back(MakeCardInstance(28));
-		deckInstances_.push_back(MakeCardInstance(29));
-		deckInstances_.push_back(MakeCardInstance(30));
+		deckInstances_.push_back(MakeCardInstance(6));
+		deckInstances_.push_back(MakeCardInstance(7));
+		deckInstances_.push_back(MakeCardInstance(8));
+		deckInstances_.push_back(MakeCardInstance(9));
+		deckInstances_.push_back(MakeCardInstance(10));
+		deckInstances_.push_back(MakeCardInstance(11));
+		deckInstances_.push_back(MakeCardInstance(12));
+		deckInstances_.push_back(MakeCardInstance(13));
+		deckInstances_.push_back(MakeCardInstance(14));
+		deckInstances_.push_back(MakeCardInstance(15));
+		deckInstances_.push_back(MakeCardInstance(16));
+		deckInstances_.push_back(MakeCardInstance(17));
+		deckInstances_.push_back(MakeCardInstance(18));
+		deckInstances_.push_back(MakeCardInstance(19));
+		deckInstances_.push_back(MakeCardInstance(20));
 	}
 
 	cardDB_ = std::make_unique<CardDatabase>();
