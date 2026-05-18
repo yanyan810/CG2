@@ -82,6 +82,8 @@ public:
     ActionPhase GetPhase() const { return phase_; }
     float GetPlaybackTime() const { return timer_; }
     float GetPlaybackDuration() const { return duration_; }
+    float GetImpactTime() const;
+    bool HasReachedImpact() const { return hasReachedImpact_; }
     bool IsDebugPaused() const { return debugPaused_; }
     void SetDebugPaused(bool paused) { debugPaused_ = paused; }
     void SetDebugPlaybackTime(float time);
@@ -145,6 +147,7 @@ private:
     bool hasPlayedEnemyAnim_ = false;
     bool cameraAnimIsStatic_ = false;
     bool cardMotionVisible_ = false;
+    bool hasReachedImpact_ = false;
     bool debugPaused_ = false;
 
     SpriteCommon* spriteCom_ = nullptr;

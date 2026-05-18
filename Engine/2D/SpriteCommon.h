@@ -10,11 +10,14 @@ public:
 
     ID3D12RootSignature* GetRootSignature() const { return rootSignature_.Get(); }
     ID3D12PipelineState* GetPipelineState() const { return pso_.Get(); }
+    ID3D12RootSignature* GetHealthGaugeRootSignature() const { return healthGaugeRootSig_.Get(); }
+    ID3D12PipelineState* GetHealthGaugePipelineState() const { return healthGaugePSO_.Get(); }
 
     DirectXCommon* GetDxCommon() const { return dx_; }
 
     //共通描画設定
 	void SetGraphicsPipelineState();
+    void SetHealthGaugePipelineState();
 
     // ★円マスク（GameOverの最後にこれを呼ぶ）
     void DrawCircleMask(float radius01, float softness01);
@@ -27,6 +30,7 @@ private:
 
     // ★追加：円マスク用
     void CreateCircleMaskPipeline_();
+    void CreateHealthGaugePipeline_();
 
 private:
     DirectXCommon* dx_ = nullptr;
@@ -56,5 +60,8 @@ private:
     };
     Microsoft::WRL::ComPtr<ID3D12Resource> circleMaskCB_;
     MaskCB* mappedMaskCB_ = nullptr;
+
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> healthGaugeRootSig_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> healthGaugePSO_;
 
 };

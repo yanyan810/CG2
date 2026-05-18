@@ -171,5 +171,11 @@ private:
 	std::unique_ptr<EffectSequencer> effectSequencer_;
 
     int battleEndTimer_ = 180;
+    bool clearTransitionActive_ = false;
+    float clearTransitionTimer_ = 0.0f;
+    Vector3 clearBaseFieldCameraPos_{};
+    Vector3 clearBaseFieldCameraRot_{};
+    Vector3 clearBaseBattleCameraPos_{};
+    Vector3 clearBaseBattleCameraRot_{};
 };
 

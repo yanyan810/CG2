@@ -77,6 +77,7 @@ public:
 
 	void Initialize(GameApp& app, Camera* camera);
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
+	void UpdateClearTransitionVisuals(float dt);
 	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
 	void DrawFieldFrameBloom(GameApp& app);
@@ -189,14 +190,8 @@ public:
 		discardView_.reset();
 		costDigitModels_.clear();
 
-		playerHpFrame_.reset();
 		playerHpBg_.reset();
-		playerHpFg_.reset();
-		playerHpDamageFlash_.reset();
-		playerHpPredict_.reset();
 		enemyHpBgs_.clear();
-		enemyHpFgs_.clear();
-		enemyBlockPredicts_.clear();
 		enemyIntentIcons_.clear();
 		enemyIntentTexts_.clear();
 		enemyIntentCountTexts_.clear();
@@ -398,6 +393,7 @@ private:
 	Enemy* actionSequenceTarget_ = nullptr;
 	const CardDef* actionSequenceCardDef_ = nullptr;
 	CardInstance actionSequenceCard_{};
+	bool actionSequenceDamageApplied_ = false;
 
 	void ExecutePendingAttack_(Enemy& targetEnemy);
 	void ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action);
@@ -407,35 +403,13 @@ private:
 	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, const CardInstance& card, Enemy& targetEnemy);
 	bool StartNextActionSequence_();
 
-	std::unique_ptr<Sprite> playerHpFrame_;
 	std::unique_ptr<Sprite> playerHpBg_; // プレイヤーHP背景
-	std::unique_ptr<Sprite> playerHpFg_; // プレイヤーHP中身(緑)
 
-	std::unique_ptr<Sprite> playerHpDamageFlash_;
-	std::unique_ptr<Sprite> playerHpPredict_;
-
-	std::unique_ptr<Sprite> playerBlockPredict_;
-
-	Vector2 playerHpFramePosition_{ 60.0f, 18.0f };
-	Vector2 playerHpFrameSize_{ 351.0f, 32.0f };
 	Vector2 playerHpFillPosition_{ 67.0f, 25.0f };
 	Vector2 playerHpFillSize_{ 337.0f, 18.0f };
-	Vector2 playerDamageFlashPosition_{ 60.0f, 18.0f };
-	Vector2 playerDamageFlashSize_{ 351.0f, 32.0f };
-	float playerDamageFlashInitialAlpha_ = 0.8f;
-	float playerDamageFlashFadeDuration_ = 0.45f;
-	float playerDamageFlashTimer_ = 0.0f;
-	bool playerDamageFlashEnabled_ = true;
 	int playerLastHp_ = -1;
-	Vector2 playerAttackPreviewPosition_{ 67.0f, 25.0f };
-	Vector2 playerAttackPreviewSize_{ 337.0f, 18.0f };
-	float playerAttackPreviewAlpha_ = 0.8f;
-	bool playerAttackPreviewEnabled_ = true;
-	bool playerAttackPreviewVisible_ = false;
 
 	std::vector<std::unique_ptr<Sprite>> enemyHpBgs_;
-	std::vector<std::unique_ptr<Sprite>> enemyHpFgs_;
-	std::vector<std::unique_ptr<Sprite>> enemyBlockPredicts_;
 
 	std::vector<std::unique_ptr<Sprite>> enemyIntentIcons_;
 	std::vector<std::unique_ptr<TextSprite>> enemyIntentTexts_;
