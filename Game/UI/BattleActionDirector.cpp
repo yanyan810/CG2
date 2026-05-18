@@ -24,48 +24,6 @@
 // =====================================
 // JSON Serialization
 // =====================================
-nlohmann::json ActionCardRevealProfile::ToJson() const {
-    return nlohmann::json{
-        {"enabled", enabled},
-        {"playerRelative", playerRelative},
-        {"startTime", startTime},
-        {"duration", duration},
-        {"startPos", {startPos.x, startPos.y, startPos.z}},
-        {"endPos", {endPos.x, endPos.y, endPos.z}},
-        {"startRot", {startRot.x, startRot.y, startRot.z}},
-        {"endRot", {endRot.x, endRot.y, endRot.z}},
-        {"startScale", {startScale.x, startScale.y, startScale.z}},
-        {"endScale", {endScale.x, endScale.y, endScale.z}},
-        {"glitter", glitter}
-    };
-}
-
-void ActionCardRevealProfile::FromJson(const nlohmann::json& j) {
-    enabled = j.value("enabled", enabled);
-    playerRelative = j.value("playerRelative", playerRelative);
-    startTime = j.value("startTime", startTime);
-    duration = j.value("duration", duration);
-    glitter = j.value("glitter", glitter);
-    if (j.contains("startPos")) {
-        startPos = { j["startPos"][0], j["startPos"][1], j["startPos"][2] };
-    }
-    if (j.contains("endPos")) {
-        endPos = { j["endPos"][0], j["endPos"][1], j["endPos"][2] };
-    }
-    if (j.contains("startRot")) {
-        startRot = { j["startRot"][0], j["startRot"][1], j["startRot"][2] };
-    }
-    if (j.contains("endRot")) {
-        endRot = { j["endRot"][0], j["endRot"][1], j["endRot"][2] };
-    }
-    if (j.contains("startScale")) {
-        startScale = { j["startScale"][0], j["startScale"][1], j["startScale"][2] };
-    }
-    if (j.contains("endScale")) {
-        endScale = { j["endScale"][0], j["endScale"][1], j["endScale"][2] };
-    }
-}
-
 nlohmann::json ActionSequenceProfile::ToJson() const {
     return nlohmann::json{
         {"cutinDuration", cutinDuration},
@@ -86,7 +44,7 @@ nlohmann::json ActionSequenceProfile::ToJson() const {
         {"playerAttackAnimStartTime", playerAttackAnimStartTime},
         {"enemyDamageAnim", enemyDamageAnim},
         {"enemyDamageAnimStartTime", enemyDamageAnimStartTime},
-        {"cardReveal", cardReveal.ToJson()}
+        {"cardMotionFile", cardMotionFile}
     };
 }
 
@@ -123,9 +81,7 @@ void ActionSequenceProfile::FromJson(const nlohmann::json& j) {
     playerAttackAnimStartTime = j.value("playerAttackAnimStartTime", playerAttackAnimStartTime);
     enemyDamageAnim = j.value("enemyDamageAnim", enemyDamageAnim);
     enemyDamageAnimStartTime = j.value("enemyDamageAnimStartTime", enemyDamageAnimStartTime);
-    if (j.contains("cardReveal") && j["cardReveal"].is_object()) {
-        cardReveal.FromJson(j["cardReveal"]);
-    }
+    cardMotionFile = j.value("cardMotionFile", cardMotionFile);
 }
 
 // =====================================
@@ -218,6 +174,57 @@ void BattleActionDirector::SetProfilePath(const std::string& path) {
     strcpy_s(profileFilename_, path.c_str());
 }
 
+void BattleActionDirector::SetDebugPlaybackTime(float time) {
+    if (phase_ == ActionPhase::Idle) {
+        return;
+    }
+
+    timer_ = std::clamp(time, 0.0f, std::max(duration_, 0.0f));
+    easeT_ = std::clamp(timer_ / std::max(duration_, 0.001f), 0.0f, 1.0f);
+    SamplePreviewAtCurrentTime_();
+}
+
+bool BattleActionDirector::ReloadCardMotionFromProfile() {
+    if (profile_.cardMotionFile.empty()) {
+        cardMotionKeyframes_.clear();
+        cardMotionVisible_ = false;
+        return false;
+    }
+
+    if (!LoadCardMotion_(profile_.cardMotionFile)) {
+        return false;
+    }
+
+    duration_ = std::max(duration_, cardMotionKeyframes_.back().time);
+    SamplePreviewAtCurrentTime_();
+    return true;
+}
+
+void BattleActionDirector::SamplePreviewAtCurrentTime_() {
+    if (profile_.enableCameraWork) {
+        const bool hasCameraAnim = cinematicCamAnim_ && !profile_.cameraAnimFile.empty();
+        if (phase_ == ActionPhase::Attack && hasCameraAnim && !cameraAnimIsStatic_) {
+            cinematicCamAnim_->SetCurrentTime(timer_);
+            cinematicCamAnim_->SampleAtTime(timer_);
+            if (cinematicCam_) {
+                cinematicCam_->Update();
+            }
+        } else if (hasCameraAnim) {
+            cinematicCamAnim_->SampleAtTime(0.0f);
+            if (cinematicCam_) {
+                cinematicCam_->Update();
+            }
+        } else if (cinematicCam_) {
+            cinematicCam_->SetTranslate(profile_.cameraPos);
+            cinematicCam_->SetRotate(profile_.cameraRot);
+            cinematicCam_->SetFovY(profile_.cameraFov);
+            cinematicCam_->Update();
+        }
+    }
+
+    UpdateCardMotion_(0.0f);
+}
+
 void BattleActionDirector::SaveOriginalState_() {
     hasOriginalState_ = true;
 
@@ -273,10 +280,10 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     player_ = player;
     target_ = target;
     SaveOriginalState_();
-    cardReveal_.reset();
-    hasCardRevealCard_ = false;
-    cardRevealVisible_ = false;
-    cardRevealTimer_ = 0.0f;
+    debugPaused_ = false;
+    cardMotionCard_.reset();
+    cardMotionKeyframes_.clear();
+    cardMotionVisible_ = false;
     
     // いきなりアニメーション再生フェーズから開始する
     phase_ = ActionPhase::Attack;
@@ -298,16 +305,14 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     if (!cardCamera && player_ && player_->GetObject3d()) {
         cardCamera = player_->GetObject3d()->GetCamera();
     }
-    if (profile_.cardReveal.enabled && cardDef && cardInstance && objCom_ && dx_ && cardCamera) {
-        cardReveal_ = std::make_unique<Card3D>();
-        cardReveal_->Initialize(objCom_, dx_, cardCamera, *cardDef, *cardInstance);
-        cardReveal_->SetIsHand(false);
-        cardReveal_->SetGlitter(profile_.cardReveal.glitter);
-        cardReveal_->SetTransform(
-            ResolveCardRevealPos_(profile_.cardReveal.startPos),
-            profile_.cardReveal.startRot,
-            profile_.cardReveal.startScale);
-        hasCardRevealCard_ = true;
+    if (!profile_.cardMotionFile.empty() && cardDef && cardInstance && objCom_ && dx_ && cardCamera &&
+        LoadCardMotion_(profile_.cardMotionFile)) {
+        cardMotionCard_ = std::make_unique<Card3D>();
+        cardMotionCard_->Initialize(objCom_, dx_, cardCamera, *cardDef, *cardInstance);
+        cardMotionCard_->SetIsHand(false);
+        const CardMotionKeyframe first = SampleCardMotion_(0.0f);
+        cardMotionCard_->SetTransform(first.pos, first.rot, first.scale);
+        duration_ = std::max(duration_, cardMotionKeyframes_.back().time);
     }
 
     // Preload Animation JSONs and inject to Model
@@ -342,7 +347,7 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
         
         float camDuration = cinematicCamAnim_->GetMaxTime();
         if (camDuration > 0.0f) {
-            duration_ = camDuration;
+            duration_ = std::max(duration_, camDuration);
         }
     }
 
@@ -356,13 +361,22 @@ bool BattleActionDirector::Update(float dt) {
         return false;
     }
 
-    timer_ += dt;
+    const float stepDt = debugPaused_ ? 0.0f : dt;
+    timer_ += stepDt;
     easeT_ = std::clamp(timer_ / std::max(duration_, 0.001f), 0.0f, 1.0f);
 
     if (profile_.enableCameraWork) {
         const bool hasCameraAnim = cinematicCamAnim_ && !profile_.cameraAnimFile.empty();
         if (phase_ == ActionPhase::Attack && hasCameraAnim && !cameraAnimIsStatic_) {
-            cinematicCamAnim_->Update(dt);
+            if (debugPaused_) {
+                cinematicCamAnim_->SetCurrentTime(timer_);
+                cinematicCamAnim_->SampleAtTime(timer_);
+                if (cinematicCam_) {
+                    cinematicCam_->Update();
+                }
+            } else {
+                cinematicCamAnim_->Update(stepDt);
+            }
         } else if (hasCameraAnim) {
             cinematicCamAnim_->SampleAtTime(0.0f);
             if (cinematicCam_) {
@@ -376,7 +390,7 @@ bool BattleActionDirector::Update(float dt) {
         }
     }
 
-    UpdateCardReveal_(dt);
+    UpdateCardMotion_(stepDt);
 
     if (phase_ == ActionPhase::Cutin) {
         cutinBg_->SetColor(profile_.cutinBgColor);
@@ -389,7 +403,7 @@ bool BattleActionDirector::Update(float dt) {
         float lineX = std::lerp((float)WinApp::kClientWidth, -((float)WinApp::kClientWidth * 1.5f), easeT_);
         cutinLine_->SetPosition({lineX, (float)WinApp::kClientHeight / 2.0f});
 
-        if (timer_ >= duration_) {
+        if (!debugPaused_ && timer_ >= duration_) {
             // Cutin -> Approach
             phase_ = ActionPhase::Approach;
             timer_ = 0.0f;
@@ -397,7 +411,7 @@ bool BattleActionDirector::Update(float dt) {
         }
     }
     else if (phase_ == ActionPhase::Approach) {
-        if (timer_ >= duration_) {
+        if (!debugPaused_ && timer_ >= duration_) {
             // Approach -> Attack
             phase_ = ActionPhase::Attack;
             timer_ = 0.0f;
@@ -427,9 +441,12 @@ bool BattleActionDirector::Update(float dt) {
             hasPlayedEnemyAnim_ = true;
         }
 
-        if (timer_ >= duration_) {
+        if (!debugPaused_ && timer_ >= duration_) {
             phase_ = ActionPhase::Idle;
             RestoreOriginalState_();
+            cardMotionVisible_ = false;
+            cardMotionCard_.reset();
+            cardMotionKeyframes_.clear();
 
             // --- アクション終了時に待機モーションに戻す ---
             if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
@@ -463,43 +480,101 @@ bool BattleActionDirector::Update(float dt) {
     return false;
 }
 
-Vector3 BattleActionDirector::ResolveCardRevealPos_(const Vector3& pos) const {
-    if (!profile_.cardReveal.playerRelative || !player_) {
-        return pos;
+bool BattleActionDirector::LoadCardMotion_(const std::string& path) {
+    cardMotionKeyframes_.clear();
+
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return false;
     }
 
-    const Vector3 base = player_->GetPos();
-    return { base.x + pos.x, base.y + pos.y, base.z + pos.z };
+    nlohmann::json j;
+    file >> j;
+    if (!j.contains("keyframes") || !j["keyframes"].is_array()) {
+        return false;
+    }
+
+    auto readVec3 = [](const nlohmann::json& value, const Vector3& fallback) {
+        if (!value.is_array() || value.size() < 3) {
+            return fallback;
+        }
+        return Vector3{
+            value[0].get<float>(),
+            value[1].get<float>(),
+            value[2].get<float>()
+        };
+    };
+
+    for (const auto& key : j["keyframes"]) {
+        CardMotionKeyframe frame{};
+        frame.time = key.value("time", 0.0f);
+        frame.pos = readVec3(key.value("pos", nlohmann::json::array()), frame.pos);
+        frame.rot = readVec3(key.value("rot", nlohmann::json::array()), frame.rot);
+        frame.scale = readVec3(key.value("scale", nlohmann::json::array()), frame.scale);
+        cardMotionKeyframes_.push_back(frame);
+    }
+
+    std::sort(cardMotionKeyframes_.begin(), cardMotionKeyframes_.end(),
+        [](const CardMotionKeyframe& a, const CardMotionKeyframe& b) {
+            return a.time < b.time;
+        });
+
+    return !cardMotionKeyframes_.empty();
 }
 
-void BattleActionDirector::UpdateCardReveal_(float dt) {
-    if (!hasCardRevealCard_ || !cardReveal_) {
+BattleActionDirector::CardMotionKeyframe BattleActionDirector::SampleCardMotion_(float time) const {
+    if (cardMotionKeyframes_.empty()) {
+        return {};
+    }
+    if (time <= cardMotionKeyframes_.front().time) {
+        return cardMotionKeyframes_.front();
+    }
+    if (time >= cardMotionKeyframes_.back().time) {
+        return cardMotionKeyframes_.back();
+    }
+
+    for (size_t i = 1; i < cardMotionKeyframes_.size(); ++i) {
+        const CardMotionKeyframe& next = cardMotionKeyframes_[i];
+        if (time > next.time) {
+            continue;
+        }
+
+        const CardMotionKeyframe& prev = cardMotionKeyframes_[i - 1];
+        const float span = std::max(next.time - prev.time, 0.001f);
+        const float t = std::clamp((time - prev.time) / span, 0.0f, 1.0f);
+        CardMotionKeyframe result{};
+        result.time = time;
+        result.pos = LerpVec3(prev.pos, next.pos, t);
+        result.rot = LerpVec3(prev.rot, next.rot, t);
+        result.scale = LerpVec3(prev.scale, next.scale, t);
+        return result;
+    }
+
+    return cardMotionKeyframes_.back();
+}
+
+void BattleActionDirector::UpdateCardMotion_(float dt) {
+    if (!cardMotionCard_ || cardMotionKeyframes_.empty()) {
         return;
     }
 
     if (profile_.enableCameraWork && cinematicCam_) {
-        cardReveal_->SetCamera(cinematicCam_.get());
+        cardMotionCard_->SetCamera(cinematicCam_.get());
     }
 
-    if (timer_ < profile_.cardReveal.startTime) {
+    cardMotionVisible_ = timer_ >= cardMotionKeyframes_.front().time;
+    if (!cardMotionVisible_) {
         return;
     }
 
-    cardRevealVisible_ = true;
-    cardRevealTimer_ += dt;
-    const float t = std::clamp(cardRevealTimer_ / std::max(profile_.cardReveal.duration, 0.001f), 0.0f, 1.0f);
-    const float eased = EaseOutQuart(t);
-
-    cardReveal_->SetTransform(
-        LerpVec3(ResolveCardRevealPos_(profile_.cardReveal.startPos), ResolveCardRevealPos_(profile_.cardReveal.endPos), eased),
-        LerpVec3(profile_.cardReveal.startRot, profile_.cardReveal.endRot, eased),
-        LerpVec3(profile_.cardReveal.startScale, profile_.cardReveal.endScale, eased));
-    cardReveal_->Update(dt);
+    const CardMotionKeyframe frame = SampleCardMotion_(timer_);
+    cardMotionCard_->SetTransform(frame.pos, frame.rot, frame.scale);
+    cardMotionCard_->Update(dt);
 }
 
 void BattleActionDirector::Draw3D() {
-    if (cardRevealVisible_ && cardReveal_) {
-        cardReveal_->Draw();
+    if (cardMotionVisible_ && cardMotionCard_) {
+        cardMotionCard_->Draw();
     }
 }
 

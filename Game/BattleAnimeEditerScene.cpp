@@ -6,6 +6,7 @@
 #include <cmath>
 #include <algorithm>
 #include <filesystem>
+#include <cstring>
 #include <imgui.h>
 
 namespace fs = std::filesystem;
@@ -93,6 +94,13 @@ void BattleAnimeEditerScene::Update(GameApp& app, float dt) {
         if (liveCameraPollTimer_ >= 0.2f) {
             liveCameraPollTimer_ = 0.0f;
             ReloadLiveCameraIfNeeded_(false);
+        }
+    }
+    if (liveSequenceSyncEnabled_ && !actionDirector_.IsPlaying()) {
+        liveSequencePollTimer_ += dt;
+        if (liveSequencePollTimer_ >= 0.2f) {
+            liveSequencePollTimer_ = 0.0f;
+            ReloadLiveSequenceIfNeeded_(false);
         }
     }
 
@@ -217,10 +225,6 @@ void BattleAnimeEditerScene::DrawImGui(GameApp& app) {
     }
     DrawSequenceDebugWindow_(app, targetEnemy);
 
-    if (animationEditTarget_ || cameraEditTarget_) {
-        animationEditor_.DrawImGui(BuildEditorContext_());
-    }
-
 #endif
 }
 
@@ -269,7 +273,8 @@ void BattleAnimeEditerScene::ReloadSequenceFileList_() {
         if (entry.path().filename() == "card_sequence_map.json") {
             continue;
         }
-        if (entry.path().stem().string().ends_with("_camera")) {
+        const std::string stem = entry.path().stem().string();
+        if (stem.ends_with("_camera") || stem.ends_with("_card")) {
             continue;
         }
         sequenceFiles_.push_back(entry.path().string());
@@ -309,6 +314,9 @@ bool BattleAnimeEditerScene::LoadSequenceByPath_(const std::string& path) {
     ApplyProfilePositions_(enemyMgr_.GetEnemies().empty() ? nullptr : &enemyMgr_.GetEnemies().back(), false);
     if (liveCameraSyncEnabled_) {
         ReloadLiveCameraIfNeeded_(true);
+    }
+    if (liveSequenceSyncEnabled_) {
+        ReloadLiveSequenceIfNeeded_(true);
     }
     return true;
 }
@@ -354,6 +362,58 @@ bool BattleAnimeEditerScene::ReloadLiveCameraIfNeeded_(bool force) {
     return true;
 }
 
+bool BattleAnimeEditerScene::ReloadLiveSequenceIfNeeded_(bool force) {
+    if (currentSequenceIndex_ < 0 || currentSequenceIndex_ >= static_cast<int>(sequenceFiles_.size())) {
+        liveSequenceStatus_ = "Live sequence sync is waiting for a sequence.";
+        return false;
+    }
+
+    const std::string sequencePath = sequenceFiles_[currentSequenceIndex_];
+    if (!fs::exists(sequencePath)) {
+        liveSequenceStatus_ = "Sequence JSON not found: " + sequencePath;
+        return false;
+    }
+
+    const auto sequenceWriteTime = fs::last_write_time(sequencePath);
+    bool changed = force || sequenceWriteTime != liveSequenceLastWriteTime_;
+
+    const std::string cardMotionPath = actionDirector_.GetProfile().cardMotionFile;
+    std::filesystem::file_time_type cardMotionWriteTime{};
+    if (!cardMotionPath.empty() && fs::exists(cardMotionPath)) {
+        cardMotionWriteTime = fs::last_write_time(cardMotionPath);
+        changed = changed || cardMotionWriteTime != liveCardMotionLastWriteTime_;
+    }
+
+    if (!changed) {
+        return false;
+    }
+
+    const bool wasPlaying = actionDirector_.IsPlaying();
+    const float playbackTime = actionDirector_.GetPlaybackTime();
+    actionDirector_.SetProfilePath(sequencePath);
+    actionDirector_.LoadProfile(sequencePath);
+    if (wasPlaying) {
+        actionDirector_.ReloadCardMotionFromProfile();
+        actionDirector_.SetDebugPlaybackTime(playbackTime);
+    }
+    RefreshLiveCameraPath_();
+    if (liveCameraSyncEnabled_) {
+        ReloadLiveCameraIfNeeded_(true);
+    }
+
+    liveSequenceLastWriteTime_ = sequenceWriteTime;
+    const std::string updatedCardMotionPath = actionDirector_.GetProfile().cardMotionFile;
+    if (!updatedCardMotionPath.empty() && fs::exists(updatedCardMotionPath)) {
+        liveCardMotionLastWriteTime_ = fs::last_write_time(updatedCardMotionPath);
+    } else {
+        liveCardMotionLastWriteTime_ = {};
+    }
+
+    ApplyProfilePositions_(enemyMgr_.GetEnemies().empty() ? nullptr : &enemyMgr_.GetEnemies().back(), false);
+    liveSequenceStatus_ = "Synced " + fs::path(sequencePath).filename().string();
+    return true;
+}
+
 void BattleAnimeEditerScene::ApplyProfilePositions_(Enemy* targetEnemy, bool applyCamera) {
     const ActionSequenceProfile& profile = actionDirector_.GetProfile();
     if (player_) {
@@ -388,6 +448,10 @@ void BattleAnimeEditerScene::DrawSequenceDebugWindow_(GameApp& app, Enemy* targe
         ReloadSequenceFileList_();
     }
     ImGui::SameLine();
+    if (ImGui::Button("Reload Loaded Sequence")) {
+        ReloadLiveSequenceIfNeeded_(true);
+    }
+    ImGui::SameLine();
     if (ImGui::Button("Reload Camera")) {
         ReloadLiveCameraIfNeeded_(true);
     }
@@ -400,12 +464,42 @@ void BattleAnimeEditerScene::DrawSequenceDebugWindow_(GameApp& app, Enemy* targe
         }
     }
 
+    if (actionDirector_.IsPlaying()) {
+        bool paused = actionDirector_.IsDebugPaused();
+        if (ImGui::Checkbox("Pause Preview", &paused)) {
+            actionDirector_.SetDebugPaused(paused);
+        }
+
+        float previewTime = actionDirector_.GetPlaybackTime();
+        const float previewDuration = std::max(actionDirector_.GetPlaybackDuration(), 0.001f);
+        if (ImGui::SliderFloat("Preview Time", &previewTime, 0.0f, previewDuration, "%.3f sec")) {
+            actionDirector_.SetDebugPaused(true);
+            actionDirector_.SetDebugPlaybackTime(previewTime);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Start")) {
+            actionDirector_.SetDebugPaused(true);
+            actionDirector_.SetDebugPlaybackTime(0.0f);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("End")) {
+            actionDirector_.SetDebugPaused(true);
+            actionDirector_.SetDebugPlaybackTime(previewDuration);
+        }
+    }
+
     if (ImGui::Checkbox("Live Blender Camera", &liveCameraSyncEnabled_)) {
         if (liveCameraSyncEnabled_) {
             ReloadLiveCameraIfNeeded_(true);
         }
     }
     ImGui::TextWrapped("%s", liveCameraStatus_.c_str());
+    if (ImGui::Checkbox("Live Blender Sequence", &liveSequenceSyncEnabled_)) {
+        if (liveSequenceSyncEnabled_) {
+            ReloadLiveSequenceIfNeeded_(true);
+        }
+    }
+    ImGui::TextWrapped("%s", liveSequenceStatus_.c_str());
     if (player_) {
         bool releaseAnimationEnabled = player_->GetReleaseAnimationEnabled();
         if (ImGui::Checkbox("Player Release Animations", &releaseAnimationEnabled)) {
@@ -470,7 +564,7 @@ void BattleAnimeEditerScene::DrawSequenceDebugWindow_(GameApp& app, Enemy* targe
         }
     }
 
-    DrawCardRevealEditor_(app);
+    DrawCardMotionPreview_(app);
 
     ImGui::End();
 }
@@ -480,26 +574,19 @@ const CardDef* BattleAnimeEditerScene::GetTestCardDef_(GameApp& app) const {
     return db ? db->Find(testCardDefId_) : nullptr;
 }
 
-void BattleAnimeEditerScene::DrawCardRevealEditor_(GameApp& app) {
+void BattleAnimeEditerScene::DrawCardMotionPreview_(GameApp& app) {
     ActionSequenceProfile& profile = actionDirector_.GetProfileRef();
-    ActionCardRevealProfile& reveal = profile.cardReveal;
 
     ImGui::Separator();
-    if (!ImGui::CollapsingHeader("Card Use Reveal", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (!ImGui::CollapsingHeader("Card Motion", ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
 
-    ImGui::Checkbox("Enable Card Reveal", &reveal.enabled);
-    ImGui::Checkbox("Player Relative", &reveal.playerRelative);
-    ImGui::DragFloat("Start Time", &reveal.startTime, 0.01f, 0.0f, 10.0f);
-    ImGui::DragFloat("Duration", &reveal.duration, 0.01f, 0.01f, 10.0f);
-    ImGui::DragFloat3("Start Pos", &reveal.startPos.x, 0.05f);
-    ImGui::DragFloat3("End Pos", &reveal.endPos.x, 0.05f);
-    ImGui::DragFloat3("Start Rot", &reveal.startRot.x, 0.01f);
-    ImGui::DragFloat3("End Rot", &reveal.endRot.x, 0.01f);
-    ImGui::DragFloat3("Start Scale", &reveal.startScale.x, 0.02f, 0.01f, 10.0f);
-    ImGui::DragFloat3("End Scale", &reveal.endScale.x, 0.02f, 0.01f, 10.0f);
-    ImGui::DragFloat("Glitter", &reveal.glitter, 0.02f, 0.0f, 10.0f);
+    char motionPath[256];
+    strcpy_s(motionPath, profile.cardMotionFile.c_str());
+    if (ImGui::InputText("Card Motion JSON", motionPath, sizeof(motionPath))) {
+        profile.cardMotionFile = motionPath;
+    }
 
     ImGui::Separator();
     ImGui::DragInt("Test Card ID", &testCardDefId_, 1.0f, 1, 100);
@@ -517,7 +604,7 @@ void BattleAnimeEditerScene::DrawCardRevealEditor_(GameApp& app) {
         }
     }
     ImGui::SameLine();
-    if (ImGui::Button("Preview Card Reveal")) {
+    if (ImGui::Button("Preview Card Motion")) {
         Enemy* targetEnemy = enemyMgr_.GetEnemies().empty() ? nullptr : &enemyMgr_.GetEnemies().back();
         if (player_ && targetEnemy) {
             if (const CardDef* testDef = GetTestCardDef_(app)) {
