@@ -1,18 +1,22 @@
 #pragma once
 
-#if defined(ENABLE_SCOPED_TIMER)
-#include <Windows.h>
-#include <chrono>
-#include <string>
-#endif
-
 // ============================================================
 // ScopedTimer - スコープ終了時に経過時間をデバッグ出力
 //
 // 使い方:
 //   { ScopedTimer t("label"); ... }           // 常に出力（マイクロ秒）
 //   { ScopedTimer t("label", 5.0f); ... }     // 5ms超えたときだけ出力
+//
+// ENABLE_SCOPED_TIMER が定義されているときだけ計測を行う
+// 定義されていない場合はダミークラスになり、オーバーヘッドゼロ
 // ============================================================
+
+#if defined(ENABLE_SCOPED_TIMER)
+
+#include <Windows.h>
+#include <chrono>
+#include <string>
+
 class ScopedTimer {
 public:
     // thresholdMs = 0 なら常に出力、>0 なら超えたときだけ出力
@@ -44,7 +48,14 @@ private:
     const char* name_;
     float thresholdMs_;
     std::chrono::high_resolution_clock::time_point start_;
-#else
-    explicit ScopedTimer(const char*) {}
-#endif
 };
+
+#else
+
+// ENABLE_SCOPED_TIMER 未定義時はダミー（コンパイラが最適化で消す）
+class ScopedTimer {
+public:
+    explicit ScopedTimer(const char*, float = 0.0f) {}
+};
+
+#endif
