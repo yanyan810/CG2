@@ -38,6 +38,7 @@ public:
         Camera* cam);
 
     void SetCardData(const CardDef& def, const CardInstance& inst);
+    bool IsSameCardData(const CardDef& def, const CardInstance& inst) const;
 
 
     //特定のカードの枠の変更
@@ -94,6 +95,9 @@ private:
     bool isPreview_;
 
     int count_ = 0;
+    int currentDefId_ = -1;
+    int currentNumber_ = -1;
+    CardSuit currentSuit_ = CardSuit::Spade;
 
     float glitterIntensity_ = 0.0f;
     float glitterTimer_ = 0.0f;

@@ -8,6 +8,9 @@
 #include <fstream>
 #include <iomanip>
 #include <cstring>
+#include <cstdint>
+#include <filesystem>
+#include <unordered_map>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -17,9 +20,110 @@
 #include "enemy/Enemy.h"
 #include "Camera/CameraAnimator.h"
 #include "AnimationClipDocument.h"
+#include "AnimationJsonSerializer.h"
 #include "Object3d.h"
 #include "Model.h"
 #include "Card3D.h"
+
+namespace {
+    struct CachedAnimation {
+        std::filesystem::file_time_type writeTime{};
+        Animation animation{};
+    };
+
+    struct CachedCameraAnimation {
+        std::filesystem::file_time_type writeTime{};
+        CameraAnimator::StateSnapshot snapshot{};
+    };
+
+    struct InjectedAnimation {
+        std::string path;
+        std::filesystem::file_time_type writeTime{};
+    };
+
+    bool LoadAnimationCached(const std::string& path, AnimationClipDocument& document) {
+        namespace fs = std::filesystem;
+        if (path.empty() || !fs::exists(path)) {
+            return false;
+        }
+
+        static std::unordered_map<std::string, CachedAnimation> cache;
+        const auto writeTime = fs::last_write_time(path);
+        auto it = cache.find(path);
+        if (it != cache.end() && it->second.writeTime == writeTime) {
+            document.ReplaceWith(it->second.animation);
+            return true;
+        }
+
+        Animation animation;
+        if (!AnimationJsonSerializer::LoadFromJson(path, animation)) {
+            return false;
+        }
+
+        cache[path] = CachedAnimation{ writeTime, animation };
+        document.ReplaceWith(animation);
+        return true;
+    }
+
+    bool LoadCameraAnimationCached(const std::string& path, CameraAnimator& animator) {
+        namespace fs = std::filesystem;
+        if (path.empty() || !fs::exists(path)) {
+            return false;
+        }
+
+        static std::unordered_map<std::string, CachedCameraAnimation> cache;
+        const auto writeTime = fs::last_write_time(path);
+        auto it = cache.find(path);
+        if (it != cache.end() && it->second.writeTime == writeTime) {
+            animator.RestoreState(it->second.snapshot);
+            return true;
+        }
+
+        if (!animator.LoadFromJson(path)) {
+            return false;
+        }
+
+        cache[path] = CachedCameraAnimation{ writeTime, animator.CaptureState() };
+        return true;
+    }
+
+    bool InjectAnimationCached(
+        const std::string& path,
+        AnimationClipDocument& document,
+        Model& model,
+        const std::string& animationName)
+    {
+        namespace fs = std::filesystem;
+        if (path.empty() || !fs::exists(path)) {
+            return false;
+        }
+
+        static std::unordered_map<std::string, InjectedAnimation> injected;
+        const auto writeTime = fs::last_write_time(path);
+        const std::string key =
+            std::to_string(reinterpret_cast<std::uintptr_t>(&model)) + ":" + animationName;
+
+        auto it = injected.find(key);
+        const auto& animations = model.GetAnimations();
+        const bool alreadyInjected =
+            it != injected.end() &&
+            it->second.path == path &&
+            it->second.writeTime == writeTime &&
+            animations.find(animationName) != animations.end();
+
+        if (alreadyInjected) {
+            return true;
+        }
+
+        if (!LoadAnimationCached(path, document)) {
+            return false;
+        }
+
+        model.AddAnimation(animationName, document.GetAnimation());
+        injected[key] = InjectedAnimation{ path, writeTime };
+        return true;
+    }
+}
 
 // =====================================
 // JSON Serialization
@@ -191,7 +295,7 @@ bool BattleActionDirector::ReloadCardMotionFromProfile() {
         return false;
     }
 
-    if (!LoadCardMotion_(profile_.cardMotionFile)) {
+    if (!LoadCardMotion_(profile_.cardMotionFile, true)) {
         return false;
     }
 
@@ -281,7 +385,6 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     target_ = target;
     SaveOriginalState_();
     debugPaused_ = false;
-    cardMotionCard_.reset();
     cardMotionKeyframes_.clear();
     cardMotionVisible_ = false;
     
@@ -307,8 +410,14 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     }
     if (!profile_.cardMotionFile.empty() && cardDef && cardInstance && objCom_ && dx_ && cardCamera &&
         LoadCardMotion_(profile_.cardMotionFile)) {
-        cardMotionCard_ = std::make_unique<Card3D>();
-        cardMotionCard_->Initialize(objCom_, dx_, cardCamera, *cardDef, *cardInstance);
+        if (!cardMotionCard_) {
+            cardMotionCard_ = std::make_unique<Card3D>();
+            cardMotionCard_->Setup(objCom_, dx_, cardCamera);
+        }
+        cardMotionCard_->SetCamera(cardCamera);
+        if (!cardMotionCard_->IsSameCardData(*cardDef, *cardInstance)) {
+            cardMotionCard_->SetCardData(*cardDef, *cardInstance);
+        }
         cardMotionCard_->SetIsHand(false);
         const CardMotionKeyframe first = SampleCardMotion_(0.0f);
         cardMotionCard_->SetTransform(first.pos, first.rot, first.scale);
@@ -318,24 +427,28 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     // Preload Animation JSONs and inject to Model
     if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
         if (!profile_.playerAttackAnim.empty()) {
-            if (playerAnimDoc_->LoadFromJson(profile_.playerAttackAnim)) {
-                player_->GetObject3d()->GetModel()->AddAnimation("SequenceAttack", playerAnimDoc_->GetAnimation());
-            }
+            InjectAnimationCached(
+                profile_.playerAttackAnim,
+                *playerAnimDoc_,
+                *player_->GetObject3d()->GetModel(),
+                "SequenceAttack");
         }
     }
 
     if (target_ && target_->GetObject3d() && target_->GetObject3d()->GetModel()) {
         if (!profile_.enemyDamageAnim.empty()) {
-            if (enemyAnimDoc_->LoadFromJson(profile_.enemyDamageAnim)) {
-                target_->GetObject3d()->GetModel()->AddAnimation("SequenceDamage", enemyAnimDoc_->GetAnimation());
-            }
+            InjectAnimationCached(
+                profile_.enemyDamageAnim,
+                *enemyAnimDoc_,
+                *target_->GetObject3d()->GetModel(),
+                "SequenceDamage");
         }
     }
 
     // カメラアニメーションもすぐに開始
     cameraAnimIsStatic_ = false;
     if (!profile_.cameraAnimFile.empty()) {
-        cinematicCamAnim_->LoadFromJson(profile_.cameraAnimFile);
+        LoadCameraAnimationCached(profile_.cameraAnimFile, *cinematicCamAnim_);
         cameraAnimIsStatic_ = IsCameraAnimStatic(cinematicCamAnim_->GetKeyframes());
         cinematicCamAnim_->SetLoop(false);
         cinematicCamAnim_->SetPlaying(true);
@@ -445,7 +558,6 @@ bool BattleActionDirector::Update(float dt) {
             phase_ = ActionPhase::Idle;
             RestoreOriginalState_();
             cardMotionVisible_ = false;
-            cardMotionCard_.reset();
             cardMotionKeyframes_.clear();
 
             // --- アクション終了時に待機モーションに戻す ---
@@ -480,8 +592,26 @@ bool BattleActionDirector::Update(float dt) {
     return false;
 }
 
-bool BattleActionDirector::LoadCardMotion_(const std::string& path) {
+bool BattleActionDirector::LoadCardMotion_(const std::string& path, bool forceReload) {
     cardMotionKeyframes_.clear();
+
+    namespace fs = std::filesystem;
+    if (path.empty() || !fs::exists(path)) {
+        return false;
+    }
+
+    struct CachedCardMotion {
+        fs::file_time_type writeTime{};
+        std::vector<CardMotionKeyframe> keyframes;
+    };
+    static std::unordered_map<std::string, CachedCardMotion> cache;
+
+    const auto writeTime = fs::last_write_time(path);
+    auto cached = cache.find(path);
+    if (!forceReload && cached != cache.end() && cached->second.writeTime == writeTime) {
+        cardMotionKeyframes_ = cached->second.keyframes;
+        return !cardMotionKeyframes_.empty();
+    }
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -518,6 +648,10 @@ bool BattleActionDirector::LoadCardMotion_(const std::string& path) {
         [](const CardMotionKeyframe& a, const CardMotionKeyframe& b) {
             return a.time < b.time;
         });
+
+    if (!cardMotionKeyframes_.empty()) {
+        cache[path] = CachedCardMotion{ writeTime, cardMotionKeyframes_ };
+    }
 
     return !cardMotionKeyframes_.empty();
 }

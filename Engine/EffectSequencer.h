@@ -176,6 +176,7 @@ public:
 	// ------ JSON読み書き ------
 	static void SaveProfile(const std::string& path, const EffectProfile& profile);
 	static bool LoadProfile(const std::string& path, EffectProfile& profile);
+	static bool LoadProfileCached(const std::string& path, EffectProfile& profile);
 
 	// 現在のプロファイルの取得/設定
 	const EffectProfile& GetProfile() const { return profile_; }
