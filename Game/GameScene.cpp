@@ -537,6 +537,7 @@ void GameScene::OnEnter(GameApp& app) {
 	bossStageBannerText_->SetSize({ 1.0f, 1.0f, 1.0f });
 
 	particleManager_ = ModelParticleManager::GetInstance();
+	particleManager_->ClearParticles();
 	particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
 	particleManager_->RegisterEffect("player_fire", "fire_particle.json");
 	particleManager_->RegisterEffect("fireExplosive", "fireExplosive.json");
@@ -611,6 +612,9 @@ void GameScene::OnEnter(GameApp& app) {
 
 void GameScene::OnExit(GameApp& app) {
 	app.ResetRadialBlur();
+	if (particleManager_) {
+		particleManager_->ClearParticles();
+	}
 	clearTransitionActive_ = false;
 	clearTransitionTimer_ = 0.0f;
 	fieldUi_.reset();
@@ -674,6 +678,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		if (!clearTransitionActive_) {
 			clearTransitionActive_ = true;
 			clearTransitionTimer_ = 0.0f;
+			battle_.PrepareForClearTransition();
 			clearBaseFieldCameraPos_ = camera_ ? camera_->GetTranslate() : Vector3{};
 			clearBaseFieldCameraRot_ = camera_ ? camera_->GetRotate() : Vector3{};
 			clearBaseBattleCameraPos_ = clearBattleCamera ? clearBattleCamera->GetTranslate() : Vector3{};

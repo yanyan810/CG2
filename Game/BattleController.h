@@ -78,6 +78,7 @@ public:
 	void Initialize(GameApp& app, Camera* camera);
 	void Update(GameApp& app, FieldUi& fieldUi, float dt);
 	void UpdateClearTransitionVisuals(float dt);
+	void PrepareForClearTransition();
 	void DrawPostEffect3D(GameApp& app);
 	void Draw3D(GameApp& app);
 	void DrawFieldFrameBloom(GameApp& app);

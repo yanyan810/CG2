@@ -242,6 +242,7 @@ public:
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t maxInstances = kMaxInstance);
 	void Dispatch(float deltaTime, Camera* camera);
 	void Draw();
+	void ClearParticles();
 
 	// パーティクル発生
 	void EmitBatch(const std::vector<Particle>& particles);
@@ -269,6 +270,7 @@ private:
 
 	// リソース類
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource_;
+	D3D12_RESOURCE_STATES instancingResourceState_ = D3D12_RESOURCE_STATE_COMMON;
 	uint32_t srvIndex_;
 
 	Model* model_ = nullptr;
@@ -282,6 +284,7 @@ private:
 
 	// GPU計算用 (UAV)
 	Microsoft::WRL::ComPtr<ID3D12Resource> particleResource_;
+	D3D12_RESOURCE_STATES particleResourceState_ = D3D12_RESOURCE_STATE_COMMON;
 	uint32_t uavIndexParticles_;
 	uint32_t uavIndexRenderData_;
 
@@ -295,6 +298,7 @@ private:
 	// 間接描画用
 	Microsoft::WRL::ComPtr<ID3D12CommandSignature> commandSignature_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsResource_;
+	D3D12_RESOURCE_STATES drawArgsResourceState_ = D3D12_RESOURCE_STATE_COMMON;
 	uint32_t uavIndexAliveIndices_;
 	uint32_t uavIndexDrawArgs_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> aliveIndicesResource_;

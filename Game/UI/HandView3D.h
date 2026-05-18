@@ -40,7 +40,7 @@ public:
     void SetDrag(int idx, float dxPx, float dyPx, bool active);
     void SetPreviewIndex(int idx) { previewIndex_ = idx; layoutDirty_ = true; }
 
-    void SetFocusIndex(int index) { focusIndex_ = index; }
+    void SetFocusIndex(int index) { focusIndex_ = index; layoutDirty_ = true; }
 
     int GetHoverIndex() const { return hoverIndex_; }
 

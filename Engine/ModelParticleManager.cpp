@@ -1,10 +1,27 @@
 #include "ModelParticleManager.h"
 #include <algorithm>
+#include <cstring>
 #include "Object3dCommon.h"
 #include "Matrix4x4.h"
 #define M_PI 3.141592653589793
 
 std::mt19937 rng(std::random_device{}());
+
+namespace {
+    void TransitionResource(
+        ID3D12GraphicsCommandList* commandList,
+        ID3D12Resource* resource,
+        D3D12_RESOURCE_STATES& currentState,
+        D3D12_RESOURCE_STATES nextState)
+    {
+        if (!resource || currentState == nextState) {
+            return;
+        }
+        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, currentState, nextState);
+        commandList->ResourceBarrier(1, &barrier);
+        currentState = nextState;
+    }
+}
 
 int Rand(int min, int max) {
     std::uniform_int_distribution<int> dist(min, max);
@@ -89,6 +106,9 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
     maxInstance_ = std::max(1u, maxInstances);
+    instancingResourceState_ = D3D12_RESOURCE_STATE_COMMON;
+    particleResourceState_ = D3D12_RESOURCE_STATE_COMMON;
+    drawArgsResourceState_ = D3D12_RESOURCE_STATE_COMMON;
 
     // 1. モデルの取得（ModelManagerを使用）
     ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
@@ -198,14 +218,19 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     stagingArgs->Unmap(0, nullptr);
 
     // 4. GPUコマンドで UPLOAD -> DEFAULT へコピーを実行
+    TransitionResource(
+        dxCommon_->GetCommandList(),
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_COPY_DEST);
     dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, stagingArgs.Get(), 0, sizeof(D3D12_DRAW_ARGUMENTS));
 
     // 5. コピー完了を待つためのバリア (COPY_DEST -> UNORDERED_ACCESS)
-    auto initBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+    TransitionResource(
+        dxCommon_->GetCommandList(),
         drawArgsResource_.Get(),
-        D3D12_RESOURCE_STATE_COPY_DEST,
+        drawArgsResourceState_,
         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    dxCommon_->GetCommandList()->ResourceBarrier(1, &initBarrier);
 
     // 1. AliveIndicesバッファの作成
     aliveIndicesResource_ = dxCommon_->CreateUAVBufferResource(sizeof(uint32_t) * maxInstance_, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -324,14 +349,45 @@ void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
 
     emitStagingResource_->Unmap(0, nullptr);
 
+    auto commandList = dxCommon_->GetCommandList();
+    TransitionResource(
+        commandList,
+        particleResource_.Get(),
+        particleResourceState_,
+        D3D12_RESOURCE_STATE_COPY_DEST);
+
     // ★ 修正：コピー命令も「freeIndex_」から開始するように指定
-    dxCommon_->GetCommandList()->CopyBufferRegion(
+    commandList->CopyBufferRegion(
         particleResource_.Get(), freeIndex_ * sizeof(ParticleGPU), // コピー先
         emitStagingResource_.Get(), freeIndex_ * sizeof(ParticleGPU), // コピー元もずらす！
         count * sizeof(ParticleGPU)
     );
 
     freeIndex_ += (uint32_t)count;
+}
+
+void ModelParticleManager::ClearParticles()
+{
+    if (!dxCommon_ || !particleResource_ || !emitStagingResource_) {
+        freeIndex_ = 0;
+        return;
+    }
+
+    const size_t clearSize = sizeof(ParticleGPU) * static_cast<size_t>(maxInstance_);
+    void* mappedPtr = nullptr;
+    emitStagingResource_->Map(0, nullptr, &mappedPtr);
+    std::memset(mappedPtr, 0, clearSize);
+    emitStagingResource_->Unmap(0, nullptr);
+
+    auto commandList = dxCommon_->GetCommandList();
+    TransitionResource(
+        commandList,
+        particleResource_.Get(),
+        particleResourceState_,
+        D3D12_RESOURCE_STATE_COPY_DEST);
+    commandList->CopyBufferRegion(particleResource_.Get(), 0, emitStagingResource_.Get(), 0, clearSize);
+
+    freeIndex_ = 0;
 }
 
 ModelParticleManager::Particle ModelParticleManager::MakeParticle(const ParticleEmitterConfig& config) {
@@ -402,12 +458,28 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
     auto commandList = dxCommon_->GetCommandList();
     
     // 1. カウンター(InstanceCount)をリセット (4バイト目に0をコピー)
+    TransitionResource(
+        commandList,
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_COPY_DEST);
     commandList->CopyBufferRegion(drawArgsResource_.Get(), 4, resetResource_.Get(), 0, 4);
 
-    // バリアを張ってリセット完了を待つ
-    auto preBarrier = CD3DX12_RESOURCE_BARRIER::Transition(drawArgsResource_.Get(),
-        D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    commandList->ResourceBarrier(1, &preBarrier);
+    TransitionResource(
+        commandList,
+        particleResource_.Get(),
+        particleResourceState_,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    TransitionResource(
+        commandList,
+        instancingResource_.Get(),
+        instancingResourceState_,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    TransitionResource(
+        commandList,
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     auto& psoCS = dxCommon_->GetPSOComputeParticle();
 
@@ -436,18 +508,32 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
 
     commandList->Dispatch((maxInstance_ + 1023) / 1024, 1, 1);
 
-    // 4. 描画前にバリアを張る (RenderDataとDrawArgsの両方)
-    D3D12_RESOURCE_BARRIER barriers[2];
-    barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(instancingResource_.Get(),
-        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
-    barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(drawArgsResource_.Get(),
-        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-    commandList->ResourceBarrier(2, barriers);
+    TransitionResource(
+        commandList,
+        instancingResource_.Get(),
+        instancingResourceState_,
+        D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    TransitionResource(
+        commandList,
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 }
 
 void ModelParticleManager::Draw() {
 
     auto commandList = dxCommon_->GetCommandList();
+
+    TransitionResource(
+        commandList,
+        instancingResource_.Get(),
+        instancingResourceState_,
+        D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    TransitionResource(
+        commandList,
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
     // 1. シグネチャとPSOの設定
     commandList->SetGraphicsRootSignature(dxCommon_->GetPSOModelParticle().root_.GetSignature().Get());
@@ -482,11 +568,6 @@ void ModelParticleManager::Draw() {
         0,                          // オフセット
         nullptr, 0                  // カウントバッファ（今回は未使用）
     );
-    
-    // 終了バリア (INDIRECT_ARGUMENT から戻す)
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(drawArgsResource_.Get(),
-        D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST);
-    commandList->ResourceBarrier(1, &barrier);
 }
 
 void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEmitterConfig& editingConfig) {
