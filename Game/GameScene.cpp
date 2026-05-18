@@ -4,6 +4,7 @@
 #include "ModelParticleManager.h"
 #include "AnimationJsonSerializer.h"
 #include "AudioManager.h"
+#include "TextureManager.h"
 #include <fstream>
 #include <random>
 #include <filesystem>
@@ -26,6 +27,7 @@ static std::wstring Utf8ToWString(const std::string& s)
 namespace {
 	constexpr Vector2 kDefenseUiTextureSize{ 64.0f, 64.0f };
 	constexpr Vector2 kPowerupUiTextureSize{ 48.0f, 48.0f };
+	constexpr float kSceneStartFadeDuration = 0.75f;
 	constexpr std::array<Vector2, 8> kOutlineDirections{
 		Vector2{ -1.0f, 0.0f },
 		Vector2{ 1.0f, 0.0f },
@@ -36,6 +38,12 @@ namespace {
 		Vector2{ -1.0f, 1.0f },
 		Vector2{ 1.0f, 1.0f },
 	};
+
+	float SmoothStep01_(float t)
+	{
+		t = std::clamp(t, 0.0f, 1.0f);
+		return t * t * (3.0f - 2.0f * t);
+	}
 
 	void DrawVector3Debug_(const char* label, const Vector3& v)
 	{
@@ -567,6 +575,22 @@ void GameScene::OnEnter(GameApp& app) {
 
 	pausingUI_ = std::make_unique<PausingUI>();
 	pausingUI_->Initialize(app);
+
+	startFadeMask_ = std::make_unique<Sprite>();
+	startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	startFadeMask_->SetAnchorPoint({ 0.0f, 0.0f });
+	startFadeMask_->SetPosition({ 0.0f, 0.0f });
+	const DirectX::TexMetadata& whiteMeta =
+		TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
+	startFadeMask_->SetScale({
+		float(WinApp::kClientWidth) / float(whiteMeta.width),
+		float(WinApp::kClientHeight) / float(whiteMeta.height),
+		1.0f
+		});
+	startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+	startFadeDuration_ = kSceneStartFadeDuration;
+	startFadeTimer_ = 0.0f;
+	startFadeActive_ = true;
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -578,6 +602,8 @@ void GameScene::OnExit(GameApp& app) {
 	bossStageBannerEffectOverlay_.reset();
 	cardDescBg_.reset();
 	cardDescText_.reset();
+	startFadeMask_.reset();
+	startFadeActive_ = false;
 	isBossStage_ = false;
 	bossStageBannerTimer_ = 0.0f;
 
@@ -596,6 +622,21 @@ void GameScene::OnExit(GameApp& app) {
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
+	if (startFadeActive_) {
+		startFadeTimer_ += dt;
+		const float t = startFadeDuration_ > 0.0f ? startFadeTimer_ / startFadeDuration_ : 1.0f;
+		const float alpha = 1.0f - SmoothStep01_(t);
+		if (startFadeMask_) {
+			startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, alpha });
+		}
+		if (t >= 1.0f) {
+			startFadeActive_ = false;
+			if (startFadeMask_) {
+				startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+			}
+		}
+	}
+
 	const auto isPlayerDead = [this]() {
 		return player_ && (player_->GetHP() <= 0 || !player_->GetIsAlive());
 	};
@@ -1116,9 +1157,17 @@ void GameScene::Draw2D(GameApp& app) {
 		0, 100
 	);
 
+	const auto drawStartFadeMask = [&]() {
+		if (startFadeActive_ && startFadeMask_) {
+			startFadeMask_->Update(view, proj);
+			startFadeMask_->Draw();
+		}
+	};
+
 	pausingUI_->Draw(app);
 
 	if (pausingUI_->GetIsPaused()) {
+		drawStartFadeMask();
 		return;
 	}
 
@@ -1128,6 +1177,7 @@ void GameScene::Draw2D(GameApp& app) {
 		//	releaseDebugText_->Update(view, proj);
 		//	releaseDebugText_->Draw();
 		}
+		drawStartFadeMask();
 		return;
 	}
 
@@ -1270,6 +1320,8 @@ void GameScene::Draw2D(GameApp& app) {
 		//releaseDebugText_->Update(view, proj);
 		//releaseDebugText_->Draw();
 	}
+
+	drawStartFadeMask();
 }
 
 void GameScene::DrawImGui(GameApp& app) {
