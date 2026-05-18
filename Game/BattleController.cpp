@@ -2394,8 +2394,7 @@ void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
 			}
 		}
 
-		if (actionDirector_.Update(dt, app.GetInput())) {
-		const bool sequenceFinished = actionDirector_.Update(dt);
+		const bool sequenceFinished = actionDirector_.Update(dt, app.GetInput());
 		const bool isFinalActionSequence =
 			cardState_ == CardInputState::ExecutingSequence &&
 			actionSequenceIndex_ >= actionSequenceQueue_.size();
@@ -2889,22 +2888,12 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 				);
 
-				Vector4 defaultColor{ 1.0f, 0.2f, 0.2f, 1.0f };
-
 				// マウスが重なっている敵を黄色く光らせる
 				for (auto& enemy : enemyMgr_->GetEnemies()) {
 					enemy.SetHighlight(false);
 				}
 				if (hoverIndex >= 0) {
 					enemyMgr_->GetEnemies()[hoverIndex].SetHighlight(true);
-
-					for (int i = 0; i < enemyMgr_->GetEnemies().size(); i++) {
-						if (i == hoverIndex) {
-							enemyHpFgs_[i]->SetColor({ 1.0f, 1.0f, 0.0f, 1.0f });
-						} else {
-							enemyHpFgs_[i]->SetColor(defaultColor);
-						}
-					}
 				}
 
 				// 左クリックで決定して攻撃
