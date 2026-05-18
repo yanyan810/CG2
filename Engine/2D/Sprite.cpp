@@ -53,6 +53,10 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, std::stri
     transformData_->WVP = Matrix4x4::MakeIdentity4x4();
     transformData_->World = Matrix4x4::MakeIdentity4x4();
 
+    healthGaugeResource_ = dx->CreateBufferResource(sizeof(HealthGaugeParam));
+    healthGaugeResource_->Map(0, nullptr, reinterpret_cast<void**>(&healthGaugeData_));
+    *healthGaugeData_ = HealthGaugeParam{};
+
     AdjustTextureSize();
 }
 
@@ -158,6 +162,32 @@ void Sprite::Draw() {
     cmd->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     cmd->SetGraphicsRootConstantBufferView(1, transformResource_->GetGPUVirtualAddress());
     cmd->SetGraphicsRootDescriptorTable(2,texSrv);
+
+    cmd->DrawIndexedInstanced(6, 1, 0, 0, 0);
+}
+
+void Sprite::SetHealthGaugeParam(const HealthGaugeParam& param)
+{
+    if (healthGaugeData_) {
+        *healthGaugeData_ = param;
+    }
+}
+
+void Sprite::DrawHealthGauge()
+{
+    assert(spriteCommon_ && "Sprite not initialized (spriteCommon_ is null)");
+    assert(dx_ && "Sprite not initialized (dx_ is null)");
+    assert(healthGaugeResource_ && "Health gauge resource is null");
+
+    auto* cmd = dx_->GetCommandList();
+
+    spriteCommon_->SetHealthGaugePipelineState();
+
+    cmd->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    cmd->IASetIndexBuffer(&indexBufferView_);
+
+    cmd->SetGraphicsRootConstantBufferView(0, healthGaugeResource_->GetGPUVirtualAddress());
+    cmd->SetGraphicsRootConstantBufferView(1, transformResource_->GetGPUVirtualAddress());
 
     cmd->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
