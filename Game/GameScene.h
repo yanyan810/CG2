@@ -78,6 +78,7 @@ private:
     bool battleDebugVisible_ = true;
     bool battleEffectsDebugVisible_ = true;
     bool forceActionCameraLookAt_ = false;
+    bool releaseDebugVisible_ = false;
     EnemyManager enemyMgr_;
 
     std::unique_ptr<Sprite> cardDescBg_;

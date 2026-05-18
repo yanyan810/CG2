@@ -852,6 +852,16 @@ void GameScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
+	if (battle_.IsActionSequencePlaying()) {
+		trailManager_->Update(dt);
+		if (effectSequencer_) {
+			effectSequencer_->Update(dt);
+		}
+		particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+		UpdateReleaseDebugText_();
+		return;
+	}
+
 	if (battle_.HasPokerChoiceUi()) {
 		cardDescText_->SetSize({ 1.0f,1.0f,1.0f });
 		cardDescText_->SetPosition({ 40.0f, 80.0f });
@@ -927,7 +937,6 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
-	UpdateReleaseDebugText_();
 	trailManager_->Update(dt);
 
 	//particleManager_->Emit("particle_image", Vector3(0, 0.0f, 0), 10);
@@ -941,11 +950,12 @@ void GameScene::Update(GameApp& app, float dt) {
 	if (fieldParticleManager_) {
 		fieldParticleManager_->Dispatch(1.0f / 60.0f, camera_.get());
 	}
+
 }
 
 void GameScene::UpdateReleaseDebugText_()
 {
-	if (!releaseDebugText_) {
+	if (!releaseDebugVisible_ || !releaseDebugText_) {
 		return;
 	}
 
@@ -1065,7 +1075,7 @@ void GameScene::Draw2D(GameApp& app) {
 
 	if (battle_.IsActionSequencePlaying()) {
 		battle_.Draw2D(app);
-		if (releaseDebugText_) {
+		if (releaseDebugVisible_ && releaseDebugText_) {
 			releaseDebugText_->Update(view, proj);
 			releaseDebugText_->Draw();
 		}
@@ -1144,7 +1154,7 @@ void GameScene::Draw2D(GameApp& app) {
 		text->Draw();
 	}
 
-	if (releaseDebugText_) {
+	if (releaseDebugVisible_ && releaseDebugText_) {
 		releaseDebugText_->Update(view, proj);
 		releaseDebugText_->Draw();
 	}
@@ -1155,6 +1165,7 @@ void GameScene::DrawImGui(GameApp& app) {
 	ImGui::Begin("UI Visibility", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Checkbox("Battle Debug", &battleDebugVisible_);
 	ImGui::Checkbox("Battle Effects", &battleEffectsDebugVisible_);
+	ImGui::Checkbox("Release Pos Debug Text", &releaseDebugVisible_);
 	ImGui::Separator();
 	ImGui::TextUnformatted("Animation Editor");
 	auto& editorWindows = animationEditor_.GetWindowVisibility();

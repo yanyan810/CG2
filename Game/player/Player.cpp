@@ -1,6 +1,7 @@
 #include "Player.h"
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
+#include "ModelManager.h"
 #include <array>
 #include <random>
 #include <vector>
@@ -13,6 +14,24 @@ namespace {
 
         const auto& animations = object->GetModel()->GetAnimations();
         return animations.find(name) != animations.end();
+    }
+}
+
+void Player::AddAttackMove(const AttackMove& move) {
+    attackList_.push_back(move);
+
+    if (move.effectJSON.empty()) {
+        return;
+    }
+
+    EffectProfile profile;
+    if (!EffectSequencer::LoadProfileCached(move.effectJSON, profile)) {
+        return;
+    }
+
+    effectProfileCache_[move.effectJSON] = profile;
+    if (!profile.projectile.modelPath.empty()) {
+        ModelManager::GetInstance()->LoadModel(profile.projectile.modelPath);
     }
 }
 
@@ -94,11 +113,20 @@ void Player::PlayAttackAnimWithEffect(const Vector3& targetPos, int moveIndex) {
     const AttackMove& move = attackList_[index];
 
     // エフェクトプロファイルをJSONから読み込む
-    EffectProfile profile;
+    auto cachedProfile = effectProfileCache_.find(move.effectJSON);
     if (!move.effectJSON.empty()) {
-        if (EffectSequencer::LoadProfile(move.effectJSON, profile)) {
+        if (cachedProfile != effectProfileCache_.end()) {
             // プロファイルに fireDelay などの設定が含まれていることを確認
-            effectSequencer_.SetProfile(profile);
+            effectSequencer_.SetProfile(cachedProfile->second);
+        } else {
+            EffectProfile profile;
+            if (EffectSequencer::LoadProfileCached(move.effectJSON, profile)) {
+                effectProfileCache_[move.effectJSON] = profile;
+                if (!profile.projectile.modelPath.empty()) {
+                    ModelManager::GetInstance()->LoadModel(profile.projectile.modelPath);
+                }
+                effectSequencer_.SetProfile(profile);
+            }
         }
     }
 

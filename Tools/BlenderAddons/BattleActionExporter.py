@@ -397,6 +397,10 @@ def sequence_effect_type(settings):
         return settings.sequence_custom_effect_type.strip()
     if settings.sequence_map_type in {"NONE", "CARD_USE"}:
         return ""
+    if settings.sequence_map_type in {"DamageCrescent", "DamageByBlock"}:
+        return "Damage"
+    if settings.sequence_map_type not in {"Damage", "DamageAll"}:
+        return "SpecialEffect"
     return settings.sequence_map_type
 
 
@@ -867,6 +871,7 @@ class BattleAnimeSettings(bpy.types.PropertyGroup):
             ("Draw", "Draw", "Draw cards"),
             ("EnergyCharge", "Energy Charge", "EnergyCharge cards"),
             ("SelfDamage", "Self Damage", "SelfDamage cards"),
+            ("SpecialEffect", "Special Effect", "Shared non-damage effect animation"),
             ("CUSTOM", "Custom Effect", "Use the custom effect type below"),
         ],
         default="Damage",

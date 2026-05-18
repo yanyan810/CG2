@@ -2898,6 +2898,37 @@ void BattleController::UpdateVisuals_(float dt)
 {
 	sPokerGlowRainbowTime += dt;
 
+	const bool actionOrEnemyAttack =
+		actionDirector_.IsPlaying() ||
+		cardState_ == CardInputState::ExecutingSequence ||
+		turn_ == TurnState::Enemy;
+
+	if (actionOrEnemyAttack) {
+		for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
+			it->timer -= 1.0f;
+			it->pos.y += 0.05f;
+			if (it->timer <= 0.0f) {
+				it = damagePopups_.erase(it);
+			} else {
+				const float gap = 0.8f;
+				const int count = static_cast<int>(it->digitModels.size());
+				const float startX = -gap * 0.5f * (count - 1);
+				for (size_t i = 0; i < it->digitModels.size(); ++i) {
+					Vector3 digitPos = it->pos;
+					digitPos.x += startX + gap * i;
+					digitPos.z -= 1.0f;
+
+					it->digitModels[i]->SetTranslate(digitPos);
+					it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
+					it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
+					it->digitModels[i]->Update(dt);
+				}
+				++it;
+			}
+		}
+		return;
+	}
+
 	// 1. フィールドカードの更新（ラメ・アニメーションの進行）
 	for (auto& cardView : fieldViews_) {
 		if (cardView) {

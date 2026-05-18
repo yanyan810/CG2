@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "Vector3.h"
 #include "AABB.h"
@@ -92,7 +93,7 @@ public:
 	// 攻撃技リストへのアクセス
 	std::vector<AttackMove>& GetAttackList() { return attackList_; }
 	const std::vector<AttackMove>& GetAttackList() const { return attackList_; }
-	void AddAttackMove(const AttackMove& move) { attackList_.push_back(move); }
+	void AddAttackMove(const AttackMove& move);
 
 	// EffectSequencerへのアクセス
 	EffectSequencer& GetEffectSequencer() { return effectSequencer_; }
@@ -176,6 +177,7 @@ private:
 
 	// === 攻撃エフェクト連動 ===
 	std::vector<AttackMove> attackList_;       // 使用可能な技のリスト
+	std::unordered_map<std::string, EffectProfile> effectProfileCache_;
 	EffectSequencer effectSequencer_;           // プレイヤー専用のシーケンサー
 	float attackEffectTimer_ = 0.0f;            // 現在の攻撃アニメーション経過時間
 	bool effectFired_ = false;                  // エフェクト二重発射防止フラグ
