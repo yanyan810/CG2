@@ -4266,9 +4266,22 @@ void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isP
 
 const CardDef* BattleController::GetPreviewCardDef() const
 {
+	if (cardState_ == CardInputState::Dragging) {
+		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(hand_.size())) {
+			return db_.Find(hand_[selectedIndex_].defId);
+		}
+	}
+
 	if (cardState_ == CardInputState::Preview) {
 		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(hand_.size())) {
 			return db_.Find(hand_[selectedIndex_].defId);
+		}
+	}
+
+	if (cardState_ == CardInputState::Idle) {
+		int handHover = handView_.GetHoverIndex();
+		if (handHover >= 0 && handHover < static_cast<int>(hand_.size())) {
+			return db_.Find(hand_[handHover].defId);
 		}
 	}
 
