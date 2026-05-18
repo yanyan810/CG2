@@ -71,6 +71,11 @@ private:
     std::filesystem::file_time_type liveCameraLastWriteTime_{};
     float liveCameraPollTimer_ = 0.0f;
     std::string liveCameraStatus_ = "Live camera sync is waiting for a sequence.";
+    bool liveSequenceSyncEnabled_ = false;
+    std::filesystem::file_time_type liveSequenceLastWriteTime_{};
+    std::filesystem::file_time_type liveCardMotionLastWriteTime_{};
+    float liveSequencePollTimer_ = 0.0f;
+    std::string liveSequenceStatus_ = "Live sequence sync is waiting for a sequence.";
     CardInstance testCard_{};
     int testCardDefId_ = 21;
 
@@ -83,9 +88,10 @@ private:
     bool LoadSequenceByPath_(const std::string& path);
     void RefreshLiveCameraPath_();
     bool ReloadLiveCameraIfNeeded_(bool force);
+    bool ReloadLiveSequenceIfNeeded_(bool force);
     void ApplyProfilePositions_(Enemy* targetEnemy, bool applyCamera);
     void DrawSequenceDebugWindow_(GameApp& app, Enemy* targetEnemy);
     const CardDef* GetTestCardDef_(GameApp& app) const;
-    void DrawCardRevealEditor_(GameApp& app);
+    void DrawCardMotionPreview_(GameApp& app);
     AnimationEditorSession::EditorContext BuildEditorContext_();
 };

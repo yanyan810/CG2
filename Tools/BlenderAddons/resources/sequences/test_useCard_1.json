@@ -41,5 +41,6 @@
     "playerAttackAnim": "resources/CustomAnim/CustomAnim_attack_1.json",
     "playerAttackAnimStartTime": 0.0,
     "enemyDamageAnim": "resources/CustomAnim/CustomAnim_attack_received_1.json",
-    "enemyDamageAnimStartTime": 0.0
+    "enemyDamageAnimStartTime": 0.0,
+    "cardMotionFile": "resources/sequences/test_useCard_1_card.json"
 }

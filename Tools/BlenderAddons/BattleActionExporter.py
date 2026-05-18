@@ -367,6 +367,10 @@ def sequence_camera_path(settings):
     return os.path.join(export_dir(settings), profile_name(settings) + "_camera.json")
 
 
+def sequence_card_motion_path(settings):
+    return os.path.join(export_dir(settings), profile_name(settings) + "_card.json")
+
+
 def fallback_anim_path(settings, suffix):
     return os.path.join("resources", "CustomAnim", profile_name(settings) + suffix + ".json")
 
@@ -459,6 +463,7 @@ def update_sequence_map_json(settings):
 def export_sequence_json(settings):
     profile_path = sequence_profile_path(settings)
     camera_path = sequence_camera_path(settings)
+    card_motion_path = sequence_card_motion_path(settings)
     data = {
         "cutinDuration": settings.sequence_cutin_duration,
         "cutinBgColor": [0.0, 0.0, 0.0, 0.7],
@@ -477,6 +482,7 @@ def export_sequence_json(settings):
         "playerAttackAnimStartTime": settings.sequence_player_anim_start_time,
         "enemyDamageAnim": game_path(enemy_damage_path(settings)),
         "enemyDamageAnimStartTime": settings.sequence_enemy_anim_start_time,
+        "cardMotionFile": game_path(card_motion_path) if settings.card_obj else "",
     }
 
     if settings.player_obj:
@@ -558,6 +564,54 @@ def export_camera_json(context, settings):
     camera_path = sequence_camera_path(settings)
     ensure_dir(camera_path)
     with open(bpy.path.abspath(camera_path), "w", encoding="utf-8") as f:
+        json.dump({"loop": False, "keyframes": keyframes}, f, ensure_ascii=False, indent=4)
+
+    return True
+
+
+def card_state_to_engine(card_obj, settings):
+    loc, rot, scale = card_obj.matrix_world.decompose()
+    rot.normalize()
+    engine_rot = euler_to_engine(rot.to_euler("XYZ"), settings)
+    offset = getattr(settings, "sequence_card_rot_offset_deg", (0.0, 0.0, 0.0))
+    engine_rot = [
+        engine_rot[0] + offset[0],
+        engine_rot[1] + offset[1],
+        engine_rot[2] + offset[2],
+    ]
+    return (
+        vec3_to_engine(loc, settings),
+        engine_rot,
+        [float(scale.x), float(scale.y), float(scale.z)],
+    )
+
+
+def export_card_motion_json(context, settings):
+    card_obj = settings.card_obj
+    if not card_obj:
+        return False
+
+    scene = context.scene
+    fps = scene.render.fps / scene.render.fps_base
+    current_frame = scene.frame_current
+    frames = collect_key_times(card_obj, settings.sequence_frame_start, settings.sequence_frame_end)
+    keyframes = []
+
+    for frame in frames:
+        scene.frame_set(frame)
+        pos, rot, scale = card_state_to_engine(card_obj, settings)
+        keyframes.append({
+            "time": float((frame - settings.sequence_frame_start) / fps),
+            "pos": pos,
+            "rot": rot,
+            "scale": scale,
+        })
+
+    scene.frame_set(current_frame)
+
+    card_path = sequence_card_motion_path(settings)
+    ensure_dir(card_path)
+    with open(bpy.path.abspath(card_path), "w", encoding="utf-8") as f:
         json.dump({"loop": False, "keyframes": keyframes}, f, ensure_ascii=False, indent=4)
 
     return True
@@ -664,6 +718,7 @@ class BattleAnimeSettings(bpy.types.PropertyGroup):
     player_obj: bpy.props.PointerProperty(name="Player", type=bpy.types.Object)
     enemy_obj: bpy.props.PointerProperty(name="Enemy", type=bpy.types.Object)
     camera_obj: bpy.props.PointerProperty(name="Camera", type=bpy.types.Object)
+    card_obj: bpy.props.PointerProperty(name="Card", type=bpy.types.Object)
     player_idle_action: bpy.props.PointerProperty(name="Idle Action", type=bpy.types.Action)
     player_attack_action: bpy.props.PointerProperty(name="Attack Action", type=bpy.types.Action)
     enemy_idle_action: bpy.props.PointerProperty(name="Idle Action", type=bpy.types.Action)
@@ -730,6 +785,13 @@ class BattleAnimeSettings(bpy.types.PropertyGroup):
     sequence_player_anim_start_time: bpy.props.FloatProperty(name="Player Anim Start", default=0.0, min=0.0)
     sequence_enemy_anim_start_time: bpy.props.FloatProperty(name="Enemy Anim Start", default=0.0, min=0.0)
     sequence_enable_camera_work: bpy.props.BoolProperty(name="Enable Camera Work", default=True)
+    sequence_card_rot_offset_deg: bpy.props.FloatVectorProperty(
+        name="Card Rot Offset",
+        description="Degrees added to exported card rotation so the Blender guide object matches the in-game Card3D facing",
+        subtype="EULER",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+    )
     sequence_live_camera_export: bpy.props.BoolProperty(
         name="Live Camera Export",
         description="Continuously export the selected camera JSON while editing in Blender",
@@ -889,6 +951,11 @@ class BATTLE_PT_export_panel(bpy.types.Panel):
         camera_box.prop(settings, "sequence_character_position_source")
         camera_box.prop(settings, "sequence_coord_mode")
 
+        card_box = layout.box()
+        card_box.label(text="Card Motion")
+        card_box.prop(settings, "card_obj", text="Card Object")
+        card_box.prop(settings, "sequence_card_rot_offset_deg")
+
         convert_box = layout.box()
         convert_box.label(text="Import / Conversion")
         convert_box.prop(settings, "import_scale")
@@ -973,6 +1040,8 @@ class EXPORT_OT_battle_sequence_json(bpy.types.Operator):
         exported = []
         if export_camera_json(context, settings):
             exported.append("camera")
+        if export_card_motion_json(context, settings):
+            exported.append("card motion")
         if settings.sequence_player_idle_path:
             if export_armature_animation_json(
                 context,
@@ -1032,6 +1101,7 @@ def live_camera_export_handler(scene):
 
     _last_live_camera_export_time = now
     export_camera_json(bpy.context, settings)
+    export_card_motion_json(bpy.context, settings)
     export_sequence_json(settings)
 
 

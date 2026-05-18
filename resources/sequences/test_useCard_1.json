@@ -42,46 +42,10 @@
     "playerAttackAnimStartTime": 0.0,
     "enemyDamageAnim": "resources/CustomAnim/CustomAnim_attack_received_1.json",
     "enemyDamageAnimStartTime": 0.0,
+    "cardMotionFile": "resources/sequences/test_useCard_1_card.json",
     "playerRot": [
         0.0,
         3.9269908169872414,
         0.0
-    ],
-    "cardReveal": {
-        "enabled": true,
-        "playerRelative": true,
-        "startTime": 0.0,
-        "duration": 0.45,
-        "startPos": [
-            0.0,
-            -1.0,
-            -1.0
-        ],
-        "endPos": [
-            0.0,
-            2.4,
-            -1.0
-        ],
-        "startRot": [
-            0.0,
-            3.14159265,
-            0.0
-        ],
-        "endRot": [
-            0.0,
-            3.14159265,
-            0.0
-        ],
-        "startScale": [
-            0.8,
-            0.8,
-            0.8
-        ],
-        "endScale": [
-            1.4,
-            1.4,
-            1.4
-        ],
-        "glitter": 0.0
-    }
+    ]
 }
