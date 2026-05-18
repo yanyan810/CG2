@@ -112,7 +112,7 @@ private:
     void RestoreOriginalState_();
     void StartActionInternal_(Player* player, Enemy* target, const CardDef* cardDef, const CardInstance* cardInstance);
     void SamplePreviewAtCurrentTime_();
-    bool LoadCardMotion_(const std::string& path);
+    bool LoadCardMotion_(const std::string& path, bool forceReload = false);
     CardMotionKeyframe SampleCardMotion_(float time) const;
     void UpdateCardMotion_(float dt);
 

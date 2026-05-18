@@ -95,6 +95,7 @@ private:
     void WarmupAssets_();
     void LoadActionSequenceProfiles_();
     const ActionSequenceProfile* PickSequenceFromNames_(const std::vector<std::string>& names) const;
+    std::string NormalizeActionSequenceEffectType_(const std::string& effectType) const;
 private:
     bool quit_ = false;
 

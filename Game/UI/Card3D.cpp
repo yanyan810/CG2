@@ -151,6 +151,10 @@ void Card3D::Setup(
 
 void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
 {
+	if (IsSameCardData(def, inst)) {
+		return;
+	}
+
 	ScopedTimer timer("Card3D::SetCardData");
 
 	if (!frame_ || !art_ || !costObj_ || !suitObj_ || !numberObjTens_ || !numberObjOnes_) {
@@ -249,6 +253,16 @@ void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
 	transformDirty_ = true;
 	frameColorDirty_ = true;
 	hasSubmittedOnce_ = false;
+	currentDefId_ = def.id;
+	currentNumber_ = inst.number;
+	currentSuit_ = inst.suit;
+}
+
+bool Card3D::IsSameCardData(const CardDef& def, const CardInstance& inst) const
+{
+	return currentDefId_ == def.id &&
+		currentNumber_ == inst.number &&
+		currentSuit_ == inst.suit;
 }
 
 void Card3D::SetTransform(const Vector3& pos, const Vector3& rot, const Vector3& scale)
