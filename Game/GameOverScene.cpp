@@ -119,6 +119,13 @@ void GameOverScene::OnEnter(GameApp& app) {
     skyDome_->SetCamera(camera_.get());
     videoPlane_->SetCamera(camera_.get());
 
+    uiText_ = std::make_unique<TextSprite>();
+    uiText_->Initialize(app.SpriteCom(), app.Dx());
+    uiText_->SetFontSize(28);
+    uiText_->SetSize({ 1.0f,1.0f,1.0f });
+    uiText_->SetPosition({ 100.f,600.f });
+    uiText_->SetText(L"ゲームオーバーwww！\nspaceもしくは左クリックでタイトルへ");
+
 
 }
 
@@ -143,12 +150,19 @@ void GameOverScene::Update(GameApp& app, float dt) {
 
     bool spaceTrigger = spaceNow && !prevSpace_;
     bool enterTrigger = enterNow && !prevEnter_;
+    bool leftClickTrig = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0 && !(prevSpace_ || prevEnter_);
 
     prevSpace_ = spaceNow;
     prevEnter_ = enterNow;
 
     if (skyDome_) skyDome_->Update(dt);
     uiTime_ += dt;
+
+    // 行列更新
+    Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+    Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
+
+    uiText_->Update(view, proj);
 
     if (videoPlane_) {
         // 位置固定なら dt いらないが、Updateで行列更新してるなら毎フレーム呼ぶ
@@ -186,7 +200,7 @@ void GameOverScene::Update(GameApp& app, float dt) {
             select_ = Select::Title;
         }
 
-        if (spaceTrigger || enterTrigger) {
+        if (spaceTrigger || leftClickTrig) {
             decided_ = select_;
             state_ = State::ExitClose;
         }
@@ -265,6 +279,8 @@ void GameOverScene::Draw2D(GameApp& app) {
 
     if (retrySp_) { retrySp_->Update(view, proj); retrySp_->Draw(); }
     if (titleSp_) { titleSp_->Update(view, proj); titleSp_->Draw(); }
+
+	if (uiText_) {  uiText_->Draw(); }
 
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
 }

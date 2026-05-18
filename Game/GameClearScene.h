@@ -5,6 +5,8 @@
 #include "SpriteCommon.h"
 #include "VideoPlayerMF.h"
 
+#include "TextSprite.h"
+
 class Camera;
 
 
@@ -62,5 +64,6 @@ private:
     struct SRT { Vector3 pos{ 0,0,0 }; Vector3 rot{ 0,0,0 }; Vector3 scale{ 1,1,1 }; };
     SRT srtVideo_{};
 
+	std::unique_ptr<TextSprite> uiText_;
 
 };
