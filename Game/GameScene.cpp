@@ -1124,8 +1124,8 @@ void GameScene::Draw2D(GameApp& app) {
 
 	if (battle_.IsActionSequencePlaying()) {
 		battle_.Draw2D(app);
-		if (releaseDebugVisible_ && releaseDebugText_) {
-			releaseDebugText_->Update(view, proj);
+		if (releaseDebugText_) {
+		//	releaseDebugText_->Update(view, proj);
 		//	releaseDebugText_->Draw();
 		}
 		return;
@@ -1266,8 +1266,8 @@ void GameScene::Draw2D(GameApp& app) {
 		text->Draw();
 	}
 
-	if (releaseDebugVisible_ && releaseDebugText_) {
-		releaseDebugText_->Update(view, proj);
+	if (releaseDebugText_) {
+		//releaseDebugText_->Update(view, proj);
 		//releaseDebugText_->Draw();
 	}
 }

@@ -481,14 +481,10 @@ void Object3d::Draw()
 			transformationMatrixDataModel->WorldInverseTranspose =
 				Matrix4x4::Transpose(Matrix4x4::Inverse(baseWorld));
 
-			if (swordMeshIndex < 0) {
-				OutputDebugStringA("[SwordDBG] sword node NOT FOUND in nodeInstances\n");
-			} else {
-				char b[128];
-				std::snprintf(b, sizeof(b), "[SwordDBG] sword found: meshIndex=%d nodeIndex=%d\n",
-					swordMeshIndex, swordNodeIndex);
-				OutputDebugStringA(b);
-			}
+			// ★デバッグログは削除（毎フレームOutputDebugStringAは重い）
+			// if (swordMeshIndex < 0) {
+			// 	OutputDebugStringA("[SwordDBG] sword node NOT FOUND in nodeInstances\n");
+			// } else { ... }
 
 
 		}
@@ -840,12 +836,9 @@ void Object3d::UpdateSkinCluster_()
 			Matrix4x4::Transpose(inv);
 	}
 
-	auto& m = skinCluster_.mappedPalette[0].skeletonSpaceMatrix;
-	char b[256];
-	std::snprintf(b, sizeof(b),
-		"[Pal0] m00=%.3f m11=%.3f m22=%.3f tx=%.3f ty=%.3f tz=%.3f\n",
-		m.m[0][0], m.m[1][1], m.m[2][2], m.m[3][0], m.m[3][1], m.m[3][2]);
-	OutputDebugStringA(b);
+	// ★デバッグログは削除（毎フレームOutputDebugStringAは重い）
+	// auto& m = skinCluster_.mappedPalette[0].skeletonSpaceMatrix;
+	// char b[256]; snprintf(b, ...) OutputDebugStringA(b);
 
 
 }

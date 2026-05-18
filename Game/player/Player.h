@@ -188,6 +188,9 @@ private:
 	int currentAttackIndex_ = -1;              // 現在実行中の攻撃技インデックス
 	Vector3 attackTargetPos_{};                 // 攻撃対象の座標
 
+	// EffectJSONキャッシュ（同じJSONは再読み込みしない）
+	std::string cachedEffectJSONPath_;          // 前回ロードしたeffectJSONのパス
+
 	// EffectSequencer初期化用の参照保持
 	Object3dCommon* objCommon_ = nullptr;
 	DirectXCommon* dx_ = nullptr;

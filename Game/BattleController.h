@@ -350,6 +350,9 @@ private:
 
 	std::unique_ptr<Object3d> costLabel_;
 	std::vector<std::unique_ptr<Object3d>> costDigitModels_;
+
+	// ダメージポップアップ用数字モデルプール（0～9のアーカイブ）
+	std::array<std::unique_ptr<Object3d>, 10> digitModelPool_; // プリロード済みモデル
 	
 	std::unique_ptr<PropManager> propManager_;
 

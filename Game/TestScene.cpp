@@ -249,7 +249,7 @@ void TestScene::Update(GameApp& app, float dt) {
     
     enemyMgr_.Update(dt);
 
-    actionDirector_.Update(dt);
+    actionDirector_.Update(dt, input_);
 
     if (actionDirector_.IsPlaying() && actionDirector_.GetProfile().enableCameraWork) {
         // 再生中はシネマティックカメラの座標・回転をメインカメラにコピーする
