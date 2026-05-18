@@ -4396,12 +4396,6 @@ bool BattleController::BeginCardActionSequence_(GameApp& app, const CardDef& def
 		actionSequenceQueue_.push_back(useProfile);
 	}
 
-	const std::vector<std::string> effectTypes = CollectEffectTypes_(def);
-	if (const ActionSequenceProfile* effectProfile =
-		app.PickCardEffectSequenceProfile(def.id, effectTypes)) {
-		actionSequenceQueue_.push_back(effectProfile);
-	}
-
 	return StartNextActionSequence_();
 }
 
