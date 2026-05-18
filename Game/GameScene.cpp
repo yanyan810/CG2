@@ -960,7 +960,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
-	std::vector<std::wstring> poisonData = battle_.GetEnemyPoisonTexts();
+	std::vector<std::wstring> bcData = battle_.GetEnemyBCTexts();
 
 	for (size_t i = 0; i < enemyHpTexts_.size(); i++) {
 		if (i < hpData.size()) {
@@ -975,12 +975,12 @@ void GameScene::Update(GameApp& app, float dt) {
 
 
 	for (size_t i = 0; i < enemyPoisonTexts_.size(); i++) {
-		if (i < poisonData.size()) {
-			enemyPoisonTexts_[i]->SetText(poisonData[i]);
+		if (i < bcData.size()) {
+			enemyPoisonTexts_[i]->SetText(bcData[i]);
 
 			enemyPoisonTexts_[i]->SetPosition({ 1200.0f, 10.0f + (i * 30.0f) });
-		} else {
 
+		} else {
 			enemyPoisonTexts_[i]->SetText(L"");
 		}
 	}

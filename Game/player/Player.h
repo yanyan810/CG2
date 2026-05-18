@@ -118,6 +118,9 @@ public:
 	void SetReleaseAnimationEnabled(bool enabled) { releaseAnimationEnabled_ = enabled; }
 	bool GetReleaseAnimationEnabled() const { return releaseAnimationEnabled_; }
 
+	void SetFrostBiteActive(bool active) { frostBiteActive_ = active; }
+	bool GetFrostBiteActive() const { return frostBiteActive_; }
+
 private:
 	void PlayReleaseIdleAnimation_();
 	void PlayRandomReleaseAttackAnimation_();
@@ -139,6 +142,7 @@ private:
 	int vampireHeal_ = 0;
 
 	bool poisonDrawActive_ = false;
+	bool frostBiteActive_ = false;
 
 	AABB body_{};
 	enum class AnimState { Idle, AttackForward, AttackReturn, Damage };

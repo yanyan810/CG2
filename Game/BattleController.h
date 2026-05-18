@@ -110,7 +110,7 @@ public:
 	std::wstring GetEnergyText() const;
 	std::wstring GetPlayerHpTexts() const;
 	std::vector<std::wstring> GetEnemyHpTexts() const;
-	std::vector<std::wstring> GetEnemyPoisonTexts() const;
+	std::vector<std::wstring> GetEnemyBCTexts() const;
 	std::wstring GetPlayerPowerBoostText()const;
 	std::wstring GetPlayerBlockText()const;
 

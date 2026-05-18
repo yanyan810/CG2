@@ -30,7 +30,7 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 		model_->SetScale({ 1.0f, 1.0f, 1.0f });
 		ai_.LoadPattern("resources/cards/Boos.json");
 	} else if (type_ == EnemyType::Slime) {
-		
+
 		model_->SetModel("slime/slime.obj");
 		model_->SetScale({ 1.5f, 1.5f, 1.5f });
 		ai_.LoadPattern("resources/cards/Slime.json");
@@ -304,4 +304,65 @@ const Enemy* EnemyManager::GetEnemy(size_t index) const
 		return nullptr;
 	}
 	return &enemies_[index];
+}
+
+void Enemy::SetBC(BadCondition condition) {
+	if (badCondition_ == condition) {
+		return;
+	}
+	badConditionPoint_ = 0; // 状態異常ポイントのリセット
+	badCondition_ = condition;
+}
+
+// 状態異常ポイントの加算
+void Enemy::AddBC(int value) {
+	SetBC(badConditionPoint_ + value);
+}
+
+void  Enemy::AmplifyBC(int value) {
+	SetBC(badConditionPoint_ * value);
+}
+
+// 状態異常ダメージの適用
+void  Enemy::DamageBC(int count) {
+	Damage(badConditionPoint_ * count);
+}
+
+void  Enemy::RemoveBC() {
+	SetBC(BadCondition::kNone);
+	SetBC(0);
+}
+
+// ターン終了時の状態異常ダメージ処理　いったんあとで
+void Enemy::TurnEndApplyBC() {
+
+	// 毒のポイントを半減（切り上げ）
+	switch (badCondition_)
+	{
+	case BadCondition::kPoison:
+
+		Damage(badConditionPoint_);
+		badConditionPoint_ = (badConditionPoint_ + 1) / 2;
+
+		break;
+	case BadCondition::kFrost:
+
+		// 凍結耐性を超えるポイントが溜まったら状態異常を解除して耐性を上げる
+		if (badConditionPoint_ >= 5) {
+			badConditionPoint_ = 0;
+			freezeResistance_ += 5;
+			isAbleToAct_ = false;
+		} else {
+			badConditionPoint_ -= 1;
+		}
+		break;
+
+	}
+
+	// ポイントが0以下になったら状態異常を解除
+	if (badConditionPoint_ <= 0) {
+		badConditionPoint_ = 0;
+		badCondition_ = BadCondition::kNone;
+	}
+
 }

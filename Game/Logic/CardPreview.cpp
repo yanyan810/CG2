@@ -29,6 +29,8 @@ std::wstring CardPreview::GetPreviewCardDetailText(const CardDef* def)
 		return L"";
 	}
 
+	
+
 	std::wstring text = L"基本効果:\n";
 	if (!def->desc.empty()) {
 		text += Utf8ToWString(def->desc);
