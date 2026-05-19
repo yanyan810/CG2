@@ -9,6 +9,10 @@ public:
     bool LoadFromJson(const std::string& path);
     const CardDef* Find(int id) const;
 
+	int GetCardCount() const { return cardCount_; }
+
 private:
     std::unordered_map<int, CardDef> defs_;
+
+	int cardCount_ = 0;
 };

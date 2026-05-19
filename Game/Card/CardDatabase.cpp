@@ -106,12 +106,14 @@ bool CardDatabase::LoadFromJson(const std::string& path)
                 }
 
                 def.subEffects.push_back(sub);
+                
             }
         }
 
         if (def.id != 0) {
             defs_[def.id] = def;
         }
+        cardCount_++;
     }
 
     return true;

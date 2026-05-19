@@ -293,8 +293,20 @@
         }
       ]
      },
-    {
+      {
       "id": 21,
+      "name": "PoisonBottle!",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Poison/PoisonBottle!.png",
+      "desc": "敵単体に毒を2付与",
+      "effects": [
+        { "type": "Poison", "value": 2 }
+      ]
+    },
+    {
+      "id": 22,
       "name": "HardPoisonBottle!",
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
@@ -317,8 +329,21 @@
         }
       ]
      },
+      {
+      "id": 23,
+      "name": "RedSpiderLily",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Poison/RedSpiderLily.png",
+      "desc": "敵全体に毒を2付与。カードを2枚引く",
+      "effects": [
+        { "type": "PoisonAll", "value": 2 },
+         { "type": "Draw", "value": 1 }
+      ]
+     },
      {
-      "id": 22,
+      "id": 24,
       "name": "Flowers",
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
@@ -331,7 +356,7 @@
       ]
      },
      {
-      "id": 23,
+      "id": 25,
       "name": "PoisonFollowUp",
       "cost": 5,
       "frameModel": "cards/models/frame.obj",
@@ -356,7 +381,7 @@
       ]
      },
       {
-      "id": 24,
+      "id": 26,
       "name": "PoisonDraw",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
@@ -368,7 +393,7 @@
       ]
      },
        {
-      "id": 25,
+      "id": 27,
       "name": "TheRodOfAsclepius",
       "cost": 6,
       "frameModel": "cards/models/frame.obj",
@@ -393,8 +418,45 @@
         }
       ]
      },
+     {
+      "id": 28,
+      "name": "PoisonKnife",
+      "cost": 6,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Poison/PoisonKnife.png",
+      "desc": "敵全体に５ダメージを与える\n敵全体に毒を２付与",
+       "effects": [
+        { "type": "DamageAll", "value": 5 },
+        { "type": "PoisonAll", "value": 2 }
+      ]
+    },
+     {
+      "id": 29,
+      "name": "FriendlyPosion",
+      "cost": 4,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Poison/FriendlyPoison.png",
+      "desc": "敵全体の毒の値の合計値分体力を回復する",
+       "effects": [
+        { "type": "Poisonheal", "value": 2 }
+      ]
+    },
+     {
+      "id": 30,
+      "name": "PainAmplification",
+      "cost": 5,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Poison/PainAmplification.png",
+      "desc": "敵全体の毒の値を２倍にする",
+       "effects": [
+         { "type": "PoisonAmplify", "value": 2 }
+      ]
+    },
       {
-      "id": 26,
+      "id": 31,
       "name": "BelowFreezing",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
@@ -407,7 +469,7 @@
       ]
      },
         {
-      "id": 27,
+      "id": 32,
       "name": "AbsoluteZero",
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
@@ -420,7 +482,7 @@
       ]
      },
          {
-      "id": 28,
+      "id": 33,
       "name": "EdgeHammer",
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
@@ -432,7 +494,7 @@
       ]
      },
          {
-      "id": 29,
+      "id": 34,
       "name": "FrostedKnife",
       "cost": 4,
       "frameModel": "cards/models/frame.obj",
@@ -444,7 +506,7 @@
       ]
      },
       {
-      "id": 30,
+      "id": 35,
       "name": "IceAge",
       "cost": 5,
       "frameModel": "cards/models/frame.obj",
