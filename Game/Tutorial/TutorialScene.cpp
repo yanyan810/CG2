@@ -492,6 +492,9 @@ void TutorialScene::Draw3D(GameApp& app) {
         player_->Draw();
     }
     enemyMgr_.Draw();
+    if (player_) {
+        player_->DrawShieldBloom(app);
+    }
     battle_.DrawDamagePopups3D(app);
 
     if (!isBattleAnimationPlaying) {
@@ -633,6 +636,9 @@ void TutorialScene::DrawImGui(GameApp& app) {
     }
 
     battle_.DrawImGui();
+    if (player_) {
+        player_->DrawShieldImGui();
+    }
 
     ImGui::End();
 
