@@ -13,4 +13,6 @@ public:
 private:
     // 背景画像（「本当に降参しますか？」などのテキストが含まれるテクスチャを想定）
     std::unique_ptr<Sprite> confirmBoard_;
+
+	bool pushedYes_ = false;
 };

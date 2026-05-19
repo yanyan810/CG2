@@ -10,6 +10,8 @@
 #include"Logic/CardPreview.h"
 
 void DeckEditScene::OnEnter(GameApp& app) {
+	AudioManager::GetInstance()->PlayBGM("BGM_DeckEdit");
+
 	camera_ = std::make_unique<Camera>();
 	camera_->SetTranslate({ 0.0f, 4.0f, -10.0f });
 	camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
@@ -32,6 +34,8 @@ void DeckEditScene::OnEnter(GameApp& app) {
 
 	// 合計枚数を計算
 	RecalculateTotal();
+
+	cardCount_ = cardDB_->GetCardCount();
 
 	RebuildCardModels(app);
 
@@ -87,6 +91,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	cardPreviewText_->SetText(L"");
 
 	scrollY_ = kInitialScrollY;
+
 }
 
 void DeckEditScene::OnExit(GameApp& app) {
@@ -355,11 +360,8 @@ void DeckEditScene::RebuildCardModels(GameApp& app) {
 
 	// データベースにあるカードを順番に並べる（例：ID 1〜20）
 	int index = 0;
-	for (int i = 1; i <= 30; ++i) {
 
-		if (i == 20) {
-
-		}
+	for (int i = 1; i <= cardCount_; ++i) {
 
 		const CardDef* def = cardDB_->Find(i);
 		if (!def) continue;

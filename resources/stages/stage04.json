@@ -1,29 +1,29 @@
 {
   "stageId": 4,
   "stageName": "Stage 4",
-  "bgmId": "BGM_Game",
+  "bgmId": "BGM_Stage1_5",
   "isBossStage": false,
   "enemies": [
     {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
+      "enemyType": "Goblin",
+      "enemyName": "Goblin",
       "maxHp": 85,
       "hp": 85,
       "attack": 8,
       "defense": 1,
       "position": { "x": 7.0, "y": 0.0, "z": 10.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/Goblin.json",
       "bossFlag": false
     },
     {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
+      "enemyType": "Goblin",
+      "enemyName": "Goblin",
       "maxHp": 85,
       "hp": 85,
       "attack": 8,
       "defense": 1,
       "position": { "x": 7.0, "y": 0.0, "z": 20.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/Goblin.json",
       "bossFlag": false
     }
   ]

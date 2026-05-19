@@ -5,9 +5,13 @@
 #include "Camera.h"
 #include "DirectXCommon.h"
 #include "Object3dCommon.h"
+#include "BloomConstantBuffer.h"
 #include <string>
 #include <vector>
 #include <memory>
+
+class GameApp;
+
 
 struct PlacedProp {
 	std::string name;
@@ -23,6 +27,10 @@ struct PlacedProp {
 	Vector4 lightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 	float lightIntensity = 1.0f;
 
+	// ポストエフェクト設定
+	bool usePostEffect = false;  // true の場合 ObjectPostEffect で描画
+	BloomParam postEffect = {};  // ブルーム・ブラー等のパラメーター
+
 	std::unique_ptr<Object3d> object;
 };
 
@@ -34,6 +42,7 @@ public:
 	void Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* cam);
 	void Update(float dt);
 	void Draw3D();
+	void DrawPostEffect3D(GameApp& app); // エフェクト付きオブジェクトの描画
 	void DrawImGui();
 
 	void SaveToJson(const std::string& filepath);
@@ -51,7 +60,12 @@ private:
 
 	std::vector<PlacedProp> placedProps_;
 	int selectedPropIndex_ = -1;
+	int pendingDeletePropIndex_ = -1;
+	bool pendingLoadFromJson_ = false;
+	std::string pendingLoadFromJsonPath_;
 
 	std::vector<std::string> availableModelPaths_;
 	int selectedModelIndex_ = 0;
+
+	void ApplyPendingChanges();
 };

@@ -1,0 +1,168 @@
+{
+    "cards":[
+        
+    {
+      "id": 11,
+      "name": "Quick Draw",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/QuickDraw.png",
+      "desc": "2枚引く",
+      "effects": [
+        { "type": "Draw", "value": 2 }
+      ]
+    },
+
+
+    {
+      "id": 12,
+      "name": "Take a break",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/TakeABreak.png",
+      "desc": "体力を3回復する",
+      "effects": [
+        { "type": "Heal", "value": 3 }
+      ]
+      },
+
+
+      {
+      "id": 13,
+      "name": "Blocking",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Blocking.png",
+      "desc": "ブロックを5獲得する",
+      "effects": [
+        { "type": "Block", "value": 5 }
+      ]
+    },
+
+
+    {
+      "id": 14,
+      "name": "Doping",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Doping.png",
+      "desc": "パワーを2獲得する",
+      "effects": [
+        { "type": "PowerBoost", "value": 2 }
+      ]
+    },
+
+
+    {
+      "id": 15,
+      "name": "FlashBang",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/FlashBang.png",
+      "desc": "パワーを1獲得する。\nコストを1回復する",
+      "effects": [
+        { "type": "PowerBoost", "value": 1 },
+        { "type": "EnergyCharge", "value": 1 }
+      ]
+    },
+
+
+    {
+      "id": 16,
+      "name": "RuneStone",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/RuneStone.png",
+      "desc": "ブロックを2獲得する",
+      "effects": [
+        { "type": "Block", "value": 2 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "StraightFamily"
+          },
+          "effects": [
+            { "type": "Heal", "value": 5 }
+          ]
+        }
+      ]
+    },
+
+
+    {
+      "id": 17,
+      "name": "Convert",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Convert.png",
+      "desc": "シールドの値分体力を回復",
+      "effects": [
+        { "type": "HealByBlock", "value": 1 }
+      ]
+    },
+
+
+    {
+      "id": 18,
+      "name": "LowCostRecovery",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/LowCostRecovery.png",
+      "desc": "手札にある1コストのカードx1回復",
+      "effects": [
+        { "type": "HealByLowCostInHand", "value": 1 }
+      ]
+    },
+
+
+    {
+      "id": 19,
+      "name": "Vampire",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Vampire.png",
+      "desc": "このターン中\nダメージを与えるたびに1回復",
+      "effects": [
+        { "type": "VampireBuff", "value": 1 }
+      ]
+    },
+
+
+    {
+      "id": 20,
+      "name": "ChainHeal",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/ChainHeal.png",
+      "desc": "体力を１回復する",
+      "effects": [
+        { "type": "Heal", "value": 1 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnTurnStartWithPoker",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "StraightFamily"
+          },
+          "effects": [
+            { "type": "Heal", "value": 1 }
+          ]
+        }
+      ]
+    }
+
+    ]}

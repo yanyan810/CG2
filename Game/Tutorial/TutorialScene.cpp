@@ -3,6 +3,7 @@
 #include "Input.h"
 #include "WinApp.h"
 #include "TextureManager.h"
+#include "AudioManager.h"
 #include <algorithm>
 
 #ifdef USE_IMGUI
@@ -20,6 +21,8 @@ namespace {
 }
 
 void TutorialScene::OnEnter(GameApp& app) {
+    AudioManager::GetInstance()->PlayBGM("BGM_Tutorial");
+
     camera_ = std::make_unique<Camera>();
     camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
     camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
@@ -217,6 +220,7 @@ void TutorialScene::Update(GameApp& app, float dt) {
     default:
         break;
     }
+
 
     bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
     if (currEsc && !prevEsc_) {

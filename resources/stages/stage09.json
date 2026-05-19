@@ -1,41 +1,31 @@
 {
   "stageId": 9,
   "stageName": "Stage 9",
-  "bgmId": "BGM_Game",
+  "bgmId": "BGM_Stage6_9",
   "isBossStage": false,
   "enemies": [
-    {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
+     {
+      "enemyType": "needle",
+      "enemyName": "needle",
       "maxHp": 155,
       "hp": 155,
       "attack": 13,
       "defense": 3,
       "position": { "x": 7.0, "y": 0.0, "z": 5.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/needle.json",
       "bossFlag": false
     },
     {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
+      "enemyType": "Golem",
+      "enemyName": "Golem",
       "maxHp": 155,
       "hp": 155,
       "attack": 13,
       "defense": 3,
       "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
-      "behaviorJson": "resources/cards/Slime.json",
-      "bossFlag": false
-    },
-    {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
-      "maxHp": 155,
-      "hp": 155,
-      "attack": 13,
-      "defense": 3,
-      "position": { "x": 7.0, "y": 0.0, "z": 25.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/Golem.json",
       "bossFlag": false
     }
+   
   ]
 }

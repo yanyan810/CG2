@@ -57,6 +57,7 @@ private:
 	std::unique_ptr<Sprite> cardPreviewBg_;
     std::unique_ptr<TextSprite> cardPreviewText_;
 
+	int cardCount_ = 0;
 
     void RebuildCardModels(GameApp& app);
     void RecalculateTotal();

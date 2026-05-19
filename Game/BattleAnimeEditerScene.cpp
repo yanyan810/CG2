@@ -84,10 +84,6 @@ void BattleAnimeEditerScene::OnExit(GameApp& app) {
 void BattleAnimeEditerScene::Update(GameApp& app, float dt) {
     if (!input_) return;
 
-    if (input_->IsKeyPressed(DIK_ESCAPE)) {
-        app.RequestQuit();
-        return;
-    }
 
     if (liveCameraSyncEnabled_ && !actionDirector_.IsPlaying()) {
         liveCameraPollTimer_ += dt;

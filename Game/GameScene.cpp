@@ -172,6 +172,15 @@ namespace {
 		if (type == "Boss" || type == "boss") {
 			return EnemyType::Boss;
 		}
+		if (type == "Goblin" || type == "goblin") {
+			return EnemyType::Goblin;
+		}
+		if (type == "Golem" || type == "golem") {
+			return EnemyType::Golem;
+		}
+		if (type == "needle" || type == "Needle") {
+			return EnemyType::Needle;
+		}
 		return EnemyType::Slime;
 	}
 
@@ -380,7 +389,7 @@ void GameScene::OnEnter(GameApp& app) {
 	}
 	bossStageBannerTimer_ = isBossStage_ ? kBossStageBannerDuration : 0.0f;
 
-	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Game" : stageBgmId);
+	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Stage1_5" : stageBgmId);
 	// --------------------------------------------------
 	// 4. ライトの初期設定
 	// --------------------------------------------------
@@ -608,6 +617,15 @@ void GameScene::OnEnter(GameApp& app) {
 	startFadeDuration_ = kSceneStartFadeDuration;
 	startFadeTimer_ = 0.0f;
 	startFadeActive_ = true;
+
+	// ゲーム結果ポップアップ
+	gameResultShown_ = false;
+	if (!resultPopup_) {
+		resultPopup_ = std::make_unique<GameResultPopup>();
+		resultPopup_->Initialize(app);
+	} else {
+		resultPopup_->Hide();
+	}
 }
 
 void GameScene::OnExit(GameApp& app) {
@@ -636,6 +654,8 @@ void GameScene::OnExit(GameApp& app) {
 	skyDome_.reset();
 	fieldParticleManager_.reset();
 	camera_.reset();
+	if (resultPopup_) { resultPopup_->Hide(); }
+	gameResultShown_ = false;
 
 	// EnemyManager に Clear() があるなら呼ぶ
 	// enemyMgr_.Clear();
@@ -664,7 +684,17 @@ void GameScene::Update(GameApp& app, float dt) {
 	};
 
 	if (isPlayerDead()) {
-		RequestChangeScene_("GameOver");
+		if (!gameResultShown_) {
+			gameResultShown_ = true;
+			if (resultPopup_) { resultPopup_->Show(ResultKind::GameOver); }
+		}
+		if (resultPopup_) {
+			resultPopup_->Update(app, dt);
+			const ResultAction act = resultPopup_->GetAction();
+			if      (act == ResultAction::Retry)        { resultPopup_->ClearAction(); RequestChangeScene_("Game"); }
+			else if (act == ResultAction::GoTitle)      { resultPopup_->ClearAction(); RequestChangeScene_("Title"); }
+			else if (act == ResultAction::GoStageSelect){ resultPopup_->ClearAction(); RequestChangeScene_("StageSelect"); }
+		}
 		return;
 	}
 
@@ -787,7 +817,17 @@ void GameScene::Update(GameApp& app, float dt) {
 
 		if (clearTransitionTimer_ >= kClearTransitionDuration) {
 			app.ResetRadialBlur();
-			RequestChangeScene_("GameClear");
+			if (!gameResultShown_) {
+				gameResultShown_ = true;
+				if (resultPopup_) { resultPopup_->Show(ResultKind::GameClear); }
+			}
+			// ポップアップ更新・アクション処理
+			if (resultPopup_) {
+				resultPopup_->Update(app, dt);
+				const ResultAction act = resultPopup_->GetAction();
+				if (act == ResultAction::GoTitle)         { resultPopup_->ClearAction(); RequestChangeScene_("Title"); }
+				else if (act == ResultAction::GoStageSelect) { resultPopup_->ClearAction(); RequestChangeScene_("StageSelect"); }
+			}
 		}
 		return;
 	}
@@ -796,6 +836,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		battleEndTimer_--;
 		if (battleEndTimer_ <= 0) {
 			app.ResetRadialBlur();
+			AudioManager::GetInstance()->StopBGM();
 			RequestChangeScene_("Title");
 		}
 		return;
@@ -990,9 +1031,11 @@ void GameScene::Update(GameApp& app, float dt) {
 		animCamera_->Update(); // 動くカメラの更新
 	}
 
+
 	// ESCキーでタイトルへ戻る
 	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
 	if (currEsc && !prevEsc_) {
+		AudioManager::GetInstance()->StopBGM();
 		RequestChangeScene_("Title");
 	}
 	prevEsc_ = currEsc;
@@ -1068,7 +1111,17 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (isPlayerDead()) {
-		RequestChangeScene_("GameOver");
+		if (!gameResultShown_) {
+			gameResultShown_ = true;
+			if (resultPopup_) { resultPopup_->Show(ResultKind::GameOver); }
+		}
+		if (resultPopup_) {
+			resultPopup_->Update(app, dt);
+			const ResultAction act = resultPopup_->GetAction();
+			if      (act == ResultAction::Retry)        { resultPopup_->ClearAction(); RequestChangeScene_("Game"); }
+			else if (act == ResultAction::GoTitle)      { resultPopup_->ClearAction(); RequestChangeScene_("Title"); }
+			else if (act == ResultAction::GoStageSelect){ resultPopup_->ClearAction(); RequestChangeScene_("StageSelect"); }
+		}
 		return;
 	}
 
@@ -1467,6 +1520,11 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 	drawStartFadeMask();
+
+	// ゲーム結果ポップアップを最前面に描画
+	if (resultPopup_ && resultPopup_->IsVisible()) {
+		resultPopup_->Draw2D(app);
+	}
 }
 
 void GameScene::DrawImGui(GameApp& app) {
@@ -1599,15 +1657,17 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	// エフェクトシーケンサーエディター
 	if (effectSequencer_) {
-		// デフォルトの発射位置と着弾位置（プレイヤー → 最初の敵）
 		Vector3 startPos = player_ ? player_->GetPos() + Vector3(0, 1.0f, 0) : Vector3{ -7.0f, 1.0f, 15.0f };
-		Vector3 targetPos = { 7.0f, 1.0f, 15.0f }; // デフォルト敵位置
+		Vector3 targetPos = { 7.0f, 1.0f, 15.0f };
 		if (enemyMgr_.GetEnemies().size() > 0) {
 			const auto& firstEnemy = enemyMgr_.GetEnemies()[0];
 			targetPos = firstEnemy.GetPos() + Vector3(0, 1.0f, 0);
 		}
 		effectSequencer_->DrawImGuiEditor(startPos, targetPos);
 	}
+
+	// ゲーム結果ポップアップのImGui
+	if (resultPopup_) { resultPopup_->DrawImGui(); }
 
 #endif
 }

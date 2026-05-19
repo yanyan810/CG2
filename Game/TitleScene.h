@@ -87,6 +87,9 @@ private:
 	float clickDissolveDelayAfterTitle_ = 1.0f;
 	float clickDissolveDuration_ = 1.0f;
 	bool clickDissolveDone_ = false;
+	float titleBgmDelayTimer_ = 0.0f;
+	float titleBgmDelay_ = 1.5f;
+	bool titleBgmStarted_ = false;
 
 	//--------------------------------------------------------
 	// 遷移先

@@ -18,7 +18,10 @@ class Player;
 
 enum class EnemyType : uint8_t {
 	Boss,
-	Slime
+	Slime,
+	Goblin,
+	Golem,
+	Needle
 };
 
 struct StageEnemyConfig {

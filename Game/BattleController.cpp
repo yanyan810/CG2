@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <set>
 #include <random>
+#include <filesystem>
 
 #include"Player.h"
 #include"Enemy.h"
@@ -622,6 +623,29 @@ namespace {
 		}
 	}
 
+	void PlayBlockGainSEIfIncreased_(int beforeBlock, int afterBlock)
+	{
+		if (afterBlock > beforeBlock) {
+			PlaySE_("SE_Block");
+		}
+	}
+
+	void PlayBlockReactionSE_(int beforeBlock, int afterBlock, int actualHpDamage, int attemptedDamage)
+	{
+		if (attemptedDamage <= 0 || beforeBlock <= 0) {
+			return;
+		}
+
+		if (afterBlock <= 0) {
+			PlaySE_("SE_BlockBreak");
+			return;
+		}
+
+		if (actualHpDamage <= 0) {
+			PlaySE_("SE_ShieldGuard");
+		}
+	}
+
 }
 
 void BattleController::UpdateCostViewTransform_(float dt)
@@ -845,9 +869,14 @@ void BattleController::Preload(GameApp& app)
 	spriteCom_ = app.SpriteCom();
 
 	if (!cardDbLoaded_) {
-		if (!db_.LoadFromJson("resources/cards/cards.json")) {
-			db_.BuildSample();
-		}
+		std::vector<std::string> cardFiles = {
+	  "resources/cards/data/UtilityAttack.json",
+	  "resources/cards/data/UtilitySupport.json",
+	  "resources/cards/data/Poison.json",
+	  "resources/cards/data/Frost.json"
+		};
+
+		db_.LoadFromJsons(cardFiles);
 		cardDbLoaded_ = true;
 	}
 
@@ -910,6 +939,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	// まだ先読みされていなければここで保険として実行
 	Preload(app);
+	LoadFieldCardLayout(fieldCardLayoutPath_);
 
 	actionDirector_.Initialize(spriteCom_, dx_, objCom_);
 
@@ -1178,8 +1208,10 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}
 
 		} else if (effect.type == "Block") {
-			if (player_) {
+			if (player_ && effect.value > 0) {
+				const int beforeBlock = player_->GetBlock();
 				player_->AddBlock(effect.value);
+				PlayBlockGainSEIfIncreased_(beforeBlock, player_->GetBlock());
 			}
 
 		} else if (effect.type == "DamageAll") {
@@ -1193,7 +1225,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					if (e.IsAlive()) {
 						e.TriggerHitFlash(0.2f);
 						e.PlayDamageAnim();
+						const int beforeBlock = e.GetBlock();
 						const int actualDamage = e.Damage(totalDamage);
+						PlayBlockReactionSE_(beforeBlock, e.GetBlock(), actualDamage, totalDamage);
 						if (totalDamage > 0) {
 							SpawnDamagePopup(e.GetPos(), actualDamage, false);
 						}
@@ -1213,10 +1247,17 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}
 
 		} else if (effect.type == "PowerBoost") {
-			if (player_) {
+			if (player_ && effect.value > 0) {
+				const int beforePower = player_->GetBoostedPower();
 				player_->PowerBoost(effect.value);
+				if (player_->GetBoostedPower() > beforePower) {
+					PlaySE_("SE_PowerCharge");
+				}
 			}
 		} else if (effect.type == "NextTurnAtkUp") {
+			if (effect.value > 0) {
+				PlaySE_("SE_PowerCharge");
+			}
 			nextTurnAtkUp_ += effect.value;
 
 		} else if (effect.type == "Heal") {
@@ -1357,7 +1398,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 			}
 
+			int beforeHp = player_->GetHP();
 			player_->Heal(healAmount);
+			PlayHealSEIfHpIncreased_(player_, beforeHp);
 
 		} else if (effect.type == "Frost") {
 			if (enemyMgr_) {
@@ -1937,9 +1980,9 @@ void BattleController::RebuildFieldView_()
 		fieldViews_.push_back(std::move(card));
 	}
 
-	const float y = -5.0f;
-	const float z = 5.0f;
-	const float gap = 5.0f;
+	const float y = fieldCardLayout_.y;
+	const float z = fieldCardLayout_.z;
+	const float gap = fieldCardLayout_.gap;
 	const float startX = -gap * 0.5f * (n - 1);
 
 	for (int i = 0; i < n; ++i) {
@@ -1947,7 +1990,7 @@ void BattleController::RebuildFieldView_()
 
 		Vector3 pos{ startX + gap * i, y, z };
 		Vector3 rot{ 0.0f, 0.0f, 0.0f };
-		Vector3 scl{ 1.15f, 1.15f, 1.15f };
+		Vector3 scl{ fieldCardLayout_.scale, fieldCardLayout_.scale, fieldCardLayout_.scale };
 
 		fieldViews_[i]->SetTargetTransform(pos, rot, scl, false);
 
@@ -2006,20 +2049,20 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 		return;
 	}
 
-	const float y = -5.0f;
-	const float z = 5.0f;
-	const float gap = 5.0f;
+	const float y = fieldCardLayout_.y;
+	const float z = fieldCardLayout_.z;
+	const float gap = fieldCardLayout_.gap;
 	const float startX = -gap * 0.5f * (fieldCount - 1);
 
 	Vector3 pos{ startX + gap * index, y, z };
 	Vector3 rot{ 0.0f, 0.0f, 0.0f };
-	Vector3 scl{ 1.15f, 1.15f, 1.15f };
+	Vector3 scl{ fieldCardLayout_.scale, fieldCardLayout_.scale, fieldCardLayout_.scale };
 
 	if (hovered) {
 
-		pos.y += 0.18f;
-		pos.z -= 0.08f;
-		scl = { 1.18f, 1.18f, 1.18f };
+		pos.y += fieldCardLayout_.hoverYOffset;
+		pos.z += fieldCardLayout_.hoverZOffset;
+		scl = { fieldCardLayout_.hoverScale, fieldCardLayout_.hoverScale, fieldCardLayout_.hoverScale };
 
 	}
 
@@ -2209,6 +2252,168 @@ void BattleController::EmitFieldCardGlitter_(float dt)
 		}
 	}
 }
+
+void BattleController::UpdateFieldEditorPreview(float dt)
+{
+	sPokerGlowRainbowTime += dt;
+	RefreshAllFieldCardTransforms_(dt);
+
+	for (auto& card : fieldViews_) {
+		if (card) {
+			card->Update(dt);
+		}
+	}
+
+	if (propManager_) {
+		propManager_->Update(dt);
+	}
+}
+
+void BattleController::BuildFieldEditorPreview(int cardCount, int firstCardId)
+{
+	cardCount = std::clamp(cardCount, 0, 5);
+	firstCardId = std::max(1, firstCardId);
+
+	field_.clear();
+	fieldViews_.clear();
+	currentPoker_ = {};
+	fieldReplacePreviewRanks_.clear();
+	fieldReplacePreviewActive_.clear();
+	cardState_ = CardInputState::Idle;
+	pokerChoiceState_ = PokerChoiceState::None;
+
+	for (int i = 0; i < cardCount; ++i) {
+		int defId = firstCardId + i;
+		if (!db_.Find(defId)) {
+			defId = 1;
+		}
+
+		CardInstance card{};
+		card.defId = defId;
+		card.number = (i % 13) + 1;
+		card.suit = static_cast<CardSuit>(i % 4);
+		field_.push_back(card);
+	}
+
+	RebuildFieldView_();
+}
+
+void BattleController::DrawFieldEditorPreview3D(GameApp& app)
+{
+	(void)app;
+	for (auto& card : fieldViews_) {
+		if (card) {
+			card->Draw();
+		}
+	}
+
+	if (propManager_) {
+		propManager_->Draw3D();
+	}
+}
+
+void BattleController::DrawFieldEditorPostEffect3D(GameApp& app)
+{
+	if (propManager_) {
+		propManager_->DrawPostEffect3D(app);
+	}
+}
+
+bool BattleController::LoadFieldCardLayout(const std::string& path)
+{
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		return false;
+	}
+
+	nlohmann::json json;
+	file >> json;
+
+	if (json.contains("y")) fieldCardLayout_.y = json["y"].get<float>();
+	if (json.contains("z")) fieldCardLayout_.z = json["z"].get<float>();
+	if (json.contains("gap")) fieldCardLayout_.gap = json["gap"].get<float>();
+	if (json.contains("scale")) fieldCardLayout_.scale = json["scale"].get<float>();
+	if (json.contains("hoverYOffset")) fieldCardLayout_.hoverYOffset = json["hoverYOffset"].get<float>();
+	if (json.contains("hoverZOffset")) fieldCardLayout_.hoverZOffset = json["hoverZOffset"].get<float>();
+	if (json.contains("hoverScale")) fieldCardLayout_.hoverScale = json["hoverScale"].get<float>();
+
+	fieldCardLayout_.gap = std::max(0.0f, fieldCardLayout_.gap);
+	fieldCardLayout_.scale = std::max(0.01f, fieldCardLayout_.scale);
+	fieldCardLayout_.hoverScale = std::max(0.01f, fieldCardLayout_.hoverScale);
+	fieldLayoutDirty_ = true;
+	RefreshAllFieldCardTransforms_(0.0f);
+	return true;
+}
+
+bool BattleController::SaveFieldCardLayout(const std::string& path) const
+{
+	const std::filesystem::path filePath(path);
+	const std::filesystem::path dir = filePath.parent_path();
+	if (!dir.empty() && !std::filesystem::exists(dir)) {
+		std::filesystem::create_directories(dir);
+	}
+
+	nlohmann::json json;
+	json["y"] = fieldCardLayout_.y;
+	json["z"] = fieldCardLayout_.z;
+	json["gap"] = fieldCardLayout_.gap;
+	json["scale"] = fieldCardLayout_.scale;
+	json["hoverYOffset"] = fieldCardLayout_.hoverYOffset;
+	json["hoverZOffset"] = fieldCardLayout_.hoverZOffset;
+	json["hoverScale"] = fieldCardLayout_.hoverScale;
+
+	std::ofstream file(path);
+	if (!file.is_open()) {
+		return false;
+	}
+
+	file << json.dump(4);
+	return true;
+}
+
+#ifdef USE_IMGUI
+void BattleController::DrawFieldSceneEditerImGui()
+{
+	ImGui::Begin("FieldSceneEditer");
+
+	bool layoutChanged = false;
+	layoutChanged |= ImGui::DragFloat("Field Y", &fieldCardLayout_.y, 0.05f);
+	layoutChanged |= ImGui::DragFloat("Field Z", &fieldCardLayout_.z, 0.05f);
+	layoutChanged |= ImGui::DragFloat("Card Gap", &fieldCardLayout_.gap, 0.05f, 0.0f, 20.0f);
+	layoutChanged |= ImGui::DragFloat("Card Scale", &fieldCardLayout_.scale, 0.01f, 0.01f, 5.0f);
+	layoutChanged |= ImGui::DragFloat("Hover Y Offset", &fieldCardLayout_.hoverYOffset, 0.01f);
+	layoutChanged |= ImGui::DragFloat("Hover Z Offset", &fieldCardLayout_.hoverZOffset, 0.01f);
+	layoutChanged |= ImGui::DragFloat("Hover Scale", &fieldCardLayout_.hoverScale, 0.01f, 0.01f, 5.0f);
+
+	fieldCardLayout_.gap = std::max(0.0f, fieldCardLayout_.gap);
+	fieldCardLayout_.scale = std::max(0.01f, fieldCardLayout_.scale);
+	fieldCardLayout_.hoverScale = std::max(0.01f, fieldCardLayout_.hoverScale);
+
+	if (layoutChanged) {
+		fieldLayoutDirty_ = true;
+		RefreshAllFieldCardTransforms_(0.0f);
+	}
+
+	if (ImGui::Button("Save Field Layout")) {
+		SaveFieldCardLayout(fieldCardLayoutPath_);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Load Field Layout")) {
+		LoadFieldCardLayout(fieldCardLayoutPath_);
+	}
+
+	ImGui::Separator();
+	ImGui::Text("Preview Cards: %d", static_cast<int>(field_.size()));
+	ImGui::Text("Layout File: %s", fieldCardLayoutPath_.c_str());
+
+	if (propManager_) {
+		ImGui::Separator();
+		propManager_->DrawImGui();
+	}
+
+	ImGui::End();
+}
+#endif
 
 uint64_t BattleController::BuildHandPokerPreviewSignature_() const
 {
@@ -2913,6 +3118,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					cam_->GetViewProjectionMatrix(),
 					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 				);
+
+				Vector4 defaultColor{ 1.0f, 1.f, 1.f, 1.0f };
 
 				// マウスが重なっている敵を黄色く光らせる
 				for (auto& enemy : enemyMgr_->GetEnemies()) {
@@ -4246,7 +4453,9 @@ int BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)
 	player_->PlayAttackAnimWithEffect(enemy.GetPos(), -1);
 	enemy.TriggerHitFlash(0.2f);
 	enemy.PlayDamageAnim();
+	const int beforeBlock = enemy.GetBlock();
 	const int actualDamage = enemy.Damage(damage);
+	PlayBlockReactionSE_(beforeBlock, enemy.GetBlock(), actualDamage, damage);
 
 	if (player_->GetVampireHeal() > 0) {
 		int beforeHp = player_->GetHP();
@@ -4692,14 +4901,24 @@ void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& acti
 		enemy.PlayAttackAnim(player_->GetPos());
 		player_->TriggerHitFlash(0.2f);
 		player_->PlayDamageAnim();
+		const int beforeBlock = player_->GetBlock();
+		const int beforeHp = player_->GetHP();
 		player_->Damage(action.value);
+		const int actualHpDamage = beforeHp - player_->GetHP();
+		PlayBlockReactionSE_(beforeBlock, player_->GetBlock(), actualHpDamage, action.value);
 		if (action.value > 0) {
-			SpawnDamagePopup(player_->GetPos(), action.value, true);
+			SpawnDamagePopup(player_->GetPos(), actualHpDamage, true);
 		}
 	} else if (action.type == "Heal") {
+		const int beforeHp = enemy.GetHP();
 		enemy.Heal(action.value);
+		if (enemy.GetHP() > beforeHp) {
+			PlaySE_("SE_Heal");
+		}
 	} else if (action.type == "Block") {
+		const int beforeBlock = enemy.GetBlock();
 		enemy.AddBlock(action.value);
+		PlayBlockGainSEIfIncreased_(beforeBlock, enemy.GetBlock());
 	}
 }
 

@@ -5,6 +5,8 @@
 #include "SpriteCommon.h"
 #include "VideoPlayerMF.h"
 
+#include "TextSprite.h"
+
 class Camera;
 
 
@@ -27,9 +29,6 @@ private:
 
     float circle_ = 0.0f;     // 0..1
     float softness_ = 0.6f;
-
-    bool prevSpace_ = false;
-    bool prevEnter_ = false;
 
     const char* kNextTitle_ = "Title";
 
@@ -62,5 +61,6 @@ private:
     struct SRT { Vector3 pos{ 0,0,0 }; Vector3 rot{ 0,0,0 }; Vector3 scale{ 1,1,1 }; };
     SRT srtVideo_{};
 
+	std::unique_ptr<TextSprite> uiText_;
 
 };

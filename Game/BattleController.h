@@ -152,6 +152,16 @@ public:
 		int power = 0;
 	};
 
+	struct FieldCardLayout {
+		float y = -5.0f;
+		float z = 5.0f;
+		float gap = 5.0f;
+		float scale = 1.15f;
+		float hoverYOffset = 0.18f;
+		float hoverZOffset = -0.08f;
+		float hoverScale = 1.18f;
+	};
+
 	void SetPlayer(Player* player);
 	void SetEnemyManager(EnemyManager* enemyMgr);
 	void SetFieldParticleManager(ModelParticleManager* particleMgr) { fieldParticleManager_ = particleMgr; }
@@ -159,6 +169,16 @@ public:
 	void UpdateFieldCardTransform_(int index, bool hovered, float dt);
 	void RefreshAllFieldCardTransforms_(float dt);
 	void EmitFieldCardGlitter_(float dt);
+	void UpdateFieldEditorPreview(float dt);
+	void BuildFieldEditorPreview(int cardCount, int firstCardId);
+	void DrawFieldEditorPreview3D(GameApp& app);
+	void DrawFieldEditorPostEffect3D(GameApp& app);
+	bool LoadFieldCardLayout(const std::string& path);
+	bool SaveFieldCardLayout(const std::string& path) const;
+	const FieldCardLayout& GetFieldCardLayout() const { return fieldCardLayout_; }
+#ifdef USE_IMGUI
+	void DrawFieldSceneEditerImGui();
+#endif
 
 	PokerBonus GetCurrentPokerBonusForUi() const;
 
@@ -288,6 +308,8 @@ private:
 	std::vector<CardInstance> discard_;
 	std::vector<CardInstance> field_;
 	std::vector<std::unique_ptr<Card3D>> fieldViews_;
+	FieldCardLayout fieldCardLayout_{};
+	std::string fieldCardLayoutPath_ = "resources/configs/fieldCardLayout.json";
 	std::unique_ptr<Card3D> discardView_;
 
 	int energyMax_ = 10;

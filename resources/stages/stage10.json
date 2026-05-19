@@ -1,7 +1,7 @@
 {
   "stageId": 10,
   "stageName": "Boss Stage",
-  "bgmId": "neppuu",
+  "bgmId": "BGM_Boss",
   "isBossStage": true,
   "enemies": [
     {

@@ -83,6 +83,8 @@ void TitleScene::OnEnter(GameApp& app) {
 	titleDissolveAmount_ = 1.0f;
 	clickDissolveAmount_ = 1.0f;
 	clickDissolveDone_ = false;
+	titleBgmDelayTimer_ = titleBgmDelay_;
+	titleBgmStarted_ = false;
 
 	//--------------------------------------------------------
 	// カメラ作成
@@ -186,18 +188,19 @@ void TitleScene::OnExit(GameApp&) {
 // 毎フレーム更新
 //------------------------------------------------------------
 void TitleScene::Update(GameApp& app, float dt) {
+	if (!titleBgmStarted_) {
+		titleBgmDelayTimer_ -= dt;
+		if (titleBgmDelayTimer_ <= 0.0f) {
+			AudioManager::GetInstance()->PlayBGM("BGM_TitleSelect");
+			titleBgmStarted_ = true;
+		}
+	}
+
 	Input* input = app.GetInput();
 	if (!input) {
 		return;
 	}
 
-	//--------------------------------------------------------
-	// ESCでアプリ終了
-	//--------------------------------------------------------
-	if (input->IsKeyPressed(DIK_ESCAPE)) {
-		app.RequestQuit();
-		return;
-	}
 
 	//--------------------------------------------------------
 	// クリックの瞬間 (左または右)
@@ -216,6 +219,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 	bool deckEditTrig = input->IsKeyTrigger(DIK_D);
 	bool objectPostTestTrig = input->IsKeyTrigger(DIK_O);
 	bool animeEditorTrig = input->IsKeyTrigger(DIK_A);
+	bool fieldEditorTrig = input->IsKeyTrigger(DIK_F);
 
 	if (!clickDissolveDone_) {
 		openingDissolveTimer_ += dt;
@@ -265,6 +269,11 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 		if (animeEditorTrig) {
 			RequestChangeScene_("BattleAnimeEditer");
+			return;
+		}
+
+		if (fieldEditorTrig) {
+			RequestChangeScene_("FieldEditer");
 			return;
 		}
 

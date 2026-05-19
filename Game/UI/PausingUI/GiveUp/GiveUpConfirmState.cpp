@@ -31,6 +31,11 @@ void GiveUpConfirmState::Initialize(GameApp& app) {
 }
 
 void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) {
+
+    if (pushedYes_) {
+        return;
+    }
+
     POINT mousePoint = input->GetMousePosition();
     Vector2 mousePos = { (float)mousePoint.x, (float)mousePoint.y };
 
@@ -62,6 +67,7 @@ void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) 
                 if (name == "Yes") {
                     // タイトルシーンへ遷移（GameAppの機能に依存）
 					context->RequestSceneChange(true); // シーン変更要求を出す
+					pushedYes_ = true;
                 } else if (name == "No") {
                     // メインメニュー（Selection）へ戻る
                     context->ChangeState(std::make_unique<SelectionState>(), app);

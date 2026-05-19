@@ -2,7 +2,7 @@
 #include "IScene.h"
 #include <memory>
 #include "Camera.h"
-
+#include "TextSprite.h"
 #include "VideoPlayerMF.h" 
 
 class Object3d;
@@ -36,11 +36,8 @@ private:
     float damageAlpha_ = 0.0f; // ※色/アルファを渡せるなら使う
 
     // 入力チャタリング防止
-    bool prevSpace_ = false;
-    bool prevEnter_ = false;
-
     // 遷移先（SceneManager のキーに合わせて調整）
-    const char* kNextRetry_ = "StageSelect";   // ← TitleSceneのSPACE遷移と同じ
+    const char* kNextRetry_ = "Title";   // ← TitleSceneのSPACE遷移と同じ
     const char* kNextTitle_ = "Title";  // ←あなたのTitleのキー名に合わせて
 
     // 表示物
@@ -63,5 +60,7 @@ private:
     struct SRT { Vector3 pos{ 0,0,0 }; Vector3 rot{ 0,0,0 }; Vector3 scale{ 1,1,1 }; };
     SRT srtVideo_{};
     float uiTime_ = 0.0f;
+
+    std::unique_ptr<TextSprite> uiText_;
 
 };

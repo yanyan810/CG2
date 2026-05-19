@@ -1,40 +1,40 @@
 {
   "stageId": 7,
   "stageName": "Stage 7",
-  "bgmId": "BGM_Game",
+  "bgmId": "BGM_Stage6_9",
   "isBossStage": false,
   "enemies": [
     {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
-      "maxHp": 125,
-      "hp": 125,
+      "enemyType": "needle",
+      "enemyName": "needle",
+      "maxHp": 100,
+      "hp": 100,
       "attack": 11,
       "defense": 2,
       "position": { "x": 7.0, "y": 0.0, "z": 5.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/needle.json",
       "bossFlag": false
     },
     {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
-      "maxHp": 125,
-      "hp": 125,
-      "attack": 11,
+      "enemyType": "Goblin",
+      "enemyName": "Goblin",
+      "maxHp": 90,
+      "hp": 90,
+      "attack": 10,
       "defense": 2,
       "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/Goblin.json",
       "bossFlag": false
     },
     {
-      "enemyType": "Slime",
-      "enemyName": "Slime",
+      "enemyType": "Golem",
+      "enemyName": "Golem",
       "maxHp": 125,
       "hp": 125,
       "attack": 11,
       "defense": 2,
       "position": { "x": 7.0, "y": 0.0, "z": 25.0 },
-      "behaviorJson": "resources/cards/Slime.json",
+      "behaviorJson": "resources/cards/Golem.json",
       "bossFlag": false
     }
   ]
