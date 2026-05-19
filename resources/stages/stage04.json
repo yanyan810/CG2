@@ -1,7 +1,7 @@
 {
   "stageId": 4,
   "stageName": "Stage 4",
-  "bgmId": "BGM_Game",
+  "bgmId": "BGM_Stage1_5",
   "isBossStage": false,
   "enemies": [
     {

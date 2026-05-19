@@ -622,6 +622,29 @@ namespace {
 		}
 	}
 
+	void PlayBlockGainSEIfIncreased_(int beforeBlock, int afterBlock)
+	{
+		if (afterBlock > beforeBlock) {
+			PlaySE_("SE_Block");
+		}
+	}
+
+	void PlayBlockReactionSE_(int beforeBlock, int afterBlock, int actualHpDamage, int attemptedDamage)
+	{
+		if (attemptedDamage <= 0 || beforeBlock <= 0) {
+			return;
+		}
+
+		if (afterBlock <= 0) {
+			PlaySE_("SE_BlockBreak");
+			return;
+		}
+
+		if (actualHpDamage <= 0) {
+			PlaySE_("SE_ShieldGuard");
+		}
+	}
+
 }
 
 void BattleController::UpdateCostViewTransform_(float dt)
@@ -1178,8 +1201,10 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}
 
 		} else if (effect.type == "Block") {
-			if (player_) {
+			if (player_ && effect.value > 0) {
+				const int beforeBlock = player_->GetBlock();
 				player_->AddBlock(effect.value);
+				PlayBlockGainSEIfIncreased_(beforeBlock, player_->GetBlock());
 			}
 
 		} else if (effect.type == "DamageAll") {
@@ -1193,7 +1218,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					if (e.IsAlive()) {
 						e.TriggerHitFlash(0.2f);
 						e.PlayDamageAnim();
+						const int beforeBlock = e.GetBlock();
 						const int actualDamage = e.Damage(totalDamage);
+						PlayBlockReactionSE_(beforeBlock, e.GetBlock(), actualDamage, totalDamage);
 						if (totalDamage > 0) {
 							SpawnDamagePopup(e.GetPos(), actualDamage, false);
 						}
@@ -1213,10 +1240,17 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}
 
 		} else if (effect.type == "PowerBoost") {
-			if (player_) {
+			if (player_ && effect.value > 0) {
+				const int beforePower = player_->GetBoostedPower();
 				player_->PowerBoost(effect.value);
+				if (player_->GetBoostedPower() > beforePower) {
+					PlaySE_("SE_PowerCharge");
+				}
 			}
 		} else if (effect.type == "NextTurnAtkUp") {
+			if (effect.value > 0) {
+				PlaySE_("SE_PowerCharge");
+			}
 			nextTurnAtkUp_ += effect.value;
 
 		} else if (effect.type == "Heal") {
@@ -1357,7 +1391,9 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 			}
 
+			int beforeHp = player_->GetHP();
 			player_->Heal(healAmount);
+			PlayHealSEIfHpIncreased_(player_, beforeHp);
 
 		} else if (effect.type == "Frost") {
 			if (enemyMgr_) {
@@ -4246,7 +4282,9 @@ int BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)
 	player_->PlayAttackAnimWithEffect(enemy.GetPos(), -1);
 	enemy.TriggerHitFlash(0.2f);
 	enemy.PlayDamageAnim();
+	const int beforeBlock = enemy.GetBlock();
 	const int actualDamage = enemy.Damage(damage);
+	PlayBlockReactionSE_(beforeBlock, enemy.GetBlock(), actualDamage, damage);
 
 	if (player_->GetVampireHeal() > 0) {
 		int beforeHp = player_->GetHP();
@@ -4692,14 +4730,24 @@ void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& acti
 		enemy.PlayAttackAnim(player_->GetPos());
 		player_->TriggerHitFlash(0.2f);
 		player_->PlayDamageAnim();
+		const int beforeBlock = player_->GetBlock();
+		const int beforeHp = player_->GetHP();
 		player_->Damage(action.value);
+		const int actualHpDamage = beforeHp - player_->GetHP();
+		PlayBlockReactionSE_(beforeBlock, player_->GetBlock(), actualHpDamage, action.value);
 		if (action.value > 0) {
-			SpawnDamagePopup(player_->GetPos(), action.value, true);
+			SpawnDamagePopup(player_->GetPos(), actualHpDamage, true);
 		}
 	} else if (action.type == "Heal") {
+		const int beforeHp = enemy.GetHP();
 		enemy.Heal(action.value);
+		if (enemy.GetHP() > beforeHp) {
+			PlaySE_("SE_Heal");
+		}
 	} else if (action.type == "Block") {
+		const int beforeBlock = enemy.GetBlock();
 		enemy.AddBlock(action.value);
+		PlayBlockGainSEIfIncreased_(beforeBlock, enemy.GetBlock());
 	}
 }
 

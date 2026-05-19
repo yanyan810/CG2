@@ -12,10 +12,12 @@
 #include "Object3d.h"
 #include "ModelManager.h"
 #include "Input.h"
+#include "AudioManager.h"
 
 static float Clamp01(float x) { return std::clamp(x, 0.0f, 1.0f); }
 
 void GameClearScene::OnEnter(GameApp& app) {
+    AudioManager::GetInstance()->PlayBGM("BGM_Clear");
 
 
     camera_ = std::make_unique<Camera>();
@@ -172,6 +174,7 @@ void GameClearScene::Update(GameApp& app, float dt) {
     case State::ExitClose:
         circle_ = Clamp01(circle_ - 1.8f * dt);
         if (circle_ <= 0.0f) {
+            AudioManager::GetInstance()->StopBGM();
             RequestChangeScene_(kNextTitle_);
         }
         break;

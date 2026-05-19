@@ -10,6 +10,8 @@
 #include"Logic/CardPreview.h"
 
 void DeckEditScene::OnEnter(GameApp& app) {
+	AudioManager::GetInstance()->PlayBGM("BGM_DeckEdit");
+
 	camera_ = std::make_unique<Camera>();
 	camera_->SetTranslate({ 0.0f, 4.0f, -10.0f });
 	camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
