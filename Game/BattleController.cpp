@@ -869,9 +869,14 @@ void BattleController::Preload(GameApp& app)
 	spriteCom_ = app.SpriteCom();
 
 	if (!cardDbLoaded_) {
-		if (!db_.LoadFromJson("resources/cards/cards.json")) {
-			db_.BuildSample();
-		}
+		std::vector<std::string> cardFiles = {
+	  "resources/cards/data/UtilityAttack.json",
+	  "resources/cards/data/UtilitySupport.json",
+	  "resources/cards/data/Poison.json",
+	  "resources/cards/data/Frost.json"
+		};
+
+		db_.LoadFromJsons(cardFiles);
 		cardDbLoaded_ = true;
 	}
 
