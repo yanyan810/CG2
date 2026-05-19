@@ -74,7 +74,7 @@ bool CardDatabase::LoadFromJson(const std::string& path)
         def.artTex = jCard.value("artTex", "");
         def.desc = jCard.value("desc", "");
 
-		TextureManager::GetInstance()->LoadTexture(def.artTex);
+		//TextureManager::GetInstance()->LoadTexture(def.artTex);
 
         if (jCard.contains("effects") && jCard["effects"].is_array()) {
             for (const auto& jEffect : jCard["effects"]) {
