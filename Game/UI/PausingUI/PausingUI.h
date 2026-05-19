@@ -3,6 +3,7 @@
 #include <vector>
 #include "IPauseState.h"
 #include "Sprite.h"
+#include "TextSprite.h"
 
 class GameApp;
 class Input;
@@ -13,7 +14,7 @@ public:
     void Initialize(GameApp& app);
     void Update(GameApp& app, Input* input);
     void Draw(GameApp& app);
-    void DrawImGui();
+    //void DrawImGui();
 
     // 状態遷移用メソッド
     void ChangeState(std::unique_ptr<IPauseState> newState, GameApp& app);
@@ -35,4 +36,9 @@ private:
 
     // 全状態共通の背景（暗幕など）
     std::unique_ptr<Sprite> pausingBg_;
+
+	std::unique_ptr<Sprite> pauseButton_;
+	std::unique_ptr<TextSprite> pauseButtonText_;
+
+
 };

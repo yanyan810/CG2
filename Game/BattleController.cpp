@@ -2914,6 +2914,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 				);
 
+				Vector4 defaultColor{ 1.0f, 1.f, 1.f, 1.0f };
+
 				// マウスが重なっている敵を黄色く光らせる
 				for (auto& enemy : enemyMgr_->GetEnemies()) {
 					enemy.SetHighlight(false);

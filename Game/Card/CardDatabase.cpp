@@ -1,6 +1,7 @@
 #include "CardDatabase.h"
 #include <fstream>
 #include "externals/nlohmann/json.hpp"
+#include "TextureManager.h"
 
 using json = nlohmann::json;
 
@@ -48,7 +49,7 @@ void CardDatabase::BuildSample() {
 
 bool CardDatabase::LoadFromJson(const std::string& path)
 {
-    defs_.clear();
+    //defs_.clear();
 
     std::ifstream ifs(path);
     if (!ifs.is_open()) {
@@ -72,6 +73,8 @@ bool CardDatabase::LoadFromJson(const std::string& path)
         def.artModel = jCard.value("artModel", "");
         def.artTex = jCard.value("artTex", "");
         def.desc = jCard.value("desc", "");
+
+		TextureManager::GetInstance()->LoadTexture(def.artTex);
 
         if (jCard.contains("effects") && jCard["effects"].is_array()) {
             for (const auto& jEffect : jCard["effects"]) {
@@ -106,18 +109,38 @@ bool CardDatabase::LoadFromJson(const std::string& path)
                 }
 
                 def.subEffects.push_back(sub);
+                
             }
         }
 
         if (def.id != 0) {
             defs_[def.id] = def;
         }
+        cardCount_++;
     }
 
     return true;
 }
 
+bool CardDatabase::LoadFromJsons(const std::vector<std::string>& paths)
+{
+    // データベース全体を初期化（ここでクリアする）
+    defs_.clear();
+    cardCount_ = 0;
 
+    bool allSuccess = true;
+
+    for (const auto& path : paths) {
+        // 1ファイルずつ既存の読み込み関数に渡す
+
+        if (!LoadFromJson(path)) {
+            // どこかのファイルが読み込めなかった場合のログ出しなど（任意）
+            allSuccess = false;
+        }
+    }
+
+    return allSuccess;
+}
 
 const CardDef* CardDatabase::Find(int id) const {
     auto it = defs_.find(id);

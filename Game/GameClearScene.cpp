@@ -111,6 +111,13 @@ void GameClearScene::OnEnter(GameApp& app) {
 
     videoPlane_->Update(0.0f);
 
+    uiText_ = std::make_unique<TextSprite>();
+    uiText_->Initialize(app.SpriteCom(), app.Dx());
+    uiText_->SetFontSize(28);
+    uiText_->SetSize({ 1.0f,1.0f,1.0f });
+    uiText_->SetPosition({100.f,600.f});
+	uiText_->SetText(L"ステージクリア！おめでとうございます！\nspaceもしくは左クリックでタイトルへ");
+
 }
 
 void GameClearScene::OnExit(GameApp&) {
@@ -134,6 +141,12 @@ void GameClearScene::Update(GameApp& app, float dt) {
 	rotateYAngle_ += 0.05f * dt; // ゆっくり回転
 
     skyDome_->SetRotate({ 0.0f ,rotateYAngle_,0.0f });
+
+    // 行列更新
+    Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+    Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
+
+	uiText_->Update(view, proj);
 
     switch (state_) {
     case State::EnterOpen:
@@ -241,6 +254,8 @@ void GameClearScene::Draw2D(GameApp& app) {
         0, 0, float(WinApp::kClientWidth), float(WinApp::kClientHeight), 0, 100);
 
     if (bg_) { bg_->Update(view, proj); bg_->Draw(); }
+
+	if (uiText_) { uiText_->Draw(); }
 
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
 }

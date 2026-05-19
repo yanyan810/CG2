@@ -1,0 +1,66 @@
+{
+    "cards":[
+          {
+      "id": 31,
+      "name": "BelowFreezing",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵単体に５ダメージ\n敵単体に凍結を２付与",
+       "effects": [
+        { "type": "Damage", "value": 5 },
+        { "type": "Frost", "value": 2 }
+      ]
+     },
+        {
+      "id": 32,
+      "name": "AbsoluteZero",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵全体に５ダメー\n敵単体に凍結を２付与",
+       "effects": [
+        { "type": "DamageAll", "value": 5 },
+        { "type": "FrostAll", "value": 2 }
+      ]
+     },
+         {
+      "id": 33,
+      "name": "EdgeHammer",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵単体に10ダメージ",
+       "effects": [
+        { "type": "Damage", "value": 10 }
+      ]
+     },
+         {
+      "id": 34,
+      "name": "FrostedKnife",
+      "cost": 4,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "このターン中、\n「ダメージを与えるたびに\n凍結を１付与」\nを得る\nすでに付与されているなら\n敵全体に凍結を１付与",
+       "effects": [
+         { "type": "FrostBite", "value": 1 }
+      ]
+     },
+      {
+      "id": 35,
+      "name": "IceAge",
+      "cost": 5,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵全体の凍結を２倍にする",
+       "effects": [
+         { "type": "FrostAmplify", "value": 2 }
+      ]
+     }
+    ]
+}
