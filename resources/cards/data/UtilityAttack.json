@@ -1,0 +1,171 @@
+{
+  "cards": [
+
+     {
+      "id": 1,
+      "name": "Attack!",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "desc": "敵単体に1ダメージ",
+      "effects": [
+        { "type": "Damage", "value": 1 }
+      ]
+    },
+
+
+    {
+      "id": 2,
+      "name": "Fireball",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/FireBall.png",
+      "desc": "敵単体に10ダメージ",
+      "effects": [
+        { "type": "Damage", "value": 10 }
+      ]
+    },
+
+
+    {
+      "id": 3,
+      "name": "BloodyVengeance",
+      "cost": 1,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/BloodyVengeance.png",
+      "desc": "敵単体に2ダメージ与えて、\n自身は1ダメージ食らう",
+      "effects": [
+        { "type": "SelfDamage", "value": 1 },
+        { "type": "Damage", "value": 2 }
+      ]
+    },
+
+
+    {
+      "id": 4,
+      "name": "Power Shot",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/PowerShot.png",
+      "desc": "敵単体に10ダメージ与えてカードを1枚引く",
+      "effects": [
+        { "type": "Damage", "value": 10 },
+        { "type": "Draw", "value": 1 }
+      ]
+     },
+
+
+     {
+      "id": 5,
+      "name": "Crush",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Crush.png",
+      "desc": "敵全体に２ダメージ",
+      "effects": [
+        { "type": "DamageAll", "value": 2 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "ExactRank",
+            "rank": "OnePair"
+          },
+          "effects": [
+            { "type": "Damage", "value": 1 }
+          ]
+        }
+      ]
+    },
+
+
+    {
+      "id": 6,
+      "name": "CrescentMoon",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/CrescentMoon.png",
+      "desc": "敵単体に3ダメージ与える。\n現在のターン数が奇数なら\nさらに3ダメージ与える",
+      "effects": [
+        { "type": "DamageCrescent", "value": 3 }
+      ]
+     },
+
+
+      {
+      "id": 7,
+      "name": "OverClock",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/OverClock.png",
+      "desc": "敵単体に2ダメージを与える。\nこれを二回行う",
+      "effects": [
+        { "type": "Damage", "value": 2 },
+        { "type": "Damage", "value": 2 }
+      ]
+     },
+
+
+      {
+      "id": 8,
+      "name": "ShieldBash",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/ShieldBash.png",
+      "desc": "敵単体に\nブロック数x1ダメージ与える",
+      "effects": [
+        { "type": "DamageByBlock", "value": 1 }
+      ]
+     },
+
+
+      {
+      "id": 9,
+      "name": "GaeBolg",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/GaeBolg.png",
+      "desc": "敵単体に1ダメージ与える。",
+      "effects": [
+        { "type": "Damage", "value": 1 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "ThreeOfAKind"
+          },
+          "effects": [
+            { "type": "Damage", "value": 100 }
+          ]
+        }
+      ]
+     },
+
+
+       {
+      "id": 10,
+      "name": "Durandal",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Utility/Durandal.png",
+      "desc": "敵単体に5ダメージを与える。\n5のブロックを獲得する",
+      "effects": [
+        { "type": "Damage", "value": 5 },
+        { "type": "Block", "value": 5 }
+      ]
+     }
+     
+    ]}
