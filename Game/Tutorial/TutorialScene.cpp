@@ -222,15 +222,6 @@ void TutorialScene::Update(GameApp& app, float dt) {
     }
 
 
-    bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
-    if (currEsc && !prevEsc_) {
-        if (state_ == State::Idle) {
-            nextSceneName_ = "StageSelect";
-            state_ = State::ExitClose;
-        }
-        return;
-    }
-    prevEsc_ = currEsc;
 
     bool isTargeting = battle_.IsPlayerTargeting();
 

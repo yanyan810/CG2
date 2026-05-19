@@ -1032,14 +1032,6 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 
-	// ESCキーでタイトルへ戻る
-	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
-	if (currEsc && !prevEsc_) {
-		AudioManager::GetInstance()->StopBGM();
-		RequestChangeScene_("Title");
-	}
-	prevEsc_ = currEsc;
-
 	if (skyDome_) {
 		skyDome_->Update(dt);
 	}
