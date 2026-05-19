@@ -218,6 +218,7 @@ void TutorialScene::Update(GameApp& app, float dt) {
         break;
     }
 
+
     bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
     if (currEsc && !prevEsc_) {
         if (state_ == State::Idle) {

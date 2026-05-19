@@ -10,6 +10,7 @@
 #include "StageSelectScene.h"
 #include "BattleController.h"
 #include "BattleAnimeEditerScene.h"
+#include "FieldEditerScene.h"
 
 #include "WinApp.h"
 #include "DirectXCommon.h"
@@ -64,7 +65,10 @@ int GameApp::Run() {
 
 		sceneMgr_->DrawSkydome(*this);
 
-		// ポストエフェクト描画
+		// ──────────────────────────────────────────
+		// bloomコンテキスト内: DrawPostEffect3D / 2D
+		// GameScene の bloom 合成処理もここで行う
+		// ──────────────────────────────────────────
 		bloom_->PreDraw();
 
 		sceneMgr_->DrawPostEffect3D(*this);
@@ -72,9 +76,15 @@ int GameApp::Run() {
 
 		bloom_->PostDraw();
 
-		// 普通の描画
+		// 通常の3D・2D描画（メインRTへ）
 		Draw3D();
 		Draw2D();
+
+		// ──────────────────────────────────────────
+		// bloomコンテキスト外: Draw3D/2Dの後に重ねる
+		// FieldEditer のプロップポストエフェクトなど
+		// ──────────────────────────────────────────
+		sceneMgr_->DrawPostEffect3DLate(*this);
 
 #ifdef USE_IMGUI
 		DrawImGui();
@@ -191,6 +201,7 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  });
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });
 	sceneMgr_->Register("BattleAnimeEditer", [] { return std::make_unique<BattleAnimeEditerScene>(); });
+	sceneMgr_->Register("FieldEditer", [] { return std::make_unique<FieldEditerScene>(); });
 
 	// デフォルトデッキ
 	for (int i = 0; i < 2; i++) {

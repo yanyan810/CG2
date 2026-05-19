@@ -292,6 +292,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
+
 	if (input->IsKeyTrigger(DIK_ESCAPE)) {
 		AudioManager::GetInstance()->PlaySE("SE_Tap");
 		RequestChangeScene_("Title");
@@ -446,12 +447,10 @@ void StageSelectScene::Draw2D(GameApp& app) {
 	}
 
 	if (currentStageId_ == 10 && bossStageWarningOverlay_) {
-		const bool isBurst = bossWarningBurstTimer_ > 0.0f;
-		const float overlayAlpha = isBurst ? 0.22f : 0.14f;
 		bossStageWarningOverlay_->SetPosition({ shakeOffset.x, shakeOffset.y });
-		bossStageWarningOverlay_->SetColor({ 1.0f, 0.04f, 0.02f, overlayAlpha });
-		BloomParam warningParam = MakeBossStageWarningParam_(app.ObjectPost()->GetParam(), isBurst);
-		app.DrawSpriteObjectPost(bossStageWarningOverlay_.get(), view, proj, warningParam);
+		bossStageWarningOverlay_->SetColor({ 1.0f, 0.04f, 0.02f, 0.14f }); // Drawで透過描画
+		bossStageWarningOverlay_->Update(view, proj);
+		bossStageWarningOverlay_->Draw();
 	}
 
 
@@ -632,7 +631,23 @@ void StageSelectScene::DrawPostEffect3D(GameApp& app) {
 }
 
 void StageSelectScene::DrawPostEffect2D(GameApp& app) {
-	(void)app;
+	if (!bossStageWarningOverlay_ || currentStageId_ != 10) {
+		return;
+	}
+
+	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
+		0.0f, 0.0f,
+		static_cast<float>(WinApp::kClientWidth),
+		static_cast<float>(WinApp::kClientHeight),
+		0.0f, 100.0f
+	);
+
+	const bool isBurst = bossWarningBurstTimer_ > 0.0f;
+	const float overlayAlpha = isBurst ? 0.22f : 0.14f;
+	bossStageWarningOverlay_->SetColor({ 1.0f, 0.04f, 0.02f, overlayAlpha });
+	BloomParam warningParam = MakeBossStageWarningParam_(app.ObjectPost()->GetParam(), isBurst);
+	app.DrawSpriteObjectPost(bossStageWarningOverlay_.get(), view, proj, warningParam);
 }
 
 

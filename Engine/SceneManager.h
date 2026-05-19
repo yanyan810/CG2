@@ -24,6 +24,7 @@ public:
 
     void DrawPostEffect3D(GameApp& app);
     void DrawPostEffect2D(GameApp& app);
+    void DrawPostEffect3DLate(GameApp& app);
 
     IScene* Current() { return current_.get(); }
 
