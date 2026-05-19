@@ -1,15 +1,45 @@
 {
-    "BGM_Game": {
-        "filePath": "resources/audio/BGM/BGM_Game.mp3",
+    "BGM_TitleSelect": {
+        "filePath": "resources/audio/BGM/title_select.mp3",
         "loop": true,
         "maxConcurrency": 1,
-        "volume": 1.0
+        "volume": 0.45
     },
-    "BGM_Title": {
-        "filePath": "resources/audio/BGM/BGM_Title.mp3",
+    "BGM_DeckEdit": {
+        "filePath": "resources/audio/BGM/deck_edit.mp3",
         "loop": true,
         "maxConcurrency": 1,
-        "volume": 1.0
+        "volume": 0.45
+    },
+    "BGM_Tutorial": {
+        "filePath": "resources/audio/BGM/tutorial.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 0.45
+    },
+    "BGM_Clear": {
+        "filePath": "resources/audio/BGM/clear.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 0.45
+    },
+    "BGM_Stage1_5": {
+        "filePath": "resources/audio/BGM/stage_1_5.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 0.45
+    },
+    "BGM_Stage6_9": {
+        "filePath": "resources/audio/BGM/stage_6_9.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 0.45
+    },
+    "BGM_Boss": {
+        "filePath": "resources/audio/BGM/boss_battle.mp3",
+        "loop": true,
+        "maxConcurrency": 1,
+        "volume": 0.45
     },
     "cardPlay": {
         "filePath": "resources/audio/SE/cardPlay.mp3",
@@ -31,6 +61,36 @@
     },
     "SE_Heal": {
         "filePath": "resources/audio/SE/heal.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_Freeze": {
+        "filePath": "resources/audio/SE/freeze.mp3",
+        "loop": false,
+        "maxConcurrency": 5,
+        "volume": 1.0
+    },
+    "SE_Block": {
+        "filePath": "resources/audio/SE/block.mp3",
+        "loop": false,
+        "maxConcurrency": 6,
+        "volume": 1.0
+    },
+    "SE_BlockBreak": {
+        "filePath": "resources/audio/SE/block_break.mp3",
+        "loop": false,
+        "maxConcurrency": 6,
+        "volume": 1.0
+    },
+    "SE_ShieldGuard": {
+        "filePath": "resources/audio/SE/shield_guard.mp3",
+        "loop": false,
+        "maxConcurrency": 6,
+        "volume": 1.0
+    },
+    "SE_PowerCharge": {
+        "filePath": "resources/audio/SE/power_charge.mp3",
         "loop": false,
         "maxConcurrency": 5,
         "volume": 1.0
@@ -89,28 +149,10 @@
         "maxConcurrency": 8,
         "volume": 1.0
     },
-    "machi": {
-        "filePath": "resources/audio/BGM/machi.mp3",
-        "loop": true,
-        "maxConcurrency": 1,
-        "volume": 1.0
-    },
-    "neppuu": {
-        "filePath": "resources/audio/BGM/neppuu.mp3",
-        "loop": true,
-        "maxConcurrency": 1,
-        "volume": 1.0
-    },
     "sword": {
         "filePath": "resources/audio/SE/sword.mp3",
         "loop": false,
         "maxConcurrency": 5,
         "volume": 2.0
-    },
-    "toumei": {
-        "filePath": "resources/audio/BGM/toumei.mp3",
-        "loop": true,
-        "maxConcurrency": 1,
-        "volume": 1.0
     }
 }

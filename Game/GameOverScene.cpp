@@ -14,10 +14,12 @@
 #include "TextureManager.h"
 #include "WinApp.h"
 #include "Input.h"
+#include "AudioManager.h"
 
 static float Clamp01(float x) { return std::clamp(x, 0.0f, 1.0f); }
 
 void GameOverScene::OnEnter(GameApp& app) {
+    AudioManager::GetInstance()->StopBGM();
 
     camera_ = std::make_unique<Camera>();
     camera_->SetRotate({ 0.35f, 0.0f, 0.0f });

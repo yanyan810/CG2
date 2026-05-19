@@ -121,6 +121,7 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	bossShakeTimer_ = 0.0f;
 	circle_ = 0.0f;
 	softness_ = 0.6f;
+	AudioManager::GetInstance()->PlayBGM("BGM_TitleSelect");
 
 	camera_ = std::make_unique<Camera>();
 	camera_->SetTranslate({ 0.0f, 0.0f, 0.0f });

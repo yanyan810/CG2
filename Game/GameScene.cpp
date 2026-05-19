@@ -389,7 +389,7 @@ void GameScene::OnEnter(GameApp& app) {
 	}
 	bossStageBannerTimer_ = isBossStage_ ? kBossStageBannerDuration : 0.0f;
 
-	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Game" : stageBgmId);
+	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Stage1_5" : stageBgmId);
 	// --------------------------------------------------
 	// 4. ライトの初期設定
 	// --------------------------------------------------
@@ -805,6 +805,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		battleEndTimer_--;
 		if (battleEndTimer_ <= 0) {
 			app.ResetRadialBlur();
+			AudioManager::GetInstance()->StopBGM();
 			RequestChangeScene_("Title");
 		}
 		return;
@@ -1002,6 +1003,7 @@ void GameScene::Update(GameApp& app, float dt) {
 	// ESCキーでタイトルへ戻る
 	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
 	if (currEsc && !prevEsc_) {
+		AudioManager::GetInstance()->StopBGM();
 		RequestChangeScene_("Title");
 	}
 	prevEsc_ = currEsc;
