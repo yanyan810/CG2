@@ -1,4 +1,5 @@
 #include "PropManager.h"
+#include "GameApp.h"
 #include <imgui.h>
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -41,6 +42,8 @@ void PropManager::ScanModelFiles() {
 }
 
 void PropManager::Update(float dt) {
+	ApplyPendingChanges();
+
 	for (auto& prop : placedProps_) {
 		if (prop.object) {
 			prop.object->SetTranslate(prop.pos);
@@ -60,9 +63,22 @@ void PropManager::Update(float dt) {
 
 void PropManager::Draw3D() {
 	for (auto& prop : placedProps_) {
-		if (prop.object) {
+		if (prop.object && !prop.usePostEffect) {
 			prop.object->Draw();
 		}
+	}
+}
+
+void PropManager::DrawPostEffect3D(GameApp& app) {
+	for (auto& prop : placedProps_) {
+		if (!prop.object || !prop.usePostEffect) {
+			continue;
+		}
+		app.ObjectPost()->SetParam(prop.postEffect);
+		app.BeginObjectPostEffect();
+		prop.object->Draw();
+		app.EndObjectPostEffect();
+		app.ObjCom()->SetGraphicsPipelineState();
 	}
 }
 
@@ -143,8 +159,22 @@ void PropManager::DrawImGui() {
 			ImGui::DragFloat("Light Intensity", &prop.lightIntensity, 0.1f);
 		}
 
+		ImGui::Separator();
+		ImGui::Checkbox("Use Post Effect", &prop.usePostEffect);
+		if (prop.usePostEffect) {
+			ImGui::DragFloat("Bloom Threshold",   &prop.postEffect.threshold,  0.01f, 0.0f, 2.0f);
+			ImGui::DragFloat("Bloom Intensity",   &prop.postEffect.intensity,   0.01f, 0.0f, 5.0f);
+			ImGui::DragFloat("Blur (Chrom Ab)",   &prop.postEffect.chromAbAmount, 0.001f, 0.0f, 0.05f);
+			ImGui::DragFloat("Distortion",        &prop.postEffect.distortionAmount, 0.001f, 0.0f, 0.1f);
+			ImGui::DragFloat("Noise",             &prop.postEffect.noiseIntensity, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Scanline",          &prop.postEffect.scanlineIntensity, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Glitch",            &prop.postEffect.glitchAmount, 0.001f, 0.0f, 0.1f);
+			ImGui::DragFloat("Vignette",          &prop.postEffect.vignetteIntensity, 0.01f, 0.0f, 2.0f);
+			ImGui::DragFloat("Dissolve",          &prop.postEffect.dissolveAmount, 0.01f, -1.0f, 1.0f);
+		}
+
 		if (ImGui::Button("Delete Prop")) {
-			placedProps_.erase(placedProps_.begin() + selectedPropIndex_);
+			pendingDeletePropIndex_ = selectedPropIndex_;
 			selectedPropIndex_ = -1;
 		}
 	}
@@ -155,11 +185,31 @@ void PropManager::DrawImGui() {
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Load Scene from JSON")) {
-		LoadFromJson("resources/configs/sceneProps.json");
+		pendingLoadFromJson_ = true;
+		pendingLoadFromJsonPath_ = "resources/configs/sceneProps.json";
+		pendingDeletePropIndex_ = -1;
+		selectedPropIndex_ = -1;
 	}
 
 	ImGui::End();
 #endif
+}
+
+void PropManager::ApplyPendingChanges() {
+	if (pendingLoadFromJson_) {
+		pendingLoadFromJson_ = false;
+		LoadFromJson(pendingLoadFromJsonPath_);
+		pendingLoadFromJsonPath_.clear();
+		return;
+	}
+
+	if (pendingDeletePropIndex_ >= 0) {
+		if (pendingDeletePropIndex_ < static_cast<int>(placedProps_.size())) {
+			placedProps_.erase(placedProps_.begin() + pendingDeletePropIndex_);
+		}
+		pendingDeletePropIndex_ = -1;
+		selectedPropIndex_ = -1;
+	}
 }
 
 void PropManager::SaveToJson(const std::string& filepath) {
@@ -177,6 +227,22 @@ void PropManager::SaveToJson(const std::string& filepath) {
 		j["lightDir"] = { prop.lightDir.x, prop.lightDir.y, prop.lightDir.z };
 		j["lightColor"] = { prop.lightColor.x, prop.lightColor.y, prop.lightColor.z, prop.lightColor.w };
 		j["lightIntensity"] = prop.lightIntensity;
+		j["usePostEffect"] = prop.usePostEffect;
+		j["postEffect"] = {
+			{"threshold",         prop.postEffect.threshold},
+			{"intensity",         prop.postEffect.intensity},
+			{"vignetteIntensity", prop.postEffect.vignetteIntensity},
+			{"vignetteScale",     prop.postEffect.vignetteScale},
+			{"chromAbAmount",     prop.postEffect.chromAbAmount},
+			{"distortionAmount",  prop.postEffect.distortionAmount},
+			{"noiseIntensity",    prop.postEffect.noiseIntensity},
+			{"scanlineIntensity", prop.postEffect.scanlineIntensity},
+			{"scanlineFrequency", prop.postEffect.scanlineFrequency},
+			{"glitchAmount",      prop.postEffect.glitchAmount},
+			{"dissolveAmount",    prop.postEffect.dissolveAmount},
+			{"curvature",         prop.postEffect.curvature},
+			{"borderSharp",       prop.postEffect.borderSharp}
+		};
 		jArray.push_back(j);
 	}
 
@@ -226,6 +292,23 @@ void PropManager::LoadFromJson(const std::string& filepath) {
 			prop.lightColor.x = j["lightColor"][0]; prop.lightColor.y = j["lightColor"][1]; prop.lightColor.z = j["lightColor"][2]; prop.lightColor.w = j["lightColor"][3];
 		}
 		if (j.contains("lightIntensity")) prop.lightIntensity = j["lightIntensity"];
+		if (j.contains("usePostEffect")) prop.usePostEffect = j["usePostEffect"];
+		if (j.contains("postEffect")) {
+			const auto& pe = j["postEffect"];
+			if (pe.contains("threshold"))         prop.postEffect.threshold         = pe["threshold"];
+			if (pe.contains("intensity"))         prop.postEffect.intensity         = pe["intensity"];
+			if (pe.contains("vignetteIntensity")) prop.postEffect.vignetteIntensity = pe["vignetteIntensity"];
+			if (pe.contains("vignetteScale"))     prop.postEffect.vignetteScale     = pe["vignetteScale"];
+			if (pe.contains("chromAbAmount"))     prop.postEffect.chromAbAmount     = pe["chromAbAmount"];
+			if (pe.contains("distortionAmount"))  prop.postEffect.distortionAmount  = pe["distortionAmount"];
+			if (pe.contains("noiseIntensity"))    prop.postEffect.noiseIntensity    = pe["noiseIntensity"];
+			if (pe.contains("scanlineIntensity")) prop.postEffect.scanlineIntensity = pe["scanlineIntensity"];
+			if (pe.contains("scanlineFrequency")) prop.postEffect.scanlineFrequency = pe["scanlineFrequency"];
+			if (pe.contains("glitchAmount"))      prop.postEffect.glitchAmount      = pe["glitchAmount"];
+			if (pe.contains("dissolveAmount"))    prop.postEffect.dissolveAmount    = pe["dissolveAmount"];
+			if (pe.contains("curvature"))         prop.postEffect.curvature         = pe["curvature"];
+			if (pe.contains("borderSharp"))       prop.postEffect.borderSharp       = pe["borderSharp"];
+		}
 
 		if (!prop.modelPath.empty()) {
 			prop.object = std::make_unique<Object3d>();

@@ -179,6 +179,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\ParticleEditor.cpp" />
     <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
     <ClCompile Include="Game\DeckEditScene.cpp" />
+    <ClCompile Include="Game\FieldEditerScene.cpp" />
     <ClCompile Include="Engine\Audio.cpp" />
     <ClCompile Include="Engine\AudioManager.cpp" />
     <ClCompile Include="Engine\Camera\CameraAnimator.cpp" />
@@ -215,6 +216,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\Card\DeckLoader.cpp" />
     <ClCompile Include="Game\GameClearScene.cpp" />
     <ClCompile Include="Game\GameOverScene.cpp" />
+    <ClCompile Include="Game\GameResultPopup.cpp" />
     <ClCompile Include="Game\enemy\BossAI.cpp" />
     <ClCompile Include="Game\enemy\Bullet.cpp" />
     <ClCompile Include="Game\enemy\Enemy.cpp" />
@@ -346,6 +348,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\ParticleEditor.h" />
     <ClInclude Include="Game\BattleAnimeEditerScene.h" />
     <ClInclude Include="Game\DeckEditScene.h" />
+    <ClInclude Include="Game\FieldEditerScene.h" />
     <ClInclude Include="Engine\Audio.h" />
     <ClInclude Include="Engine\AudioManager.h" />
     <ClInclude Include="Engine\Camera\CameraAnimator.h" />
@@ -393,6 +396,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\Card\DeckLoader.h" />
     <ClInclude Include="Game\GameClearScene.h" />
     <ClInclude Include="Game\GameOverScene.h" />
+    <ClInclude Include="Game\GameResultPopup.h" />
     <ClInclude Include="Game\enemy\BossAI.h" />
     <ClInclude Include="Game\enemy\Bullet.h" />
     <ClInclude Include="Game\enemy\Enemy.h" />

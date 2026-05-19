@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <set>
 #include <random>
+#include <filesystem>
 
 #include"Player.h"
 #include"Enemy.h"
@@ -933,6 +934,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 	// まだ先読みされていなければここで保険として実行
 	Preload(app);
+	LoadFieldCardLayout(fieldCardLayoutPath_);
 
 	actionDirector_.Initialize(spriteCom_, dx_, objCom_);
 
@@ -1973,9 +1975,9 @@ void BattleController::RebuildFieldView_()
 		fieldViews_.push_back(std::move(card));
 	}
 
-	const float y = -5.0f;
-	const float z = 5.0f;
-	const float gap = 5.0f;
+	const float y = fieldCardLayout_.y;
+	const float z = fieldCardLayout_.z;
+	const float gap = fieldCardLayout_.gap;
 	const float startX = -gap * 0.5f * (n - 1);
 
 	for (int i = 0; i < n; ++i) {
@@ -1983,7 +1985,7 @@ void BattleController::RebuildFieldView_()
 
 		Vector3 pos{ startX + gap * i, y, z };
 		Vector3 rot{ 0.0f, 0.0f, 0.0f };
-		Vector3 scl{ 1.15f, 1.15f, 1.15f };
+		Vector3 scl{ fieldCardLayout_.scale, fieldCardLayout_.scale, fieldCardLayout_.scale };
 
 		fieldViews_[i]->SetTargetTransform(pos, rot, scl, false);
 
@@ -2042,20 +2044,20 @@ void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float 
 		return;
 	}
 
-	const float y = -5.0f;
-	const float z = 5.0f;
-	const float gap = 5.0f;
+	const float y = fieldCardLayout_.y;
+	const float z = fieldCardLayout_.z;
+	const float gap = fieldCardLayout_.gap;
 	const float startX = -gap * 0.5f * (fieldCount - 1);
 
 	Vector3 pos{ startX + gap * index, y, z };
 	Vector3 rot{ 0.0f, 0.0f, 0.0f };
-	Vector3 scl{ 1.15f, 1.15f, 1.15f };
+	Vector3 scl{ fieldCardLayout_.scale, fieldCardLayout_.scale, fieldCardLayout_.scale };
 
 	if (hovered) {
 
-		pos.y += 0.18f;
-		pos.z -= 0.08f;
-		scl = { 1.18f, 1.18f, 1.18f };
+		pos.y += fieldCardLayout_.hoverYOffset;
+		pos.z += fieldCardLayout_.hoverZOffset;
+		scl = { fieldCardLayout_.hoverScale, fieldCardLayout_.hoverScale, fieldCardLayout_.hoverScale };
 
 	}
 
@@ -2245,6 +2247,168 @@ void BattleController::EmitFieldCardGlitter_(float dt)
 		}
 	}
 }
+
+void BattleController::UpdateFieldEditorPreview(float dt)
+{
+	sPokerGlowRainbowTime += dt;
+	RefreshAllFieldCardTransforms_(dt);
+
+	for (auto& card : fieldViews_) {
+		if (card) {
+			card->Update(dt);
+		}
+	}
+
+	if (propManager_) {
+		propManager_->Update(dt);
+	}
+}
+
+void BattleController::BuildFieldEditorPreview(int cardCount, int firstCardId)
+{
+	cardCount = std::clamp(cardCount, 0, 5);
+	firstCardId = std::max(1, firstCardId);
+
+	field_.clear();
+	fieldViews_.clear();
+	currentPoker_ = {};
+	fieldReplacePreviewRanks_.clear();
+	fieldReplacePreviewActive_.clear();
+	cardState_ = CardInputState::Idle;
+	pokerChoiceState_ = PokerChoiceState::None;
+
+	for (int i = 0; i < cardCount; ++i) {
+		int defId = firstCardId + i;
+		if (!db_.Find(defId)) {
+			defId = 1;
+		}
+
+		CardInstance card{};
+		card.defId = defId;
+		card.number = (i % 13) + 1;
+		card.suit = static_cast<CardSuit>(i % 4);
+		field_.push_back(card);
+	}
+
+	RebuildFieldView_();
+}
+
+void BattleController::DrawFieldEditorPreview3D(GameApp& app)
+{
+	(void)app;
+	for (auto& card : fieldViews_) {
+		if (card) {
+			card->Draw();
+		}
+	}
+
+	if (propManager_) {
+		propManager_->Draw3D();
+	}
+}
+
+void BattleController::DrawFieldEditorPostEffect3D(GameApp& app)
+{
+	if (propManager_) {
+		propManager_->DrawPostEffect3D(app);
+	}
+}
+
+bool BattleController::LoadFieldCardLayout(const std::string& path)
+{
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		return false;
+	}
+
+	nlohmann::json json;
+	file >> json;
+
+	if (json.contains("y")) fieldCardLayout_.y = json["y"].get<float>();
+	if (json.contains("z")) fieldCardLayout_.z = json["z"].get<float>();
+	if (json.contains("gap")) fieldCardLayout_.gap = json["gap"].get<float>();
+	if (json.contains("scale")) fieldCardLayout_.scale = json["scale"].get<float>();
+	if (json.contains("hoverYOffset")) fieldCardLayout_.hoverYOffset = json["hoverYOffset"].get<float>();
+	if (json.contains("hoverZOffset")) fieldCardLayout_.hoverZOffset = json["hoverZOffset"].get<float>();
+	if (json.contains("hoverScale")) fieldCardLayout_.hoverScale = json["hoverScale"].get<float>();
+
+	fieldCardLayout_.gap = std::max(0.0f, fieldCardLayout_.gap);
+	fieldCardLayout_.scale = std::max(0.01f, fieldCardLayout_.scale);
+	fieldCardLayout_.hoverScale = std::max(0.01f, fieldCardLayout_.hoverScale);
+	fieldLayoutDirty_ = true;
+	RefreshAllFieldCardTransforms_(0.0f);
+	return true;
+}
+
+bool BattleController::SaveFieldCardLayout(const std::string& path) const
+{
+	const std::filesystem::path filePath(path);
+	const std::filesystem::path dir = filePath.parent_path();
+	if (!dir.empty() && !std::filesystem::exists(dir)) {
+		std::filesystem::create_directories(dir);
+	}
+
+	nlohmann::json json;
+	json["y"] = fieldCardLayout_.y;
+	json["z"] = fieldCardLayout_.z;
+	json["gap"] = fieldCardLayout_.gap;
+	json["scale"] = fieldCardLayout_.scale;
+	json["hoverYOffset"] = fieldCardLayout_.hoverYOffset;
+	json["hoverZOffset"] = fieldCardLayout_.hoverZOffset;
+	json["hoverScale"] = fieldCardLayout_.hoverScale;
+
+	std::ofstream file(path);
+	if (!file.is_open()) {
+		return false;
+	}
+
+	file << json.dump(4);
+	return true;
+}
+
+#ifdef USE_IMGUI
+void BattleController::DrawFieldSceneEditerImGui()
+{
+	ImGui::Begin("FieldSceneEditer");
+
+	bool layoutChanged = false;
+	layoutChanged |= ImGui::DragFloat("Field Y", &fieldCardLayout_.y, 0.05f);
+	layoutChanged |= ImGui::DragFloat("Field Z", &fieldCardLayout_.z, 0.05f);
+	layoutChanged |= ImGui::DragFloat("Card Gap", &fieldCardLayout_.gap, 0.05f, 0.0f, 20.0f);
+	layoutChanged |= ImGui::DragFloat("Card Scale", &fieldCardLayout_.scale, 0.01f, 0.01f, 5.0f);
+	layoutChanged |= ImGui::DragFloat("Hover Y Offset", &fieldCardLayout_.hoverYOffset, 0.01f);
+	layoutChanged |= ImGui::DragFloat("Hover Z Offset", &fieldCardLayout_.hoverZOffset, 0.01f);
+	layoutChanged |= ImGui::DragFloat("Hover Scale", &fieldCardLayout_.hoverScale, 0.01f, 0.01f, 5.0f);
+
+	fieldCardLayout_.gap = std::max(0.0f, fieldCardLayout_.gap);
+	fieldCardLayout_.scale = std::max(0.01f, fieldCardLayout_.scale);
+	fieldCardLayout_.hoverScale = std::max(0.01f, fieldCardLayout_.hoverScale);
+
+	if (layoutChanged) {
+		fieldLayoutDirty_ = true;
+		RefreshAllFieldCardTransforms_(0.0f);
+	}
+
+	if (ImGui::Button("Save Field Layout")) {
+		SaveFieldCardLayout(fieldCardLayoutPath_);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Load Field Layout")) {
+		LoadFieldCardLayout(fieldCardLayoutPath_);
+	}
+
+	ImGui::Separator();
+	ImGui::Text("Preview Cards: %d", static_cast<int>(field_.size()));
+	ImGui::Text("Layout File: %s", fieldCardLayoutPath_.c_str());
+
+	if (propManager_) {
+		ImGui::Separator();
+		propManager_->DrawImGui();
+	}
+
+	ImGui::End();
+}
+#endif
 
 uint64_t BattleController::BuildHandPokerPreviewSignature_() const
 {

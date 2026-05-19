@@ -18,6 +18,7 @@
 #include "PausingUI/PausingUI.h"
 #include "EffectSequencer.h"
 #include "BloomConstantBuffer.h"
+#include "GameResultPopup.h"
 
 class GameApp;
 
@@ -182,5 +183,9 @@ private:
     Vector3 clearBaseFieldCameraRot_{};
     Vector3 clearBaseBattleCameraPos_{};
     Vector3 clearBaseBattleCameraRot_{};
+
+    // ゲーム結果ポップアップ
+    std::unique_ptr<GameResultPopup> resultPopup_;
+    bool gameResultShown_ = false; // ポップアップ表示済みフラグ
 };
 

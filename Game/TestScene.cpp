@@ -413,11 +413,9 @@ void TestScene::Update(GameApp& app, float dt) {
 #endif
 
 
-    if(input_->IsKeyTrigger(DIK_ESCAPE)) {
-        //prevEsc_ = true;
+    if (input_->IsKeyTrigger(DIK_ESCAPE)) {
         RequestChangeScene_("Title");
     }
-    
 
 }
 

@@ -66,6 +66,13 @@ void SceneManager::DrawPostEffect2D(GameApp& app)
     }
 }
 
+void SceneManager::DrawPostEffect3DLate(GameApp& app)
+{
+    if (current_) {
+        current_->DrawPostEffect3DLate(app);
+    }
+}
+
 void SceneManager::DrawImGui(GameApp& app)
 {
     if (current_) {

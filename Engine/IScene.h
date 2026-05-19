@@ -18,6 +18,8 @@ public:
 
     virtual void DrawPostEffect3D(GameApp& app) {}
     virtual void DrawPostEffect2D(GameApp& app) {}
+    // Draw3D/Draw2Dの後に「bloomコンテキスト外」で描画するポストエフェクト用
+    virtual void DrawPostEffect3DLate(GameApp& app) {}
 
     const char* GetRequestedScene_() const { return nextScene_; }
     void ClearRequestedScene_() { nextScene_ = nullptr; }
