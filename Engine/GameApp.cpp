@@ -216,14 +216,23 @@ bool GameApp::Initialize_() {
 		deckInstances_.push_back(MakeCardInstance(20));
 	}
 
+	std::vector<std::string> cardFiles = {
+	  "resources/cards/data/UtilityAttack.json",
+	  "resources/cards/data/UtilitySupport.json",
+	  "resources/cards/data/Poison.json",
+	  "resources/cards/data/Frost.json"
+	};
+
 	cardDB_ = std::make_unique<CardDatabase>();
-	cardDB_->LoadFromJson("resources/cards/cards.json");
+	cardDB_->LoadFromJsons(cardFiles);
+
+	
 
 	// 事前にカードなどの全アセットを読み込んでおく（画面遷移時のカクつき防止）
 	BattleController dummyBattle;
 	dummyBattle.Preload(*this);
 
-	sceneMgr_->Change(*this, "Title");
+	sceneMgr_->Change(*this, "DeckEdit");
 
 
 	OutputDebugStringA("[GameApp] Initialize END\n");
