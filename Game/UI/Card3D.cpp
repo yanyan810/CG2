@@ -182,25 +182,35 @@ void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
 		costObj_->SetModel(costModelPath.c_str());
 	}
 
-	int tens = inst.number / 10;
-	int ones = inst.number % 10;
+	// ポーカー表記: 1→A, 11→J, 12→Q, 13→K
+	// A/J/Q/K は1文字モデルなので十の位は非表示
+	auto GetNumberModelPath = [](int number) -> std::string {
+		switch (number) {
+		case 1:  return "cards/models/a.obj";
+		case 11: return "cards/models/J.obj";
+		case 12: return "cards/models/Q.obj";
+		case 13: return "cards/models/K.obj";
+		default: return "cards/models/" + std::to_string(number % 10) + ".obj";
+		}
+	};
 
-	hasTensDigit_ = (inst.number >= 10);
+	const bool isSpecial = (inst.number == 1 || inst.number >= 11);
+	hasTensDigit_ = (!isSpecial && inst.number >= 10);
 
-	// 一の位は常に表示
+	// 一の位 / 特殊文字（A/J/Q/K）
 	{
-		std::string onesPath = "cards/models/" + std::to_string(ones) + ".obj";
+		std::string onesPath = GetNumberModelPath(inst.number);
 		ScopedTimer t("  ones SetModel");
 		numberObjOnes_->SetModel(onesPath.c_str());
 	}
 
-	// 十の位があるときだけ表示
+	// 十の位（2桁で特殊でない場合のみ: 現状 number=10 のみ）
 	if (hasTensDigit_) {
+		int tens = inst.number / 10;
 		std::string tensPath = "cards/models/" + std::to_string(tens) + ".obj";
 		ScopedTimer t("  tens SetModel");
 		numberObjTens_->SetModel(tensPath.c_str());
 	}
-
 
 
 	std::string suitModelPath;
