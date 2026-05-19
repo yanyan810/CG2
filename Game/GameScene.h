@@ -9,6 +9,7 @@
 #include "AnimationEditorSession.h"
 #include "BattleController.h"
 #include "TextSprite.h"
+#include "Sprite.h"
 #include "StringUtility.h"
 #include "FieldUi.h"
 #include "ModelParticleManager.h"
@@ -84,6 +85,10 @@ private:
     EnemyManager enemyMgr_;
 
     std::unique_ptr<Sprite> cardDescBg_;
+    std::unique_ptr<Sprite> startFadeMask_;
+    float startFadeTimer_ = 0.0f;
+    float startFadeDuration_ = 0.75f;
+    bool startFadeActive_ = false;
 
     // ライトの設定
     LightingParam light_;
@@ -171,5 +176,11 @@ private:
 	std::unique_ptr<EffectSequencer> effectSequencer_;
 
     int battleEndTimer_ = 180;
+    bool clearTransitionActive_ = false;
+    float clearTransitionTimer_ = 0.0f;
+    Vector3 clearBaseFieldCameraPos_{};
+    Vector3 clearBaseFieldCameraRot_{};
+    Vector3 clearBaseBattleCameraPos_{};
+    Vector3 clearBaseBattleCameraRot_{};
 };
 

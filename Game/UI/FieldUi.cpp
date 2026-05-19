@@ -538,9 +538,12 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 	const BattleController::CardInputState inputState = battle.GetNowCardInputState();
 
 	const bool isBattleCardPreview =
-		(inputState == BattleController::CardInputState::Preview) &&
+		(inputState == BattleController::CardInputState::Preview ||
+		 inputState == BattleController::CardInputState::Dragging ||
+		 inputState == BattleController::CardInputState::Idle) &&
 		!battle.HasPokerChoiceUi() &&
-		!battle.IsViewingBoardFromPokerUi();
+		!battle.IsViewingBoardFromPokerUi() &&
+		battle.GetPreviewCardDef() != nullptr;
 
 	if (battle.HasPokerChoiceUi()) {
 		newMode = DescMode::PokerChoice;
@@ -970,9 +973,12 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 
 	const BattleController::CardInputState inputState = battle.GetNowCardInputState();
 	const bool isBattleCardPreview =
-		(inputState == BattleController::CardInputState::Preview) &&
+		(inputState == BattleController::CardInputState::Preview ||
+		 inputState == BattleController::CardInputState::Dragging ||
+		 inputState == BattleController::CardInputState::Idle) &&
 		!battle.HasPokerChoiceUi() &&
-		!battle.IsViewingBoardFromPokerUi();
+		!battle.IsViewingBoardFromPokerUi() &&
+		battle.GetPreviewCardDef() != nullptr;
 
 	const int drawPokerHoverIndex =
 		(forcedPokerHoverIndex_ >= 0) ? forcedPokerHoverIndex_ : pokerHoverIndex_;

@@ -12,6 +12,8 @@
 #include "Player.h"
 #include "BattleController.h"
 #include "FieldUi.h"
+#include "ModelParticleManager.h"
+#include "BloomConstantBuffer.h"
 #include "TutorialManager.h"
 #include "TutorialUi.h"
 
@@ -36,6 +38,8 @@ public:
     void DrawPostEffect2D(GameApp& app) override;
 
 private:
+    void ResetParticleObjectPostParam_();
+
     enum class State {
         EnterOpen,
         Idle,
@@ -60,6 +64,9 @@ private:
 
     BattleController battle_;
     std::unique_ptr<FieldUi> fieldUi_;
+    std::unique_ptr<ModelParticleManager> fieldParticleManager_;
+    bool particleObjectPostEnabled_ = true;
+    BloomParam particleObjectPostParam_{};
 
     std::unique_ptr<TutorialManager> tutorial_;
     std::unique_ptr<TutorialUi> tutorialUi_;
@@ -72,6 +79,11 @@ private:
 
     std::unique_ptr<Sprite> blockBg_;
     std::unique_ptr<TextSprite> blockText_;
+
+    std::unique_ptr<Sprite> startFadeMask_;
+    float startFadeTimer_ = 0.0f;
+    float startFadeDuration_ = 0.75f;
+    bool startFadeActive_ = false;
 
     bool prevEsc_ = false;
 

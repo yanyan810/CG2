@@ -13,6 +13,7 @@
 #include "Sprite.h"
 #include "TextureManager.h"
 #include "WinApp.h"
+#include "Input.h"
 
 static float Clamp01(float x) { return std::clamp(x, 0.0f, 1.0f); }
 
@@ -39,9 +40,6 @@ void GameOverScene::OnEnter(GameApp& app) {
 
     damageScale_ = 0.0f;
     damageAlpha_ = 0.0f;
-
-    prevSpace_ = false;
-    prevEnter_ = false;
 
     // damage.obj 表示（Object3dで出す）
     damageObj_ = std::make_unique<Object3d>();
@@ -145,16 +143,6 @@ void GameOverScene::OnExit(GameApp& app) {
 
 
 void GameOverScene::Update(GameApp& app, float dt) {
-    bool spaceNow = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
-    bool enterNow = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
-
-    bool spaceTrigger = spaceNow && !prevSpace_;
-    bool enterTrigger = enterNow && !prevEnter_;
-    bool leftClickTrig = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0 && !(prevSpace_ || prevEnter_);
-
-    prevSpace_ = spaceNow;
-    prevEnter_ = enterNow;
-
     if (skyDome_) skyDome_->Update(dt);
     uiTime_ += dt;
 
@@ -193,16 +181,29 @@ void GameOverScene::Update(GameApp& app, float dt) {
 
         const Input* input = app.GetInput();
 
-        if (input->IsKeyPressed(DIK_LEFT) || input->IsKeyPressed(DIK_A)) {
+        if (input && (input->IsKeyPressed(DIK_LEFT) || input->IsKeyPressed(DIK_A))) {
             select_ = Select::Retry;
         }
-        if (input->IsKeyPressed(DIK_RIGHT) || input->IsKeyPressed(DIK_D)) {
+        if (input && (input->IsKeyPressed(DIK_RIGHT) || input->IsKeyPressed(DIK_D))) {
             select_ = Select::Title;
         }
 
-        if (spaceTrigger || leftClickTrig) {
-            decided_ = select_;
-            state_ = State::ExitClose;
+        if (input) {
+            const POINT mousePos = input->GetMousePosition();
+            const Vector2 mouse{ static_cast<float>(mousePos.x), static_cast<float>(mousePos.y) };
+            if (retrySp_ && retrySp_->IsMouseOver(mouse)) {
+                select_ = Select::Retry;
+                if (input->IsMouseTrigger(0)) {
+                    decided_ = Select::Retry;
+                    state_ = State::ExitClose;
+                }
+            } else if (titleSp_ && titleSp_->IsMouseOver(mouse)) {
+                select_ = Select::Title;
+                if (input->IsMouseTrigger(0)) {
+                    decided_ = Select::Title;
+                    state_ = State::ExitClose;
+                }
+            }
         }
     } break;
 

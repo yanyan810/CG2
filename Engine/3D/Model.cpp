@@ -138,24 +138,12 @@ static Matrix4x4 ConvertAssimpMatrix_LH(const aiMatrix4x4& mIn)
 
 static std::string AiStringToStdStringRawDump(const aiString& s)
 {
-	// 1) length を信じてコピー
+	// length を信じてコピー
 	std::string out;
 	out.assign(s.data, s.data + s.length);
-
-	// 2) dump（先頭32byteまで）
-	char buf[1024]{};
-	int n = 0;
-	n += sprintf_s(buf + n, sizeof(buf) - n, "[AiStr] len=%u firstBytes=", (unsigned)s.length);
-	for (unsigned i = 0; i < s.length && i < 32; ++i) {
-		n += sprintf_s(buf + n, sizeof(buf) - n, "%02X ", (unsigned char)s.data[i]);
-	}
-	n += sprintf_s(buf + n, sizeof(buf) - n, "\n");
-	OutputDebugStringA(buf);
-
-	// 3) out 側の長さもログ
-	OutputDebugStringA(("[AiStr] out.size=" + std::to_string(out.size()) + "\n").c_str());
 	return out;
 }
+
 
 static Model::Node ReadNodeRecursiveImpl(const aiNode* node, int depth) {
 	Model::Node out{};
@@ -331,9 +319,8 @@ static void ReadAnimationsFromAssimp(Model::ModelData& out, const aiScene* scene
 
 			std::string nodeName = AiStringToStdStringRawDump(ch->mNodeName);
 
-			OutputDebugStringA(("[AnimChFixed] nodeName.size=" + std::to_string(nodeName.size()) + "\n").c_str());
-
 			if (nodeName.empty()) continue;
+
 
 			NodeAnimation na{};
 			if (ch->mNumPositionKeys > 0) {
@@ -348,19 +335,8 @@ static void ReadAnimationsFromAssimp(Model::ModelData& out, const aiScene* scene
 
 
 			clip.nodeAnimations.emplace(std::move(nodeName), std::move(na));
-
-			OutputDebugStringA(("[AnimCh] anim='" + animName + "' node='" + nodeName + "'\n").c_str());
-
-			char bb[256];
-			std::snprintf(bb, sizeof(bb),
-				"[AnimChRaw] anim='%s' nodeLen=%u nodeFirst=%d\n",
-				animName.c_str(),
-				ch->mNodeName.length,
-				(ch->mNodeName.length > 0) ? (unsigned char)ch->mNodeName.data[0] : -1
-			);
-			OutputDebugStringA(bb);
-
 		}
+
 
 		out.animations.emplace(std::move(animName), std::move(clip));
 	}
@@ -810,10 +786,9 @@ void Model::Draw(ID3D12GraphicsCommandList* cmd,
 
 		if (overrideSrv) {
 			// ★動画など外部SRVを強制使用
-			OutputDebugStringA("[Model] overrideSrv path\n");
 			handle = *overrideSrv;
-
 		}
+
 		else {
 			// ---- いつものテクスチャ ----
 			std::string texPath;

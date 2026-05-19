@@ -12,6 +12,7 @@ void SpriteCommon::Initialize(DirectXCommon* dx) {
 
     // ★追加：円マスク（1回だけ作る）
     CreateCircleMaskPipeline_();
+    CreateHealthGaugePipeline_();
 }
 
 void SpriteCommon::CreateRootSignature() {
@@ -138,6 +139,86 @@ void SpriteCommon::SetGraphicsPipelineState() {
     cmd->SetPipelineState(pso_.Get());
     // プリミティブトポロジ（スプライトは三角形リスト）
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void SpriteCommon::SetHealthGaugePipelineState()
+{
+    auto* cmd = dx_->GetCommandList();
+    cmd->SetGraphicsRootSignature(healthGaugeRootSig_.Get());
+    cmd->SetPipelineState(healthGaugePSO_.Get());
+    cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void SpriteCommon::CreateHealthGaugePipeline_()
+{
+    D3D12_ROOT_PARAMETER params[2]{};
+
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[0].Descriptor.ShaderRegister = 0;
+
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    params[1].Descriptor.ShaderRegister = 0;
+
+    D3D12_ROOT_SIGNATURE_DESC desc{};
+    desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    desc.NumParameters = _countof(params);
+    desc.pParameters = params;
+
+    ID3DBlob* sig = nullptr;
+    ID3DBlob* err = nullptr;
+    HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &err);
+    assert(SUCCEEDED(hr));
+    hr = dx_->GetDevice()->CreateRootSignature(
+        0,
+        sig->GetBufferPointer(),
+        sig->GetBufferSize(),
+        IID_PPV_ARGS(&healthGaugeRootSig_));
+    assert(SUCCEEDED(hr));
+    if (sig) sig->Release();
+    if (err) err->Release();
+
+    auto vs = dx_->CompilesSharder(L"resources/shaders/Sprite2d.VS.hlsl", L"vs_6_0");
+    auto ps = dx_->CompilesSharder(L"resources/shaders/HealthGauge.PS.hlsl", L"ps_6_0");
+
+    D3D12_BLEND_DESC blend{};
+    blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blend.RenderTarget[0].BlendEnable = TRUE;
+    blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    blend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+    D3D12_RASTERIZER_DESC rast{};
+    rast.CullMode = D3D12_CULL_MODE_NONE;
+    rast.FillMode = D3D12_FILL_MODE_SOLID;
+
+    D3D12_DEPTH_STENCIL_DESC ds{};
+    ds.DepthEnable = FALSE;
+    ds.StencilEnable = FALSE;
+    ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    ds.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+    psoDesc.pRootSignature = healthGaugeRootSig_.Get();
+    psoDesc.InputLayout = inputLayout_;
+    psoDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+    psoDesc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+    psoDesc.BlendState = blend;
+    psoDesc.RasterizerState = rast;
+    psoDesc.DepthStencilState = ds;
+    psoDesc.NumRenderTargets = 1;
+    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    psoDesc.SampleDesc.Count = 1;
+    psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+    hr = dx_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&healthGaugePSO_));
+    assert(SUCCEEDED(hr));
 }
 
 void SpriteCommon::CreateCircleMaskPipeline_()

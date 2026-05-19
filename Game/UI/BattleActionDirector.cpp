@@ -8,9 +8,12 @@
 #include <fstream>
 #include <iomanip>
 #include <cstring>
+#include "ScopedTimer.h"  // パフォーマンス計測用
+#include "Input/Input.h"  // スキップ用
 #include <cstdint>
 #include <filesystem>
 #include <unordered_map>
+
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -279,13 +282,22 @@ void BattleActionDirector::SetProfilePath(const std::string& path) {
 }
 
 void BattleActionDirector::SetDebugPlaybackTime(float time) {
-    if (phase_ == ActionPhase::Idle) {
-        return;
-    }
+	if (phase_ == ActionPhase::Idle) {
+		return;
+	}
 
-    timer_ = std::clamp(time, 0.0f, std::max(duration_, 0.0f));
-    easeT_ = std::clamp(timer_ / std::max(duration_, 0.001f), 0.0f, 1.0f);
-    SamplePreviewAtCurrentTime_();
+	timer_ = std::clamp(time, 0.0f, std::max(duration_, 0.0f));
+	easeT_ = std::clamp(timer_ / std::max(duration_, 0.001f), 0.0f, 1.0f);
+	hasReachedImpact_ = phase_ == ActionPhase::Attack && timer_ >= GetImpactTime();
+	SamplePreviewAtCurrentTime_();
+}
+
+float BattleActionDirector::GetImpactTime() const {
+	const float fallbackImpact = std::max(0.0f, duration_);
+	const float profileImpact = profile_.enemyDamageAnimStartTime > 0.0f
+		? profile_.enemyDamageAnimStartTime
+		: fallbackImpact;
+	return std::clamp(profileImpact, 0.0f, fallbackImpact);
 }
 
 bool BattleActionDirector::ReloadCardMotionFromProfile() {
@@ -381,11 +393,14 @@ void BattleActionDirector::StartAction(Player* player, Enemy* target, const Card
 }
 
 void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, const CardDef* cardDef, const CardInstance* cardInstance) {
+    ScopedTimer timerTotal("StartActionInternal [TOTAL]", 2.0f);
+
     player_ = player;
     target_ = target;
     SaveOriginalState_();
     debugPaused_ = false;
-    cardMotionKeyframes_.clear();
+    // ★ cardMotionCard_ と cardMotionKeyframes_ は意図的にリセットしない
+    //    cachedCardMotionPath_ があるため reset/clear すると次回JSON未読み込みのまま演出が消える
     cardMotionVisible_ = false;
     
     // いきなりアニメーション再生フェーズから開始する
@@ -404,74 +419,149 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     }
     if (target_) target_->SetPosition(profile_.enemyPos);
 
-    Camera* cardCamera = (profile_.enableCameraWork && cinematicCam_) ? cinematicCam_.get() : nullptr;
-    if (!cardCamera && player_ && player_->GetObject3d()) {
-        cardCamera = player_->GetObject3d()->GetCamera();
-    }
-    if (!profile_.cardMotionFile.empty() && cardDef && cardInstance && objCom_ && dx_ && cardCamera &&
-        LoadCardMotion_(profile_.cardMotionFile)) {
-        if (!cardMotionCard_) {
-            cardMotionCard_ = std::make_unique<Card3D>();
-            cardMotionCard_->Setup(objCom_, dx_, cardCamera);
+    {
+        ScopedTimer t("  CardMotion Initialize", 2.0f);
+        Camera* cardCamera = (profile_.enableCameraWork && cinematicCam_) ? cinematicCam_.get() : nullptr;
+        if (!cardCamera && player_ && player_->GetObject3d()) {
+            cardCamera = player_->GetObject3d()->GetCamera();
         }
-        cardMotionCard_->SetCamera(cardCamera);
-        if (!cardMotionCard_->IsSameCardData(*cardDef, *cardInstance)) {
-            cardMotionCard_->SetCardData(*cardDef, *cardInstance);
+        if (!profile_.cardMotionFile.empty() && cardDef && cardInstance && objCom_ && dx_ && cardCamera) {
+            // 同じカードモーションファイルならJSONキャッシュを使う
+            if (profile_.cardMotionFile != cachedCardMotionPath_) {
+                ScopedTimer t2("    CardMotion JSON Load", 1.0f);
+                if (LoadCardMotion_(profile_.cardMotionFile)) {
+                    cachedCardMotionPath_ = profile_.cardMotionFile;
+                } else {
+                    cachedCardMotionPath_.clear();
+                }
+            }
+            if (!cardMotionKeyframes_.empty()) {
+                bool needInit = !cardMotionCard_;  // まだ一度も作っていない
+                if (needInit) {
+                    // ★初回のみ Initialize（GPUバッファ確保 = 重い処理）
+                    ScopedTimer t3("    Card3D::Initialize [FIRST]", 0.0f);
+                    cardMotionCard_ = std::make_unique<Card3D>();
+                    cardMotionCard_->Initialize(objCom_, dx_, cardCamera, *cardDef, *cardInstance);
+                    cachedCardDefId_ = cardDef->id;
+                    cachedCardInst_  = *cardInstance;
+                } else {
+                    // ★2回目以降：カードが変わった場合のみ SetCardData を呼ぶ
+                    if (cardDef->id != cachedCardDefId_ ||
+                        cardInstance->number != cachedCardInst_.number ||
+                        cardInstance->suit   != cachedCardInst_.suit) {
+                        cardMotionCard_->SetCardData(*cardDef, *cardInstance);
+                        cachedCardDefId_ = cardDef->id;
+                        cachedCardInst_  = *cardInstance;
+                    }
+                    // カメラだけ最新のものに更新
+                    cardMotionCard_->SetCamera(cardCamera);
+                }
+                cardMotionCard_->SetIsHand(false);
+                const CardMotionKeyframe first = SampleCardMotion_(0.0f);
+                cardMotionCard_->SetTransform(first.pos, first.rot, first.scale);
+                duration_ = std::max(duration_, cardMotionKeyframes_.back().time);
+            }
         }
-        cardMotionCard_->SetIsHand(false);
-        const CardMotionKeyframe first = SampleCardMotion_(0.0f);
-        cardMotionCard_->SetTransform(first.pos, first.rot, first.scale);
-        duration_ = std::max(duration_, cardMotionKeyframes_.back().time);
     }
 
     // Preload Animation JSONs and inject to Model
-    if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
-        if (!profile_.playerAttackAnim.empty()) {
-            InjectAnimationCached(
-                profile_.playerAttackAnim,
-                *playerAnimDoc_,
-                *player_->GetObject3d()->GetModel(),
-                "SequenceAttack");
+    {
+        ScopedTimer t("  PlayerAnim LoadFromJson", 2.0f);
+        if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
+            if (!profile_.playerAttackAnim.empty()) {
+                // 同じパスなら再読み込みをスキップ
+                if (profile_.playerAttackAnim != cachedPlayerAnimPath_) {
+                    if (playerAnimDoc_->LoadFromJson(profile_.playerAttackAnim)) {
+                        cachedPlayerAnimPath_ = profile_.playerAttackAnim;
+                    } else {
+                        cachedPlayerAnimPath_.clear();
+                    }
+                    // パスが変わった場合はAddAnimationキャッシュを無効化
+                    cachedPlayerAnimInjected_.clear();
+                }
+                // ★ 同じモデル ✕ 同じパスに既に登録済みならコピーをスキップ
+                void* modelPtr = player_->GetObject3d()->GetModel();
+                bool alreadyInjected = (cachedPlayerAnimModel_ == modelPtr &&
+                                        cachedPlayerAnimInjected_ == cachedPlayerAnimPath_);
+                if (!alreadyInjected && playerAnimDoc_->HasValidClip()) {
+                    player_->GetObject3d()->GetModel()->AddAnimation("SequenceAttack", playerAnimDoc_->GetAnimation());
+                    cachedPlayerAnimModel_    = modelPtr;
+                    cachedPlayerAnimInjected_ = cachedPlayerAnimPath_;
+                }
+            }
         }
     }
 
-    if (target_ && target_->GetObject3d() && target_->GetObject3d()->GetModel()) {
-        if (!profile_.enemyDamageAnim.empty()) {
-            InjectAnimationCached(
-                profile_.enemyDamageAnim,
-                *enemyAnimDoc_,
-                *target_->GetObject3d()->GetModel(),
-                "SequenceDamage");
+    {
+        ScopedTimer t("  EnemyAnim LoadFromJson", 2.0f);
+        if (target_ && target_->GetObject3d() && target_->GetObject3d()->GetModel()) {
+            if (!profile_.enemyDamageAnim.empty()) {
+                // 同じパスなら再読み込みをスキップ
+                if (profile_.enemyDamageAnim != cachedEnemyAnimPath_) {
+                    if (enemyAnimDoc_->LoadFromJson(profile_.enemyDamageAnim)) {
+                        cachedEnemyAnimPath_ = profile_.enemyDamageAnim;
+                    } else {
+                        cachedEnemyAnimPath_.clear();
+                    }
+                    // パスが変わった場合はAddAnimationキャッシュを無効化
+                    cachedEnemyAnimInjected_.clear();
+                }
+                // ★ 同じモデル ✕ 同じパスに既に登録済みならコピーをスキップ
+                void* modelPtr = target_->GetObject3d()->GetModel();
+                bool alreadyInjected = (cachedEnemyAnimModel_ == modelPtr &&
+                                        cachedEnemyAnimInjected_ == cachedEnemyAnimPath_);
+                if (!alreadyInjected && enemyAnimDoc_->HasValidClip()) {
+                    target_->GetObject3d()->GetModel()->AddAnimation("SequenceDamage", enemyAnimDoc_->GetAnimation());
+                    cachedEnemyAnimModel_    = modelPtr;
+                    cachedEnemyAnimInjected_ = cachedEnemyAnimPath_;
+                }
+            }
         }
     }
 
     // カメラアニメーションもすぐに開始
-    cameraAnimIsStatic_ = false;
-    if (!profile_.cameraAnimFile.empty()) {
-        LoadCameraAnimationCached(profile_.cameraAnimFile, *cinematicCamAnim_);
-        cameraAnimIsStatic_ = IsCameraAnimStatic(cinematicCamAnim_->GetKeyframes());
-        cinematicCamAnim_->SetLoop(false);
-        cinematicCamAnim_->SetPlaying(true);
-        cinematicCamAnim_->SetCurrentTime(0.0f);
-        cinematicCamAnim_->SampleAtTime(0.0f);
-        if (cinematicCam_) {
-            cinematicCam_->Update();
-        }
-        
-        float camDuration = cinematicCamAnim_->GetMaxTime();
-        if (camDuration > 0.0f) {
-            duration_ = std::max(duration_, camDuration);
+    {
+        ScopedTimer t("  CameraAnim LoadFromJson", 2.0f);
+        cameraAnimIsStatic_ = false;
+        if (!profile_.cameraAnimFile.empty()) {
+            // 同じパスなら再読み込みをスキップ
+            if (profile_.cameraAnimFile != cachedCameraAnimPath_) {
+                cinematicCamAnim_->LoadFromJson(profile_.cameraAnimFile);
+                cachedCameraAnimPath_ = profile_.cameraAnimFile;
+            }
+            cameraAnimIsStatic_ = IsCameraAnimStatic(cinematicCamAnim_->GetKeyframes());
+            cinematicCamAnim_->SetLoop(false);
+            cinematicCamAnim_->SetPlaying(true);
+            cinematicCamAnim_->SetCurrentTime(0.0f);
+            cinematicCamAnim_->SampleAtTime(0.0f);
+            if (cinematicCam_) {
+                cinematicCam_->Update();
+            }
+            
+            float camDuration = cinematicCamAnim_->GetMaxTime();
+            if (camDuration > 0.0f) {
+                duration_ = std::max(duration_, camDuration);
+            }
         }
     }
 
     // アニメーション再生フラグをリセット。実際の再生はUpdateで行う
-    hasPlayedPlayerAnim_ = false;
-    hasPlayedEnemyAnim_ = false;
+	hasPlayedPlayerAnim_ = false;
+	hasPlayedEnemyAnim_ = false;
+	hasReachedImpact_ = false;
 }
 
-bool BattleActionDirector::Update(float dt) {
+bool BattleActionDirector::Update(float dt, Input* input) {
     if (phase_ == ActionPhase::Idle) {
         return false;
+    }
+
+    // ★マウス左クリックでスキップ（Cutin以外のフェーズで有効）
+    if (skipEnabled_ && !debugPaused_ && input && input->IsMouseTrigger(0)) {
+        if (phase_ != ActionPhase::Cutin) {
+            // 全フェーズを即終了させる
+            timer_ = duration_;
+        }
     }
 
     const float stepDt = debugPaused_ ? 0.0f : dt;
@@ -540,6 +630,10 @@ bool BattleActionDirector::Update(float dt) {
         }
     }
     else if (phase_ == ActionPhase::Attack) {
+        if (timer_ >= GetImpactTime()) {
+            hasReachedImpact_ = true;
+        }
+
         // キャラクターアニメーションのディレイ再生
         if (!hasPlayedPlayerAnim_ && timer_ >= profile_.playerAttackAnimStartTime) {
             if (player_ && player_->GetObject3d() && playerAnimDoc_->HasValidClip()) {
@@ -558,7 +652,9 @@ bool BattleActionDirector::Update(float dt) {
             phase_ = ActionPhase::Idle;
             RestoreOriginalState_();
             cardMotionVisible_ = false;
-            cardMotionKeyframes_.clear();
+            // ★ cardMotionCard_ と cardMotionKeyframes_ はキャッシュとして保持する
+            //    reset()/clear() するとcachedCardMotionPath_が残ったまま
+            //    次回JSON再読み込みがスキップされてカード演出が発生しなくなるため
 
             // --- アクション終了時に待機モーションに戻す ---
             if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {

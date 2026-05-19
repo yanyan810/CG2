@@ -1,11 +1,13 @@
 {
   "name": "Boss",
-  "maxHp": 100,
+   "maxHp": 350,
   "actions": [
-    { "type": "Attack", "value": 10, "name": "通常攻撃" },
-    { "type": "Attack", "value": 10, "name": "通常攻撃" },
-    { "type": "Attack", "value": 25, "name": "強攻撃！" },
-    { "type": "Block",  "value": 15, "name": "防御姿勢" },
-    { "type": "Heal",   "value": 20, "name": "自己再生" }
+    { "type": "Attack", "value": 20, "name": "破壊の爪" },
+    { "type": "Attack", "value": 20, "name": "破壊の爪" },
+    { "type": "Attack", "value": 26, "name": "地響き" },
+    { "type": "Attack", "value": 38, "name": "滅砕撃" },
+    { "type": "Block",  "value": 30, "name": "鋼の構え" },
+    { "type": "Block",  "value": 30, "name": "鋼の構え" },
+    { "type": "Heal",   "value": 25, "name": "闇の再生" }
   ]
 }

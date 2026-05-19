@@ -1,0 +1,12 @@
+{
+  "name": "Golem",
+  "maxHp": 220,
+  "actions": [
+    { "type": "Attack", "value": 16, "name": "岩の拳" },
+    { "type": "Attack", "value": 16, "name": "岩の拳" },
+    { "type": "Attack", "value": 35, "name": "大地砕き" },
+    { "type": "Block",  "value": 28, "name": "硬質化" },
+    { "type": "Block",  "value": 28, "name": "硬質化" },
+    { "type": "Block",  "value": 28, "name": "硬質化" }
+  ]
+}
