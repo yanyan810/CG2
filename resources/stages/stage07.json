@@ -25,17 +25,6 @@
       "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
       "behaviorJson": "resources/cards/Goblin.json",
       "bossFlag": false
-    },
-    {
-      "enemyType": "Golem",
-      "enemyName": "Golem",
-      "maxHp": 125,
-      "hp": 125,
-      "attack": 11,
-      "defense": 2,
-      "position": { "x": 7.0, "y": 0.0, "z": 25.0 },
-      "behaviorJson": "resources/cards/Golem.json",
-      "bossFlag": false
     }
   ]
 }
