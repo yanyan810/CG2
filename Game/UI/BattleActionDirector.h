@@ -81,6 +81,7 @@ public:
     void Draw3D();
 
     Camera* GetCinematicCamera() const { return cinematicCam_.get(); }
+    Enemy* GetTarget() const { return target_; }
     bool IsPlaying() const { return phase_ != ActionPhase::Idle; }
     ActionPhase GetPhase() const { return phase_; }
     float GetPlaybackTime() const { return timer_; }

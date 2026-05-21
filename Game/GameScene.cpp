@@ -602,6 +602,9 @@ void GameScene::OnEnter(GameApp& app) {
 	pausingUI_ = std::make_unique<PausingUI>();
 	pausingUI_->Initialize(app);
 
+	pokerHandHelpView_ = std::make_unique<PokerHandHelpView>();
+	pokerHandHelpView_->Initialize(app.SpriteCom(), app.Dx());
+
 	startFadeMask_ = std::make_unique<Sprite>();
 	startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	startFadeMask_->SetAnchorPoint({ 0.0f, 0.0f });
@@ -643,6 +646,7 @@ void GameScene::OnExit(GameApp& app) {
 	cardDescBg_.reset();
 	cardDescText_.reset();
 	startFadeMask_.reset();
+	pokerHandHelpView_.reset();
 	startFadeActive_ = false;
 	isBossStage_ = false;
 	bossStageBannerTimer_ = 0.0f;
@@ -677,6 +681,10 @@ void GameScene::Update(GameApp& app, float dt) {
 				startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
 			}
 		}
+	}
+
+	if (pokerHandHelpView_) {
+		pokerHandHelpView_->Update(app.GetInput());
 	}
 
 	const auto isPlayerDead = [this]() {
@@ -1288,7 +1296,13 @@ void GameScene::Draw3D(GameApp& app) {
 	app.Dx()->ClearDepthBuffer();
 
 	if (player_) player_->Draw();
-	enemyMgr_.Draw();
+	if (isBattleAnimationPlaying) {
+		if (Enemy* actionTarget = battle_.GetActionTarget()) {
+			actionTarget->Draw();
+		}
+	} else {
+		enemyMgr_.Draw();
+	}
 	if (player_) {
 		player_->DrawShieldBloom(app);
 	}
@@ -1511,6 +1525,10 @@ void GameScene::Draw2D(GameApp& app) {
 		//releaseDebugText_->Draw();
 	}
 
+	if (pokerHandHelpView_) {
+		pokerHandHelpView_->Draw(view, proj);
+	}
+
 	drawStartFadeMask();
 
 	// ゲーム結果ポップアップを最前面に描画
@@ -1660,6 +1678,7 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	// ゲーム結果ポップアップのImGui
 	if (resultPopup_) { resultPopup_->DrawImGui(); }
+	if (pokerHandHelpView_) { pokerHandHelpView_->DrawImGui(); }
 
 #endif
 }
