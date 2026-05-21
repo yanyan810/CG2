@@ -294,11 +294,6 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 	}
 
 
-	if (input->IsKeyTrigger(DIK_ESCAPE)) {
-		AudioManager::GetInstance()->PlaySE("SE_Tap");
-		RequestChangeScene_("Title");
-		return;
-	}
 
 	if (input->IsKeyTrigger(DIK_A)) {
 		RequestChangeScene_("BattleAnimeEditer");

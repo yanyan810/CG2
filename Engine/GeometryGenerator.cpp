@@ -72,6 +72,45 @@ GeometryGenerator::GenerateRingTriListXY(uint32_t divide, float outerR, float in
 }
 
 std::vector<Model::VertexData>
+GeometryGenerator::GenerateHexRingTriListXY(float outerR, float innerR) {
+	std::vector<Model::VertexData> v;
+	v.reserve(36);
+
+	const float pi = std::numbers::pi_v<float>;
+	const float step = (2.0f * pi) / 6.0f;
+	const float angleOffset = pi / 6.0f;
+
+	for (uint32_t i = 0; i < 6; ++i) {
+		const float a0 = angleOffset + step * float(i);
+		const float a1 = angleOffset + step * float(i + 1);
+
+		const float c0 = std::cosf(a0);
+		const float s0 = std::sinf(a0);
+		const float c1 = std::cosf(a1);
+		const float s1 = std::sinf(a1);
+
+		const float ox0 = c0 * outerR;
+		const float oy0 = s0 * outerR;
+		const float ix0 = c0 * innerR;
+		const float iy0 = s0 * innerR;
+		const float ox1 = c1 * outerR;
+		const float oy1 = s1 * outerR;
+		const float ix1 = c1 * innerR;
+		const float iy1 = s1 * innerR;
+
+		v.push_back(MakeVertex(ox0, oy0, 0.0f, 0.0f, 0.0f, 0, 0, 1));
+		v.push_back(MakeVertex(ox1, oy1, 0.0f, 1.0f, 0.0f, 0, 0, 1));
+		v.push_back(MakeVertex(ix0, iy0, 0.0f, 0.0f, 1.0f, 0, 0, 1));
+
+		v.push_back(MakeVertex(ox1, oy1, 0.0f, 1.0f, 0.0f, 0, 0, 1));
+		v.push_back(MakeVertex(ix1, iy1, 0.0f, 1.0f, 1.0f, 0, 0, 1));
+		v.push_back(MakeVertex(ix0, iy0, 0.0f, 0.0f, 1.0f, 0, 0, 1));
+	}
+
+	return v;
+}
+
+std::vector<Model::VertexData>
 GeometryGenerator::GeneratePlaneTriListXY(float width, float height) {
 	std::vector<Model::VertexData> v;
 	v.reserve(6);

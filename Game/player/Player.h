@@ -21,6 +21,8 @@ struct AttackMove {
 class Object3dCommon;
 class DirectXCommon;
 class Camera;
+class GameApp;
+class Model;
 
 class Player {
 public:
@@ -36,6 +38,8 @@ public:
 
 	// 描画
 	void Draw();
+	void DrawShieldBloom(GameApp& app);
+	void DrawShieldImGui();
 
 	// 座標と向きの設定
 	void SetSpawnPos(const Vector3& p);
@@ -57,8 +61,8 @@ public:
 	int GetHP() const { return hp_; }
 
 	int GetBlock() { return block_; }
-	void AddBlock(int value) { block_ += value; }
-	void ResetBlock() { block_ = 0; }
+	void AddBlock(int value);
+	void ResetBlock();
 
 	int GetBoostedPower() { return boostedPower_; }
 	void PowerBoost(int value) { boostedPower_ += value; }
@@ -84,6 +88,11 @@ public:
 	void SetCamera(Camera* camera) {
 		if (model_) {
 			model_->SetCamera(camera);
+		}
+		for (auto& cell : shieldCells_) {
+			if (cell) {
+				cell->SetCamera(camera);
+			}
 		}
 	}
 
@@ -122,6 +131,14 @@ public:
 	bool GetFrostBiteActive() const { return frostBiteActive_; }
 
 private:
+	void InitializeShieldEffect_();
+	void UpdateShieldEffect_(float dt);
+	void DrawShield_(const Vector4& color, float scaleMultiplier);
+	bool ShouldDrawShield_() const;
+	void EnsureShieldCellCount_();
+	int GetTargetShieldCellCount_() const;
+	void TriggerShieldBreak_(int cellCount);
+
 	void PlayReleaseIdleAnimation_();
 	void PlayRandomReleaseAttackAnimation_();
 	void PlayReleaseDamageAnimation_();
@@ -178,6 +195,38 @@ private:
 	const Vector3 kWeaponOffset = { 0.0f, 1.2f, 0.0f }; // モデルの手に合わせる
 
 	ModelParticleManager* particleManager_ = nullptr;
+
+	Model* shieldHexModel_ = nullptr;
+	std::vector<std::unique_ptr<Object3d>> shieldCells_;
+	float shieldTimer_ = 0.0f;
+	float shieldVisibleTimer_ = 0.0f;
+	bool shieldPreviewAlways_ = false;
+	int shieldCellCount_ = 13;
+	float shieldDisplayCount_ = 0.0f;
+	float shieldBuildSpeed_ = 6.0f;
+	float shieldReduceSpeed_ = 20.0f;
+	Vector3 shieldOffset_{ 2.05f, 1.35f, 0.10f };
+	Vector3 shieldRotation_{ 0.0f, 2.0f, 0.0f };
+	float shieldBaseScale_ = 0.46f;
+	float shieldSpacingX_ = 1.0f;
+	float shieldSpacingY_ = 0.8f;
+	float shieldTiltY_ = 0.0f;
+	float shieldPulseSpeed_ = 5.5f;
+	float shieldPulseScale_ = 0.05f;
+	Vector4 shieldColor_{ 0.28f, 0.82f, 1.0f, 0.74f };
+	Vector4 shieldBloomColor_{ 0.17f, 0.85f, 1.0f, 1.0f };
+	float shieldBloomScale_ = 1.0f;
+	float shieldBloomIntensity_ = 2.5f;
+	float shieldBloomChromAb_ = 0.0f;
+	bool shieldBreakActive_ = false;
+	float shieldBreakTimer_ = 0.0f;
+	float shieldBreakDuration_ = 0.85f;
+	float shieldBreakGravity_ = 7.5f;
+	int shieldBreakCellCount_ = 0;
+	std::vector<Vector3> shieldBreakBasePositions_;
+	std::vector<Vector3> shieldBreakVelocities_;
+	std::vector<Vector3> shieldBreakRotations_;
+	std::vector<Vector3> shieldBreakAngularVelocities_;
 
 	// === 攻撃エフェクト連動 ===
 	std::vector<AttackMove> attackList_;       // 使用可能な技のリスト

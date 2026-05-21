@@ -45,13 +45,6 @@ void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) 
 
     confirmBoard_->Update(view, proj);
 
-    // ESCキーで戻る（「いいえ」と同じ挙動）
-    if (input->IsKeyTrigger(DIK_ESCAPE)) {
-        AudioManager::GetInstance()->PlaySE("SE_Tap");
-        context->ChangeState(std::make_unique<SelectionState>(), app);
-        return;
-    }
-
     // ホバー判定
     Sprite* hovered = CheckMouseOverByName(mousePos);
 

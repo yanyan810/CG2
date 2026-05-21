@@ -222,15 +222,6 @@ void TutorialScene::Update(GameApp& app, float dt) {
     }
 
 
-    bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
-    if (currEsc && !prevEsc_) {
-        if (state_ == State::Idle) {
-            nextSceneName_ = "StageSelect";
-            state_ = State::ExitClose;
-        }
-        return;
-    }
-    prevEsc_ = currEsc;
 
     bool isTargeting = battle_.IsPlayerTargeting();
 
@@ -496,6 +487,9 @@ void TutorialScene::Draw3D(GameApp& app) {
         player_->Draw();
     }
     enemyMgr_.Draw();
+    if (player_) {
+        player_->DrawShieldBloom(app);
+    }
     battle_.DrawDamagePopups3D(app);
 
     if (!isBattleAnimationPlaying) {
@@ -637,6 +631,9 @@ void TutorialScene::DrawImGui(GameApp& app) {
     }
 
     battle_.DrawImGui();
+    if (player_) {
+        player_->DrawShieldImGui();
+    }
 
     ImGui::End();
 

@@ -9,6 +9,9 @@ namespace GeometryGenerator {
 		GenerateRingTriListXY(uint32_t divide, float outerR, float innerR);
 
 	std::vector<Model::VertexData>
+		GenerateHexRingTriListXY(float outerR, float innerR);
+
+	std::vector<Model::VertexData>
 		GeneratePlaneTriListXY(float width, float height);
 
 	std::vector<Model::VertexData>

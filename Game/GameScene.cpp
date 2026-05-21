@@ -1032,14 +1032,6 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 
-	// ESCキーでタイトルへ戻る
-	bool currEsc = input->IsKeyPressed(DIK_ESCAPE);
-	if (currEsc && !prevEsc_) {
-		AudioManager::GetInstance()->StopBGM();
-		RequestChangeScene_("Title");
-	}
-	prevEsc_ = currEsc;
-
 	if (skyDome_) {
 		skyDome_->Update(dt);
 	}
@@ -1297,6 +1289,9 @@ void GameScene::Draw3D(GameApp& app) {
 
 	if (player_) player_->Draw();
 	enemyMgr_.Draw();
+	if (player_) {
+		player_->DrawShieldBloom(app);
+	}
 
 	// 敵以外のモデルにFilterを書ける (バトル画面側)
 	if (battle_.GetNowCardInputState() == BattleController::CardInputState::ChoosingEnemyTarget) {
@@ -1555,6 +1550,9 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	ImGui::Begin("Battle Debug", &battleDebugVisible_);
 	battle_.DrawImGui();
+	if (player_) {
+		player_->DrawShieldImGui();
+	}
 
 	ImGui::DragFloat2("position", &position_.x);
 	ImGui::DragFloat3("scale", &scale_.x);

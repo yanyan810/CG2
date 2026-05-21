@@ -66,11 +66,6 @@ void FieldEditerScene::Update(GameApp& app, float dt)
 
 	if (!input_) { return; }
 
-	if (input_->IsKeyTrigger(DIK_ESCAPE)) {
-		RequestChangeScene_("Title");
-		return;
-	}
-
 	if (previewDirty_) {
 		RebuildPreview_();
 	}

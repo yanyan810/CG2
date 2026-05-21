@@ -413,10 +413,6 @@ void TestScene::Update(GameApp& app, float dt) {
 #endif
 
 
-    if (input_->IsKeyTrigger(DIK_ESCAPE)) {
-        RequestChangeScene_("Title");
-    }
-
 }
 
 void TestScene::Draw3D(GameApp& app) {
