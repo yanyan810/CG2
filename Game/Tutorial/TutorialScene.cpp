@@ -133,6 +133,9 @@ void TutorialScene::OnEnter(GameApp& app) {
     tutorialUi_ = std::make_unique<TutorialUi>();
     tutorialUi_->Initialize(app);
 
+    pokerHandHelpView_ = std::make_unique<PokerHandHelpView>();
+    pokerHandHelpView_->Initialize(app.SpriteCom(), app.Dx());
+
     startFadeMask_ = std::make_unique<Sprite>();
     startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
     startFadeMask_->SetAnchorPoint({ 0.0f, 0.0f });
@@ -160,6 +163,7 @@ void TutorialScene::OnExit(GameApp& app) {
     (void)app;
     tutorialUi_.reset();
     tutorial_.reset();
+    pokerHandHelpView_.reset();
     fieldUi_.reset();
     startFadeMask_.reset();
     startFadeActive_ = false;
@@ -442,6 +446,10 @@ void TutorialScene::Update(GameApp& app, float dt) {
         tutorialUi_->Update(app, *tutorial_, battle_, *fieldUi_);
     }
 
+    if (pokerHandHelpView_) {
+        pokerHandHelpView_->Update(app.GetInput());
+    }
+
     if (playerHpText_) {
         playerHpText_->SetText(battle_.GetPlayerHpTexts());
     }
@@ -486,7 +494,13 @@ void TutorialScene::Draw3D(GameApp& app) {
     if (player_) {
         player_->Draw();
     }
-    enemyMgr_.Draw();
+    if (isBattleAnimationPlaying) {
+        if (Enemy* actionTarget = battle_.GetActionTarget()) {
+            actionTarget->Draw();
+        }
+    } else {
+        enemyMgr_.Draw();
+    }
     if (player_) {
         player_->DrawShieldBloom(app);
     }
@@ -604,6 +618,10 @@ void TutorialScene::Draw2D(GameApp& app) {
     }
 
     // 円形マスク描画
+    if (pokerHandHelpView_) {
+        pokerHandHelpView_->Draw(view, proj);
+    }
+
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
 
     if (startFadeActive_ && startFadeMask_) {
@@ -653,6 +671,9 @@ void TutorialScene::DrawImGui(GameApp& app) {
 
     if (tutorialUi_ && tutorial_) {
         tutorialUi_->DrawImGui(*tutorial_);
+    }
+    if (pokerHandHelpView_) {
+        pokerHandHelpView_->DrawImGui();
     }
 
 #else

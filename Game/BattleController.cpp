@@ -2692,6 +2692,14 @@ Camera* BattleController::GetActionCamera() const
 	return actionDirector_.GetCinematicCamera();
 }
 
+Enemy* BattleController::GetActionTarget() const
+{
+	if (actionDirector_.IsPlaying()) {
+		return actionDirector_.GetTarget();
+	}
+	return actionSequenceTarget_;
+}
+
 void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 {
 	Input* input = app.GetInput();

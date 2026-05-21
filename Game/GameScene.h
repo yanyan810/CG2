@@ -19,6 +19,7 @@
 #include "EffectSequencer.h"
 #include "BloomConstantBuffer.h"
 #include "GameResultPopup.h"
+#include "UI/PokerHandHelpView.h"
 
 class GameApp;
 
@@ -186,6 +187,7 @@ private:
 
     // ゲーム結果ポップアップ
     std::unique_ptr<GameResultPopup> resultPopup_;
+    std::unique_ptr<PokerHandHelpView> pokerHandHelpView_;
     bool gameResultShown_ = false; // ポップアップ表示済みフラグ
 };
 

@@ -90,6 +90,7 @@ public:
 	void Draw2D(GameApp& app);
 	void DrawHpGaugeBloom_(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj);
 	Camera* GetActionCamera() const;
+	Enemy* GetActionTarget() const;
 	bool IsActionSequencePlaying() const {
 		return actionDirector_.IsPlaying() || cardState_ == CardInputState::ExecutingSequence;
 	}
