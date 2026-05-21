@@ -1,66 +1,145 @@
 {
     "cards":[
-          {
+
+    {
       "id": 31,
       "name": "BelowFreezing",
       "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Utility/Attack!.png",
-      "desc": "敵単体に５ダメージ\n敵単体に凍結を２付与",
+      "artTex": "resources/cards/art/Frost/BelowFreezing.png",
+      "desc": "敵単体に4ダメージ\n敵単体に凍結を1付与",
        "effects": [
         { "type": "Damage", "value": 5 },
         { "type": "Frost", "value": 2 }
       ]
-     },
-        {
+    },
+
+
+    {
       "id": 32,
       "name": "AbsoluteZero",
       "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Utility/Attack!.png",
-      "desc": "敵全体に５ダメー\n敵単体に凍結を２付与",
+      "artTex": "resources/cards/art/Frost/AbsoluteZero.png",
+      "desc": "敵全体に4ダメージ\n敵全体に凍結を1付与",
        "effects": [
         { "type": "DamageAll", "value": 5 },
         { "type": "FrostAll", "value": 2 }
       ]
-     },
-         {
+    },
+
+
+    {
       "id": 33,
       "name": "EdgeHammer",
       "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Utility/Attack!.png",
-      "desc": "敵単体に10ダメージ",
+      "artTex": "resources/cards/art/Frost/EdgeHammer.png",
+      "desc": "敵単体に10ダメージ\n敵単体に凍結を３付与",
        "effects": [
-        { "type": "Damage", "value": 10 }
+        { "type": "Damage", "value": 10 },
+        { "type": "Frost", "value":  3}
       ]
-     },
-         {
+    },
+
+
+    {
       "id": 34,
       "name": "FrostedKnife",
-      "cost": 4,
+      "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "artTex": "resources/cards/art/Frost/FrostedKnife.png",
       "desc": "このターン中、\n「ダメージを与えるたびに\n凍結を１付与」\nを得る\nすでに付与されているなら\n敵全体に凍結を１付与",
        "effects": [
          { "type": "FrostBite", "value": 1 }
       ]
-     },
-      {
+    },
+
+
+    {
       "id": 35,
       "name": "IceAge",
       "cost": 5,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
-      "artTex": "resources/cards/art/Utility/Attack!.png",
+      "artTex": "resources/cards/art/Frost/IceAge.png",
       "desc": "敵全体の凍結を２倍にする",
        "effects": [
          { "type": "FrostAmplify", "value": 2 }
       ]
-     }
-    ]
-}
+    },
+
+    {
+      "id": 36,
+      "name": "IceBlock",
+      "cost": 5,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Frost/IceBlock.png",
+      "desc": "敵全体の凍結の値分ブロックを得る",
+       "effects": [
+         { "type": "FrostBlock", "value": 1 }
+      ]
+    },
+
+    {
+      "id": 37,
+      "name": "IceCrash",
+      "cost": 2,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Frost/IceCrash.png",
+      "desc": "敵全体の凍結の値分ダメージを２回与え、\nその値を3減らす",
+       "effects": [
+         { "type": "FrostDamage", "value": 2 },
+         { "type": "FrostSubtract", "value": 3 }
+      ]
+    },
+
+    {
+      "id": 38,
+      "name": "Niflheimr",
+      "cost": 4,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Frost/Niflheimr.png",
+      "desc": "敵全体に凍結を20付与する",
+       "effects": [
+         { "type": "FrostAll", "value": 20 }
+      ]
+    },
+
+    {
+      "id": 39,
+      "name": "FrostRush",
+      "cost": 3,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Frost/FrostRush.png",
+      "desc": "敵単体に2ダメージを与え、\n凍結を１付与する\nこれを２回行う",
+       "effects": [
+         { "type": "Damage", "value": 2 },
+         { "type": "Frost", "value": 1 },
+         { "type": "Damage", "value": 2 },
+         { "type": "Frost", "value": 1 }
+      ]
+    },
+
+    {
+      "id": 40,
+      "name": "TripleAccel",
+      "cost": 4,
+      "frameModel": "cards/models/frame.obj",
+      "artModel": "cards/models/art_plane.obj",
+      "artTex": "resources/cards/art/Frost/TripleAccel.png",
+      "desc": "敵単体の凍結の\n半分の値分カードを引く",
+       "effects": [
+         { "type": "FrostDraw", "value": 1 }
+      ]
+    }
+
+    ]}

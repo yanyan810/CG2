@@ -133,6 +133,7 @@ public:
 	BadCondition GetBC() const { return badCondition_; } // 現在の状態異常を取得
 	int GetBCPoint() const { return badConditionPoint_; } // 状態異常のポイントを取得
 	void AddBC(int value); // 加算
+	void SubtractBC(int value); // 減算
 	void TurnEndApplyBC(); // ターン終了時に状態異常の効果を適用
 	void AmplifyBC(int value); //倍加
 	void DamageBC(int count); // 状態異常ポイントに応じたダメージを与える
