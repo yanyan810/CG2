@@ -15,6 +15,8 @@ class Object3dCommon;
 class DirectXCommon;
 class Camera;
 class Player;
+class GameApp;
+class Model;
 
 enum class EnemyType : uint8_t {
 	Boss,
@@ -40,45 +42,15 @@ public:
 
 	void Update(float dt); // プレイヤー座標などを渡さないシンプルな形に
 	void Draw();
+	void DrawShieldBloom(GameApp& app);
 
 	bool IsAlive() const { return alive_; }
-	int Damage(int damage) {
-		if (damage <= 0) {
-			return 0;
-		}
-
-		if (block_ > 0) {
-			const int blocked = block_ < damage ? block_ : damage;
-			block_ -= blocked;
-			damage -= blocked;
-		}
-
-		if (damage <= 0) {
-			return 0;
-		}
-
-		const int beforeHp = hp_;
-		hp_ -= damage;
-		if (hp_ <= 0) {
-			hp_ = 0;
-			alive_ = false;
-		}
-		return beforeHp - hp_;
-	}
+	int Damage(int damage);
 	int GetHP() const { return hp_; }
 	int GetMaxHP() const { return maxHp_; }
 	int GetBlock() const { return block_; }
-	void AddBlock(int value) {
-		if (value <= 0) {
-			return;
-		}
-
-		block_ += value;
-		if (block_ < 0) {
-			block_ = 0;
-		}
-	}
-	void ResetBlock() { block_ = 0; }
+	void AddBlock(int value);
+	void ResetBlock();
 	void SetHighlight(bool enable) { isHighlighted_ = enable; }
 	bool IsHighlighted() const { return isHighlighted_; }
 	void Heal(int value) {
@@ -91,6 +63,11 @@ public:
 	void SetCamera(Camera* camera) {
 		if (model_) {
 			model_->SetCamera(camera);
+		}
+		for (auto& cell : shieldCells_) {
+			if (cell) {
+				cell->SetCamera(camera);
+			}
 		}
 	}
 
@@ -146,6 +123,13 @@ public:
 	void SetHp(int hp);
 
 private:
+	void InitializeShieldEffect_();
+	void EnsureShieldCellCount_();
+	void UpdateShieldEffect_(float dt);
+	void DrawShield_(const Vector4& color, float scaleMultiplier);
+	void TriggerShieldBreak_(int cellCount);
+	bool ShouldDrawShield_() const;
+	int GetTargetShieldCellCount_() const;
 
 	int maxHp_ = 150;
 
@@ -186,6 +170,37 @@ private:
 
 	int freezeResistance_ = 5;
 
+	Model* shieldHexModel_ = nullptr;
+	std::vector<std::unique_ptr<Object3d>> shieldCells_;
+	float shieldTimer_ = 0.0f;
+	float shieldVisibleTimer_ = 0.0f;
+	float shieldDisplayCount_ = 0.0f;
+	float shieldBuildSpeed_ = 6.0f;
+	float shieldReduceSpeed_ = 20.0f;
+	int shieldCellCount_ = 13;
+	Vector3 shieldOffset_{ -2.05f, 1.35f, 0.10f };
+	Vector3 shieldRotation_{ 0.0f, -2.0f, 0.0f };
+	float shieldBaseScale_ = 0.46f;
+	float shieldSpacingX_ = 1.0f;
+	float shieldSpacingY_ = 0.8f;
+	float shieldTiltY_ = 0.0f;
+	float shieldPulseSpeed_ = 5.5f;
+	float shieldPulseScale_ = 0.05f;
+	Vector4 shieldColor_{ 1.0f, 0.72f, 0.22f, 0.72f };
+	Vector4 shieldBloomColor_{ 1.0f, 0.45f, 0.15f, 1.0f };
+	float shieldBloomScale_ = 1.0f;
+	float shieldBloomIntensity_ = 2.2f;
+	float shieldBloomChromAb_ = 0.0f;
+	bool shieldBreakActive_ = false;
+	float shieldBreakTimer_ = 0.0f;
+	float shieldBreakDuration_ = 0.85f;
+	float shieldBreakGravity_ = 7.5f;
+	int shieldBreakCellCount_ = 0;
+	std::vector<Vector3> shieldBreakBasePositions_;
+	std::vector<Vector3> shieldBreakVelocities_;
+	std::vector<Vector3> shieldBreakRotations_;
+	std::vector<Vector3> shieldBreakAngularVelocities_;
+
 	// 毒の値のセット（負数防止）を共通化
 	void SetBC(int value) {
 		badConditionPoint_ = (value < 0) ? 0 : value;
@@ -204,6 +219,7 @@ public:
 
 	void Update(float dt);
 	void Draw();
+	void DrawShieldBloom(GameApp& app);
 
 	void SetLighting(const LightingParam& p);
 

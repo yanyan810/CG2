@@ -1303,6 +1303,11 @@ void GameScene::Draw3D(GameApp& app) {
 	} else {
 		enemyMgr_.Draw();
 	}
+	if (particleManager_) {
+		particleManager_->Draw();
+		app.ObjCom()->SetGraphicsPipelineState();
+	}
+	enemyMgr_.DrawShieldBloom(app);
 	if (player_) {
 		player_->DrawShieldBloom(app);
 	}

@@ -65,6 +65,7 @@ private:
 
     BattleController battle_;
     std::unique_ptr<FieldUi> fieldUi_;
+    ModelParticleManager* particleManager_ = nullptr;
     std::unique_ptr<ModelParticleManager> fieldParticleManager_;
     bool particleObjectPostEnabled_ = true;
     BloomParam particleObjectPostParam_{};

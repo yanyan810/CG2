@@ -138,6 +138,8 @@ private:
 	void EnsureShieldCellCount_();
 	int GetTargetShieldCellCount_() const;
 	void TriggerShieldBreak_(int cellCount);
+	void UpdatePowerBoostEffect_(float dt);
+	void EmitPowerBoostParticles_(uint32_t count);
 
 	void PlayReleaseIdleAnimation_();
 	void PlayRandomReleaseAttackAnimation_();
@@ -195,6 +197,32 @@ private:
 	const Vector3 kWeaponOffset = { 0.0f, 1.2f, 0.0f }; // モデルの手に合わせる
 
 	ModelParticleManager* particleManager_ = nullptr;
+
+	bool powerBoostEffectEnabled_ = true;
+	float powerBoostEffectTimer_ = 0.0f;
+	float powerBoostEmitAccumulator_ = 0.0f;
+	float powerBoostBaseRate_ = 120.0f;
+	float powerBoostRatePerPower_ = 4.0f;
+	float powerBoostRadius_ = 0.75f;
+	float powerBoostRadiusPerPower_ = 0.035f;
+	float powerBoostHeight_ = 1.55f;
+	float powerBoostSwirlSpeed_ = 3.2f;
+	float powerBoostSwirlSpeedPerPower_ = 0.22f;
+	float powerBoostVortexAngularSpeed_ = 5.2f;
+	float powerBoostVortexAngularPerPower_ = 0.28f;
+	float powerBoostVortexRadialSpeed_ = -0.08f;
+	float powerBoostVortexRadialPerPower_ = -0.006f;
+	float powerBoostUpSpeed_ = 1.4f;
+	float powerBoostUpSpeedPerPower_ = 0.08f;
+	float powerBoostStartScale_ = 0.2f;
+	float powerBoostScalePerPower_ = 0.008f;
+	float powerBoostEndScaleRate_ = 0.12f;
+	float powerBoostLifeMin_ = 1.0f;
+	float powerBoostLifeMax_ = 1.6f;
+	float powerBoostColorIntensity_ = 1.0f;
+	bool powerBoostBillboard_ = false;
+	Vector4 powerBoostStartColor_{ 0.42f, 1.0f, 0.50f, 1.0f };
+	Vector4 powerBoostEndColor_{ 0.45f, 1.0f, 0.70f, 0.0f };
 
 	Model* shieldHexModel_ = nullptr;
 	std::vector<std::unique_ptr<Object3d>> shieldCells_;

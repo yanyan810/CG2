@@ -160,8 +160,8 @@ public:
 		Vector4 endColor;                            // 16 bytes
 		float   endScale;    uint32_t isActive;
 		uint32_t easingType; uint32_t isBillboard;   // 16 bytes (イージング + ビルボードフラグ)
-		Vector3 rotate;      float padding1;         // 16 bytes
-		Vector3 angularVelocity; float padding2;     // 16 bytes
+		Vector3 rotate;      float vortexAngularSpeed; // 16 bytes
+		Vector3 angularVelocity; float vortexRadialSpeed; // 16 bytes
 	};
 
 	struct Particle {
@@ -179,6 +179,8 @@ public:
 
 		Vector4 startColor = { 1, 1, 1, 1 };
 		Vector4 endColor = { 1, 1, 1, 0 };
+		float vortexAngularSpeed = 0.0f;
+		float vortexRadialSpeed = 0.0f;
 
 		// --- 新機能 ---
 		EasingType easingType = EasingType::Linear;

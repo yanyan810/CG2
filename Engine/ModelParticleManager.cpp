@@ -333,6 +333,8 @@ void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
         uploadData[i].startColor = particles[i].startColor;
         uploadData[i].endColor = particles[i].endColor;
         uploadData[i].rotate = particles[i].transform.rotate;
+        uploadData[i].vortexAngularSpeed = particles[i].vortexAngularSpeed;
+        uploadData[i].vortexRadialSpeed = particles[i].vortexRadialSpeed;
         uploadData[i].isActive = 1;
         // --- 新機能: イージングタイプとビルボードフラグを転送 ---
         uploadData[i].easingType = static_cast<uint32_t>(particles[i].easingType);
