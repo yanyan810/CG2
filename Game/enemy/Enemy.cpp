@@ -761,6 +761,10 @@ void Enemy::AddBC(int value) {
 	SetBC(badConditionPoint_ + value);
 }
 
+void Enemy::SubtractBC(int value) {
+	SetBC(badConditionPoint_ - value);
+}
+
 void  Enemy::AmplifyBC(int value) {
 	SetBC(badConditionPoint_ * value);
 }

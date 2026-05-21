@@ -1134,6 +1134,11 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 							totalDamage += e.GetBCPoint();
 						}
 
+						if (player_->GetFrostBiteActive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(1);
+						}
+
 						const int actualDamage = ApplyDamageToEnemy_(e, totalDamage);
 						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
 					}
@@ -1143,6 +1148,10 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 						if (!e.IsAlive()) continue;
 						int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
 						const int actualDamage = ApplyDamageToEnemy_(e, totalDamage);
+						if (player_->GetFrostBiteActive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(1);
+						}
 						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
 						break;
 					}
@@ -1167,12 +1176,20 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					if (e.IsAlive()) {
 						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
 						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
+						if (player_->GetFrostBiteActive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(1);
+						}
 					}
 				} else {
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (!e.IsAlive()) continue;
 						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
 						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
+						if (player_->GetFrostBiteActive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(1);
+						}
 						break;
 					}
 				}
@@ -1192,12 +1209,20 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					if (e.IsAlive()) {
 						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
 						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
+						if (player_->GetFrostBiteActive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(1);
+						}
 					}
 				} else {
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (!e.IsAlive()) continue;
 						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
 						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
+						if (player_->GetFrostBiteActive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(1);
+						}
 						break;
 					}
 				}
@@ -1230,6 +1255,10 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 						PlayBlockReactionSE_(beforeBlock, e.GetBlock(), actualDamage, totalDamage);
 						if (totalDamage > 0) {
 							SpawnDamagePopup(e.GetPos(), actualDamage, false);
+						}
+						if (player_->GetFrostBiteActive()) {
+							e.SetBC(Enemy::BadCondition::kFrost);
+							e.AddBC(1);
 						}
 						hitCount++;
 					}
@@ -1314,6 +1343,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				} else {
 					for (auto& e : enemyMgr_->GetEnemies()) {
 						if (e.IsAlive()) {
+							e.SetBC(Enemy::BadCondition::kPoison);
 							e.AddBC(effect.value);
 							break;
 						}
@@ -1432,6 +1462,35 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 			}
 
+		} else if (effect.type == "FrostBlock") {
+			int count = 0;
+
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()&&e.GetBC() == Enemy::BadCondition::kFrost) {
+						count += e.GetBCPoint();
+					}
+				}
+			}
+
+		} else if (effect.type == "FrostDamage") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.DamageBC(effect.value);
+					}
+				}
+			}
+
+		} else if (effect.type == "FrostSubtract") {
+			if (enemyMgr_) {
+				for (auto& e : enemyMgr_->GetEnemies()) {
+					if (e.IsAlive()) {
+						e.SubtractBC(effect.value);
+					}
+				}
+			}
+
 		} else if (effect.type == "FrostBite") {
 			bool isActivated = player_->GetFrostBiteActive();
 
@@ -1457,6 +1516,25 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					if (e.IsAlive()) {
 						if (e.GetBC() == Enemy::BadCondition::kFrost) {
 							e.AmplifyBC(effect.value);
+						}
+					}
+				}
+			}
+
+		} else if (effect.type == "FrostDraw") {
+			
+			if (enemyMgr_) {
+				// 単体ターゲットが指定されている場合
+				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+					auto& e = enemyMgr_->GetEnemies()[targetIndex];
+					if (e.IsAlive()&& e.GetBC() == Enemy::BadCondition::kFrost) {
+						DrawCards_(e.GetBCPoint()/2);
+					}
+				} else {
+					for (auto& e : enemyMgr_->GetEnemies()) {
+						if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
+							DrawCards_(e.GetBCPoint()/2);
+							break;
 						}
 					}
 				}
@@ -2692,6 +2770,14 @@ Camera* BattleController::GetActionCamera() const
 	return actionDirector_.GetCinematicCamera();
 }
 
+Enemy* BattleController::GetActionTarget() const
+{
+	if (actionDirector_.IsPlaying()) {
+		return actionDirector_.GetTarget();
+	}
+	return actionSequenceTarget_;
+}
+
 void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 {
 	Input* input = app.GetInput();
@@ -2941,6 +3027,13 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								if (effect.type == "Poison") {
 									needsTarget = true;
 									hitCount++;
+								}
+								if (effect.type == "Frost") {
+									needsTarget = true;
+									hitCount++;
+								}
+								if (effect.type == "FrostDraw") {
+									needsTarget = true;
 								}
 							}
 

@@ -16,6 +16,7 @@
 #include "BloomConstantBuffer.h"
 #include "TutorialManager.h"
 #include "TutorialUi.h"
+#include "UI/PokerHandHelpView.h"
 
 class GameApp;
 class TextSprite;
@@ -85,6 +86,7 @@ private:
     float startFadeTimer_ = 0.0f;
     float startFadeDuration_ = 0.75f;
     bool startFadeActive_ = false;
+    std::unique_ptr<PokerHandHelpView> pokerHandHelpView_;
 
     bool prevEsc_ = false;
 
