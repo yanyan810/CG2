@@ -4902,7 +4902,15 @@ int BattleController::CalcTotalIncomingDamage() const {
 	int total = 0;
 	if (!enemyMgr_) return 0;
 
-	for (auto& enemy : enemyMgr_->GetEnemies()) {
+	const auto& enemies = enemyMgr_->GetEnemies();
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		const bool actedByCount =
+			i < enemyActedByCountThisTurn_.size() && enemyActedByCountThisTurn_[i];
+		if (actedByCount) {
+			continue;
+		}
+
+		const auto& enemy = enemies[i];
 		if (enemy.IsAlive()) {
 
 			// 敵が次のターンに行う攻撃力を取得（シールド等があればここで減算処理）

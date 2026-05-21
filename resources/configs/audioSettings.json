@@ -39,7 +39,7 @@
         "filePath": "resources/audio/BGM/boss_battle.mp3",
         "loop": true,
         "maxConcurrency": 1,
-        "volume": 0.45
+        "volume": 0.35
     },
     "cardPlay": {
         "filePath": "resources/audio/SE/cardPlay.mp3",
