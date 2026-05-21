@@ -204,27 +204,17 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("FieldEditer", [] { return std::make_unique<FieldEditerScene>(); });
 
 	// デフォルトデッキ
-	for (int i = 0; i < 2; i++) {
-		deckInstances_.push_back(MakeCardInstance(1));
-		deckInstances_.push_back(MakeCardInstance(2));
-		deckInstances_.push_back(MakeCardInstance(3));
-		deckInstances_.push_back(MakeCardInstance(4));
-		deckInstances_.push_back(MakeCardInstance(5));
-		deckInstances_.push_back(MakeCardInstance(6));
-		deckInstances_.push_back(MakeCardInstance(7));
-		deckInstances_.push_back(MakeCardInstance(8));
-		deckInstances_.push_back(MakeCardInstance(9));
-		deckInstances_.push_back(MakeCardInstance(10));
-		deckInstances_.push_back(MakeCardInstance(11));
-		deckInstances_.push_back(MakeCardInstance(12));
-		deckInstances_.push_back(MakeCardInstance(13));
-		deckInstances_.push_back(MakeCardInstance(14));
-		deckInstances_.push_back(MakeCardInstance(15));
-		deckInstances_.push_back(MakeCardInstance(16));
-		deckInstances_.push_back(MakeCardInstance(17));
-		deckInstances_.push_back(MakeCardInstance(18));
-		deckInstances_.push_back(MakeCardInstance(19));
-		deckInstances_.push_back(MakeCardInstance(20));
+	for (int i = 0; i < 4; i++) {
+		deckInstances_.push_back(MakeCardInstance(31));
+		deckInstances_.push_back(MakeCardInstance(32));
+		deckInstances_.push_back(MakeCardInstance(33));
+		deckInstances_.push_back(MakeCardInstance(34));
+		deckInstances_.push_back(MakeCardInstance(35));
+		deckInstances_.push_back(MakeCardInstance(36));
+		deckInstances_.push_back(MakeCardInstance(37));
+		deckInstances_.push_back(MakeCardInstance(38));
+		deckInstances_.push_back(MakeCardInstance(39));
+		deckInstances_.push_back(MakeCardInstance(40));
 	}
 
 	std::vector<std::string> cardFiles = {
