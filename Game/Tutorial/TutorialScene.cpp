@@ -49,6 +49,8 @@ void TutorialScene::OnEnter(GameApp& app) {
     player_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
     player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
     player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+    particleManager_ = ModelParticleManager::GetInstance();
+    particleManager_->ClearParticles();
 
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
     enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 15.0f });
@@ -163,6 +165,10 @@ void TutorialScene::OnExit(GameApp& app) {
     fieldUi_.reset();
     startFadeMask_.reset();
     startFadeActive_ = false;
+    if (particleManager_) {
+        particleManager_->ClearParticles();
+        particleManager_ = nullptr;
+    }
     fieldParticleManager_.reset();
 
     player_.reset();
@@ -477,6 +483,9 @@ void TutorialScene::Update(GameApp& app, float dt) {
     if (fieldParticleManager_) {
         fieldParticleManager_->Dispatch(1.0f / 60.0f, camera_.get());
     }
+    if (particleManager_) {
+        particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+    }
 }
 
 void TutorialScene::Draw3D(GameApp& app) {
@@ -496,6 +505,11 @@ void TutorialScene::Draw3D(GameApp& app) {
         player_->Draw();
     }
     enemyMgr_.Draw();
+    if (particleManager_) {
+        particleManager_->Draw();
+        app.ObjCom()->SetGraphicsPipelineState();
+    }
+    enemyMgr_.DrawShieldBloom(app);
     if (player_) {
         player_->DrawShieldBloom(app);
     }
@@ -684,7 +698,22 @@ void TutorialScene::DrawSkydome(GameApp& app) {
 }
 
 void TutorialScene::DrawPostEffect3D(GameApp& app) {
-    (void)app;
+    int windowW = WinApp::kClientWidth;
+    int windowH = WinApp::kClientHeight;
+    int battleHeight = battle_.IsActionSequencePlaying() ? windowH : static_cast<int>(windowH * splitRatio_);
+    app.Dx()->SetViewport(0, 0, windowW, windowH);
+    app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+
+    if (particleManager_) {
+        if (particleObjectPostEnabled_) {
+            app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
+            app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
+        } else {
+            particleManager_->Draw();
+        }
+    }
+    app.ObjCom()->SetGraphicsPipelineState();
+    app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
 
 void TutorialScene::DrawPostEffect2D(GameApp& app) {
