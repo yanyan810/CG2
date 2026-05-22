@@ -13,6 +13,8 @@
 
 class Card3D;
 
+
+
 class DeckEditScene : public IScene {
 public:
     void OnEnter(GameApp& app) override;
@@ -23,6 +25,12 @@ public:
     void DrawImGui(GameApp& app) override;
 
 private:
+
+    struct Button {
+        std::unique_ptr<Sprite> bg_;
+        std::unique_ptr<TextSprite> text_;
+    };
+
     std::unique_ptr<Camera> camera_;
 
 	CardDatabase* cardDB_ = nullptr; // カードデータベースへのポインタ
@@ -57,6 +65,11 @@ private:
 	std::unique_ptr<Sprite> cardPreviewBg_;
     std::unique_ptr<TextSprite> cardPreviewText_;
 
+    std::unique_ptr<Sprite> selectingTemplateDeckBg_ = nullptr;
+    std::vector<Button> deckTemplateButton_;
+
+    bool isSelectingTemplateDeck_ = true;
+
 	int cardCount_ = 0;
 
     void RebuildCardModels(GameApp& app);
@@ -68,4 +81,6 @@ private:
     const CardDef* GetHoveredCardDef(GameApp& app);
 
     Vector2 GetPopupPosition(GameApp& app, int cardIdx);
+
+    void RerollDeckData(GameApp& app);
 };

@@ -684,6 +684,7 @@ void GameApp::LoadDeck(const std::string& deckConfigPath)
 	if (DeckLoader::LoadFromJson(deckConfigPath, deckDef) &&
 		DeckLoader::ValidateDeck(deckDef, *cardDB_.get(), err)) {
 		std::vector<CardInstance> instances;
+		deckInstances_.clear();
 		for (const auto& e : deckDef.cards) {
 			for (int i = 0; i < e.count; ++i) {
 				instances.push_back(MakeCardInstance(e.id));
