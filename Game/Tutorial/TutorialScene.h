@@ -16,6 +16,7 @@
 #include "BloomConstantBuffer.h"
 #include "TutorialManager.h"
 #include "TutorialUi.h"
+#include "UI/PokerHandHelpView.h"
 
 class GameApp;
 class TextSprite;
@@ -64,6 +65,7 @@ private:
 
     BattleController battle_;
     std::unique_ptr<FieldUi> fieldUi_;
+    ModelParticleManager* particleManager_ = nullptr;
     std::unique_ptr<ModelParticleManager> fieldParticleManager_;
     bool particleObjectPostEnabled_ = true;
     BloomParam particleObjectPostParam_{};
@@ -84,6 +86,7 @@ private:
     float startFadeTimer_ = 0.0f;
     float startFadeDuration_ = 0.75f;
     bool startFadeActive_ = false;
+    std::unique_ptr<PokerHandHelpView> pokerHandHelpView_;
 
     bool prevEsc_ = false;
 

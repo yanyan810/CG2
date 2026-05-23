@@ -2,6 +2,9 @@
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
 #include "Camera.h"
+#include "GameApp.h"
+#include "GeometryGenerator.h"
+#include "ModelManager.h"
 #include <cmath>
 #include <algorithm>
 
@@ -33,6 +36,71 @@ namespace {
 		default:
 			return { 1.0f, 1.0f, 1.0f };
 		}
+	}
+
+	Model::ModelData MakeShieldPrimitiveModelData_(const std::vector<Model::VertexData>& vertices) {
+		Model::ModelData modelData{};
+		modelData.materials.push_back({ "" });
+
+		Model::MeshData mesh{};
+		mesh.materialIndex = 0;
+		mesh.vertices = vertices;
+		mesh.skinned = false;
+		mesh.startVertex = 0;
+		mesh.vertexCount = static_cast<uint32_t>(vertices.size());
+		mesh.startIndex = 0;
+		mesh.indexCount = static_cast<uint32_t>(vertices.size());
+		modelData.meshes.push_back(std::move(mesh));
+
+		modelData.indices.resize(vertices.size());
+		for (uint32_t i = 0; i < static_cast<uint32_t>(vertices.size()); ++i) {
+			modelData.indices[i] = i;
+		}
+
+		modelData.rootNode.name = "EnemyShieldHexRoot";
+		modelData.rootNode.localMatrix = Matrix4x4::MakeIdentity4x4();
+		modelData.rootNode.meshIndices.push_back(0);
+		return modelData;
+	}
+
+	std::vector<Vector2> GenerateShieldHexOffsets_(int requestedCount) {
+		const int count = std::clamp(requestedCount, 1, 61);
+		int radius = 0;
+		while (1 + 3 * radius * (radius + 1) < count) {
+			++radius;
+		}
+
+		std::vector<Vector2> offsets;
+		offsets.reserve(1 + 3 * radius * (radius + 1));
+		for (int q = -radius; q <= radius; ++q) {
+			for (int r = -radius; r <= radius; ++r) {
+				const int s = -q - r;
+				if (std::abs(s) > radius) {
+					continue;
+				}
+				offsets.push_back({
+					(static_cast<float>(q) + static_cast<float>(r) * 0.5f) * 0.52f,
+					static_cast<float>(r) * 0.45f
+					});
+			}
+		}
+
+		std::sort(offsets.begin(), offsets.end(), [](const Vector2& a, const Vector2& b) {
+			const float da = a.x * a.x + a.y * a.y;
+			const float db = b.x * b.x + b.y * b.y;
+			if (std::abs(da - db) > 0.0001f) {
+				return da < db;
+			}
+			if (std::abs(a.y - b.y) > 0.0001f) {
+				return a.y > b.y;
+			}
+			return a.x < b.x;
+			});
+
+		if (static_cast<int>(offsets.size()) > count) {
+			offsets.resize(count);
+		}
+		return offsets;
 	}
 }
 
@@ -91,6 +159,7 @@ void Enemy::Initialize(Object3dCommon* objCommon, DirectXCommon* dx, Camera* cam
 	model_->SetTranslate(pos_);
 	model_->SetRotate(rot_);
 	model_->Update(0.0f);
+	InitializeShieldEffect_();
 
 }
 
@@ -180,6 +249,7 @@ void Enemy::Update(float dt)
 		// アニメーション更新
 		model_->Update(dt);
 	}
+	UpdateShieldEffect_(dt);
 
 	// 当たり判定用の箱（カードバトルで使うかもしれないので残しておく）
 	body_.min = { pos_.x - 1.5f, pos_.y, pos_.z - 1.5f };
@@ -190,6 +260,332 @@ void Enemy::Draw()
 {
 	if (!alive_ || !model_) return;
 	model_->Draw();
+	DrawShield_(shieldColor_, 1.0f);
+}
+
+void Enemy::DrawShieldBloom(GameApp& app)
+{
+	if (!alive_ || !ShouldDrawShield_() || shieldCells_.empty()) {
+		return;
+	}
+
+	BloomParam param = app.ObjectPost()->GetParam();
+	param.threshold = 0.0f;
+	param.intensity = shieldBloomIntensity_;
+	param.vignetteIntensity = 0.0f;
+	param.vignetteScale = 0.0f;
+	param.distortionAmount = 0.0f;
+	param.chromAbAmount = shieldBloomChromAb_;
+	param.isGrayscale = 0.0f;
+	param.isInverted = 0.0f;
+	param.noiseIntensity = 0.0f;
+	param.scanlineIntensity = 0.0f;
+	param.curvature = 0.0f;
+	param.borderSharp = 0.0f;
+	param.glitchAmount = 0.0f;
+	param.dissolveAmount = -1.0f;
+
+	app.ObjectPost()->SetParam(param);
+	app.BeginObjectPostEffect();
+	DrawShield_(shieldBloomColor_, shieldBloomScale_);
+	app.EndObjectPostEffect();
+	app.ObjCom()->SetGraphicsPipelineState();
+}
+
+int Enemy::Damage(int damage) {
+	if (damage <= 0) {
+		return 0;
+	}
+
+	const int blockBefore = block_;
+	if (block_ > 0) {
+		const int blocked = block_ < damage ? block_ : damage;
+		block_ -= blocked;
+		damage -= blocked;
+	}
+
+	if (blockBefore > 0 && block_ == 0) {
+		const int visibleCells = std::max(blockBefore * 2, static_cast<int>(std::ceil(shieldDisplayCount_)));
+		TriggerShieldBreak_(visibleCells);
+	}
+
+	if (damage <= 0) {
+		return 0;
+	}
+
+	const int beforeHp = hp_;
+	hp_ -= damage;
+	if (hp_ <= 0) {
+		hp_ = 0;
+		alive_ = false;
+	}
+	return beforeHp - hp_;
+}
+
+void Enemy::AddBlock(int value) {
+	if (value <= 0) {
+		return;
+	}
+
+	block_ += value;
+	if (block_ < 0) {
+		block_ = 0;
+	}
+	if (block_ > 0) {
+		shieldBreakActive_ = false;
+		shieldBreakCellCount_ = 0;
+	}
+}
+
+void Enemy::ResetBlock() {
+	block_ = 0;
+}
+
+void Enemy::InitializeShieldEffect_() {
+	const std::string modelKey = "EnemyShieldHexRing";
+	shieldHexModel_ = ModelManager::GetInstance()->FindModel(modelKey);
+	if (!shieldHexModel_) {
+		auto vertices = GeometryGenerator::GenerateHexRingTriListXY(1.0f, 0.82f);
+		shieldHexModel_ = ModelManager::GetInstance()->CreatePrimitiveModel(modelKey, MakeShieldPrimitiveModelData_(vertices));
+	}
+
+	EnsureShieldCellCount_();
+}
+
+void Enemy::EnsureShieldCellCount_() {
+	constexpr int kMaxShieldCellCount = 61;
+	shieldCellCount_ = std::clamp(shieldCellCount_, 1, 61);
+	while (static_cast<int>(shieldCells_.size()) < kMaxShieldCellCount) {
+		auto cell = std::make_unique<Object3d>();
+		cell->Initialize(objCommon_, dx_);
+		cell->SetModel(shieldHexModel_);
+		cell->SetCamera(cam_);
+		cell->SetEnableLighting(0);
+		cell->SetMaterialColor(shieldColor_);
+		shieldCells_.push_back(std::move(cell));
+	}
+}
+
+int Enemy::GetTargetShieldCellCount_() const {
+	if (block_ > 0) {
+		return std::clamp(block_ * 2, 1, 61);
+	}
+	return 0;
+}
+
+void Enemy::TriggerShieldBreak_(int cellCount) {
+	EnsureShieldCellCount_();
+
+	shieldBreakActive_ = true;
+	shieldBreakTimer_ = 0.0f;
+	shieldBreakCellCount_ = std::clamp(cellCount, 1, 61);
+	shieldDisplayCount_ = 0.0f;
+	shieldVisibleTimer_ = 1.0f;
+
+	const std::vector<Vector2> hexOffsets = GenerateShieldHexOffsets_(shieldBreakCellCount_);
+	shieldBreakBasePositions_.resize(shieldBreakCellCount_);
+	shieldBreakVelocities_.resize(shieldBreakCellCount_);
+	shieldBreakRotations_.resize(shieldBreakCellCount_);
+	shieldBreakAngularVelocities_.resize(shieldBreakCellCount_);
+
+	const Vector3 center = {
+		pos_.x + shieldOffset_.x,
+		pos_.y + shieldOffset_.y,
+		pos_.z + shieldOffset_.z
+	};
+	const Vector3 groupRotation = {
+		shieldRotation_.x,
+		shieldRotation_.y + shieldTiltY_ * std::sinf(shieldTimer_ * 1.8f),
+		shieldRotation_.z
+	};
+	const Matrix4x4 groupRotationMatrix = Matrix4x4::RotateXYZ(
+		groupRotation.x,
+		groupRotation.y,
+		groupRotation.z);
+
+	for (int i = 0; i < shieldBreakCellCount_; ++i) {
+		const Vector2& offset = hexOffsets[i];
+		const Vector3 localOffset = {
+			offset.x * shieldSpacingX_ / 0.52f,
+			offset.y * shieldSpacingY_ / 0.45f,
+			0.0f
+		};
+		const Vector3 rotatedOffset = Matrix4x4::TransformNormal(localOffset, groupRotationMatrix);
+		shieldBreakBasePositions_[i] = {
+			center.x + rotatedOffset.x,
+			center.y + rotatedOffset.y,
+			center.z + rotatedOffset.z
+		};
+
+		const float angle = static_cast<float>(i) * 1.37f;
+		const float side = (i % 2 == 0) ? 1.0f : -1.0f;
+		shieldBreakVelocities_[i] = {
+			-0.85f + std::cosf(angle) * 1.2f,
+			2.1f + 0.18f * static_cast<float>(i % 5),
+			std::sinf(angle) * 1.15f + side * 0.35f
+		};
+		shieldBreakRotations_[i] = groupRotation;
+		shieldBreakAngularVelocities_[i] = {
+			2.2f + 0.17f * static_cast<float>(i % 4),
+			side * (3.0f + 0.11f * static_cast<float>(i % 7)),
+			-1.7f + 0.19f * static_cast<float>(i % 6)
+		};
+	}
+}
+
+void Enemy::UpdateShieldEffect_(float dt) {
+	EnsureShieldCellCount_();
+	shieldTimer_ += dt;
+
+	if (shieldBreakActive_) {
+		shieldBreakTimer_ += dt;
+		const float duration = std::max(0.1f, shieldBreakDuration_);
+		const float life = std::clamp(1.0f - shieldBreakTimer_ / duration, 0.0f, 1.0f);
+
+		for (int i = 0; i < shieldBreakCellCount_ && i < static_cast<int>(shieldCells_.size()); ++i) {
+			Object3d* cell = shieldCells_[i].get();
+			const Vector3& base = shieldBreakBasePositions_[i];
+			const Vector3& velocity = shieldBreakVelocities_[i];
+			const Vector3& baseRotation = shieldBreakRotations_[i];
+			const Vector3& angularVelocity = shieldBreakAngularVelocities_[i];
+			const float t = shieldBreakTimer_;
+			cell->SetTranslate({
+				base.x + velocity.x * t,
+				base.y + velocity.y * t - 0.5f * shieldBreakGravity_ * t * t,
+				base.z + velocity.z * t
+				});
+			cell->SetRotate({
+				baseRotation.x + angularVelocity.x * t,
+				baseRotation.y + angularVelocity.y * t,
+				baseRotation.z + angularVelocity.z * t
+				});
+			const float scale = shieldBaseScale_ * (0.35f + 0.65f * life);
+			cell->SetScale({ scale, scale, scale });
+			cell->SetMaterialColor({
+				shieldColor_.x,
+				shieldColor_.y,
+				shieldColor_.z,
+				shieldColor_.w * life
+				});
+			cell->Update(dt);
+		}
+
+		if (shieldBreakTimer_ >= duration) {
+			shieldBreakActive_ = false;
+			shieldBreakCellCount_ = 0;
+			shieldVisibleTimer_ = 0.0f;
+		}
+		return;
+	}
+
+	const int targetCellCount = GetTargetShieldCellCount_();
+	if (shieldDisplayCount_ < static_cast<float>(targetCellCount)) {
+		shieldDisplayCount_ = std::min(static_cast<float>(targetCellCount), shieldDisplayCount_ + shieldBuildSpeed_ * dt);
+	} else if (shieldDisplayCount_ > static_cast<float>(targetCellCount)) {
+		shieldDisplayCount_ = std::max(static_cast<float>(targetCellCount), shieldDisplayCount_ - shieldReduceSpeed_ * dt);
+	}
+
+	if (shieldDisplayCount_ > 0.01f || targetCellCount > 0) {
+		shieldVisibleTimer_ = std::min(shieldVisibleTimer_ + dt * 8.0f, 1.0f);
+	} else {
+		shieldVisibleTimer_ = std::max(shieldVisibleTimer_ - dt * 6.0f, 0.0f);
+	}
+
+	const int activeCellCount = std::clamp(static_cast<int>(std::ceil(shieldDisplayCount_)), 0, 61);
+	if (activeCellCount <= 0 || shieldVisibleTimer_ <= 0.0f || shieldCells_.empty()) {
+		return;
+	}
+
+	const std::vector<Vector2> hexOffsets = GenerateShieldHexOffsets_(activeCellCount);
+	const float pulse = 0.5f + 0.5f * std::sinf(shieldTimer_ * shieldPulseSpeed_);
+	const float globalAppear = shieldVisibleTimer_ * shieldVisibleTimer_ * (3.0f - 2.0f * shieldVisibleTimer_);
+	const Vector3 center = {
+		pos_.x + shieldOffset_.x,
+		pos_.y + shieldOffset_.y,
+		pos_.z + shieldOffset_.z
+	};
+	const Vector3 groupRotation = {
+		shieldRotation_.x,
+		shieldRotation_.y + shieldTiltY_ * std::sinf(shieldTimer_ * 1.8f),
+		shieldRotation_.z
+	};
+	const Matrix4x4 groupRotationMatrix = Matrix4x4::RotateXYZ(
+		groupRotation.x,
+		groupRotation.y,
+		groupRotation.z);
+
+	for (int i = 0; i < activeCellCount && i < static_cast<int>(shieldCells_.size()) && i < static_cast<int>(hexOffsets.size()); ++i) {
+		const Vector2& offset = hexOffsets[i];
+		Object3d* cell = shieldCells_[i].get();
+		const Vector3 localOffset = {
+			offset.x * shieldSpacingX_ / 0.52f,
+			offset.y * shieldSpacingY_ / 0.45f,
+			0.0f
+		};
+		const Vector3 rotatedOffset = Matrix4x4::TransformNormal(localOffset, groupRotationMatrix);
+		cell->SetTranslate({
+			center.x + rotatedOffset.x,
+			center.y + rotatedOffset.y,
+			center.z + rotatedOffset.z
+			});
+		cell->SetRotate(groupRotation);
+		const float cellAppearRaw = std::clamp(shieldDisplayCount_ - static_cast<float>(i), 0.0f, 1.0f);
+		const float cellAppear = cellAppearRaw * cellAppearRaw * (3.0f - 2.0f * cellAppearRaw);
+		const float baseScale = shieldBaseScale_ * globalAppear * cellAppear;
+		const float cellPulse = 1.0f + shieldPulseScale_ * std::sinf(shieldTimer_ * shieldPulseSpeed_ + static_cast<float>(i) * 0.55f);
+		cell->SetScale({ baseScale * cellPulse, baseScale * cellPulse, baseScale * cellPulse });
+		cell->SetMaterialColor({
+			shieldColor_.x,
+			shieldColor_.y * (0.78f + 0.22f * pulse),
+			shieldColor_.z * (0.78f + 0.22f * pulse),
+			shieldColor_.w * cellAppear * (0.82f + 0.18f * pulse)
+			});
+		cell->Update(dt);
+	}
+}
+
+bool Enemy::ShouldDrawShield_() const {
+	return shieldBreakActive_ || shieldDisplayCount_ > 0.01f || GetTargetShieldCellCount_() > 0;
+}
+
+void Enemy::DrawShield_(const Vector4& color, float scaleMultiplier) {
+	if (!ShouldDrawShield_() || shieldVisibleTimer_ <= 0.0f || shieldCells_.empty()) {
+		return;
+	}
+
+	const float alpha = std::clamp(shieldVisibleTimer_, 0.0f, 1.0f);
+	const int drawCount = shieldBreakActive_
+		? std::clamp(shieldBreakCellCount_, 0, static_cast<int>(shieldCells_.size()))
+		: std::clamp(static_cast<int>(std::ceil(shieldDisplayCount_)), 0, static_cast<int>(shieldCells_.size()));
+	for (int i = 0; i < drawCount; ++i) {
+		auto& cell = shieldCells_[i];
+		if (!cell) {
+			continue;
+		}
+		const float cellAlpha = shieldBreakActive_
+			? std::clamp(1.0f - shieldBreakTimer_ / std::max(0.1f, shieldBreakDuration_), 0.0f, 1.0f)
+			: std::clamp(shieldDisplayCount_ - static_cast<float>(i), 0.0f, 1.0f);
+		if (cellAlpha <= 0.0f) {
+			continue;
+		}
+		const Vector3 baseScale = cell->GetScale();
+		const Vector4 drawColor = {
+			color.x,
+			color.y,
+			color.z,
+			color.w * alpha * cellAlpha
+		};
+		cell->SetMaterialColor(drawColor);
+		cell->SetScale({
+			baseScale.x * scaleMultiplier,
+			baseScale.y * scaleMultiplier,
+			baseScale.z * scaleMultiplier
+			});
+		cell->Update(0.0f);
+		cell->Draw();
+		cell->SetScale(baseScale);
+		cell->Update(0.0f);
+	}
 }
 
 void Enemy::SetLighting(const LightingParam& p)
@@ -275,6 +671,13 @@ void EnemyManager::Draw()
 {
 	for (auto& e : enemies_) {
 		e.Draw();
+	}
+}
+
+void EnemyManager::DrawShieldBloom(GameApp& app)
+{
+	for (auto& e : enemies_) {
+		e.DrawShieldBloom(app);
 	}
 }
 

@@ -13,9 +13,9 @@ struct Particle
     uint easingType;   // 0=Linear, 1=EaseIn, 2=EaseOut
     uint isBillboard;  // 0=OFF, 1=ON
     float3 rotate;
-    float padding1;
+    float vortexAngularSpeed;
     float3 angularVelocity;
-    float padding2;
+    float vortexRadialSpeed;
 };
 
 struct RenderData
@@ -164,8 +164,26 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float rawT = p.currentTime / p.lifeTime;
     // --- 新機能: イージング適用 ---
     float t = ApplyEasing(rawT, p.easingType);
-    p.velocity += p.acceleration * gConfig.deltaTime;
-    p.position += p.velocity * gConfig.deltaTime;
+    if (abs(p.vortexAngularSpeed) > 0.0001f)
+    {
+        float2 center = p.acceleration.xz;
+        float verticalAcceleration = p.acceleration.y;
+        float2 offset = p.position.xz - center;
+        float radius = max(length(offset), 0.001f);
+        float2 dir = offset / radius;
+
+        p.velocity.y += verticalAcceleration * gConfig.deltaTime;
+        p.position.y += p.velocity.y * gConfig.deltaTime;
+
+        radius = max(0.001f, radius + p.vortexRadialSpeed * gConfig.deltaTime);
+        float angle = atan2(dir.y, dir.x) + p.vortexAngularSpeed * gConfig.deltaTime;
+        p.position.xz = center + float2(cos(angle), sin(angle)) * radius;
+    }
+    else
+    {
+        p.velocity += p.acceleration * gConfig.deltaTime;
+        p.position += p.velocity * gConfig.deltaTime;
+    }
     p.rotate += p.angularVelocity * gConfig.deltaTime;
 
     // 5. 演出パラメータ計算（イージング適用済みのtを使用）

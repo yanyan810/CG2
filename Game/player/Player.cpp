@@ -301,6 +301,7 @@ void Player::Update(float dt) {
 
     // EffectSequencerの更新
     effectSequencer_.Update(dt);
+    UpdatePowerBoostEffect_(dt);
     UpdateShieldEffect_(dt);
 
     // 赤点滅（フラッシュ）の計算
@@ -474,6 +475,61 @@ void Player::DrawShieldImGui() {
         shieldBloomChromAb_ = 0.002f;
         shieldBreakDuration_ = 0.85f;
         shieldBreakGravity_ = 7.5f;
+    }
+
+    if (ImGui::CollapsingHeader("Player Power Aura", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Power Aura Enabled", &powerBoostEffectEnabled_);
+        ImGui::Text("Power: %d", boostedPower_);
+        ImGui::DragFloat("Aura Base Rate", &powerBoostBaseRate_, 0.5f, 0.0f, 1000.0f);
+        ImGui::DragFloat("Aura Rate Per Power", &powerBoostRatePerPower_, 0.1f, 0.0f, 20.0f);
+        ImGui::DragFloat("Aura Radius", &powerBoostRadius_, 0.01f, 0.1f, 3.0f);
+        ImGui::DragFloat("Aura Radius Per Power", &powerBoostRadiusPerPower_, 0.001f, 0.0f, 0.2f);
+        ImGui::DragFloat("Aura Height", &powerBoostHeight_, 0.01f, 0.1f, 4.0f);
+        ImGui::DragFloat("Aura Swirl Speed", &powerBoostSwirlSpeed_, 0.05f, 0.0f, 12.0f);
+        ImGui::DragFloat("Aura Swirl Per Power", &powerBoostSwirlSpeedPerPower_, 0.01f, 0.0f, 2.0f);
+        ImGui::DragFloat("Aura Vortex Angular", &powerBoostVortexAngularSpeed_, 0.05f, -20.0f, 20.0f);
+        ImGui::DragFloat("Aura Vortex Angular Per Power", &powerBoostVortexAngularPerPower_, 0.01f, -3.0f, 3.0f);
+        ImGui::DragFloat("Aura Vortex Radial", &powerBoostVortexRadialSpeed_, 0.005f, -2.0f, 2.0f);
+        ImGui::DragFloat("Aura Vortex Radial Per Power", &powerBoostVortexRadialPerPower_, 0.001f, -0.2f, 0.2f);
+        ImGui::DragFloat("Aura Up Speed", &powerBoostUpSpeed_, 0.05f, 0.0f, 6.0f);
+        ImGui::DragFloat("Aura Up Speed Per Power", &powerBoostUpSpeedPerPower_, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("Aura Start Scale", &powerBoostStartScale_, 0.001f, 0.01f, 0.5f);
+        ImGui::DragFloat("Aura Scale Per Power", &powerBoostScalePerPower_, 0.001f, 0.0f, 0.08f);
+        ImGui::DragFloat("Aura End Scale Rate", &powerBoostEndScaleRate_, 0.005f, 0.0f, 1.0f);
+        ImGui::DragFloat("Aura Life Min", &powerBoostLifeMin_, 0.01f, 0.05f, 5.0f);
+        ImGui::DragFloat("Aura Life Max", &powerBoostLifeMax_, 0.01f, 0.05f, 5.0f);
+        ImGui::DragFloat("Aura Color Intensity", &powerBoostColorIntensity_, 0.01f, 0.0f, 5.0f);
+        ImGui::Checkbox("Aura Billboard", &powerBoostBillboard_);
+        ImGui::ColorEdit4("Aura Start Color", &powerBoostStartColor_.x);
+        ImGui::ColorEdit4("Aura End Color", &powerBoostEndColor_.x);
+        if (ImGui::Button("Test Power Aura Burst")) {
+            EmitPowerBoostParticles_(24);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset Aura Params")) {
+            powerBoostBaseRate_ = 18.0f;
+            powerBoostRatePerPower_ = 4.0f;
+            powerBoostRadius_ = 0.75f;
+            powerBoostRadiusPerPower_ = 0.035f;
+            powerBoostHeight_ = 1.55f;
+            powerBoostSwirlSpeed_ = 3.2f;
+            powerBoostSwirlSpeedPerPower_ = 0.22f;
+            powerBoostVortexAngularSpeed_ = 5.2f;
+            powerBoostVortexAngularPerPower_ = 0.28f;
+            powerBoostVortexRadialSpeed_ = -0.08f;
+            powerBoostVortexRadialPerPower_ = -0.006f;
+            powerBoostUpSpeed_ = 1.4f;
+            powerBoostUpSpeedPerPower_ = 0.08f;
+            powerBoostStartScale_ = 0.2f;
+            powerBoostScalePerPower_ = 0.008f;
+            powerBoostEndScaleRate_ = 0.12f;
+            powerBoostLifeMin_ = 1.0f;
+            powerBoostLifeMax_ = 1.6f;
+            powerBoostColorIntensity_ = 1.0f;
+            powerBoostBillboard_ = false;
+            powerBoostStartColor_ = { 0.42f, 1.0f, 0.50f, 1.0f };
+            powerBoostEndColor_ = { 0.45f, 1.0f, 0.70f, 0.0f };
+        }
     }
 #endif
 }
@@ -775,6 +831,108 @@ void Player::Damage(int damage)
     if (releaseAnimationEnabled_) {
         PlayReleaseDamageAnimation_();
     }
+}
+
+void Player::UpdatePowerBoostEffect_(float dt) {
+    powerBoostEffectTimer_ += dt;
+
+    if (!powerBoostEffectEnabled_ || !particleManager_ || boostedPower_ <= 0 || !isAlive_) {
+        powerBoostEmitAccumulator_ = 0.0f;
+        return;
+    }
+
+    const float power = static_cast<float>(std::max(0, boostedPower_));
+    const float rate = std::clamp(powerBoostBaseRate_ + powerBoostRatePerPower_ * power, 0.0f, 120.0f);
+    powerBoostEmitAccumulator_ += rate * dt;
+
+    const uint32_t emitCount = static_cast<uint32_t>(std::min(10.0f, std::floor(powerBoostEmitAccumulator_)));
+    if (emitCount == 0) {
+        return;
+    }
+
+    powerBoostEmitAccumulator_ -= static_cast<float>(emitCount);
+    EmitPowerBoostParticles_(emitCount);
+}
+
+void Player::EmitPowerBoostParticles_(uint32_t count) {
+    if (!particleManager_ || count == 0) {
+        return;
+    }
+
+    const float power = static_cast<float>(std::max(0, boostedPower_));
+    const float power01 = std::clamp(power / 10.0f, 0.0f, 1.0f);
+    const float radius = powerBoostRadius_ + powerBoostRadiusPerPower_ * power;
+    const float spawnSwirlSpeed = powerBoostSwirlSpeed_ + powerBoostSwirlSpeedPerPower_ * power;
+    const float upSpeed = powerBoostUpSpeed_ + powerBoostUpSpeedPerPower_ * power;
+    const float vortexAngularSpeed = powerBoostVortexAngularSpeed_ + powerBoostVortexAngularPerPower_ * power;
+    const float vortexRadialSpeed = powerBoostVortexRadialSpeed_ + powerBoostVortexRadialPerPower_ * power;
+    const float startScale = std::clamp(powerBoostStartScale_ + powerBoostScalePerPower_ * power, 0.035f, 0.8f);
+    const float lifeMin = std::max(0.05f, std::min(powerBoostLifeMin_, powerBoostLifeMax_));
+    const float lifeMax = std::max(lifeMin, std::max(powerBoostLifeMin_, powerBoostLifeMax_));
+    const float colorIntensity = std::max(0.0f, powerBoostColorIntensity_);
+
+    std::vector<ModelParticleManager::Particle> particles;
+    particles.reserve(count);
+
+    for (uint32_t i = 0; i < count; ++i) {
+        const float randomAngle = Rand(0.0f, 6.2831853f);
+        const float angle = randomAngle + powerBoostEffectTimer_ * spawnSwirlSpeed;
+        const float ringRadius = radius * Rand(0.65f, 1.15f);
+        const float height = Rand(0.05f, powerBoostHeight_);
+        const float c = std::cosf(angle);
+        const float s = std::sinf(angle);
+
+        ModelParticleManager::Particle particle{};
+        particle.transform.translate = {
+            pos_.x + c * ringRadius,
+            pos_.y + height,
+            pos_.z + s * ringRadius
+        };
+
+        const Vector3 outward = { c, 0.0f, s };
+        particle.velocity = {
+            outward.x * Rand(-0.10f, 0.15f),
+            upSpeed * Rand(0.65f, 1.25f),
+            outward.z * Rand(-0.10f, 0.15f)
+        };
+        particle.acceleration = {
+            pos_.x,
+            0.45f + power01 * 0.35f,
+            pos_.z
+        };
+        particle.vortexAngularSpeed = vortexAngularSpeed * Rand(0.82f, 1.18f);
+        particle.vortexRadialSpeed = vortexRadialSpeed * Rand(0.75f, 1.25f);
+
+        particle.transform.rotate = Rand(
+            Vector3{ -3.1416f, -3.1416f, -3.1416f },
+            Vector3{ 3.1416f, 3.1416f, 3.1416f });
+        particle.angularVelocity = Rand(
+            Vector3{ -5.0f, -7.0f, -5.0f },
+            Vector3{ 5.0f, 7.0f, 5.0f });
+
+        particle.lifeTime = Rand(lifeMin, lifeMax);
+        particle.currentTime = 0.0f;
+        particle.startScale = startScale * Rand(0.75f, 1.35f);
+        particle.endScale = startScale * powerBoostEndScaleRate_ * Rand(0.75f, 1.25f);
+        particle.startColor = {
+            powerBoostStartColor_.x * colorIntensity,
+            powerBoostStartColor_.y * colorIntensity,
+            powerBoostStartColor_.z * colorIntensity,
+            powerBoostStartColor_.w
+        };
+        particle.endColor = {
+            powerBoostEndColor_.x * colorIntensity,
+            powerBoostEndColor_.y * colorIntensity,
+            powerBoostEndColor_.z * colorIntensity,
+            powerBoostEndColor_.w
+        };
+        particle.color = particle.startColor;
+        particle.easingType = EasingType::EaseOut;
+        particle.isBillboard = powerBoostBillboard_;
+        particles.push_back(particle);
+    }
+
+    particleManager_->EmitBatch(particles);
 }
 
 Vector3 Player::GetWeaponTipPos() {
