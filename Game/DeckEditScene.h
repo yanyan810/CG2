@@ -83,4 +83,7 @@ private:
     Vector2 GetPopupPosition(GameApp& app, int cardIdx);
 
     void RerollDeckData(GameApp& app);
+
+    void CreateDeckSelectButton(GameApp& app, const std::wstring& text, const std::string& spriteName, const Vector2& position);
+
 };

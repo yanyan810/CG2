@@ -85,55 +85,10 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	selectingTemplateDeckBg_->SetScale({ 1280.f, 720.f, 1.0f });
 	selectingTemplateDeckBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
 
-	Button deckTemplateButton_Default;
-	deckTemplateButton_Default.bg_ = std::make_unique<Sprite>();
-	deckTemplateButton_Default.bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	deckTemplateButton_Default.bg_->SetName("resources/deck/deck_default.json");
-	deckTemplateButton_Default.bg_->SetPosition({ 480.f, 250.f });
-	deckTemplateButton_Default.bg_->SetScale({ 320.f, 60.f, 1.0f }); // ★縦幅を60にスマート化
-	deckTemplateButton_Default.bg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
-
-	deckTemplateButton_Default.text_ = std::make_unique<TextSprite>();
-	deckTemplateButton_Default.text_->Initialize(app.SpriteCom(), app.Dx());
-	deckTemplateButton_Default.text_->SetFontSize(30);
-	deckTemplateButton_Default.text_->SetSize({ 1.f, 1.f, 1.f });
-	deckTemplateButton_Default.text_->SetPosition({ 480.0f + 20.f, 250.0f + 12.f }); // ★文字の位置を中央寄りにオフセット
-	deckTemplateButton_Default.text_->SetText(L"デフォルトデッキ");
-	deckTemplateButton_.push_back(std::move(deckTemplateButton_Default));
-
-	// --- 毒デッキ ---
-	Button deckTemplateButton_Poison;
-	deckTemplateButton_Poison.bg_ = std::make_unique<Sprite>();
-	deckTemplateButton_Poison.bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	deckTemplateButton_Poison.bg_->SetName("resources/deck/deck_poison.json");
-	deckTemplateButton_Poison.bg_->SetPosition({ 480.f, 350.f }); // ★Yの間隔を100あける（重ならない）
-	deckTemplateButton_Poison.bg_->SetScale({ 320.f, 60.f, 1.0f });
-	deckTemplateButton_Poison.bg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
-
-	deckTemplateButton_Poison.text_ = std::make_unique<TextSprite>();
-	deckTemplateButton_Poison.text_->Initialize(app.SpriteCom(), app.Dx());
-	deckTemplateButton_Poison.text_->SetFontSize(30);
-	deckTemplateButton_Poison.text_->SetSize({ 1.f, 1.f, 1.f });
-	deckTemplateButton_Poison.text_->SetPosition({ 480.0f + 20.f, 350.0f + 12.f });
-	deckTemplateButton_Poison.text_->SetText(L"毒デッキ");
-	deckTemplateButton_.push_back(std::move(deckTemplateButton_Poison));
-
-	// --- 凍結デッキ ---
-	Button deckTemplateButton_Frost;
-	deckTemplateButton_Frost.bg_ = std::make_unique<Sprite>();
-	deckTemplateButton_Frost.bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	deckTemplateButton_Frost.bg_->SetName("resources/deck/deck_frost.json");
-	deckTemplateButton_Frost.bg_->SetPosition({ 480.f, 450.f }); // ★さらにYを100あける
-	deckTemplateButton_Frost.bg_->SetScale({ 320.f, 60.f, 1.0f });
-	deckTemplateButton_Frost.bg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
-
-	deckTemplateButton_Frost.text_ = std::make_unique<TextSprite>();
-	deckTemplateButton_Frost.text_->Initialize(app.SpriteCom(), app.Dx());
-	deckTemplateButton_Frost.text_->SetFontSize(30);
-	deckTemplateButton_Frost.text_->SetSize({ 1.f, 1.f, 1.f });
-	deckTemplateButton_Frost.text_->SetPosition({ 480.0f + 20.f, 450.0f + 12.f });
-	deckTemplateButton_Frost.text_->SetText(L"凍結デッキ");
-	deckTemplateButton_.push_back(std::move(deckTemplateButton_Frost));
+	CreateDeckSelectButton(app, L"デフォルトデッキ", "resources/deck/deck_default.json", { 480.f, 250.f });
+	CreateDeckSelectButton(app, L"毒デッキ", "resources/deck/deck_poison.json", { 480.f, 350.f });
+	CreateDeckSelectButton(app, L"凍結デッキ", "resources/deck/deck_frost.json", { 480.f, 450.f });
+	CreateDeckSelectButton(app, L"自分で変更する", "CUSTOM_EDIT", { 50.f, 50.f });
 
 }
 
@@ -150,14 +105,24 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 	if (isSelectingTemplateDeck_) {
 
 		// デバッグ用
-		if(input->IsKeyTrigger(DIK_SPACE)) { isSelectingTemplateDeck_ = false; }
+		if (input->IsKeyTrigger(DIK_SPACE)) { isSelectingTemplateDeck_ = false; }
 
 		if (input->IsMouseTrigger(0)) {
 			for (const auto& button : deckTemplateButton_) {
 				if (button.bg_->IsMouseOver(mousePos)) {
-					app.LoadDeck(button.bg_->GetName());
-					isSelectingTemplateDeck_ = false;
-					RerollDeckData(app);
+
+					// 【変更】「自分で変更する」ボタンだった場合の判定
+					if (button.bg_->GetName() == "CUSTOM_EDIT") {
+						// デッキをロードせず、メニューだけを閉じる
+						isSelectingTemplateDeck_ = false;
+					} else {
+						// 通常のテンプレートデッキの場合はJSONをロードする
+						app.LoadDeck(button.bg_->GetName());
+						isSelectingTemplateDeck_ = false;
+						RerollDeckData(app);
+					}
+
+					AudioManager::GetInstance()->PlaySE("SE_Tap"); // タップ音を鳴らすならここ
 					break;
 				}
 			}
@@ -596,4 +561,28 @@ void DeckEditScene::RerollDeckData(GameApp &app) {
 	cardCount_ = cardDB_->GetCardCount();
 
 	RebuildCardModels(app);
+}
+
+void DeckEditScene::CreateDeckSelectButton(GameApp& app, const std::wstring& text, const std::string& spriteName, const Vector2& position) {
+	Button button;
+
+	// 背景スプライトの初期化
+	button.bg_ = std::make_unique<Sprite>();
+	button.bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	button.bg_->SetName(spriteName);
+	button.bg_->SetPosition({ position.x, position.y });
+	button.bg_->SetScale({ 320.f, 60.f, 1.0f });
+	button.bg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
+
+	// テキストスプライトの初期化
+	button.text_ = std::make_unique<TextSprite>();
+	button.text_->Initialize(app.SpriteCom(), app.Dx());
+	button.text_->SetFontSize(30);
+	button.text_->SetSize({ 1.f, 1.f, 1.f });
+	// 背景の座標から少しだけ右下にずらして中央配置っぽくする
+	button.text_->SetPosition({ position.x + 20.f, position.y + 12.f });
+	button.text_->SetText(text);
+
+	// メンバ変数のvectorに追加
+	deckTemplateButton_.push_back(std::move(button));
 }
