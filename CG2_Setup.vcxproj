@@ -170,7 +170,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Game\Logic\CardPreview.cpp" />
+    <ClCompile Include="Game\Card\CardEffectExecutor.cpp" />
+    <ClCompile Include="Game\Card\CardEffectTextBuilder.cpp" />
     <ClCompile Include="Game\Poker\PokerHandEvaluator.cpp" />
+    <ClCompile Include="Game\Poker\PokerChoiceTextBuilder.cpp" />
+    <ClCompile Include="Game\Poker\PokerChoiceQuery.cpp" />
     <ClCompile Include="Engine\EffectSequencer.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorPose.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorSession.cpp" />
@@ -196,6 +200,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\TrailManager.cpp" />
     <ClCompile Include="externals\imgui\ImGuizmo.cpp" />
     <ClCompile Include="Game\BattleController.cpp" />
+    <ClCompile Include="Game\Audio\BattleSfxPlayer.cpp" />
+    <ClCompile Include="Game\Battle\BattleDeckZone.cpp" />
+    <ClCompile Include="Game\Battle\BattleFieldViewController.cpp" />
+    <ClCompile Include="Game\Battle\CardTargetingController.cpp" />
+    <ClCompile Include="Game\Battle\EnemyActionCountSystem.cpp" />
     <ClCompile Include="Game\Card\CardDatabase.cpp" />
     <ClCompile Include="Engine\2D\Sprite.cpp" />
     <ClCompile Include="Engine\2D\SpriteCommon.cpp" />
@@ -344,7 +353,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Game\Logic\CardPreview.h" />
+    <ClInclude Include="Game\Card\CardEffectExecutor.h" />
+    <ClInclude Include="Game\Card\CardEffectTextBuilder.h" />
     <ClInclude Include="Game\Poker\PokerHandEvaluator.h" />
+    <ClInclude Include="Game\Poker\PokerChoiceTextBuilder.h" />
+    <ClInclude Include="Game\Poker\PokerChoiceQuery.h" />
     <ClInclude Include="Engine\EffectSequencer.h" />
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
     <ClInclude Include="Engine\3D\AnimationEditorSession.h" />
@@ -371,6 +384,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\TrailManager.h" />
     <ClInclude Include="externals\imgui\ImGuizmo.h" />
     <ClInclude Include="Game\BattleController.h" />
+    <ClInclude Include="Game\Audio\BattleSfxPlayer.h" />
+    <ClInclude Include="Game\Battle\BattleDeckZone.h" />
+    <ClInclude Include="Game\Battle\BattleFieldViewController.h" />
+    <ClInclude Include="Game\Battle\CardTargetingController.h" />
+    <ClInclude Include="Game\Battle\EnemyActionCountSystem.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />
     <ClInclude Include="Game\Card\CardDef.h" />
     <ClInclude Include="Engine\2D\Sprite.h" />

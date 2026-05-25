@@ -1,4 +1,5 @@
 #include "BattleController.h"
+#include "Battle/BattleFieldViewController.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include "GameApp.h"
@@ -19,9 +20,13 @@
 #include"Player.h"
 #include"Enemy.h"
 
+#include "Card/CardEffectTextBuilder.h"
+#include "Card/CardEffectExecutor.h"
 #include "FieldUi.h"
-#include "AudioManager.h"
+#include "Audio/BattleSfxPlayer.h"
 #include "ModelParticleManager.h"
+#include "Poker/PokerChoiceQuery.h"
+#include "Poker/PokerChoiceTextBuilder.h"
 
 namespace {
 	float sPokerGlowRainbowTime = 0.0f;
@@ -142,14 +147,6 @@ namespace {
 		return param;
 	}
 
-	int RollEnemyActionCount_()
-	{
-		static std::random_device rd;
-		static std::mt19937 gen(rd());
-		std::uniform_int_distribution<int> dist(3, 6);
-		return dist(gen);
-	}
-
 }
 
 //===============================
@@ -175,11 +172,12 @@ void BattleController::RebuildDiscardView_()
 {
 	discardView_.reset();
 
-	if (discard_.empty()) {
+	const auto& discard = deckZone_.GetDiscard();
+	if (discard.empty()) {
 		return;
 	}
 
-	const CardInstance& top = discard_.back();
+	const CardInstance& top = discard.back();
 	const CardDef* def = db_.Find(top.defId);
 	if (!def) {
 		return;
@@ -205,9 +203,7 @@ void BattleController::ConsumeFieldCards_()
 	}
 	fieldViews_.clear();
 
-	for (auto& c : field_) {
-		discard_.push_back(c);
-	}
+	deckZone_.AddManyToDiscard(field_);
 	field_.clear();
 	RebuildDiscardView_();
 	fieldLayoutDirty_ = true;
@@ -273,82 +269,6 @@ namespace {
 		return result;
 	}
 
-	void PlaySE_(const char* soundId)
-	{
-		AudioManager::GetInstance()->PlaySE(soundId);
-	}
-
-	const char* GetAttackSeIdForCard_(const CardDef& def)
-	{
-		const std::string& name = def.name;
-		if (name == "Fireball") {
-			return "SE_Fireball";
-		}
-		if (name == "Attack!" || name == "BloodyVengeance") {
-			return "SE_NormalAttack";
-		}
-		if (name == "Power Shot" ||
-			name == "Crush" ||
-			name == "CrescentMoon" ||
-			name == "OverClock" ||
-			name == "ShieldBash" ||
-			name == "GaeBolg" ||
-			name == "Durandal") {
-			return "SE_StrongAttack";
-		}
-
-		bool hasDamage = false;
-		for (const auto& effect : def.effects) {
-			if (effect.type == "DamageAll" ||
-				effect.type == "DamageCrescent" ||
-				effect.type == "DamageByBlock") {
-				return "SE_StrongAttack";
-			}
-			if (effect.type == "Damage") {
-				hasDamage = true;
-			}
-		}
-
-		return hasDamage ? "SE_NormalAttack" : nullptr;
-	}
-
-	void PlayAttackSEForCard_(const CardDef& def)
-	{
-		if (const char* soundId = GetAttackSeIdForCard_(def)) {
-			PlaySE_(soundId);
-		}
-	}
-
-	void PlayHealSEIfHpIncreased_(Player* player, int beforeHp)
-	{
-		if (player && player->GetHP() > beforeHp) {
-			PlaySE_("SE_Heal");
-		}
-	}
-
-	void PlayBlockGainSEIfIncreased_(int beforeBlock, int afterBlock)
-	{
-		if (afterBlock > beforeBlock) {
-			PlaySE_("SE_Block");
-		}
-	}
-
-	void PlayBlockReactionSE_(int beforeBlock, int afterBlock, int actualHpDamage, int attemptedDamage)
-	{
-		if (attemptedDamage <= 0 || beforeBlock <= 0) {
-			return;
-		}
-
-		if (afterBlock <= 0) {
-			PlaySE_("SE_BlockBreak");
-			return;
-		}
-
-		if (actualHpDamage <= 0) {
-			PlaySE_("SE_ShieldGuard");
-		}
-	}
-
 }
 
 void BattleController::UpdateCostViewTransform_(float dt)
@@ -378,9 +298,7 @@ void BattleController::UpdateCostViewTransform_(float dt)
 
 void BattleController::ShuffleDeck_()
 {
-	static std::random_device rd;
-	static std::mt19937 mt(rd());
-	std::shuffle(deck_.begin(), deck_.end(), mt);
+	deckZone_.ShuffleDeck();
 }
 
 void BattleController::RebuildCostView_(float dt)
@@ -645,30 +563,24 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	playerLastHp_ = player_ ? player_->GetHP() : -1;
 
 	// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢隴弱・・ｱ蝣､・ｹ譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
-	deck_ = prebuiltDeck_;
+	deckZone_.SetDeck(prebuiltDeck_);
 	ShuffleDeck_();
 
 	if (useTutorialOpeningHand_) {
 		// 鬮ｫ・ｴ陝・｢・つ鬮ｯ蜈ｷ・ｽ・ｻ髫ｴ謫ｾ・ｽ・ｴ驕ｶ鬆托ｽ･・｢繝ｻ・ｰ鬯倬ｯ会ｽｽ・ｼ髮具ｽｻ繝ｻ・ｿ繝ｻ・･5鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻdeck 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｴ陝ｷ・｢繝ｻ・ｽ繝ｻ・ｫ鬮ｯ譏ｴ繝ｻ繝ｻ・ｽ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬯ｩ蛹・ｽｽ・ｨ鬯ｮ・ｦ繝ｻ・ｪ驛｢譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ髮九・竏槭・・ｽ遶擾ｽｫ繝ｻ・ｸ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ
 		// 鬮ｯ・ｷ闔・･霑ｴ・ｾ驕ｶ鬆托ｽ･・｢隲・ｺ髯溷供ﾂ蜈ｷ・ｽ・ｧ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驕ｯ・ｶ繝ｻ・ｲ鬩搾ｽｵ繝ｻ・ｺ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬯ｮ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬩搾ｽｵ繝ｻ・ｺ髣包ｽｳ隶抵ｽｫ陟募ｮ｣ﾎ斐・・ｧ髣費ｽｨ遶乗刋・ｱ繧九＠繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 		for (const auto& fixedCard : tutorialOpeningHand_) {
-			auto it = std::find_if(deck_.begin(), deck_.end(),
-				[&](const CardInstance& c) {
-					return c.defId == fixedCard.defId;
-				});
-			if (it != deck_.end()) {
-				deck_.erase(it);
-			}
+			deckZone_.RemoveFirstFromDeckByDefId(fixedCard.defId);
 		}
 
 		// DrawOne_ 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ back() 鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｩ・ｸ繝ｻ・ｽ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ繝ｻ縺､ﾂ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ驍ｵ・ｲ陝ｶ譏ｶ繝ｻ鬯ｮ・ｦ繝ｻ・ｪ驛｢譎｢・ｽ・ｻ
 		for (auto it = tutorialOpeningHand_.rbegin(); it != tutorialOpeningHand_.rend(); ++it) {
-			deck_.push_back(*it);
+			deckZone_.PushDeckBack(*it);
 		}
 	}
 
-	hand_.clear();
-	discard_.clear();
+	deckZone_.ClearHand();
+	deckZone_.ClearDiscard();
 	field_.clear();
 	fieldViews_.clear();
 	damagePopupUi_.Clear();
@@ -705,19 +617,15 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 
 bool BattleController::DrawOne_()
 {
-	if (deck_.empty()) {
-		if (discard_.empty()) return false;
-		deck_ = discard_;
-		discard_.clear();
-		ShuffleDeck_();
-		RebuildDiscardView_();
+	CardInstance card{};
+	bool reshuffledDiscard = false;
+	if (!deckZone_.DrawOne(card, reshuffledDiscard)) {
+		return false;
 	}
 
-	if (deck_.empty()) return false;
-
-	CardInstance card = deck_.back();
-	deck_.pop_back();
-	hand_.push_back(card);
+	if (reshuffledDiscard) {
+		RebuildDiscardView_();
+	}
 
 	// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯橸ｽｳ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｽ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・｣繝ｻ・ｰ
 	handView_.AddCard(card);
@@ -727,7 +635,7 @@ bool BattleController::DrawOne_()
 
 void BattleController::DrawUntilFive_()
 {
-	while ((int)hand_.size() < 5) {
+	while (static_cast<int>(deckZone_.GetHandCount()) < 5) {
 		if (!DrawOne_()) break;
 	}
 	//handView_.Rebuild(hand_);
@@ -743,434 +651,460 @@ void BattleController::DrawCards_(int count)
 	//	handView_.Rebuild(hand_);
 }
 
+Enemy* BattleController::ResolveTargetEnemy_(int targetIndex) const
+{
+	if (!enemyMgr_) {
+		return nullptr;
+	}
+
+	auto& enemies = enemyMgr_->GetEnemies();
+	if (targetIndex >= 0 && targetIndex < static_cast<int>(enemies.size())) {
+		return &enemies[static_cast<std::size_t>(targetIndex)];
+	}
+
+	for (auto& enemy : enemies) {
+		if (enemy.IsAlive()) {
+			return &enemy;
+		}
+	}
+
+	return nullptr;
+}
+
+void BattleController::ApplyFrostBiteToEnemyIfActive_(Enemy& enemy)
+{
+	if (player_ && player_->GetFrostBiteActive()) {
+		enemy.SetBC(Enemy::BadCondition::kFrost);
+		enemy.AddBC(1);
+	}
+}
+
+void BattleController::ApplyDamageEffect_(const CardEffectDef& effect, int targetIndex, bool applyAttackBuff)
+{
+	if (enemyMgr_) {
+		const bool hasExplicitTarget =
+			targetIndex >= 0 && targetIndex < static_cast<int>(enemyMgr_->GetEnemies().size());
+		Enemy* targetEnemy = ResolveTargetEnemy_(targetIndex);
+		if (!targetEnemy || !targetEnemy->IsAlive()) return;
+
+		int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
+
+		if (hasExplicitTarget && targetEnemy->GetBC() == Enemy::BadCondition::kFrost) {
+			totalDamage += targetEnemy->GetBCPoint();
+		}
+
+		if (hasExplicitTarget) {
+			ApplyFrostBiteToEnemyIfActive_(*targetEnemy);
+		}
+
+		const int actualDamage = ApplyDamageToEnemy_(*targetEnemy, totalDamage);
+		if (!hasExplicitTarget) {
+			ApplyFrostBiteToEnemyIfActive_(*targetEnemy);
+		}
+		if (totalDamage > 0) SpawnDamagePopup(targetEnemy->GetPos(), actualDamage, false);
+
+	}
+}
+
+void BattleController::ApplyDamageCrescentEffect_(const CardEffectDef& effect, int targetIndex, bool applyAttackBuff)
+{
+	if (enemyMgr_) {
+		int baseVal = effect.value;
+		if (playerTurnCount_ % 2 != 0) {
+			baseVal += 3;
+		}
+
+		int finalDamage = applyAttackBuff ? CalcFinalAttackDamage_(baseVal) : std::max(0, baseVal);
+
+		Enemy* targetEnemy = ResolveTargetEnemy_(targetIndex);
+		if (targetEnemy && targetEnemy->IsAlive()) {
+			const int actualDamage = ApplyDamageToEnemy_(*targetEnemy, finalDamage);
+			if (finalDamage > 0) SpawnDamagePopup(targetEnemy->GetPos(), actualDamage, false);
+			ApplyFrostBiteToEnemyIfActive_(*targetEnemy);
+		}
+
+	}
+}
+
+void BattleController::ApplyDamageByBlockEffect_(const CardEffectDef& effect, int targetIndex, bool applyAttackBuff)
+{
+	if (enemyMgr_) {
+		int baseVal = (player_ ? player_->GetBlock() : 0) * effect.value;
+		int finalDamage = applyAttackBuff ? CalcFinalAttackDamage_(baseVal) : std::max(0, baseVal);
+
+		Enemy* targetEnemy = ResolveTargetEnemy_(targetIndex);
+		if (targetEnemy && targetEnemy->IsAlive()) {
+			const int actualDamage = ApplyDamageToEnemy_(*targetEnemy, finalDamage);
+			if (finalDamage > 0) SpawnDamagePopup(targetEnemy->GetPos(), actualDamage, false);
+			ApplyFrostBiteToEnemyIfActive_(*targetEnemy);
+		}
+
+	}
+}
+
+void BattleController::ApplyDamageAllEffect_(const CardEffectDef& effect, bool applyAttackBuff)
+{
+	if (enemyMgr_ && player_) {
+		int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
+
+		player_->PlayAttackAnimWithEffect(player_->GetPos(), -1);
+
+		int hitCount = 0;
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive()) {
+				e.TriggerHitFlash(0.2f);
+				e.PlayDamageAnim();
+				const int beforeBlock = e.GetBlock();
+				const int actualDamage = e.Damage(totalDamage);
+				BattleSfxPlayer::PlayBlockReactionSE(beforeBlock, e.GetBlock(), actualDamage, totalDamage);
+				if (totalDamage > 0) {
+					SpawnDamagePopup(e.GetPos(), actualDamage, false);
+				}
+				ApplyFrostBiteToEnemyIfActive_(e);
+				hitCount++;
+			}
+		}
+
+		if (hitCount > 0 && player_->GetVampireHeal() > 0) {
+			int beforeHp = player_->GetHP();
+			player_->Heal(player_->GetVampireHeal() * hitCount);
+			BattleSfxPlayer::PlayHealSEIfHpIncreased(player_, beforeHp);
+		}
+
+	}
+}
+
+void BattleController::ApplyDrawEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.drawCards = [this](int count) {
+		DrawCards_(count);
+	};
+	CardEffectExecutor::ApplyDraw(context, effect);
+}
+
+void BattleController::ApplyBlockEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	CardEffectExecutor::ApplyBlock(context, effect);
+}
+
+void BattleController::ApplyPowerBoostEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	CardEffectExecutor::ApplyPowerBoost(context, effect);
+}
+
+void BattleController::ApplyNextTurnAtkUpEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.nextTurnAtkUp = &nextTurnAtkUp_;
+	CardEffectExecutor::ApplyNextTurnAtkUp(context, effect);
+}
+
+void BattleController::ApplyHealEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	CardEffectExecutor::ApplyHeal(context, effect);
+}
+
+void BattleController::ApplyHealByBlockEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	CardEffectExecutor::ApplyHealByBlock(context, effect);
+}
+
+void BattleController::ApplyHealByLowCostInHandEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	context.deckZone = &deckZone_;
+	context.cardDb = &db_;
+	CardEffectExecutor::ApplyHealByLowCostInHand(context, effect);
+}
+
+void BattleController::ApplyVampireBuffEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	CardEffectExecutor::ApplyVampireBuff(context, effect);
+}
+
+void BattleController::ApplySelfDamageEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	CardEffectExecutor::ApplySelfDamage(context, effect);
+}
+
+void BattleController::ApplyPoisonEffect_(const CardEffectDef& effect, int targetIndex)
+{
+	if (enemyMgr_) {
+		if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+			auto& e = enemyMgr_->GetEnemies()[targetIndex];
+			if (e.IsAlive()) {
+				e.SetBC(Enemy::BadCondition::kPoison);
+				e.AddBC(effect.value);
+			}
+		} else {
+			for (auto& e : enemyMgr_->GetEnemies()) {
+				if (e.IsAlive()) {
+					e.SetBC(Enemy::BadCondition::kPoison);
+					e.AddBC(effect.value);
+					break;
+				}
+			}
+		}
+	}
+	if (player_->GetPoisonDrawActive()) {
+		DrawCards_(1);
+	}
+}
+
+void BattleController::ApplyPoisonAllEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	context.enemyMgr = enemyMgr_;
+	context.drawCards = [this](int count) {
+		DrawCards_(count);
+	};
+	CardEffectExecutor::ApplyPoisonAll(context, effect);
+}
+
+void BattleController::ApplyPoisonAmplifyEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyPoisonAmplify(context, effect);
+}
+
+void BattleController::ApplyPoisonDamageEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyPoisonDamage(context, effect);
+}
+
+void BattleController::ApplyPoisonDrawEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	context.enemyMgr = enemyMgr_;
+	context.drawCards = [this](int count) {
+		DrawCards_(count);
+	};
+	CardEffectExecutor::ApplyPoisonDraw(context, effect);
+}
+
+void BattleController::ApplyPoisonRemoveEffect_()
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyPoisonRemove(context);
+}
+
+void BattleController::ApplyPoisonHealEffect_()
+{
+	int healAmount = 0;
+
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
+				e.SetBC(Enemy::BadCondition::kPoison);
+				healAmount += e.GetBCPoint();
+			}
+		}
+	}
+
+	int beforeHp = player_->GetHP();
+	player_->Heal(healAmount);
+	BattleSfxPlayer::PlayHealSEIfHpIncreased(player_, beforeHp);
+}
+
+void BattleController::ApplyFrostEffect_(const CardEffectDef& effect, int targetIndex)
+{
+	if (enemyMgr_) {
+		if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
+			auto& e = enemyMgr_->GetEnemies()[targetIndex];
+			if (e.IsAlive()) {
+				e.SetBC(Enemy::BadCondition::kFrost);
+				e.AddBC(effect.value);
+			}
+		} else {
+			for (auto& e : enemyMgr_->GetEnemies()) {
+				if (e.IsAlive()) {
+					e.SetBC(Enemy::BadCondition::kFrost);
+					e.AddBC(effect.value);
+					break;
+				}
+			}
+		}
+	}
+}
+
+void BattleController::ApplyFrostAllEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyFrostAll(context, effect);
+}
+
+void BattleController::ApplyFrostBlockEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.player = player_;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyFrostBlock(context, effect);
+}
+
+void BattleController::ApplyFrostDamageEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyFrostDamage(context, effect);
+}
+
+void BattleController::ApplyFrostSubtractEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyFrostSubtract(context, effect);
+}
+
+void BattleController::ApplyFrostBiteEffect_(const CardEffectDef& effect)
+{
+	bool isActivated = player_->GetFrostBiteActive();
+
+	if (!isActivated) {
+		player_->SetFrostBiteActive(true);
+	} else {
+		if (enemyMgr_) {
+			for (auto& e : enemyMgr_->GetEnemies()) {
+				if (e.IsAlive()) {
+					e.SetBC(Enemy::BadCondition::kFrost);
+					e.AddBC(effect.value);
+				}
+			}
+		}
+	}
+}
+
+void BattleController::ApplyFrostAmplifyEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	CardEffectExecutor::ApplyFrostAmplify(context, effect);
+}
+
+void BattleController::ApplyChangeNumberEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::ApplyChangeNumber(effect);
+}
+
+void BattleController::ApplyChangeSuitEffect_(const CardEffectDef& effect)
+{
+	CardEffectExecutor::ApplyChangeSuit(effect);
+}
+
+void BattleController::ApplyFrostDrawEffect_(int targetIndex)
+{
+	CardEffectExecutor::Context context;
+	context.enemyMgr = enemyMgr_;
+	context.drawCards = [this](int count) {
+		DrawCards_(count);
+	};
+	CardEffectExecutor::ApplyFrostDraw(context, targetIndex);
+}
+
 void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex, bool applyAttackBuff)
 {
 	for (const auto& effect : effects) {
 		if (effect.type == "Draw") {
-			DrawCards_(effect.value);
+			ApplyDrawEffect_(effect);
 
 		} else if (effect.type == "Damage") {
-			if (enemyMgr_) {
-				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
-					auto& e = enemyMgr_->GetEnemies()[targetIndex];
-					if (e.IsAlive()) {
-						int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
-
-						if (e.GetBC() == Enemy::BadCondition::kFrost) {
-							totalDamage += e.GetBCPoint();
-						}
-
-						if (player_->GetFrostBiteActive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(1);
-						}
-
-						const int actualDamage = ApplyDamageToEnemy_(e, totalDamage);
-						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
-					}
-				} else
-				{
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (!e.IsAlive()) continue;
-						int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
-						const int actualDamage = ApplyDamageToEnemy_(e, totalDamage);
-						if (player_->GetFrostBiteActive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(1);
-						}
-						if (totalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
-						break;
-					}
-				}
-
-				/*	if (applyAttackBuff) {
-						nextTurnAtkUp_ = 0;
-					}*/
-			}
+			ApplyDamageEffect_(effect, targetIndex, applyAttackBuff);
 
 		} else if (effect.type == "DamageCrescent") {
-			if (enemyMgr_) {
-				int baseVal = effect.value;
-				if (playerTurnCount_ % 2 != 0) {
-					baseVal += 3;
-				}
-
-				int finalDamage = applyAttackBuff ? CalcFinalAttackDamage_(baseVal) : std::max(0, baseVal);
-
-				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
-					auto& e = enemyMgr_->GetEnemies()[targetIndex];
-					if (e.IsAlive()) {
-						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
-						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
-						if (player_->GetFrostBiteActive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(1);
-						}
-					}
-				} else {
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (!e.IsAlive()) continue;
-						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
-						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
-						if (player_->GetFrostBiteActive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(1);
-						}
-						break;
-					}
-				}
-
-				/*	if (applyAttackBuff) {
-						nextTurnAtkUp_ = 0;
-					}*/
-			}
+			ApplyDamageCrescentEffect_(effect, targetIndex, applyAttackBuff);
 
 		} else if (effect.type == "DamageByBlock") {
-			if (enemyMgr_) {
-				int baseVal = (player_ ? player_->GetBlock() : 0) * effect.value;
-				int finalDamage = applyAttackBuff ? CalcFinalAttackDamage_(baseVal) : std::max(0, baseVal);
-
-				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
-					auto& e = enemyMgr_->GetEnemies()[targetIndex];
-					if (e.IsAlive()) {
-						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
-						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
-						if (player_->GetFrostBiteActive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(1);
-						}
-					}
-				} else {
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (!e.IsAlive()) continue;
-						const int actualDamage = ApplyDamageToEnemy_(e, finalDamage);
-						if (finalDamage > 0) SpawnDamagePopup(e.GetPos(), actualDamage, false);
-						if (player_->GetFrostBiteActive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(1);
-						}
-						break;
-					}
-				}
-
-				/*	if (applyAttackBuff) {
-						nextTurnAtkUp_ = 0;
-					}*/
-			}
+			ApplyDamageByBlockEffect_(effect, targetIndex, applyAttackBuff);
 
 		} else if (effect.type == "Block") {
-			if (player_ && effect.value > 0) {
-				const int beforeBlock = player_->GetBlock();
-				player_->AddBlock(effect.value);
-				PlayBlockGainSEIfIncreased_(beforeBlock, player_->GetBlock());
-			}
+			ApplyBlockEffect_(effect);
 
 		} else if (effect.type == "DamageAll") {
-			if (enemyMgr_ && player_) {
-				int totalDamage = applyAttackBuff ? CalcFinalAttackDamage_(effect.value) : std::max(0, effect.value);
-
-				player_->PlayAttackAnimWithEffect(player_->GetPos(), -1);
-
-				int hitCount = 0;
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						e.TriggerHitFlash(0.2f);
-						e.PlayDamageAnim();
-						const int beforeBlock = e.GetBlock();
-						const int actualDamage = e.Damage(totalDamage);
-						PlayBlockReactionSE_(beforeBlock, e.GetBlock(), actualDamage, totalDamage);
-						if (totalDamage > 0) {
-							SpawnDamagePopup(e.GetPos(), actualDamage, false);
-						}
-						if (player_->GetFrostBiteActive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(1);
-						}
-						hitCount++;
-					}
-				}
-
-				if (hitCount > 0 && player_->GetVampireHeal() > 0) {
-					int beforeHp = player_->GetHP();
-					player_->Heal(player_->GetVampireHeal() * hitCount);
-					PlayHealSEIfHpIncreased_(player_, beforeHp);
-				}
-
-				//if (applyAttackBuff) {
-				//	nextTurnAtkUp_ = 0;
-				//}
-			}
+			ApplyDamageAllEffect_(effect, applyAttackBuff);
 
 		} else if (effect.type == "PowerBoost") {
-			if (player_ && effect.value > 0) {
-				const int beforePower = player_->GetBoostedPower();
-				player_->PowerBoost(effect.value);
-				if (player_->GetBoostedPower() > beforePower) {
-					PlaySE_("SE_PowerCharge");
-				}
-			}
+			ApplyPowerBoostEffect_(effect);
 		} else if (effect.type == "NextTurnAtkUp") {
-			if (effect.value > 0) {
-				PlaySE_("SE_PowerCharge");
-			}
-			nextTurnAtkUp_ += effect.value;
+			ApplyNextTurnAtkUpEffect_(effect);
 
 		} else if (effect.type == "Heal") {
-			if (player_) {
-				int beforeHp = player_->GetHP();
-				player_->Heal(effect.value);
-				PlayHealSEIfHpIncreased_(player_, beforeHp);
-			}
+			ApplyHealEffect_(effect);
 
 		} else if (effect.type == "HealByBlock") {
-			if (player_) {
-				int healAmount = player_->GetBlock() * effect.value; // 鬩幢ｽ｢隴弱・ﾂｧ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ鬯倬ｯ会ｽｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｰ 郢晢ｽｻ郢晢ｽｻ郢晢ｽｻ鬮ｯ蛹ｺ・ｺ・ｷ髫ｱ・ｿ鬩肴得・ｽ・ｫ
-				int beforeHp = player_->GetHP();
-				player_->Heal(healAmount);
-				PlayHealSEIfHpIncreased_(player_, beforeHp);
-			}
+			ApplyHealByBlockEffect_(effect);
 		} else if (effect.type == "HealByLowCostInHand") {
-			if (player_) {
-				int count = 0;
-				// 鬮｣遒代・繝ｻ・ｿ繝ｻ・ｫ驛｢譎｢・ｽ・ｻ鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｹ髫ｨ蛟･繝ｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・､鬯ｩ蠅捺・繝ｻ・ｽ繝ｻ・ｺ鬯ｮ・ｫ繝ｻ・ｱ鬯ｮ・ｦ繝ｻ・ｪ髫ｨ蛟･繝ｻ繝ｻ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
-				for (const auto& cardInst : hand_) {
-					const CardDef* cDef = db_.Find(cardInst.defId);
-					if (cDef && cDef->cost == 1) {
-						count++; // 1鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴主・讓滄Δ譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ髫ｨ繝ｻ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ髮九・竏槭・・ｽ髢ｾ・･繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴主・讓溽ｹ晢ｽｻ陞ｳ螟ｲ・｣・ｰ郢晢ｽｻ陝ｷ・ｲ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
-					}
-				}
-				int healAmount = count * effect.value;
-				if (healAmount > 0) {
-					int beforeHp = player_->GetHP();
-					player_->Heal(healAmount);
-					PlayHealSEIfHpIncreased_(player_, beforeHp);
-				}
-			}
+			ApplyHealByLowCostInHandEffect_(effect);
 		} else if (effect.type == "VampireBuff") {
-			if (player_) {
-				player_->AddVampireHeal(effect.value);
-			}
+			ApplyVampireBuffEffect_(effect);
 		} else if (effect.type == "SelfDamage") {
-			if (player_) {
-				player_->TriggerHitFlash(0.2f);
-				player_->PlayDamageAnim();
-				player_->Damage(effect.value);
-			}
+			ApplySelfDamageEffect_(effect);
 
 		} else if (effect.type == "Poison") {
-			if (enemyMgr_) {
-				// 鬮ｯ・ｷ鬮ｮ繝ｻﾂ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬮ｦ・ｮ陷ｷ・ｶ隨・｣ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ髫ｹ・ｺ繝ｻ・ｰ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯溷供・ｨ・ｯ・つ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
-				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
-					auto& e = enemyMgr_->GetEnemies()[targetIndex];
-					if (e.IsAlive()) {
-						e.SetBC(Enemy::BadCondition::kPoison);
-						e.AddBC(effect.value);
-					}
-				} else {
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (e.IsAlive()) {
-							e.SetBC(Enemy::BadCondition::kPoison);
-							e.AddBC(effect.value);
-							break;
-						}
-					}
-				}
-			}
-			if (player_->GetPoisonDrawActive()) {
-				DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｺ・｢驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｺ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
-			}
+			ApplyPoisonEffect_(effect, targetIndex);
 		} else if (effect.type == "PoisonAll") {
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						e.SetBC(Enemy::BadCondition::kPoison);
-						e.AddBC(effect.value);
-					}
-				}
-			}
-			if (player_->GetPoisonDrawActive()) {
-				DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｺ・｢驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｺ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
-			}
+			ApplyPoisonAllEffect_(effect);
 		} else if (effect.type == "PoisonAmplify") {
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						if (e.GetBC() == Enemy::BadCondition::kPoison) {
-							e.AmplifyBC(effect.value);
-						}
-					}
-				}
-			}
+			ApplyPoisonAmplifyEffect_(effect);
 		} else if (effect.type == "PoisonDamage") {
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						e.SetBC(Enemy::BadCondition::kPoison);
-						e.DamageBC(effect.value);
-					}
-				}
-			}
+			ApplyPoisonDamageEffect_(effect);
 		} else if (effect.type == "PoisonDraw") {
-
-			bool isActivated = player_->GetPoisonDrawActive();
-
-			if (!isActivated) {
-				player_->SetPoisonDrawActive(true);
-			} else {
-				if (enemyMgr_) {
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (e.IsAlive()) {
-							e.SetBC(Enemy::BadCondition::kPoison);
-							e.AddBC(effect.value);
-						}
-					}
-				}
-				if (player_->GetPoisonDrawActive()) {
-					DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｺ・｢驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｺ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
-				}
-			}
+			ApplyPoisonDrawEffect_(effect);
 
 		} else if (effect.type == "PoisonRemove") {
-
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						e.RemoveBC();
-					}
-				}
-			}
+			ApplyPoisonRemoveEffect_();
 
 		} else if (effect.type == "PoisonHeal") {
-
-			int healAmount = 0;
-
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					// 鬮ｮ諠ｹ・ｺ・･繝ｻ・ｰ繝ｻ・､髫ｲ讖ｸ・ｽ・ｾ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ髫ｨ・ｳ陞ｳ闌ｨ・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｯ蜈ｷ・ｽ・ｻ驛｢譎｢・ｽ・ｻ髯橸ｽｻ隶鯉ｽ｢繝ｻ・ｰ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｩ
-					if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
-						e.SetBC(Enemy::BadCondition::kPoison);
-						healAmount += e.GetBCPoint();
-					}
-				}
-			}
-
-			int beforeHp = player_->GetHP();
-			player_->Heal(healAmount);
-			PlayHealSEIfHpIncreased_(player_, beforeHp);
+			ApplyPoisonHealEffect_();
 
 		} else if (effect.type == "Frost") {
-			if (enemyMgr_) {
-				// 鬮ｯ・ｷ鬮ｮ繝ｻﾂ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬮ｦ・ｮ陷ｷ・ｶ隨・｣ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ髫ｹ・ｺ繝ｻ・ｰ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯溷供・ｨ・ｯ・つ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
-				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
-					auto& e = enemyMgr_->GetEnemies()[targetIndex];
-					if (e.IsAlive()) {
-						e.SetBC(Enemy::BadCondition::kFrost);
-						e.AddBC(effect.value);
-					}
-				} else {
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (e.IsAlive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(effect.value);
-							break;
-						}
-					}
-				}
-			}
+			ApplyFrostEffect_(effect, targetIndex);
 
 		} else if (effect.type == "FrostAll") {
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						e.SetBC(Enemy::BadCondition::kFrost);
-						e.AddBC(effect.value);
-					}
-				}
-			}
+			ApplyFrostAllEffect_(effect);
 
 		} else if (effect.type == "FrostBlock") {
-			int count = 0;
-
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()&&e.GetBC() == Enemy::BadCondition::kFrost) {
-						count += e.GetBCPoint();
-					}
-				}
-			}
+			ApplyFrostBlockEffect_(effect);
 
 		} else if (effect.type == "FrostDamage") {
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						e.DamageBC(effect.value);
-					}
-				}
-			}
+			ApplyFrostDamageEffect_(effect);
 
 		} else if (effect.type == "FrostSubtract") {
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						e.SubtractBC(effect.value);
-					}
-				}
-			}
+			ApplyFrostSubtractEffect_(effect);
 
 		} else if (effect.type == "FrostBite") {
-			bool isActivated = player_->GetFrostBiteActive();
-
-			if (!isActivated) {
-				player_->SetFrostBiteActive(true);
-			} else {
-				if (enemyMgr_) {
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (e.IsAlive()) {
-							e.SetBC(Enemy::BadCondition::kFrost);
-							e.AddBC(effect.value);
-						}
-					}
-				}
-				//if (player_->GetFrostBiteActive()) {
-				//	DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｽ・ｼ鬩･繝ｻ・ｺ・ｽ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴主・讓滄Δ譎｢・ｽ・ｰ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴寂・・・坿讖ｸ・ｽ・ｾ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
-				//}
-			}
+			ApplyFrostBiteEffect_(effect);
 
 		} else if (effect.type == "FrostAmplify") {
-			if (enemyMgr_) {
-				for (auto& e : enemyMgr_->GetEnemies()) {
-					if (e.IsAlive()) {
-						if (e.GetBC() == Enemy::BadCondition::kFrost) {
-							e.AmplifyBC(effect.value);
-						}
-					}
-				}
-			}
+			ApplyFrostAmplifyEffect_(effect);
 
 		} else if (effect.type == "FrostDraw") {
-			
-			if (enemyMgr_) {
-				// 鬮ｯ・ｷ鬮ｮ繝ｻﾂ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬮ｦ・ｮ陷ｷ・ｶ隨・｣ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ髫ｹ・ｺ繝ｻ・ｰ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯溷供・ｨ・ｯ・つ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
-				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
-					auto& e = enemyMgr_->GetEnemies()[targetIndex];
-					if (e.IsAlive()&& e.GetBC() == Enemy::BadCondition::kFrost) {
-						DrawCards_(e.GetBCPoint()/2);
-					}
-				} else {
-					for (auto& e : enemyMgr_->GetEnemies()) {
-						if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
-							DrawCards_(e.GetBCPoint()/2);
-							break;
-						}
-					}
-				}
-			}
+			ApplyFrostDrawEffect_(targetIndex);
 
 		} else if (effect.type == "ChangeNumber") {
-			// 鬮ｯ貅ｷ萓帙・・ｾ陟募仰陞ｳ螢ｽ・ｱ讒ｭ繝ｻ繝ｻ・ｾ鬯ｮ・ｮ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｡鬮ｫ・ｰ隰費ｽｶ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｮ髯橸ｽ｢繝ｻ・ｹ驕ｯ・ｶ繝ｻ・ｲ鬮ｯ貊ゑｽｽ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
+			ApplyChangeNumberEffect_(effect);
 
 		} else if (effect.type == "ChangeSuit") {
-			// 鬮ｯ貅ｷ萓帙・・ｾ陟募仰陞ｳ螢ｽ・ｱ讒ｭ繝ｻ繝ｻ・ｾ鬯ｮ・ｮ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｡鬮ｫ・ｰ隰費ｽｶ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｮ髯橸ｽ｢繝ｻ・ｹ驕ｯ・ｶ繝ｻ・ｲ鬮ｯ貊ゑｽｽ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
+			ApplyChangeSuitEffect_(effect);
 		}
 	}
 }
@@ -1273,22 +1207,19 @@ void BattleController::StartPlayerTurn_()
 			lastPokerTutorialResult_ = PokerTutorialResult::None;
 			pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
 			pokerChoiceJustOpened_ = true;
-			PlaySE_("SE_Pop");
+			BattleSfxPlayer::PlaySE("SE_Pop");
 		}
 	}
 	if (enemyMgr_) {
 		auto& enemies = enemyMgr_->GetEnemies();
-		enemyActionCounts_.assign(enemies.size(), 0);
-		enemyActedByCountThisTurn_.assign(enemies.size(), false);
-		for (size_t i = 0; i < enemies.size(); ++i) {
-			if (enemies[i].IsAlive()) {
-				enemies[i].GetBossAI().DecideNextAction();
-				enemyActionCounts_[i] = RollEnemyActionCount_();
+		for (auto& enemy : enemies) {
+			if (enemy.IsAlive()) {
+				enemy.GetBossAI().DecideNextAction();
 			}
 		}
+		enemyActionCountSystem_.StartPlayerTurn(enemies);
 	} else {
-		enemyActionCounts_.clear();
-		enemyActedByCountThisTurn_.clear();
+		enemyActionCountSystem_.Clear();
 	}
 }
 
@@ -1365,127 +1296,22 @@ void BattleController::SetPokerQuickPreviewVisible(bool visible)
 
 std::wstring BattleController::GetSubEffectTriggerText_(SubEffectTrigger trigger) const
 {
-	switch (trigger) {
-	case SubEffectTrigger::OnTurnStartWithPoker:
-		return L"ターン開始時";
-
-	case SubEffectTrigger::OnPokerSkillActivated:
-		return L"特殊効果発動時";
-
-	case SubEffectTrigger::OnPlayToField:
-		return L"場に出した時";
-
-	default:
-		return L"";
-	}
+	return CardEffectTextBuilder::GetSubEffectTriggerText(trigger);
 }
 
 std::wstring BattleController::GetSubEffectConditionText_(const CardSubEffectDef& sub) const
 {
-	auto rankToText = [](PokerHandRank rank) -> std::wstring {
-		switch (rank) {
-		case PokerHandRank::OnePair:            return L"ワンペア";
-		case PokerHandRank::TwoPair:            return L"ツーペア";
-		case PokerHandRank::ThreeOfAKind:       return L"スリーカード";
-		case PokerHandRank::Straight:           return L"ストレート";
-		case PokerHandRank::Flush:              return L"フラッシュ";
-		case PokerHandRank::FullHouse:          return L"フルハウス";
-		case PokerHandRank::FourOfAKind:        return L"フォーカード";
-		case PokerHandRank::StraightFlush:      return L"ストレートフラッシュ";
-		case PokerHandRank::RoyalStraightFlush: return L"ロイヤルストレートフラッシュ";
-		default:                                return L"";
-		}
-		};
-
-	switch (sub.condition.type) {
-	case SubEffectConditionType::ExactRank:
-	{
-		PokerHandRank rank = ParsePokerRankString_(sub.condition.rank);
-		if (rank != PokerHandRank::None) {
-			return rankToText(rank) + L"の場合";
-		}
-		break;
-	}
-
-	case SubEffectConditionType::AtLeastRank:
-	{
-		PokerHandRank rank = ParsePokerRankString_(sub.condition.rank);
-		if (rank != PokerHandRank::None) {
-			return rankToText(rank) + L"以上の場合";
-		}
-		break;
-	}
-
-	case SubEffectConditionType::RankFamily:
-		if (sub.condition.family == "StraightFamily") return L"ストレート系の場合";
-		if (sub.condition.family == "FlushFamily")    return L"フラッシュ系の場合";
-		if (sub.condition.family == "PairFamily")     return L"ペア系の場合";
-		return L"役条件あり";
-
-	default:
-		break;
-	}
-
-	return L"";
+	return CardEffectTextBuilder::GetSubEffectConditionText(sub);
 }
 
 std::wstring BattleController::GetEffectValueText_(const CardEffectDef& effect) const
 {
-	if (!effect.valueText.empty()) {
-		return Utf8ToWString(effect.valueText) + L": " + std::to_wstring(effect.value);
-	}
-
-	if (effect.type == "Draw") {
-		return L"ドロー: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "Damage") {
-		return L"ダメージ: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "DamageAll") {
-		return L"全体ダメージ: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "Heal") {
-		return L"回復: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "Block") {
-		return L"ブロック: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "PowerBoost") {
-		return L"パワー: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "EnergyCharge") {
-		return L"コスト回復: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "NextTurnAtkUp") {
-		return L"次ターンATK UP: " + std::to_wstring(effect.value);
-	}
-	if (effect.type == "SelfDamage") {
-		return L"自傷: " + std::to_wstring(effect.value);
-	}
-
-	return Utf8ToWString(effect.type) + L": " + std::to_wstring(effect.value);
+	return CardEffectTextBuilder::GetEffectValueText(effect);
 }
 
 std::wstring BattleController::GetBaseEffectSummaryText_(const CardDef& def) const
 {
-	if (!def.effects.empty()) {
-		std::wstring text;
-
-		for (size_t i = 0; i < def.effects.size(); ++i) {
-			if (i > 0) {
-				text += L"\n";
-			}
-			text += GetEffectValueText_(def.effects[i]);
-		}
-
-		return text;
-	}
-
-	if (!def.desc.empty()) {
-		return Utf8ToWString(def.desc);
-	}
-
-	return L"なし";
+	return CardEffectTextBuilder::GetBaseEffectSummaryText(def);
 }
 
 std::wstring BattleController::GetPreviewCardDetailText() const
@@ -1495,39 +1321,7 @@ std::wstring BattleController::GetPreviewCardDetailText() const
 		return L"";
 	}
 
-	std::wstring text = L"基本効果:\n";
-	if (!def->desc.empty()) {
-		text += Utf8ToWString(def->desc);
-	} else {
-		text += L"なし";
-	}
-
-	if (!def->subEffects.empty()) {
-		text += L"\n\n";
-		for (size_t i = 0; i < def->subEffects.size(); ++i) {
-			const auto& sub = def->subEffects[i];
-			if (i > 0) {
-				text += L"\n\n";
-			}
-
-			std::wstring triggerText = GetSubEffectTriggerText_(sub.trigger);
-			if (!triggerText.empty()) {
-				text += triggerText + L"\n";
-			}
-
-			std::wstring conditionText = GetSubEffectConditionText_(sub);
-			if (!conditionText.empty()) {
-				text += conditionText + L"\n";
-			}
-
-			for (size_t j = 0; j < sub.effects.size(); ++j) {
-				if (j > 0) text += L"\n";
-				text += GetEffectValueText_(sub.effects[j]);
-			}
-		}
-	}
-
-	return text;
+	return CardEffectTextBuilder::BuildPreviewCardDetailText(*def);
 }
 
 
@@ -1587,47 +1381,22 @@ std::vector<std::wstring> BattleController::CollectSubEffectPreviewLines_(
 
 std::wstring BattleController::GetPokerEffectPreviewText() const
 {
-	std::wstring text;
-
-	PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
-
-	text += L"選択効果:\n";
-	text += L"・このあと1つ選びます\n";
-	text += L"  1. 次ターンATK UP +" + std::to_wstring(bonus.atkUp) + L"\n";
-	text += L"  2. " + std::to_wstring(bonus.drawCount) + L"枚ドロー\n";
-	text += L"  3. 敵単体に" + std::to_wstring(bonus.damage) + L"ダメージ\n";
-	text += L"\n";
+	const PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
 
 	auto turnStartLines = CollectSubEffectPreviewLines_(
 		SubEffectTrigger::OnTurnStartWithPoker,
 		currentPoker_.rank
 	);
 
-	text += L"ターン開始時:\n";
-	if (turnStartLines.empty()) {
-		text += L"・なし\n";
-	} else {
-		for (const auto& line : turnStartLines) {
-			text += line + L"\n";
-		}
-	}
-	text += L"\n";
-
 	auto pokerActivatedLines = CollectSubEffectPreviewLines_(
 		SubEffectTrigger::OnPokerSkillActivated,
 		currentPoker_.rank
 	);
 
-	text += L"特殊効果発動時:\n";
-	if (pokerActivatedLines.empty()) {
-		text += L"・なし\n";
-	} else {
-		for (const auto& line : pokerActivatedLines) {
-			text += line + L"\n";
-		}
-	}
-
-	return text;
+	return PokerChoiceTextBuilder::BuildEffectPreviewText(
+		{ bonus.atkUp, bonus.drawCount, bonus.damage },
+		turnStartLines,
+		pokerActivatedLines);
 }
 
 void BattleController::TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank)
@@ -2136,8 +1905,9 @@ uint64_t BattleController::BuildHandPokerPreviewSignature_() const
 		mix(static_cast<uint64_t>(card.suit));
 	}
 
-	mix(static_cast<uint64_t>(hand_.size()));
-	for (const auto& card : hand_) {
+	const auto& hand = deckZone_.GetHand();
+	mix(static_cast<uint64_t>(hand.size()));
+	for (const auto& card : hand) {
 		mix(static_cast<uint64_t>(card.defId));
 		mix(static_cast<uint64_t>(card.number));
 		mix(static_cast<uint64_t>(card.suit));
@@ -2155,29 +1925,30 @@ void BattleController::UpdateHandPokerPreviewEffects_()
 	}
 	handPreviewSignature_ = signature;
 
-	handPreviewRanks_.assign(hand_.size(), PokerHandRank::None);
+	const auto& hand = deckZone_.GetHand();
+	handPreviewRanks_.assign(hand.size(), PokerHandRank::None);
 
-	if (!sHandPokerPreviewEnabled || hand_.empty()) {
+	if (!sHandPokerPreviewEnabled || hand.empty()) {
 		handView_.ClearCardEffects();
 		return;
 	}
 
 	bool anyPreview = false;
-	const int handCount = std::min<int>(static_cast<int>(hand_.size()), handView_.GetCardCount());
+	const int handCount = std::min<int>(static_cast<int>(hand.size()), handView_.GetCardCount());
 
 	for (int handIndex = 0; handIndex < handCount; ++handIndex) {
 		PokerHandRank bestRank = PokerHandRank::None;
 
 		if (field_.size() < 5) {
 			std::vector<CardInstance> candidate = field_;
-			candidate.push_back(hand_[handIndex]);
+			candidate.push_back(hand[handIndex]);
 			if (candidate.size() == 5) {
 				bestRank = EvaluatePokerHandForCards_(candidate).rank;
 			}
 		} else if (field_.size() == 5) {
 			for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
 				std::vector<CardInstance> candidate = field_;
-				candidate[replaceIndex] = hand_[handIndex];
+				candidate[replaceIndex] = hand[handIndex];
 				const PokerHandRank rank = EvaluatePokerHandForCards_(candidate).rank;
 				if (rank > bestRank) {
 					bestRank = rank;
@@ -2250,43 +2021,13 @@ void BattleController::EmitHandCardGlitter_(float dt)
 
 int BattleController::PickFieldIndexByMouse_(int mouseX, int mouseY) const
 {
-	const Matrix4x4& vp = cam_->GetViewProjectionMatrix();
-	const float sw = (float)WinApp::kClientWidth;
-	const float sh = (float)WinApp::kClientHeight;
-
-	int best = -1;
-	float bestD2 = 80.0f * 80.0f;
-
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		Vector3 w = fieldViews_[i]->GetWorldPos();
-
-		Vector4 clip{};
-		clip.x = w.x * vp.m[0][0] + w.y * vp.m[1][0] + w.z * vp.m[2][0] + 1.0f * vp.m[3][0];
-		clip.y = w.x * vp.m[0][1] + w.y * vp.m[1][1] + w.z * vp.m[2][1] + 1.0f * vp.m[3][1];
-		clip.z = w.x * vp.m[0][2] + w.y * vp.m[1][2] + w.z * vp.m[2][2] + 1.0f * vp.m[3][2];
-		clip.w = w.x * vp.m[0][3] + w.y * vp.m[1][3] + w.z * vp.m[2][3] + 1.0f * vp.m[3][3];
-
-		if (clip.w <= 0.0f) {
-			continue;
-		}
-
-		const float ndcX = clip.x / clip.w;
-		const float ndcY = clip.y / clip.w;
-
-		const float sx = (ndcX * 0.5f + 0.5f) * sw;
-		const float sy = (-ndcY * 0.5f + 0.5f) * sh;
-
-		const float dx = sx - (float)mouseX;
-		const float dy = sy - (float)mouseY;
-		const float d2 = dx * dx + dy * dy;
-
-		if (d2 < bestD2) {
-			bestD2 = d2;
-			best = i;
-		}
-	}
-
-	return best;
+	return BattleFieldViewController::PickFieldIndexByMouse(
+		fieldViews_,
+		*cam_,
+		mouseX,
+		mouseY,
+		(float)WinApp::kClientWidth,
+		(float)WinApp::kClientHeight);
 }
 
 void BattleController::Update(GameApp& app, FieldUi& fieldUi, float dt)
@@ -2536,9 +2277,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 		if ((/*enterTrig ||*/ endTurnButtonClicked) && cardState_ == CardInputState::Idle) {
 
-			OutputDebugStringA(("Before EndTurn hand=" + std::to_string(hand_.size()) +
-				" deck=" + std::to_string(deck_.size()) +
-				" discard=" + std::to_string(discard_.size()) +
+			OutputDebugStringA(("Before EndTurn hand=" + std::to_string(deckZone_.GetHandCount()) +
+				" deck=" + std::to_string(deckZone_.GetDeckCount()) +
+				" discard=" + std::to_string(deckZone_.GetDiscardCount()) +
 				" field=" + std::to_string(field_.size()) + "\n").c_str());
 
 			turn_ = TurnState::Enemy;
@@ -2600,7 +2341,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					handView_.SetDrag(-1, 0, 0, false);
 
 					if (dragDy_ <= -threshold) {
-						PlaySE_("SE_CardFlick");
+						BattleSfxPlayer::PlaySE("SE_CardFlick");
 						cardState_ = CardInputState::Preview;
 						handView_.SetPreviewIndex(selectedIndex_);
 					} else {
@@ -2617,8 +2358,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				if (lTrig) {
 					int idx = selectedIndex_;
-					if (idx >= 0 && idx < (int)hand_.size()) {
-						CardInstance inst = hand_[idx];
+					if (idx >= 0 && idx < static_cast<int>(deckZone_.GetHandCount())) {
+						CardInstance inst = deckZone_.GetHand()[idx];
 						const CardDef* def = db_.Find(inst.defId);
 
 						if (def && def->cost <= energy_) {
@@ -2699,10 +2440,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 							}
 
 							energy_ -= def->cost;
-							PlaySE_("SE_CardPlay");
-							PlayAttackSEForCard_(*def);
+							BattleSfxPlayer::PlaySE("SE_CardPlay");
+							BattleSfxPlayer::PlayAttackSEForCard(*def);
 							auto usedCardView = handView_.ExtractCardAt(idx);
-							hand_.erase(hand_.begin() + idx);
+							deckZone_.RemoveHandAt(static_cast<std::size_t>(idx));
 							//handView_.Rebuild(hand_);
 
 
@@ -2772,11 +2513,11 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				if (lTrig) {
 					int replaceIndex = fieldReplaceHoverIndex_;
 					if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
-						PlaySE_("SE_CardFlick");
+						BattleSfxPlayer::PlaySE("SE_CardFlick");
 						if (fieldViews_[replaceIndex]) {
 							handView_.AddDiscardingCard(std::move(fieldViews_[replaceIndex]));
 						}
-						discard_.push_back(field_[replaceIndex]);
+						deckZone_.AddToDiscard(field_[replaceIndex]);
 						field_[replaceIndex] = pendingCard_;
 						if (pendingCardView_) {
 							pendingCardView_->SetIsHand(false);
@@ -2803,8 +2544,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				if (rTrig) {
 					if (hasPendingCard_) {
-						PlaySE_("SE_CardFlick");
-						discard_.push_back(pendingCard_);
+						BattleSfxPlayer::PlaySE("SE_CardFlick");
+						deckZone_.AddToDiscard(pendingCard_);
 					}
 					if (pendingCardView_) {
 						handView_.AddDiscardingCard(std::move(pendingCardView_));
@@ -2832,25 +2573,21 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 			case CardInputState::ChoosingEnemyTarget:
 			{
 				// 鬩幢ｽ｢隴弱・・ｽ・ｧ繝ｻ・ｭ驍ｵ・ｺ髢ｧ・ｲ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮｣蜴・ｽｽ・ｴ髯ｷ・･繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・私・ｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢繝ｻ・ｧ髯ｷ・ｻ髢ｧ・ｲ驍頑ｻ・＠繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
-				int hoverIndex = enemyMgr_->PickEnemyByMouse(
-					mouse.x, mouse.y,
-					cam_->GetViewProjectionMatrix(),
-					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-				);
-
-				Vector4 defaultColor{ 1.0f, 1.f, 1.f, 1.0f };
+				int hoverIndex = cardTargetingController_.PickHoveredEnemy(
+					enemyMgr_,
+					cam_,
+					mouse.x,
+					mouse.y,
+					static_cast<float>(WinApp::kClientWidth),
+					static_cast<float>(WinApp::kClientHeight));
 
 				// 鬩幢ｽ｢隴弱・・ｽ・ｧ繝ｻ・ｭ驍ｵ・ｺ髢ｧ・ｲ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ鬩募●繝ｻ髯ｬ貊・＠繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・私・ｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｶ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ髴大､ｲ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ髣包ｽｳ隶抵ｽｭ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ髫ｨ・ｳ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
-				for (auto& enemy : enemyMgr_->GetEnemies()) {
-					enemy.SetHighlight(false);
-				}
-				if (hoverIndex >= 0) {
-					enemyMgr_->GetEnemies()[hoverIndex].SetHighlight(true);
-				}
+				cardTargetingController_.ClearHighlights(enemyMgr_);
+				cardTargetingController_.ApplyHoverHighlight(enemyMgr_, hoverIndex);
 
 				// 鬮ｯ譎｢・ｽ・ｾ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ鬩｢謳ｾ・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬮ｮ謇具ｽｶ・｣繝ｻ・ｽ繝ｻ・ｺ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
 				if (lTrig) {
-					if (hoverIndex >= 0) {
+					if (cardTargetingController_.IsValidTarget(enemyMgr_, hoverIndex)) {
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
 						currentEnemyIndex_ = hoverIndex;
 
@@ -2860,7 +2597,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 							return;
 						}
 
-						const CardInstance& inst = hand_[pendingCardHandIndex_];
+						const CardInstance& inst = deckZone_.GetHand()[pendingCardHandIndex_];
 						const CardDef* def = db_.Find(inst.defId);
 						if (def && BeginCardActionSequence_(app, *def, inst, targetEnemy)) {
 							cardState_ = CardInputState::ExecutingSequence;
@@ -2913,8 +2650,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				auto& enemies = enemyMgr_->GetEnemies();
 				while (currentEnemyIndex_ < enemies.size() &&
 					(!enemies[currentEnemyIndex_].IsAlive() ||
-						(currentEnemyIndex_ < enemyActedByCountThisTurn_.size() &&
-							enemyActedByCountThisTurn_[currentEnemyIndex_]))) {
+						enemyActionCountSystem_.ShouldSkipEnemyTurn(currentEnemyIndex_))) {
 					currentEnemyIndex_++;
 				}
 
@@ -3029,7 +2765,7 @@ void BattleController::UpdateVisuals_(float dt)
 
 	if (enemyMgr_) {
 		auto& enemies = enemyMgr_->GetEnemies();
-		enemyStatusUi_.UpdateLayout(enemies, enemyActionCounts_, enemyActedByCountThisTurn_, viewMat, projMat);
+		enemyStatusUi_.UpdateLayout(enemies, enemyActionCountSystem_.GetCounts(), enemyActionCountSystem_.GetActedFlags(), viewMat, projMat);
 	}
 	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
@@ -3541,7 +3277,7 @@ void BattleController::Draw2D(GameApp& app)
 		enemyStatusUi_.DrawGaugeAndIntent2D(
 			app,
 			enemies,
-			enemyActedByCountThisTurn_,
+			enemyActionCountSystem_.GetActedFlags(),
 			sPokerGlowRainbowTime,
 			view,
 			proj,
@@ -3593,7 +3329,7 @@ void BattleController::DrawImGui()
 	ImGui::Text("PlayerTurnCount : %d", playerTurnCount_);
 	ImGui::Text("EnemyTurnCount : %d", enemyTurnCount_);
 	ImGui::Text("energy: %d / %d", energy_, energyMax_);
-	ImGui::Text("hand: %d  discard: %d", (int)hand_.size(), (int)discard_.size());
+	ImGui::Text("hand: %d  discard: %d", static_cast<int>(deckZone_.GetHandCount()), static_cast<int>(deckZone_.GetDiscardCount()));
 	ImGui::Text("field: %d", (int)field_.size());
 
 	if (ImGui::CollapsingHeader("Field Card Glitter")) {
@@ -3715,12 +3451,13 @@ void BattleController::DrawImGui()
 
 	ImGui::Separator();
 	ImGui::Text("Hand Cards");
-	for (int i = 0; i < (int)hand_.size(); ++i) {
+	const auto& hand = deckZone_.GetHand();
+	for (int i = 0; i < static_cast<int>(hand.size()); ++i) {
 		ImGui::Text("hand[%d] defId=%d number=%d suit=%s",
 			i,
-			hand_[i].defId,
-			hand_[i].number,
-			SuitToString(hand_[i].suit));
+			hand[i].defId,
+			hand[i].number,
+			SuitToString(hand[i].suit));
 	}
 
 	ImGui::Separator();
@@ -3891,12 +3628,12 @@ int BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)
 	enemy.PlayDamageAnim();
 	const int beforeBlock = enemy.GetBlock();
 	const int actualDamage = enemy.Damage(damage);
-	PlayBlockReactionSE_(beforeBlock, enemy.GetBlock(), actualDamage, damage);
+	BattleSfxPlayer::PlayBlockReactionSE(beforeBlock, enemy.GetBlock(), actualDamage, damage);
 
 	if (player_->GetVampireHeal() > 0) {
 		int beforeHp = player_->GetHP();
 		player_->Heal(player_->GetVampireHeal());
-		PlayHealSEIfHpIncreased_(player_, beforeHp);
+		BattleSfxPlayer::PlayHealSEIfHpIncreased(player_, beforeHp);
 	}
 
 	return actualDamage;
@@ -3918,21 +3655,21 @@ void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isP
 const CardDef* BattleController::GetPreviewCardDef() const
 {
 	if (cardState_ == CardInputState::Dragging) {
-		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(hand_.size())) {
-			return db_.Find(hand_[selectedIndex_].defId);
+		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(deckZone_.GetHandCount())) {
+			return db_.Find(deckZone_.GetHand()[selectedIndex_].defId);
 		}
 	}
 
 	if (cardState_ == CardInputState::Preview) {
-		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(hand_.size())) {
-			return db_.Find(hand_[selectedIndex_].defId);
+		if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(deckZone_.GetHandCount())) {
+			return db_.Find(deckZone_.GetHand()[selectedIndex_].defId);
 		}
 	}
 
 	if (cardState_ == CardInputState::Idle) {
 		int handHover = handView_.GetHoverIndex();
-		if (handHover >= 0 && handHover < static_cast<int>(hand_.size())) {
-			return db_.Find(hand_[handHover].defId);
+		if (handHover >= 0 && handHover < static_cast<int>(deckZone_.GetHandCount())) {
+			return db_.Find(deckZone_.GetHand()[handHover].defId);
 		}
 	}
 
@@ -3945,8 +3682,8 @@ const CardDef* BattleController::GetPreviewCardDef() const
 
 	if (pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi) {
 		int handHover = handView_.GetHoverIndex();
-		if (handHover >= 0 && handHover < static_cast<int>(hand_.size())) {
-			return db_.Find(hand_[handHover].defId);
+		if (handHover >= 0 && handHover < static_cast<int>(deckZone_.GetHandCount())) {
+			return db_.Find(deckZone_.GetHand()[handHover].defId);
 		}
 
 		if (fieldReplaceHoverIndex_ >= 0 &&
@@ -3960,81 +3697,36 @@ const CardDef* BattleController::GetPreviewCardDef() const
 
 bool BattleController::HasPokerChoiceUi() const
 {
-	return pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice ||
-		pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice;
+	return PokerChoiceQuery::HasChoiceUi(pokerChoiceState_);
 }
 
 std::wstring BattleController::GetPokerChoiceUiText() const
 {
-	if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice) {
-		std::wstring text = L"";
-		text += L"ポーカー効果が発動可能です\n";
-		text += L"役: ";
-		text += std::wstring(GetPokerHandName_(currentPoker_.rank),
-			GetPokerHandName_(currentPoker_.rank) + std::strlen(GetPokerHandName_(currentPoker_.rank)));
-		text += L"\n";
-		text += L"左クリック : 発動する\n";
-		text += L"左クリック : 発動しない\n";
-		text += L"左クリック : 場を見る\n";
-		return text;
-	}
-
-	if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice) {
-		PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
-
-		std::wstring text = L"";
-		text += L"発動する効果を選んでください\n";
-		text += L"左クリック : 戻る\n";
-		text += L"左クリック : 次ターンATK UP (+" + std::to_wstring(bonus.atkUp) + L")\n";
-		text += L"左クリック : " + std::to_wstring(bonus.drawCount) + L"枚ドロー\n";
-		text += L"左クリック : " + std::to_wstring(bonus.damage) + L"ダメージ\n";
-		text += L"左クリック : 場を見る\n";
-		return text;
-	}
-
-	if (pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi) {
-		std::wstring text;
-		text += L"場確認中\n";
-		text += L"カードにマウスを乗せて確認できます\n";
-		text += L"左クリック : 特殊効果選択に戻る\n";
-		return text;
-	}
-
-	return L"";
+	const PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
+	return PokerChoiceTextBuilder::BuildChoiceUiText(
+		PokerChoiceQuery::ToTextBuilderState(pokerChoiceState_),
+		currentPoker_.rank,
+		{ bonus.atkUp, bonus.drawCount, bonus.damage });
 }
 
 int BattleController::GetPokerMouseChoiceIndex() const
 {
-	switch (pokerMouseChoice_) {
-	case PokerMouseChoice::ActivateYes:       return 0;
-	case PokerMouseChoice::ActivateNo:        return 1;
-	case PokerMouseChoice::ActivateViewBoard: return 2;
-
-	case PokerMouseChoice::EffectBack:        return 0;
-	case PokerMouseChoice::EffectAtkUp:       return 1;
-	case PokerMouseChoice::EffectDamage:      return 2;
-	case PokerMouseChoice::EffectDraw:        return 3;
-	case PokerMouseChoice::EffectViewBoard:   return 4;
-
-	case PokerMouseChoice::ReturnFromBoard:   return 0;
-
-	default:                                  return -1;
-	}
+	return PokerChoiceQuery::GetMouseChoiceIndex(pokerMouseChoice_);
 }
 
 bool BattleController::IsWaitingActivateChoice() const
 {
-	return pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice;
+	return PokerChoiceQuery::IsWaitingActivate(pokerChoiceState_);
 }
 
 bool BattleController::IsWaitingEffectChoice() const
 {
-	return pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice;
+	return PokerChoiceQuery::IsWaitingEffect(pokerChoiceState_);
 }
 
 bool BattleController::IsViewingBoardFromPokerUi() const
 {
-	return pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi;
+	return PokerChoiceQuery::IsViewingBoard(pokerChoiceState_);
 }
 
 bool BattleController::ShouldShowOperationUi() const
@@ -4074,9 +3766,9 @@ std::wstring BattleController::GetOperationUiText() const
 std::wstring BattleController::GetZoneCountUiText() const
 {
 	std::wstring text;
-	text += L"山札 : " + std::to_wstring(deck_.size()) + L"\n";
-	text += L"手札 : " + std::to_wstring(hand_.size()) + L"\n";
-	text += L"墓地 : " + std::to_wstring(discard_.size()) + L"\n";
+	text += L"山札 : " + std::to_wstring(deckZone_.GetDeckCount()) + L"\n";
+	text += L"手札 : " + std::to_wstring(deckZone_.GetHandCount()) + L"\n";
+	text += L"墓地 : " + std::to_wstring(deckZone_.GetDiscardCount()) + L"\n";
 	text += L"場   : " + std::to_wstring(field_.size()) + L"\n";
 	return text;
 }
@@ -4208,14 +3900,15 @@ std::wstring BattleController::GetPlayerBlockText()const {
 
 int BattleController::CalcTotalIncomingDamage() const {
 	int total = 0;
-	if (!enemyMgr_) return 0;
+	if (!enemyMgr_ || !player_) return 0;
 
-	for (auto& enemy : enemyMgr_->GetEnemies()) {
-		if (enemy.IsAlive()) {
-
-			// 鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｬ郢晢ｽｻ繝ｻ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬯ｮ・ｯ繝ｻ・ｦ髯溷供・ｨ・ｯ鬲假ｽｬ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ鬯ｲ蛛・ｽｽ・ｨ鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｧ・ｫ陟募ｮ｣霎ｧ陟・§諠ｧ郢晢ｽｻ繝ｻ・ｼ髯具ｽｹ繝ｻ・ｻ驍ｵ・ｺ陷･謫ｾ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴寂・繝ｻ郢晢ｽｻ繝ｻ・ｭ髯晢ｽｲ繝ｻ・ｨ驕ｯ・ｶ繝ｻ・ｲ鬩搾ｽｵ繝ｻ・ｺ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬮ｮ荵晢ｽ・・・ｸ繝ｻ・ｷ郢晢ｽｻ繝ｻ・ｮ髫ｲ・､隲帷ｿｫ繝ｻ鬯ｨ・ｾ郢晢ｽｻ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
-			total += enemy.GetIncomingDamage() - player_->GetBlock();
+	auto& enemies = enemyMgr_->GetEnemies();
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		const auto& enemy = enemies[i];
+		if (!enemy.IsAlive() || enemyActionCountSystem_.IsActedByCount(i)) {
+			continue;
 		}
+		total += enemy.GetIncomingDamage() - player_->GetBlock();
 	}
 	return total;
 }
@@ -4304,7 +3997,7 @@ void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& acti
 		const int beforeHp = player_->GetHP();
 		player_->Damage(action.value);
 		const int actualHpDamage = beforeHp - player_->GetHP();
-		PlayBlockReactionSE_(beforeBlock, player_->GetBlock(), actualHpDamage, action.value);
+		BattleSfxPlayer::PlayBlockReactionSE(beforeBlock, player_->GetBlock(), actualHpDamage, action.value);
 		if (action.value > 0) {
 			SpawnDamagePopup(player_->GetPos(), actualHpDamage, true);
 		}
@@ -4312,12 +4005,12 @@ void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& acti
 		const int beforeHp = enemy.GetHP();
 		enemy.Heal(action.value);
 		if (enemy.GetHP() > beforeHp) {
-			PlaySE_("SE_Heal");
+			BattleSfxPlayer::PlaySE("SE_Heal");
 		}
 	} else if (action.type == "Block") {
 		const int beforeBlock = enemy.GetBlock();
 		enemy.AddBlock(action.value);
-		PlayBlockGainSEIfIncreased_(beforeBlock, enemy.GetBlock());
+		BattleSfxPlayer::PlayBlockGainSEIfIncreased(beforeBlock, enemy.GetBlock());
 	}
 }
 
@@ -4328,34 +4021,20 @@ void BattleController::OnPlayerCardUsed_()
 	}
 
 	auto& enemies = enemyMgr_->GetEnemies();
-	if (enemyActionCounts_.size() != enemies.size()) {
-		enemyActionCounts_.assign(enemies.size(), 0);
-	}
-	if (enemyActedByCountThisTurn_.size() != enemies.size()) {
-		enemyActedByCountThisTurn_.assign(enemies.size(), false);
-	}
-
-	for (size_t i = 0; i < enemies.size(); ++i) {
-		if (!enemies[i].IsAlive() || enemyActedByCountThisTurn_[i]) {
+	const auto triggeredEnemies = enemyActionCountSystem_.OnPlayerCardUsed(enemies);
+	for (size_t index : triggeredEnemies) {
+		if (index >= enemies.size() || !enemies[index].IsAlive()) {
 			continue;
 		}
-		if (enemyActionCounts_[i] <= 0) {
-			continue;
-		}
-
-		enemyActionCounts_[i]--;
-		if (enemyActionCounts_[i] <= 0) {
-			ExecuteEnemyAction_(enemies[i], enemies[i].GetBossAI().GetNextAction());
-			enemyActedByCountThisTurn_[i] = true;
-			enemyActionCounts_[i] = 0;
-		}
+		ExecuteEnemyAction_(enemies[index], enemies[index].GetBossAI().GetNextAction());
+		enemyActionCountSystem_.MarkActedByCount(index);
 	}
 }
 
 void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 {
 	if (isPokerDamageTargeting_) {
-		PlaySE_("SE_StrongAttack");
+		BattleSfxPlayer::PlaySE("SE_StrongAttack");
 		const int actualDamage = ApplyDamageToEnemy_(targetEnemy, pendingDamage_);
 		if (pendingDamage_ > 0) {
 			SpawnDamagePopup(targetEnemy.GetPos(), actualDamage, false);
@@ -4376,17 +4055,17 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 	} else {
 		// 鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驍ｵ・ｲ陜｣・､繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ髫ｨ繝ｻ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ髮九・・ｽ・ｷ郢晢ｽｻ繝ｻ・ｰ郢晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
 		int idx = pendingCardHandIndex_;
-		CardInstance inst = hand_[idx];
+		CardInstance inst = deckZone_.GetHand()[idx];
 		const CardDef* def = db_.Find(inst.defId);
 
 		// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴主・讓溽ｹ晢ｽｻ陞ｳ螟ｲ・ｽ・ｱ繝ｻ・ｸ鬯ｩ蟶吶・繝ｻ・ｽ繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ髣・ｽｽ繝ｻ・ｱ繝ｻ・ｸ髯具ｽｹ繝ｻ・ｻ髫ｨ蛟･繝ｻ
 		energy_ -= def->cost;
-		PlaySE_("SE_CardPlay");
-		PlayAttackSEForCard_(*def);
+		BattleSfxPlayer::PlaySE("SE_CardPlay");
+		BattleSfxPlayer::PlayAttackSEForCard(*def);
 		auto usedCardView = handView_.ExtractCardAt(idx);
-		hand_.erase(hand_.begin() + idx);
+		deckZone_.RemoveHandAt(static_cast<std::size_t>(idx));
 
-		handView_.Rebuild(hand_);
+		handView_.Rebuild(deckZone_.GetHand());
 
 		// 鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬮｣豈費ｽｼ螟ｲ・ｽ・ｽ繝ｻ・･鬮ｯ讓奇ｽｻ阮卍ｧ驛｢譎｢・ｽ・ｻ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・ｽ繝ｻ・ｹ鬮ｫ・ｴ繝ｻ・ｫ髫ｲ蟷｢・ｽ・ｶ郢晢ｽｻ繝ｻ・ｼ髯具ｽｹ繝ｻ・ｻ驛｢譎｢・ｽ・ｩ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｭ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｩ驛｢譎｢・ｽ・ｻ髯晢ｽｲ繝ｻ・ｨ郢晢ｽｻ陝ｶ謨鳴陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｺ鬮ｯ・ｷ鬮ｦ・ｪ郢晢ｽｻ
 		ApplyCardEffects_(*def, currentEnemyIndex_);
@@ -4417,4 +4096,3 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 		OnPlayerCardUsed_();
 	}
 }
-

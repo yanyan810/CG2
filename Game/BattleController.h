@@ -18,6 +18,9 @@
 #include "UI/EnemyBattleStatusUI.h"
 #include "UI/PlayerBattleStatusUI.h"
 #include "Poker/PokerHandEvaluator.h"
+#include "Battle/EnemyActionCountSystem.h"
+#include "Battle/BattleDeckZone.h"
+#include "Battle/CardTargetingController.h"
 
 class GameApp;
 class Camera;
@@ -112,9 +115,9 @@ public:
 
 	//ゾーンごとのカード枚数表示用
 	std::wstring GetZoneCountUiText() const;
-	int GetDeckCount() const { return static_cast<int>(deck_.size()); }
-	int GetHandCount() const { return static_cast<int>(hand_.size()); }
-	int GetDiscardCount() const { return static_cast<int>(discard_.size()); }
+	int GetDeckCount() const { return static_cast<int>(deckZone_.GetDeckCount()); }
+	int GetHandCount() const { return static_cast<int>(deckZone_.GetHandCount()); }
+	int GetDiscardCount() const { return static_cast<int>(deckZone_.GetDiscardCount()); }
 	int GetFieldCount() const { return static_cast<int>(field_.size()); }
 	std::wstring GetCurrentPokerHandUiText() const;
 	std::wstring GetTurnUiText() const;
@@ -205,12 +208,9 @@ public:
 		costDigitModels_.clear();
 
 		enemyStatusUi_.Clear();
-		enemyActionCounts_.clear();
-		enemyActedByCountThisTurn_.clear();
+		enemyActionCountSystem_.Clear();
 
-		deck_.clear();
-		hand_.clear();
-		discard_.clear();
+		deckZone_.Clear();
 		field_.clear();
 
 		player_ = nullptr;
@@ -289,12 +289,10 @@ private:
 	Object3dCommon* objCom_ = nullptr;
 	DirectXCommon* dx_ = nullptr;
 
-	std::vector<CardInstance> deck_;
+	BattleDeckZone deckZone_;
 	void SetupDeck(const std::vector<CardInstance>& initialDeck);
 
-	const std::vector<CardInstance>& GetDeck() const { return deck_; }
-	std::vector<CardInstance> hand_;
-	std::vector<CardInstance> discard_;
+	const std::vector<CardInstance>& GetDeck() const { return deckZone_.GetDeck(); }
 	std::vector<CardInstance> field_;
 	std::vector<std::unique_ptr<Card3D>> fieldViews_;
 	FieldCardLayout fieldCardLayout_{};
@@ -412,8 +410,8 @@ private:
 	EnemyBattleStatusUI enemyStatusUi_;
 
 	int playerLastHp_ = -1;
-	std::vector<int> enemyActionCounts_;
-	std::vector<bool> enemyActedByCountThisTurn_;
+	EnemyActionCountSystem enemyActionCountSystem_;
+	CardTargetingController cardTargetingController_;
 
 	std::unique_ptr<Sprite> highlightFilter_;
 
@@ -441,6 +439,36 @@ private:
 	bool DoesSubEffectConditionMatch_(const CardSubEffectDef& sub, PokerHandRank rank) const;
 
 	void ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex = -1, bool applyAttackBuff = true);
+	void ApplyDamageEffect_(const CardEffectDef& effect, int targetIndex, bool applyAttackBuff);
+	void ApplyDamageCrescentEffect_(const CardEffectDef& effect, int targetIndex, bool applyAttackBuff);
+	void ApplyDamageByBlockEffect_(const CardEffectDef& effect, int targetIndex, bool applyAttackBuff);
+	void ApplyDamageAllEffect_(const CardEffectDef& effect, bool applyAttackBuff);
+	void ApplyDrawEffect_(const CardEffectDef& effect);
+	void ApplyBlockEffect_(const CardEffectDef& effect);
+	void ApplyPowerBoostEffect_(const CardEffectDef& effect);
+	void ApplyNextTurnAtkUpEffect_(const CardEffectDef& effect);
+	void ApplyHealEffect_(const CardEffectDef& effect);
+	void ApplyHealByBlockEffect_(const CardEffectDef& effect);
+	void ApplyHealByLowCostInHandEffect_(const CardEffectDef& effect);
+	void ApplyVampireBuffEffect_(const CardEffectDef& effect);
+	void ApplySelfDamageEffect_(const CardEffectDef& effect);
+	void ApplyPoisonEffect_(const CardEffectDef& effect, int targetIndex);
+	void ApplyPoisonAllEffect_(const CardEffectDef& effect);
+	void ApplyPoisonAmplifyEffect_(const CardEffectDef& effect);
+	void ApplyPoisonDamageEffect_(const CardEffectDef& effect);
+	void ApplyPoisonDrawEffect_(const CardEffectDef& effect);
+	void ApplyPoisonRemoveEffect_();
+	void ApplyPoisonHealEffect_();
+	void ApplyFrostEffect_(const CardEffectDef& effect, int targetIndex);
+	void ApplyFrostAllEffect_(const CardEffectDef& effect);
+	void ApplyFrostBlockEffect_(const CardEffectDef& effect);
+	void ApplyFrostDamageEffect_(const CardEffectDef& effect);
+	void ApplyFrostSubtractEffect_(const CardEffectDef& effect);
+	void ApplyFrostBiteEffect_(const CardEffectDef& effect);
+	void ApplyFrostAmplifyEffect_(const CardEffectDef& effect);
+	void ApplyFrostDrawEffect_(int targetIndex);
+	void ApplyChangeNumberEffect_(const CardEffectDef& effect);
+	void ApplyChangeSuitEffect_(const CardEffectDef& effect);
 	void TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank);
 	void TriggerSubEffectsForCard_(const CardInstance& card, SubEffectTrigger trigger, PokerHandRank rank);
 
@@ -461,6 +489,8 @@ private:
 
 	int CalcFinalAttackDamage_(int baseDamage) const;
 	int ApplyDamageToEnemy_(Enemy& enemy, int damage);
+	Enemy* ResolveTargetEnemy_(int targetIndex) const;
+	void ApplyFrostBiteToEnemyIfActive_(Enemy& enemy);
 
 	void SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer = false);
 
