@@ -8,9 +8,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Attack!.png",
-      "desc": "敵単体に1ダメージ",
+      "desc": "敵単体に6ダメージ",
       "effects": [
-        { "type": "Damage", "value": 1 }
+        { "type": "Damage", "value": 6 }
       ]
     },
 
@@ -22,9 +22,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/FireBall.png",
-      "desc": "敵単体に10ダメージ",
+      "desc": "敵単体に14ダメージ",
       "effects": [
-        { "type": "Damage", "value": 10 }
+        { "type": "Damage", "value": 14 }
       ]
     },
 
@@ -32,14 +32,14 @@
     {
       "id": 3,
       "name": "BloodyVengeance",
-      "cost": 1,
+      "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/BloodyVengeance.png",
-      "desc": "敵単体に2ダメージ与えて、\n自身は1ダメージ食らう",
+      "desc": "敵単体に20ダメージ与えて、\n自身は2ダメージ食らう",
       "effects": [
-        { "type": "SelfDamage", "value": 1 },
-        { "type": "Damage", "value": 2 }
+        { "type": "SelfDamage", "value": 2 },
+        { "type": "Damage", "value": 20 }
       ]
     },
 
@@ -66,9 +66,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Crush.png",
-      "desc": "敵全体に２ダメージ",
+      "desc": "敵全体に8ダメージ",
       "effects": [
-        { "type": "DamageAll", "value": 2 }
+        { "type": "DamageAll", "value": 8 }
       ],
       "subEffects": [
         {
@@ -78,7 +78,7 @@
             "rank": "OnePair"
           },
           "effects": [
-            { "type": "Damage", "value": 1 }
+            { "type": "Damage", "value": 8 }
           ]
         }
       ]
@@ -92,9 +92,24 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/CrescentMoon.png",
-      "desc": "敵単体に3ダメージ与える。\n現在のターン数が奇数なら\nさらに3ダメージ与える",
+      "desc": "敵単体に13ダメージ与える。",
       "effects": [
-        { "type": "DamageCrescent", "value": 3 }
+        { "type": "DamageCrescent", "value": 13 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "ThreeOfAKind"
+          },
+          "effects": [
+            { "type": "Damage", "value": 33 },
+            { "type": "Draw", "value": 3 },
+            { "type": "Heal", "value": 3 },
+            { "type": "Block", "value": 3 }
+          ]
+        }
       ]
      },
 
@@ -106,10 +121,24 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/OverClock.png",
-      "desc": "敵単体に2ダメージを与える。\nこれを二回行う",
+      "desc": "敵単体に2ダメージを与える。\nこれを四回行う",
       "effects": [
         { "type": "Damage", "value": 2 },
+        { "type": "Damage", "value": 2 },
+        { "type": "Damage", "value": 2 },
         { "type": "Damage", "value": 2 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "TwoPair"
+          },
+          "effects": [
+            { "type": "Draw", "value": 2 }
+          ]
+        }
       ]
      },
 
@@ -121,9 +150,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/ShieldBash.png",
-      "desc": "敵単体に\nブロック数x1ダメージ与える",
+      "desc": "敵単体に\nブロック数x2ダメージ与える",
       "effects": [
-        { "type": "DamageByBlock", "value": 1 }
+        { "type": "DamageByBlock", "value": 2 }
       ]
      },
 
@@ -131,13 +160,13 @@
       {
       "id": 9,
       "name": "GaeBolg",
-      "cost": 3,
+      "cost": 4,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/GaeBolg.png",
-      "desc": "敵単体に1ダメージ与える。",
+      "desc": "敵単体に6ダメージ与える。",
       "effects": [
-        { "type": "Damage", "value": 1 }
+        { "type": "Damage", "value": 6 }
       ],
       "subEffects": [
         {
@@ -147,7 +176,7 @@
             "rank": "ThreeOfAKind"
           },
           "effects": [
-            { "type": "Damage", "value": 100 }
+            { "type": "Damage", "value": 66 }
           ]
         }
       ]
@@ -157,14 +186,14 @@
        {
       "id": 10,
       "name": "Durandal",
-      "cost": 3,
+      "cost": 4,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Durandal.png",
-      "desc": "敵単体に5ダメージを与える。\n5のブロックを獲得する",
+      "desc": "敵単体に35ダメージを与える。\n10のブロックを獲得する",
       "effects": [
-        { "type": "Damage", "value": 5 },
-        { "type": "Block", "value": 5 }
+        { "type": "Damage", "value": 35 },
+        { "type": "Block", "value": 10 }
       ]
      }
      
