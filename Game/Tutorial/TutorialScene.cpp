@@ -12,6 +12,7 @@
 
 namespace {
     constexpr float kSceneStartFadeDuration = 0.75f;
+    constexpr const char* kTutorialFieldConfigPath = "resources/configs/stage_fields/tutorial_field.json";
 
     float SmoothStep01_(float t)
     {
@@ -42,6 +43,10 @@ void TutorialScene::OnEnter(GameApp& app) {
     skyDome_->SetEnableLighting(0);
     skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
     skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
+
+    tutorialFieldProps_ = std::make_unique<PropManager>();
+    tutorialFieldProps_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
+    tutorialFieldProps_->LoadFromJson(kTutorialFieldConfigPath);
 
     const float charZ = 15.0f;
 
@@ -177,6 +182,7 @@ void TutorialScene::OnExit(GameApp& app) {
 
     player_.reset();
     skyDome_.reset();
+    tutorialFieldProps_.reset();
     cameraAnim_.reset();
     animCamera_.reset();
     camera_.reset();
@@ -332,6 +338,17 @@ void TutorialScene::Update(GameApp& app, float dt) {
     if (player_) {
         player_->SetCamera(animCamera_.get());
         player_->Update(dt);
+    }
+
+    if (tutorialFieldProps_) {
+        Camera* propCamera = animCamera_.get();
+        if (battle_.IsActionSequencePlaying()) {
+            if (Camera* actionCamera = battle_.GetActionCamera()) {
+                propCamera = actionCamera;
+            }
+        }
+        tutorialFieldProps_->SetCamera(propCamera);
+        tutorialFieldProps_->Update(dt);
     }
 
     enemyMgr_.UpdateCamera(animCamera_.get());
@@ -500,6 +517,9 @@ void TutorialScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
     app.Dx()->ClearDepthBuffer();
 
+    if (tutorialFieldProps_) {
+        tutorialFieldProps_->Draw3D();
+    }
     if (player_) {
         player_->Draw();
     }
@@ -673,6 +693,10 @@ void TutorialScene::DrawImGui(GameApp& app) {
         ImGui::Begin("FieldUi Debug");
         fieldUi_->DrawImGui();
         ImGui::End();
+    }
+
+    if (tutorialFieldProps_) {
+        tutorialFieldProps_->DrawImGui("Tutorial Field Props", kTutorialFieldConfigPath);
     }
 
     ImGui::Begin("Camera Setup (Tutorial)");

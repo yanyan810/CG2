@@ -17,6 +17,7 @@
 #include "TutorialManager.h"
 #include "TutorialUi.h"
 #include "UI/PokerHandHelpView.h"
+#include "PropManager.h"
 
 class GameApp;
 class TextSprite;
@@ -52,6 +53,7 @@ private:
     std::unique_ptr<Camera> animCamera_;
     std::unique_ptr<CameraAnimator> cameraAnim_;
     std::unique_ptr<Object3d> skyDome_;
+    std::unique_ptr<PropManager> tutorialFieldProps_;
 
     float splitRatio_ = 0.465f;
     float fieldCameraZoom_ = 1.0f;
