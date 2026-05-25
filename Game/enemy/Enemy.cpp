@@ -305,7 +305,7 @@ int Enemy::Damage(int damage) {
 	}
 
 	if (blockBefore > 0 && block_ == 0) {
-		const int visibleCells = std::max(blockBefore * 2, static_cast<int>(std::ceil(shieldDisplayCount_)));
+		const int visibleCells = std::max(blockBefore, static_cast<int>(std::ceil(shieldDisplayCount_)));
 		TriggerShieldBreak_(visibleCells);
 	}
 
@@ -368,7 +368,7 @@ void Enemy::EnsureShieldCellCount_() {
 
 int Enemy::GetTargetShieldCellCount_() const {
 	if (block_ > 0) {
-		return std::clamp(block_ * 2, 1, 61);
+		return std::clamp(block_, 1, 61);
 	}
 	return 0;
 }

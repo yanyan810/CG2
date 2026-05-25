@@ -20,6 +20,14 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	camera_->Update();
 	app.ObjCom()->SetDefaultCamera(camera_.get());
 
+	skyDome_ = std::make_unique<Object3d>();
+	skyDome_->Initialize(app.ObjCom(), app.Dx());
+	skyDome_->SetModel("skydome/skydome.obj");
+	skyDome_->SetCamera(camera_.get());
+	skyDome_->SetEnableLighting(0);
+	skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
+
 	// 必要変数の初期化
 	totalCount_ = 0;
 	editingDeck_.clear();
@@ -101,7 +109,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	selectingTemplateDeckBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	selectingTemplateDeckBg_->SetPosition({ 0.f, 0.f });
 	selectingTemplateDeckBg_->SetScale({ 1280.f, 720.f, 1.0f });
-	selectingTemplateDeckBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
+	selectingTemplateDeckBg_->SetColor({ 0.1f, 0.1f, 0.1f, 0.72f });
 
 	auto defaultBtn = std::make_unique<Button>();
 	defaultBtn->Initialize(app, L"デフォルトデッキ", "resources/deck/deck_default.json", { 480.f, 250.f });
@@ -122,10 +130,16 @@ void DeckEditScene::OnEnter(GameApp& app) {
 }
 
 void DeckEditScene::OnExit(GameApp& app) {
-
+	(void)app;
+	skyDome_.reset();
 }
 
 void DeckEditScene::Update(GameApp& app, float dt) {
+
+	if (skyDome_) {
+		skyDome_->SetCamera(camera_.get());
+		skyDome_->Update(dt);
+	}
 
 	Input* input = app.GetInput();
 	POINT mouse = input->GetMousePosition();
@@ -439,8 +453,6 @@ void DeckEditScene::DrawImGui(GameApp& app) {
 		return;
 	}
 
-	if (saveDeckButton_) { saveDeckButton_->DrawImGui(); }
-	if (nosaveButton_) { nosaveButton_->DrawImGui(); }
 }
 
 void DeckEditScene::RebuildCardModels(GameApp& app) {

@@ -51,6 +51,8 @@ namespace {
 	float sHpGaugeBloomMinPulse = 0.65f;
 	float sHpDamageBlinkSpeed = 6.0f;
 	float sHpDamageBloomIntensity = 1.05f;
+	bool sPlayerBlockCarryOverEnabled = true;
+	float sPlayerBlockTurnDecayRate = 0.20f;
 
 	Vector4 HsvToRgb_(float hue, float saturation, float value)
 	{
@@ -1092,11 +1094,22 @@ bool BattleController::DrawOne_()
 	return true;
 }
 
-void BattleController::DrawUntilFive_()
+void BattleController::DrawTurnStartCards_()
 {
-	while ((int)hand_.size() < 5) {
-		if (!DrawOne_()) break;
+	if((int)hand_.size() <= 0){
+		for (int i = 0; i < 5; ++i) {
+			if (!DrawOne_()) {
+				break;
+			}
+		}
+	} else {
+		for (int i = 0; i < 4; ++i) {
+			if (!DrawOne_()) {
+				break;
+			}
+		}
 	}
+
 	//handView_.Rebuild(hand_);
 }
 
@@ -1615,14 +1628,18 @@ void BattleController::StartPlayerTurn_()
 	nextTurnAtkUp_ = 0;
 
 	if (player_) {
-		player_->ResetBlock();
+		if (sPlayerBlockCarryOverEnabled) {
+			player_->DecayBlock(sPlayerBlockTurnDecayRate);
+		} else {
+			player_->ResetBlock();
+		}
 		player_->ResetVampireHeal();
 		player_->ResetPowerBoost();
 	}
 	playerTurnCount_++;
 
 	energy_ = energyMax_;
-	DrawUntilFive_();
+	DrawTurnStartCards_();
 
 	if (!field_.empty()) {
 		RebuildFieldView_();
@@ -2239,13 +2256,16 @@ void BattleController::UpdateFieldReplacePreviewEffects_()
 	PokerHandRank bestRank = PokerHandRank::None;
 	std::array<PokerHandRank, 5> ranks{};
 	ranks.fill(PokerHandRank::None);
+	auto isEligiblePreviewRank = [this](PokerHandRank rank) {
+		return rank != PokerHandRank::None && IsRankAtLeast_(rank, currentPoker_.rank);
+		};
 
 	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
 		std::vector<CardInstance> candidate = field_;
 		candidate[replaceIndex] = pendingCard_;
 		const PokerHandRank rank = EvaluatePokerHandForCards_(candidate).rank;
 		ranks[replaceIndex] = rank;
-		if (rank > bestRank) {
+		if (isEligiblePreviewRank(rank) && rank > bestRank) {
 			bestRank = rank;
 		}
 	}
@@ -2255,7 +2275,8 @@ void BattleController::UpdateFieldReplacePreviewEffects_()
 	}
 
 	if (fieldReplaceHoverIndex_ >= 0 && fieldReplaceHoverIndex_ < 5) {
-		fieldReplacePreviewActive_[fieldReplaceHoverIndex_] = true;
+		fieldReplacePreviewActive_[fieldReplaceHoverIndex_] =
+			isEligiblePreviewRank(ranks[fieldReplaceHoverIndex_]);
 		return;
 	}
 
@@ -4315,6 +4336,17 @@ void BattleController::DrawImGui()
 			sHpGaugeBloomMinPulse = 0.65f;
 			sHpDamageBlinkSpeed = 6.0f;
 			sHpDamageBloomIntensity = 1.05f;
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Player Shield Carryover")) {
+		ImGui::Checkbox("Carry Over Shield", &sPlayerBlockCarryOverEnabled);
+		ImGui::DragFloat("Turn Start Decay Rate", &sPlayerBlockTurnDecayRate, 0.01f, 0.0f, 1.0f, "%.2f");
+		sPlayerBlockTurnDecayRate = std::clamp(sPlayerBlockTurnDecayRate, 0.0f, 1.0f);
+		ImGui::Text("OFF: reset to 0 every player turn. ON: lose ceil(block * rate).");
+		if (ImGui::Button("Reset Shield Carryover")) {
+			sPlayerBlockCarryOverEnabled = true;
+			sPlayerBlockTurnDecayRate = 0.20f;
 		}
 	}
 

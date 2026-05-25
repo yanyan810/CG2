@@ -7,6 +7,7 @@
 #include "Camera.h"
 
 #include "CardDatabase.h"
+#include "Object3d.h"
 
 #include "Sprite.h"
 #include "TextSprite.h"
@@ -25,10 +26,12 @@ public:
     void Draw3D(GameApp& app) override;
     void Draw2D(GameApp& app) override;
     void DrawImGui(GameApp& app) override;
+    //void DrawSkydome(GameApp& app) override;
 
 private:
 
     std::unique_ptr<Camera> camera_;
+    std::unique_ptr<Object3d> skyDome_;
 
 	CardDatabase* cardDB_ = nullptr; // カードデータベースへのポインタ
 

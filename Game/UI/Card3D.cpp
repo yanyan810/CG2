@@ -44,6 +44,8 @@ static float g_numberRotX_deg[2] = { -90.0f, -90.0f };
 static float g_numberRotY_deg[2] = { 0.0f, 0.0f };
 static float g_numberRotZ_deg[2] = { 270.0f, 270.0f };
 
+static constexpr Vector4 kCostNumberColor{ 0.05f, 0.05f, 0.06f, 1.0f };
+
 // カードの向きと大きさに合わせて、マークのズレ（オフセット）を計算する関数
 static Vector3 CalcLocalOffset(const Vector3& offset, const Vector3& cardScale, const Vector3& cardRot)
 {
@@ -115,7 +117,7 @@ void Card3D::Setup(
 		costObj_->Initialize(objCom, dx);
 		costObj_->SetCamera(cam);
 		costObj_->SetEnableLighting(0);
-		costObj_->SetMaterialColor({ 1.f,1.f,1.f,1.f });
+		costObj_->SetMaterialColor(kCostNumberColor);
 	}
 
 	if (!suitObj_) {
@@ -144,7 +146,7 @@ void Card3D::Setup(
 		countObj_->Initialize(objCom, dx);
 		countObj_->SetCamera(cam);
 		countObj_->SetEnableLighting(0);
-		countObj_->SetMaterialColor({ 1.f,1.f,1.f,1.f });
+		countObj_->SetMaterialColor(kCostNumberColor);
 	}
 
 }
@@ -180,6 +182,7 @@ void Card3D::SetCardData(const CardDef& def, const CardInstance& inst)
 	{
 		ScopedTimer t("  cost SetModel");
 		costObj_->SetModel(costModelPath.c_str());
+		costObj_->SetMaterialColor(kCostNumberColor);
 	}
 
 	// ポーカー表記: 1→A, 11→J, 12→Q, 13→K
