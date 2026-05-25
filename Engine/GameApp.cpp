@@ -27,10 +27,13 @@
 #include "ParticleManager.h"
 #include "ParticleEditor.h"
 
+#include "DeckLoader.h"
+
 #include <Windows.h>
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <cassert>
 
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
@@ -205,29 +208,17 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("BattleAnimeEditer", [] { return std::make_unique<BattleAnimeEditerScene>(); });
 	sceneMgr_->Register("FieldEditer", [] { return std::make_unique<FieldEditerScene>(); });
 
-	// デフォルトデッキ
-	for (int i = 0; i < 4; i++) {
-		deckInstances_.push_back(MakeCardInstance(31));
-		deckInstances_.push_back(MakeCardInstance(32));
-		deckInstances_.push_back(MakeCardInstance(33));
-		deckInstances_.push_back(MakeCardInstance(34));
-		deckInstances_.push_back(MakeCardInstance(35));
-		deckInstances_.push_back(MakeCardInstance(36));
-		deckInstances_.push_back(MakeCardInstance(37));
-		deckInstances_.push_back(MakeCardInstance(38));
-		deckInstances_.push_back(MakeCardInstance(39));
-		deckInstances_.push_back(MakeCardInstance(40));
-	}
-
+	// カードデータの読み込み
 	std::vector<std::string> cardFiles = {
 	  "resources/cards/data/UtilityAttack.json",
 	  "resources/cards/data/UtilitySupport.json",
 	  "resources/cards/data/Poison.json",
 	  "resources/cards/data/Frost.json"
 	};
-
 	cardDB_ = std::make_unique<CardDatabase>();
 	cardDB_->LoadFromJsons(cardFiles);
+
+	LoadDeck("resources/deck/deck_default.json");
 
 	// 事前にカードなどの全アセットを読み込んでおく（画面遷移時のカクつき防止）
 	BattleController dummyBattle;
@@ -688,6 +679,7 @@ void GameApp::SetSelectedStage(int stageId, const std::string& configPath)
 	selectedStageConfigPath_ = configPath;
 }
 
+
 std::string GameApp::GetSelectedStageFieldConfigPath() const
 {
 	if (selectedStageId_ <= 0) {
@@ -696,4 +688,24 @@ std::string GameApp::GetSelectedStageFieldConfigPath() const
 
 	const std::string prefix = selectedStageId_ < 10 ? "stage0" : "stage";
 	return "resources/configs/stage_fields/" + prefix + std::to_string(selectedStageId_) + "_field.json";
+}
+
+void GameApp::LoadDeck(const std::string& deckConfigPath)
+{
+	DeckDef deckDef{};
+	std::string err;
+	if (DeckLoader::LoadFromJson(deckConfigPath, deckDef) &&
+		DeckLoader::ValidateDeck(deckDef, *cardDB_.get(), err)) {
+		std::vector<CardInstance> instances;
+		deckInstances_.clear();
+		for (const auto& e : deckDef.cards) {
+			for (int i = 0; i < e.count; ++i) {
+				instances.push_back(MakeCardInstance(e.id));
+			}
+		}
+		SetDeckInstances(instances);
+	} else {
+		// ロード失敗
+		assert(0);
+	}
 }

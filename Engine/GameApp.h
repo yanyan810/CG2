@@ -90,6 +90,8 @@ public:
         int cardId,
         const std::vector<std::string>& effectTypes) const;
 
+	void LoadDeck(const std::string& deckConfigPath);
+
 private:
     bool Initialize_();
     void Finalize_();
