@@ -74,8 +74,11 @@
     <ClCompile Include="Engine\GameApp.cpp" />
     <ClCompile Include="Game\GameScene.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
+    <ClCompile Include="Game\UI\DamagePopupUI.cpp" />
+    <ClCompile Include="Game\UI\EnemyBattleStatusUI.cpp" />
     <ClCompile Include="Game\UI\FieldUi.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
+    <ClCompile Include="Game\UI\PlayerBattleStatusUI.cpp" />
     <ClCompile Include="Game\UI\PokerHandHelpView.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Engine\math\Matrix4x4.cpp" />
@@ -105,6 +108,7 @@
     <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
     <ClCompile Include="Game\FieldEditerScene.cpp" />
     <ClCompile Include="Game\Logic\CardPreview.cpp" />
+    <ClCompile Include="Game\Poker\PokerHandEvaluator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
@@ -191,7 +195,10 @@
     <ClInclude Include="Game\player\Player.h" />
     <ClInclude Include="Game\TestScene.h" />
     <ClInclude Include="Game\UI\Card3D.h" />
+    <ClInclude Include="Game\UI\DamagePopupUI.h" />
+    <ClInclude Include="Game\UI\EnemyBattleStatusUI.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
+    <ClInclude Include="Game\UI\PlayerBattleStatusUI.h" />
     <ClInclude Include="Game\UI\PokerHandHelpView.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />
     <ClInclude Include="Game\UI\UiLayout.h" />
@@ -212,6 +219,7 @@
     <ClInclude Include="Game\BattleAnimeEditerScene.h" />
     <ClInclude Include="Game\FieldEditerScene.h" />
     <ClInclude Include="Game\Logic\CardPreview.h" />
+    <ClInclude Include="Game\Poker\PokerHandEvaluator.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />

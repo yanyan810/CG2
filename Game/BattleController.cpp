@@ -123,84 +123,6 @@ namespace {
 		};
 	}
 
-	std::wstring Utf8ToWString_(const std::string& text)
-	{
-		if (text.empty()) {
-			return L"";
-		}
-
-
-		const int size = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
-		if (size <= 1) {
-			return std::wstring(text.begin(), text.end());
-		}
-
-		std::wstring out(size - 1, L'\0');
-		MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, out.data(), size);
-		return out;
-	}
-
-	std::wstring GetEnemyIntentText_(const EnemyAction& action)
-	{
-		std::wstring text = Utf8ToWString_(action.name);
-		if (text.empty()) {
-			text = Utf8ToWString_(action.type);
-		}
-		if (!text.empty() && action.value > 0) {
-			text += L" ";
-			text += std::to_wstring(action.value);
-		}
-		return text;
-	}
-
-	Vector3 GetEnemyIntentTextColor_(const std::string& type)
-	{
-		if (type == "Attack") {
-			return { 1.0f, 0.25f, 0.25f };
-		}
-		if (type == "Block") {
-			return { 0.25f, 0.55f, 1.0f };
-		}
-		if (type == "Heal") {
-			return { 0.25f, 1.0f, 0.35f };
-		}
-		return { 0.85f, 0.85f, 0.85f };
-	}
-
-	Vector4 GetEnemyIntentGlowColor_(const std::string& type)
-	{
-		if (type == "Attack") {
-			return { 1.0f, 0.18f, 0.14f, 1.0f };
-		}
-		if (type == "Block") {
-			return { 0.24f, 0.58f, 1.0f, 1.0f };
-		}
-		if (type == "Heal") {
-			return { 0.20f, 1.0f, 0.38f, 1.0f };
-		}
-		return { 0.82f, 0.82f, 0.82f, 1.0f };
-	}
-
-	BloomParam MakeEnemyIntentBloomParam_(const BloomParam& baseParam, const std::string& type, float time)
-	{
-		const float pulse = sEnemyIntentBloomMinPulse +
-			(1.0f - sEnemyIntentBloomMinPulse) * (0.5f + 0.5f * std::sin(time * 4.2f));
-		BloomParam param = baseParam;
-		param.threshold = 0.0f;
-		param.intensity = sEnemyIntentBloomIntensity * pulse;
-		param.vignetteIntensity = 0.0f;
-		param.vignetteScale = 0.0f;
-		param.chromAbAmount = type == "Attack" ? 0.003f : 0.001f;
-		param.distortionAmount = 0.0f;
-		param.noiseIntensity = 0.0f;
-		param.scanlineIntensity = 0.0f;
-		param.curvature = 0.0f;
-		param.borderSharp = 0.0f;
-		param.glitchAmount = type == "Attack" ? 0.002f : 0.0f;
-		param.dissolveAmount = -1.0f;
-		return param;
-	}
-
 	BloomParam MakeEnemyTargetBloomParam_(const BloomParam& baseParam, float time)
 	{
 		const float pulse = 0.72f + 0.28f * (0.5f + 0.5f * std::sin(time * 5.0f));
@@ -220,81 +142,6 @@ namespace {
 		return param;
 	}
 
-	BloomParam MakeHpGaugeBloomParam_(const BloomParam& baseParam, float intensity)
-	{
-		BloomParam param = baseParam;
-		param.threshold = 0.0f;
-		param.intensity = intensity;
-		param.vignetteIntensity = 0.0f;
-		param.vignetteScale = 0.0f;
-		param.chromAbAmount = 0.0f;
-		param.distortionAmount = 0.0f;
-		param.noiseIntensity = 0.0f;
-		param.scanlineIntensity = 0.0f;
-		param.curvature = 0.0f;
-		param.borderSharp = 0.0f;
-		param.glitchAmount = 0.0f;
-		param.dissolveAmount = -1.0f;
-		return param;
-	}
-
-	void DrawSpriteBloom_(
-		GameApp& app,
-		Sprite* sprite,
-		const Matrix4x4& view,
-		const Matrix4x4& proj,
-		const Vector4& color,
-		const BloomParam& param,
-		float scalePulse = 1.0f)
-	{
-		if (!sprite) {
-			return;
-		}
-
-		const Vector3 originalScale = sprite->GetScale();
-		const Vector4 originalColor = sprite->GetColor();
-		sprite->SetScale({
-			originalScale.x * scalePulse,
-			originalScale.y * scalePulse,
-			originalScale.z
-		});
-		sprite->SetColor(color);
-		app.DrawSpriteObjectPost(sprite, view, proj, param);
-		sprite->SetScale(originalScale);
-		sprite->SetColor(originalColor);
-		sprite->Update(view, proj);
-	}
-
-	void DrawHealthGaugeBloom_(
-		GameApp& app,
-		Sprite* sprite,
-		const Sprite::HealthGaugeParam& gaugeParam,
-		const Matrix4x4& view,
-		const Matrix4x4& proj,
-		const BloomParam& bloomParam,
-		float scalePulse = 1.0f)
-	{
-		if (!sprite) {
-			return;
-		}
-
-		const Vector3 originalScale = sprite->GetScale();
-		sprite->SetScale({
-			originalScale.x * scalePulse,
-			originalScale.y * scalePulse,
-			originalScale.z
-		});
-		sprite->Update(view, proj);
-		sprite->SetHealthGaugeParam(gaugeParam);
-		app.ObjectPost()->SetParam(bloomParam);
-		app.BeginObjectPostEffect();
-		sprite->DrawHealthGauge();
-		app.EndObjectPostEffect();
-		app.SpriteCom()->SetGraphicsPipelineState();
-		sprite->SetScale(originalScale);
-		sprite->Update(view, proj);
-	}
-
 	int RollEnemyActionCount_()
 	{
 		static std::random_device rd;
@@ -306,166 +153,22 @@ namespace {
 }
 
 //===============================
-//役
+//鬮ｯ貅ｷ遘√・・ｽ繝ｻ・ｹ
 //===============================
 
 const char* BattleController::GetPokerHandName_(PokerHandRank rank) const
 {
-	switch (rank) {
-	case PokerHandRank::None:                 return "None";
-	case PokerHandRank::OnePair:              return "One Pair";
-	case PokerHandRank::TwoPair:              return "Two Pair";
-	case PokerHandRank::ThreeOfAKind:         return "Three of a Kind";
-	case PokerHandRank::Straight:             return "Straight";
-	case PokerHandRank::Flush:                return "Flush";
-	case PokerHandRank::FullHouse:            return "Full House";
-	case PokerHandRank::FourOfAKind:          return "Four of a Kind";
-	case PokerHandRank::StraightFlush:        return "Straight Flush";
-	case PokerHandRank::RoyalStraightFlush:   return "Royal Straight Flush";
-	default:                                  return "?";
-	}
+	return PokerHandEvaluator::GetHandName(rank);
 }
 
 BattleController::PokerHandResult BattleController::EvaluatePokerHand_() const
 {
-	return EvaluatePokerHandForCards_(field_);
+	return PokerHandEvaluator::Evaluate(field_);
 }
 
 BattleController::PokerHandResult BattleController::EvaluatePokerHandForCards_(const std::vector<CardInstance>& cards) const
 {
-	PokerHandResult result{};
-
-	if (cards.size() != 5) {
-		result.rank = PokerHandRank::None;
-		result.power = 0;
-		return result;
-	}
-
-	std::array<int, 14> countNumber{}; // 1~13 を使う
-	std::array<int, 4> countSuit{};    // Spade/Heart/Diamond/Club
-
-	std::vector<int> numbers;
-	numbers.reserve(5);
-
-	for (const auto& c : cards) {
-		if (c.number >= 1 && c.number <= 13) {
-			countNumber[c.number]++;
-			numbers.push_back(c.number);
-		}
-
-		int suitIndex = static_cast<int>(c.suit);
-		if (suitIndex >= 0 && suitIndex < 4) {
-			countSuit[suitIndex]++;
-		}
-	}
-
-	std::sort(numbers.begin(), numbers.end());
-
-	// ---- Flush 判定 ----
-	bool isFlush = false;
-	for (int s : countSuit) {
-		if (s == 5) {
-			isFlush = true;
-			break;
-		}
-	}
-
-	// ---- Straight 判定 ----
-	bool isStraight = false;
-
-	// 通常の連番
-	{
-		bool straight = true;
-		for (int i = 0; i < 4; ++i) {
-			if (numbers[i] + 1 != numbers[i + 1]) {
-				straight = false;
-				break;
-			}
-		}
-		if (straight) {
-			isStraight = true;
-		}
-	}
-
-	// A,10,J,Q,K を認める
-	if (!isStraight) {
-		std::vector<int> royal = numbers;
-		std::sort(royal.begin(), royal.end());
-		if (royal.size() == 5 &&
-			royal[0] == 1 &&
-			royal[1] == 10 &&
-			royal[2] == 11 &&
-			royal[3] == 12 &&
-			royal[4] == 13) {
-			isStraight = true;
-		}
-	}
-
-	// A,2,3,4,5 を認める
-	if (!isStraight) {
-		std::vector<int> lowA = numbers;
-		std::sort(lowA.begin(), lowA.end());
-		if (lowA.size() == 5 &&
-			lowA[0] == 1 &&
-			lowA[1] == 2 &&
-			lowA[2] == 3 &&
-			lowA[3] == 4 &&
-			lowA[4] == 5) {
-			isStraight = true;
-		}
-	}
-
-	// ---- 同数枚数を数える ----
-	int pairCount = 0;
-	bool hasThree = false;
-	bool hasFour = false;
-
-	for (int n = 1; n <= 13; ++n) {
-		if (countNumber[n] == 2) pairCount++;
-		if (countNumber[n] == 3) hasThree = true;
-		if (countNumber[n] == 4) hasFour = true;
-	}
-
-	// ---- 役判定（強い順）----
-	bool isRoyal = (numbers[0] == 1 &&
-		numbers[1] == 10 &&
-		numbers[2] == 11 &&
-		numbers[3] == 12 &&
-		numbers[4] == 13);
-
-	if (isStraight && isFlush && isRoyal) {
-		result.rank = PokerHandRank::RoyalStraightFlush;
-		result.power = 100;
-	} else if (isStraight && isFlush) {
-		result.rank = PokerHandRank::StraightFlush;
-		result.power = 80;
-	} else if (hasFour) {
-		result.rank = PokerHandRank::FourOfAKind;
-		result.power = 70;
-	} else if (hasThree && pairCount == 1) {
-		result.rank = PokerHandRank::FullHouse;
-		result.power = 60;
-	} else if (isFlush) {
-		result.rank = PokerHandRank::Flush;
-		result.power = 50;
-	} else if (isStraight) {
-		result.rank = PokerHandRank::Straight;
-		result.power = 40;
-	} else if (hasThree) {
-		result.rank = PokerHandRank::ThreeOfAKind;
-		result.power = 30;
-	} else if (pairCount == 2) {
-		result.rank = PokerHandRank::TwoPair;
-		result.power = 20;
-	} else if (pairCount == 1) {
-		result.rank = PokerHandRank::OnePair;
-		result.power = 10;
-	} else {
-		result.rank = PokerHandRank::None;
-		result.power = 0;
-	}
-
-	return result;
+	return PokerHandEvaluator::Evaluate(cards);
 }
 
 void BattleController::RebuildDiscardView_()
@@ -485,7 +188,7 @@ void BattleController::RebuildDiscardView_()
 	discardView_ = std::make_unique<Card3D>();
 	discardView_->Initialize(objCom_, dx_, cam_, *def, top);
 
-	// 位置は右下寄りのイメージ。あとで調整
+	// 鬮｣蜴・ｽｽ・ｴ髯ｷ・･繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬮ｯ・ｷ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｳ鬮｣蛹・ｽｽ・ｳ髯ｷ・ｿ繝ｻ・･郢晢ｽｻ繝ｻ・ｯ驛｢譎｢・ｽ・ｻ郢晢ｽｻ鬯倩ｲｻ・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩搾ｽｵ繝ｻ・ｲ驛｢・ｧ郢晢ｽｻ隴鯉ｽｺ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｨ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬯ｮ・ｫ繝ｻ・ｱ郢晢ｽｻ繝ｻ・ｿ鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｴ
 	Vector3 pos{ 16.0f, -8.0f, 6.0f };
 	Vector3 rot{ 0.0f, 0.0f, 0.0f };
 	Vector3 scl{ 1.0f, 1.0f, 1.0f };
@@ -656,9 +359,9 @@ void BattleController::UpdateCostViewTransform_(float dt)
 	const float gap = 1.2f;
 	const float startX = -gap * 0.5f * (count - 1);
 
-	const float baseX = -14.5f;  // 左へ
-	const float baseY = -6.8f;   // 少し上
-	const float baseZ = 6.0f;    // まずはそのまま
+	const float baseX = -14.5f;  // 鬮ｯ譎｢・ｽ・ｾ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｸ
+	const float baseY = -6.8f;   // 鬮ｯ譏ｴ繝ｻ繝ｻ・ｻ繝ｻ・｣郢晢ｽｻ繝ｻ・ｰ鬮｣蛹・ｽｽ・ｳ驛｢譎｢・ｽ・ｻ
+	const float baseZ = 6.0f;    // 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ髯橸ｽ｢繝ｻ・ｹ驛｢譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ髫ｴ謫ｾ・ｽ・ｴ驛｢譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ
 
 	for (int i = 0; i < count; ++i) {
 		Vector3 pos{ baseX + startX + gap * i, baseY, baseZ };
@@ -813,7 +516,7 @@ std::array<bool, 5> BattleController::GetPokerHighlightMask_() const
 		break;
 
 	case PokerHandRank::Straight:
-		// ストレートは5枚全部使う
+		// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴主・讓溘・蜿厄ｽｨ謚ｵ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓滄Δ譎｢・ｽ・ｻ5鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ驛｢譎｢・ｽ・ｻ鬯ｯ・ｩ陝ｷ・｢繝ｻ・ｽ繝ｻ・ｨ鬮｣蜴・ｽｽ・ｴ郢晢ｽｻ繝ｻ・ｿ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 		for (int i = 0; i < 5; ++i) {
 			mask[i] = true;
 		}
@@ -833,23 +536,23 @@ const CardDef* BattleController::FindCardDef(int id) const
 
 void BattleController::PreloadCardAssets_()
 {
-	// 共通で使うモデルを先読み
+	// 鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・ｱ鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｹ驍ｵ・ｲ陞ｳ螢ｽ蜑ｲ郢晢ｽｻ繝ｻ・ｿ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ繝ｻ螳亥擠繝ｻ・ｹ隴擾ｽｴ郢晢ｽｻ繝ｻ蜿門旭繝ｻ・ｹ繝ｻ・ｧ鬮ｮ蛹ｺ・ｧ・ｭ郢晢ｽｻ鬯ｮ・ｫ繝ｻ・ｱ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｿ
 	ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
 	ModelManager::GetInstance()->LoadModel("cards/models/art_plane.obj");
 
-	// スート
+	// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
 	ModelManager::GetInstance()->LoadModel("cards/models/spade.obj");
 	ModelManager::GetInstance()->LoadModel("cards/models/heart.obj");
 	ModelManager::GetInstance()->LoadModel("cards/models/daiya.obj");
 	ModelManager::GetInstance()->LoadModel("cards/models/clover.obj");
 
-	// コスト数字
+	// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴惹ｹ暦ｽｲ・ｺ髴取ｺｷ・､鬆托ｽｰ蟶ｷ・ｹ譎｢・ｽ・ｻ
 	for (int i = 0; i <= 9; ++i) {
 		ModelManager::GetInstance()->LoadModel("cards/models/" + std::to_string(i) + ".obj");
 	}
 	ModelManager::GetInstance()->LoadModel("cards/models/slash.obj");
 
-	// cards.json に載っているカードの画像とモデルを全部先読み
+	// cards.json 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬯ｮ・ｴ闔・･繝ｻ・ｳ繝ｻ・ｨ髫ｨ繝ｻ・ｽ・ｲ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｻ鬯ｨ・ｾ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｻ鬮ｯ・ｷ陷代・・ｽ・ｸ陝ｯ・ｩ郢晢ｽｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｢鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ繝ｻ蜿門旭繝ｻ・ｹ繝ｻ・ｧ鬮ｮ蛹ｺ・ｧ・ｭ郢晢ｽｻ鬯ｯ・ｩ陝ｷ・｢繝ｻ・ｽ繝ｻ・ｨ鬮ｯ・ｷ騾趣ｽｯ郢晢ｽ｡郢晢ｽｻ繝ｻ・ｪ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｿ
 	for (int id = 1; id <= 100; ++id) {
 		const CardDef* def = db_.Find(id);
 		if (!def) {
@@ -883,7 +586,7 @@ void BattleController::Preload(GameApp& app)
 	if (!assetsPreloaded_) {
 		PreloadCardAssets_();
 
-		// デッキ定義もここで読んでおくと、ゲーム開始時がさらに軽くなる
+		// 鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・｣鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｭ鬮ｯ讖ｸ・ｽ・ｳ髯樊ｺ假ｽ代・・ｽ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ驛｢・ｧ郢晢ｽｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ鬮ｦ・ｮ陷ｷ・ｶ・つ陝ｶ譎乗套郢晢ｽｻ繝ｻ・ｭ鬩幢ｽ｢繝ｻ・ｧ鬮ｦ・ｮ陷ｷ・ｶ・つ陜｣・､繝ｻ・ｸ繝ｻ・ｺ鬩怜遜・ｽ・ｫ郢晢ｽｻ繝ｻ・･鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｨ鬩搾ｽｵ繝ｻ・ｲ驕ｶ荳橸ｽ｣・ｹ繝ｻ繝ｻﾎ碑ｭ趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・｣繝ｻ・ｰ鬯ｯ・ｮ繝ｻ・｢髯ｷ・ｿ繝ｻ・･郢晢ｽｻ繝ｻ・ｧ髯具ｽｹ繝ｻ・ｺ髯ｷ繝ｻ・ｽ・ｾ鬩搾ｽｵ繝ｻ・ｺ髯滓坩・ｯ莨夲ｽｽ・ｼ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ驕ｶ莨・ｽｦ・ｴ隲､霈斐・繝ｻ・ｽ鬩搾ｽｵ繝ｻ・ｺ髣包ｽｳ陝ｯ・ｩ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 		DeckDef deckDef{};
 		std::string err;
 
@@ -937,94 +640,24 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	dx_ = app.Dx();
 	spriteCom_ = app.SpriteCom();
 
-	// まだ先読みされていなければここで保険として実行
+	// 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬮ｯ・ｷ騾趣ｽｯ郢晢ｽ｡郢晢ｽｻ繝ｻ・ｪ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｿ鬩搾ｽｵ繝ｻ・ｺ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驕ｶ莨√・繝ｻ・ｸ繝ｻ・ｺ髣比ｼ夲ｽｽ・｣郢晢ｽｻ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬮｣蜴・ｽｽ・ｫ髫ｴ蜿厄ｽｧ・ｫ鬯ｨ鬥ｴ縺励・・ｺ郢晢ｽｻ繝ｻ・ｨ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬮ｯ讖ｸ・ｽ・ｳ髮九・・ｽ・ｯ郢晢ｽｻ繝ｻ・｡驛｢譎｢・ｽ・ｻ
 	Preload(app);
 	LoadFieldCardLayout(fieldCardLayoutPath_);
 
 	actionDirector_.Initialize(spriteCom_, dx_, objCom_);
 
-	// ダメージポップアップ用の数字モデル(0-9)を事前にロードしてプール化
-	for (int d = 0; d <= 9; ++d) {
-		std::string path = "cards/models/";
-		path += static_cast<char>('0' + d);
-		path += ".obj";
-		auto obj = std::make_unique<Object3d>();
-		obj->Initialize(objCom_, dx_);
-		obj->SetModel(path); // ここで1回だけロード＆GPUバッファ作成
-		obj->SetCamera(cam_);
-		digitModelPool_[d] = std::move(obj);
-	}
-
-	// -----------------------------
-	// HPゲージ作成
-	// -----------------------------
-	playerHpBg_ = std::make_unique<Sprite>();
-	playerHpBg_->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-	playerHpBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-
-	ApplyPlayerHudLayout_();
+	damagePopupUi_.Initialize(objCom_, dx_, cam_);
+	playerStatusUi_.Initialize(app);
+	enemyStatusUi_.Initialize(app, 3);
 	playerLastHp_ = player_ ? player_->GetHP() : -1;
 
-	enemyHpBgs_.clear();
-	enemyIntentIcons_.clear();
-	enemyIntentTexts_.clear();
-	enemyIntentCountTexts_.clear();
-
-	for (int i = 0; i < 3; ++i) {
-		auto bg = std::make_unique<Sprite>();
-		bg->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-		bg->SetColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-		bg->SetScale({ 0.0f, 0.0f, 1.0f });
-		bg->SetPosition({ 0.0f, 0.0f });
-		enemyHpBgs_.push_back(std::move(bg));
-
-		auto icon = std::make_unique<Sprite>();
-		icon->Initialize(spriteCom_, dx_, "resources/ui/white.png");
-		icon->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
-		icon->SetScale({ 0.0f, 0.0f, 1.0f });
-		icon->SetPosition({ 0.0f, 0.0f });
-		enemyIntentIcons_.push_back(std::move(icon));
-
-		auto text = std::make_unique<TextSprite>();
-		text->Initialize(spriteCom_, dx_);
-		text->SetText(L"");
-		text->SetFontSize(20);
-		text->SetSize({ 0.7f, 0.7f, 1.0f });
-		text->SetAlpha(1.0f);
-		text->SetColor({ 1.0f, 1.0f, 1.0f });
-		text->SetPosition({ 0.0f, 0.0f });
-		enemyIntentTexts_.push_back(std::move(text));
-
-		auto countText = std::make_unique<TextSprite>();
-		countText->Initialize(spriteCom_, dx_);
-		countText->SetText(L"");
-		countText->SetFontSize(24);
-		countText->SetSize({ 0.75f, 0.75f, 1.0f });
-		countText->SetAlpha(1.0f);
-		countText->SetColor({ 1.0f, 0.92f, 0.35f });
-		countText->SetPosition({ 0.0f, 0.0f });
-		enemyIntentCountTexts_.push_back(std::move(countText));
-	}
-
-	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
-	float width = (float)WinApp::kClientWidth;
-	float height = (float)WinApp::kClientHeight;
-	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix(width, height);
-
-	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
-
-	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
-	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
-	for (auto& text : enemyIntentTexts_) { if (text) text->Update(viewMat, projMat); }
-	for (auto& text : enemyIntentCountTexts_) { if (text) text->Update(viewMat, projMat); }
-
-	// ここはコピーだけ
+	// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢隴弱・・ｱ蝣､・ｹ譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 	deck_ = prebuiltDeck_;
 	ShuffleDeck_();
 
 	if (useTutorialOpeningHand_) {
-		// 最初に引く5枚を deck の末尾に積むため、
-		// 先に同じカードがあれば軽く取り除く
+		// 鬮ｫ・ｴ陝・｢・つ鬮ｯ蜈ｷ・ｽ・ｻ髫ｴ謫ｾ・ｽ・ｴ驕ｶ鬆托ｽ･・｢繝ｻ・ｰ鬯倬ｯ会ｽｽ・ｼ髮具ｽｻ繝ｻ・ｿ繝ｻ・･5鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻdeck 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｴ陝ｷ・｢繝ｻ・ｽ繝ｻ・ｫ鬮ｯ譏ｴ繝ｻ繝ｻ・ｽ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬯ｩ蛹・ｽｽ・ｨ鬯ｮ・ｦ繝ｻ・ｪ驛｢譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ髮九・竏槭・・ｽ遶擾ｽｫ繝ｻ・ｸ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ
+		// 鬮ｯ・ｷ闔・･霑ｴ・ｾ驕ｶ鬆托ｽ･・｢隲・ｺ髯溷供ﾂ蜈ｷ・ｽ・ｧ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驕ｯ・ｶ繝ｻ・ｲ鬩搾ｽｵ繝ｻ・ｺ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬯ｮ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬩搾ｽｵ繝ｻ・ｺ髣包ｽｳ隶抵ｽｫ陟募ｮ｣ﾎ斐・・ｧ髣費ｽｨ遶乗刋・ｱ繧九＠繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 		for (const auto& fixedCard : tutorialOpeningHand_) {
 			auto it = std::find_if(deck_.begin(), deck_.end(),
 				[&](const CardInstance& c) {
@@ -1035,7 +668,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 			}
 		}
 
-		// DrawOne_ は back() を引くので、逆順で積む
+		// DrawOne_ 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ back() 鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｩ・ｸ繝ｻ・ｽ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ繝ｻ縺､ﾂ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ驍ｵ・ｲ陝ｶ譏ｶ繝ｻ鬯ｮ・ｦ繝ｻ・ｪ驛｢譎｢・ｽ・ｻ
 		for (auto it = tutorialOpeningHand_.rbegin(); it != tutorialOpeningHand_.rend(); ++it) {
 			deck_.push_back(*it);
 		}
@@ -1045,7 +678,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	discard_.clear();
 	field_.clear();
 	fieldViews_.clear();
-	damagePopups_.clear();
+	damagePopupUi_.Clear();
 
 	hasPendingCard_ = false;
 	pendingCard_ = {};
@@ -1062,7 +695,7 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	RebuildDiscardView_();
 	RebuildCostView_(deltaTime_);
 
-	// ハイライト用Filter
+	// 鬩幢ｽ｢隴乗・・ｽ・ｸ驗呻ｽｫ遶包ｽｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴寂・・・ｨｾ・｡髫ｧ・ｮilter
 	highlightFilter_ = std::make_unique<Sprite>();
 	highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	highlightFilter_->SetPosition({ 0.0f, 0.0f });
@@ -1093,7 +726,7 @@ bool BattleController::DrawOne_()
 	deck_.pop_back();
 	hand_.push_back(card);
 
-	// ここを追加
+	// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯橸ｽｳ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｽ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・｣繝ｻ・ｰ
 	handView_.AddCard(card);
 
 	return true;
@@ -1298,7 +931,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "HealByBlock") {
 			if (player_) {
-				int healAmount = player_->GetBlock() * effect.value; // ブロック数 × 倍率
+				int healAmount = player_->GetBlock() * effect.value; // 鬩幢ｽ｢隴弱・ﾂｧ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ鬯倬ｯ会ｽｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｰ 郢晢ｽｻ郢晢ｽｻ郢晢ｽｻ鬮ｯ蛹ｺ・ｺ・ｷ髫ｱ・ｿ鬩肴得・ｽ・ｫ
 				int beforeHp = player_->GetHP();
 				player_->Heal(healAmount);
 				PlayHealSEIfHpIncreased_(player_, beforeHp);
@@ -1306,11 +939,11 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 		} else if (effect.type == "HealByLowCostInHand") {
 			if (player_) {
 				int count = 0;
-				// 今の手札を1枚ずつ確認する
+				// 鬮｣遒代・繝ｻ・ｿ繝ｻ・ｫ驛｢譎｢・ｽ・ｻ鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｹ髫ｨ蛟･繝ｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・､鬯ｩ蠅捺・繝ｻ・ｽ繝ｻ・ｺ鬯ｮ・ｫ繝ｻ・ｱ鬯ｮ・ｦ繝ｻ・ｪ髫ｨ蛟･繝ｻ繝ｻ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 				for (const auto& cardInst : hand_) {
 					const CardDef* cDef = db_.Find(cardInst.defId);
 					if (cDef && cDef->cost == 1) {
-						count++; // 1コストのカードだったらカウントを増やす
+						count++; // 1鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴主・讓滄Δ譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ髫ｨ繝ｻ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ髮九・竏槭・・ｽ髢ｾ・･繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴主・讓溽ｹ晢ｽｻ陞ｳ螟ｲ・｣・ｰ郢晢ｽｻ陝ｷ・ｲ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 					}
 				}
 				int healAmount = count * effect.value;
@@ -1333,7 +966,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "Poison") {
 			if (enemyMgr_) {
-				// 単体ターゲットが指定されている場合
+				// 鬮ｯ・ｷ鬮ｮ繝ｻﾂ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬮ｦ・ｮ陷ｷ・ｶ隨・｣ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ髫ｹ・ｺ繝ｻ・ｰ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯溷供・ｨ・ｯ・つ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
@@ -1351,7 +984,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 			}
 			if (player_->GetPoisonDrawActive()) {
-				DrawCards_(1); // ポイズンドロー状態なら1枚引く
+				DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｺ・｢驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｺ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
 			}
 		} else if (effect.type == "PoisonAll") {
 			if (enemyMgr_) {
@@ -1363,7 +996,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 				}
 			}
 			if (player_->GetPoisonDrawActive()) {
-				DrawCards_(1); // ポイズンドロー状態なら1枚引く
+				DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｺ・｢驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｺ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
 			}
 		} else if (effect.type == "PoisonAmplify") {
 			if (enemyMgr_) {
@@ -1400,7 +1033,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					}
 				}
 				if (player_->GetPoisonDrawActive()) {
-					DrawCards_(1); // ポイズンドロー状態なら1枚引く
+					DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｺ・｢驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｺ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ繝ｻ蜿厄ｽｺ・ｽ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
 				}
 			}
 
@@ -1420,7 +1053,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 			if (enemyMgr_) {
 				for (auto& e : enemyMgr_->GetEnemies()) {
-					// 毒状態ならその分回復
+					// 鬮ｮ諠ｹ・ｺ・･繝ｻ・ｰ繝ｻ・､髫ｲ讖ｸ・ｽ・ｾ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ髫ｨ・ｳ陞ｳ闌ｨ・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｯ蜈ｷ・ｽ・ｻ驛｢譎｢・ｽ・ｻ髯橸ｽｻ隶鯉ｽ｢繝ｻ・ｰ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｩ
 					if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
 						e.SetBC(Enemy::BadCondition::kPoison);
 						healAmount += e.GetBCPoint();
@@ -1434,7 +1067,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "Frost") {
 			if (enemyMgr_) {
-				// 単体ターゲットが指定されている場合
+				// 鬮ｯ・ｷ鬮ｮ繝ｻﾂ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬮ｦ・ｮ陷ｷ・ｶ隨・｣ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ髫ｹ・ｺ繝ｻ・ｰ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯溷供・ｨ・ｯ・つ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()) {
@@ -1506,7 +1139,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 					}
 				}
 				//if (player_->GetFrostBiteActive()) {
-				//	DrawCards_(1); // フロストバイト状態なら1枚引く
+				//	DrawCards_(1); // 鬩幢ｽ｢隴弱・・ｽ・ｼ鬩･繝ｻ・ｺ・ｽ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴主・讓滄Δ譎｢・ｽ・ｰ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴寂・・・坿讖ｸ・ｽ・ｾ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ繝ｻ・ｫ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｼ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｿ繝ｻ・･
 				//}
 			}
 
@@ -1524,7 +1157,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 		} else if (effect.type == "FrostDraw") {
 			
 			if (enemyMgr_) {
-				// 単体ターゲットが指定されている場合
+				// 鬮ｯ・ｷ鬮ｮ繝ｻﾂ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｽ鬮ｦ・ｮ陷ｷ・ｶ隨・｣ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ髫ｹ・ｺ繝ｻ・ｰ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髯溷供・ｨ・ｯ・つ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
 					auto& e = enemyMgr_->GetEnemies()[targetIndex];
 					if (e.IsAlive()&& e.GetBC() == Enemy::BadCondition::kFrost) {
@@ -1541,10 +1174,10 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			}
 
 		} else if (effect.type == "ChangeNumber") {
-			// 後で対象指定が必要
+			// 鬮ｯ貅ｷ萓帙・・ｾ陟募仰陞ｳ螢ｽ・ｱ讒ｭ繝ｻ繝ｻ・ｾ鬯ｮ・ｮ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｡鬮ｫ・ｰ隰費ｽｶ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｮ髯橸ｽ｢繝ｻ・ｹ驕ｯ・ｶ繝ｻ・ｲ鬮ｯ貊ゑｽｽ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
 
 		} else if (effect.type == "ChangeSuit") {
-			// 後で対象指定が必要
+			// 鬮ｯ貅ｷ萓帙・・ｾ陟募仰陞ｳ螢ｽ・ｱ讒ｭ繝ｻ繝ｻ・ｾ鬯ｮ・ｮ髮懶ｽ｣繝ｻ・ｽ繝ｻ・｡鬮ｫ・ｰ隰費ｽｶ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｮ髯橸ｽ｢繝ｻ・ｹ驕ｯ・ｶ繝ｻ・ｲ鬮ｯ貊ゑｽｽ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
 		}
 	}
 }
@@ -2054,7 +1687,7 @@ void BattleController::RebuildFieldView_()
 		auto card = std::make_unique<Card3D>();
 		if (def) card->Initialize(objCom_, dx_, cam_, *def, field_[i]);
 		card->SetIsHand(false);
-		card->SetTransform({ 0.0f, -10.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 1.15f, 1.15f, 1.15f }); // 見えない場所から
+		card->SetTransform({ 0.0f, -10.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 1.15f, 1.15f, 1.15f }); // 鬯ｮ・ｫ驕ｨ繧托ｽｽ・ｹ隴擾ｽｶ隴・ｽ｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｰ郢晢ｽｻ繝ｻ・ｴ鬮ｫ・ｰ郢晢ｽｻ・つ鬩搾ｽｵ繝ｻ・ｺ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ郢晢ｽｻ
 		fieldViews_.push_back(std::move(card));
 	}
 
@@ -2074,7 +1707,7 @@ void BattleController::RebuildFieldView_()
 
 	}
 
-	// 1. 今の役を評価
+	// 1. 鬮｣遒代・繝ｻ・ｿ繝ｻ・ｫ驛｢譎｢・ｽ・ｻ鬮ｯ貅ｷ遘√・・ｽ繝ｻ・ｹ鬩幢ｽ｢繝ｻ・ｧ髯橸ｽｳ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｩ鬩包ｽｨ郢ｧ謇假ｽｽ・ｽ繝ｻ・ｾ郢晢ｽｻ繝ｻ・｡
 	if (field_.size() == 5) {
 		currentPoker_ = EvaluatePokerHand_();
 	} else {
@@ -2082,31 +1715,31 @@ void BattleController::RebuildFieldView_()
 		currentPoker_.power = 0;
 	}
 
-	// 2. 役の強さに応じてキラキラの強さを決める
+	// 2. 鬮ｯ貅ｷ遘√・・ｽ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｯ貊捺ｱ壹・・ｽ繝ｻ・ｷ鬩搾ｽｵ繝ｻ・ｺ鬮ｴ蝓溷繭郢晢ｽｻ鬮ｯ貊ゑｽｽ・｢髫ｲ蟶ｷ閻ｸ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｭ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｭ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｯ貊捺ｱ壹・・ｽ繝ｻ・ｷ鬩搾ｽｵ繝ｻ・ｺ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｽ陞ｳ螟ｲ・ｽ・ｱ髮懶ｽ｣繝ｻ・ｽ繝ｻ・ｺ鬩幢ｽ｢繝ｻ・ｧ驕ｶ荳橸ｽ､・ｲ繝ｻ・ｽ郢晢ｽｻ
 	float intensity = 0.0f;
 	if (currentPoker_.rank == PokerHandRank::None) {
 		intensity = 0.0f;
 	} else if (currentPoker_.rank <= PokerHandRank::TwoPair) {
-		intensity = 5.0f;  // 弱い役：うっすら
+		intensity = 5.0f;  // 鬮ｯ貊捺ｱ壹・・ｽ繝ｻ・ｱ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｹ驛｢譎｢・ｽ・ｻ髯橸ｽ｢繝ｻ・ｹ驕ｶ蛹・ｽｽ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ髯ｷ・ｷ繝ｻ・ｶ郢晢ｽｻ郢晢ｽｻ
 	} else if (currentPoker_.rank <= PokerHandRank::FullHouse) {
-		intensity = 10.0f;  // 中堅の役：はっきり
+		intensity = 10.0f;  // 鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬮ｯ諛ｶ・ｽ・｣驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻ鬮ｯ貅ｷ遘√・・ｽ繝ｻ・ｹ驛｢譎｢・ｽ・ｻ髯橸ｽ｢繝ｻ・ｹ驛｢譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ鬯ｮ・ｦ繝ｻ・ｪ郢晢ｽｻ郢晢ｽｻ
 	} else {
-		intensity = 15.0f;  // 強い役：まばゆい！
+		intensity = 15.0f;  // 鬮ｯ貊捺ｱ壹・・ｽ繝ｻ・ｷ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｹ驛｢譎｢・ｽ・ｻ髯橸ｽ｢繝ｻ・ｹ驕ｶ謫ｾ・ｽ・ｪ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ隶抵ｽｭ郢晢ｽｻ驛｢譎｢・ｽ・ｻ
 	}
 
-	// 3. 役に関係しているカードだけをハイライト
+	// 3. 鬮ｯ貅ｷ遘√・・ｽ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬯ｯ・ｮ繝ｻ・｢郢晢ｽｻ繝ｻ・｢鬮｣蜴・ｽｽ・ｫ驛｢・ｧ郢晢ｽｻ繝ｻ・ｼ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ髫ｨ繝ｻ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ髣比ｼ夲ｽｽ・｣郢晢ｽｻ陜｣・､繝ｻ・ｹ隴乗・・ｽ・ｸ驗呻ｽｫ遶包ｽｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
 	std::array<bool, 5> mask = GetPokerHighlightMask_();
 
 	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
 		if (i < 5 && mask[i]) {
 			fieldViews_[i]->SetGlitter(intensity);
 
-			// 強い役なら枠の色も変更
+			// 鬮ｯ貊捺ｱ壹・・ｽ繝ｻ・ｷ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ鬨ｾ蛹・ｽｽ・ｻ髫ｴ・ｽ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ髮趣ｽｼ繝ｻ・ｶ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢繝ｻ・ｧ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ繝ｻ・､鬨ｾ蛹・ｽｽ・ｻ髯晢ｽｲ繝ｻ・ｩ
 			if (currentPoker_.rank != PokerHandRank::None) {
 				// final frame color is applied in RefreshAllFieldCardTransforms_()
 			}
 		} else {
-			// 役に関係ないカードはリセット
+			// 鬮ｯ貅ｷ遘√・・ｽ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬯ｯ・ｮ繝ｻ・｢郢晢ｽｻ繝ｻ・｢鬮｣蜴・ｽｽ・ｫ驛｢・ｧ郢晢ｽｻ郢晢ｽｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驍ｵ・ｺ陷･・ｲ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ
 			fieldViews_[i]->SetGlitter(0.0f);
 			// final frame color is applied in RefreshAllFieldCardTransforms_()
 		}
@@ -2797,8 +2430,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	bool rTrig = input->IsMouseTrigger(1);
 
 	// ---------------------------------
-	// チュートリアル中のUI説明では
-	// ゲームプレイ入力だけ無効化する
+	// 鬩幢ｽ｢隴擾ｽｶ郢晢ｽｻ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓溘・蜿悶渚繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮUI鬯ｮ・ｫ繝ｻ・ｱ郢晢ｽｻ繝ｻ・ｬ鬮ｫ・ｴ闕ｳ讖ｸ・ｽ・ｼ繝ｻ・ｱ驍ｵ・ｲ陜｣・､繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ
+	// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・｣繝ｻ・ｰ鬩幢ｽ｢隴惹ｸ橸ｽｹ・ｲ繝ｻ蜿厄ｽｨ謚ｵ・ｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・･鬮ｯ・ｷ霑壼遜・ｽ・ｸ陷ｷ・ｮ陷ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ鬯ｩ・｢陜ｮ繧・ｽｼ・ｯ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・ｽ繝ｻ・ｹ鬮ｯ蜈ｷ・ｽ・ｹ髫ｰ雋ｻ・ｽ・ｶ髫ｨ蛟･繝ｻ繝ｻ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 	// ---------------------------------
 	if (tutorialInputLocked_) {
 		yTrig = false;
@@ -2811,7 +2444,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	pokerMouseChoice_ = PokerMouseChoice::None;
 
 	// -----------------------------
-	// ポーカー発動する/しない 選択
+	// 鬩幢ｽ｢隴弱・・ｺ・｢驛｢譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬯ｨ・ｾ陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｺ鬮ｯ・ｷ陝雜｣・ｽ・ｼ隰夲ｽｫ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｶ莨√・繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ鬯ｯ・ｩ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｸ鬮ｫ・ｰ陞｢・ｹ郢晢ｽｻ
 	// -----------------------------
 	if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice)
 	{
@@ -2820,7 +2453,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	}
 
 	// -----------------------------
-	// ポーカー効果選択
+	// 鬩幢ｽ｢隴弱・・ｺ・｢驛｢譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・ｽ繝ｻ・ｹ鬮ｫ・ｴ繝ｻ・ｫ髫ｲ讖ｸ・ｽ・ｺ驕ｶ蝓弱Γ繝ｻ・ｬ陞｢・ｹ郢晢ｽｻ
 	// -----------------------------
 	if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice)
 	{
@@ -2854,14 +2487,14 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		if (propManager_) {
 			Matrix4x4 vp = cam_->GetViewProjectionMatrix();
 			for (const auto& prop : propManager_->GetProps()) {
-				// Scene Editorで付けた名前が "Button" のものを探す
+				// Scene Editor鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬮｣逧ｮ逕･・つ繝ｻ・･郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髮九・・ｽ・ｷ鬯ｪ・ｭ陷奇｣ｰ隲ｱ繝ｻ・ｫ・ｦ繝ｻ・ｪ驕ｯ・ｶ繝ｻ・ｲ "Button" 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ驛｢・ｧ郢晢ｽｻ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯ｷ・ｻ髢ｧ・ｲ驍頑ｻ・＠繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 				if (prop.name == "Button" || prop.name == "EndTurnButton") {
 					Vector4 clip = MulRowVec4Mat4({ prop.pos.x, prop.pos.y, prop.pos.z, 1.0f }, vp);
 					if (clip.w > 0.0f) {
 						float sx = (clip.x / clip.w + 1.0f) * 0.5f * WinApp::kClientWidth;
 						float sy = (1.0f - clip.y / clip.w) * 0.5f * WinApp::kClientHeight;
 
-						// モデルのスケールに応じて当たり判定の半径を計算（適度に大きめ）
+						// 鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｢鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ繝ｻ蜿門旭繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｱ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ貊ゑｽｽ・｢髫ｲ蟶ｷ閻ｸ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬮ｯ貅ｷ繝ｻ關難ｽｭ髫ｨ・ｳ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ鬯ｮ・ｮ遶擾ｽｵ郢晢ｽｻ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ驛｢譎｢・ｽ・ｻ鬮ｯ・ｷ闔ｨ竏晢ｽｮ・ｦ郢晢ｽｻ繝ｻ・ｾ驛｢譎｢・ｽ・ｻ郢晢ｽｻ陝ｶ譎乗凄鬮｢・ｧ繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｮ髫ｴ莨夲ｽｽ・ｦ郢晢ｽｻ繝ｻ・ｼ鬨ｾ雜｣・ｽ・ｯ驕ｶ髮・・・・ｰ髮懶ｽ｣繝ｻ・ｽ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ讓奇ｽｻ繧托ｽｽ・ｽ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ鬯ｮ・ｦ繝ｻ・ｪ郢晢ｽｻ遶丞｣ｹ繝ｻ驛｢譎｢・ｽ・ｻ
 						float radius = 60.0f * prop.scale.x;
 						float dx = mouse.x - sx;
 						float dy = mouse.y - sy;
@@ -2999,26 +2632,26 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 							bool needsTarget = false;
 							int dmgVal = 0;
-							int hitCount = 0; // 攻撃回数（バフを乗せる回数）
+							int hitCount = 0; // 鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ髯橸ｽｻ隶鯉ｽ｢繝ｻ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ髯具ｽｹ繝ｻ・ｻ驛｢譎｢・ｽ・ｰ鬩幢ｽ｢隴弱・・ｽ・ｼ髮具ｽｻ繝ｻ・ｽ陞ｳ螢ｼ・ｵ・ｯ髯ｷ莨夲ｽｽ・ｱ髫ｨ・ｳ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ髯ｷ・ｿ繝ｻ・･髯橸ｽｻ隶鯉ｽ｢繝ｻ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻ
 
 							for (const auto& effect : def->effects) {
-								// 通常ダメージ（OverClock等で複数ある場合は加算していく）
+								// 鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ郢晢ｽｻ繝ｻ・ｸ鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻverClock鬯ｩ蛹・ｽｽ・ｲ髯晢ｽｲ繝ｻ・ｨ驍ｵ・ｲ陝ｶ譎丞楜驛｢譎｢・ｽ・ｻ髴取ｺｷ・､繧托ｽｽ・ｸ繝ｻ・ｺ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ髯具ｽｹ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・｣繝ｻ・ｰ鬯ｩ髦ｪ・・濤・ｲ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・･驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻ
 								if (effect.type == "Damage") {
 									needsTarget = true;
 									dmgVal += effect.value;
 									hitCount++;
 								}
-								// クレセントムーン（奇数ターンなら+3ダメージ）
+								// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｬ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴主・讓溘・荳ｻ・ｰ・､繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ驛｢譎｢・ｽ・ｻ髣費｣ｰ繝ｻ・･郢晢ｽｻ繝ｻ・･驛｢譎｢・ｽ・ｻ髴取ｺｷ・､繧托ｽｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ3鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻ
 								else if (effect.type == "DamageCrescent") {
 									needsTarget = true;
 									int val = effect.value;
 									if (playerTurnCount_ % 2 != 0) {
-										val += 3; // 奇数ターンなら追加ダメージ
+										val += 3; // 鬮ｯ讒ｭ・・ｹ晢ｽｻ髴取ｺｷ・､繧托ｽｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ鬮｣繝ｻ・ｽ・ｽ郢晢ｽｻ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｽ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・｣繝ｻ・ｰ鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ
 									}
 									dmgVal += val;
 									hitCount++;
 								}
-								// シールドバッシュ
+								// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｷ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｰ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ陷･謫ｾ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・･
 								else if (effect.type == "DamageByBlock") {
 									needsTarget = true;
 									dmgVal += (player_ ? player_->GetBlock() : 0) * effect.value;
@@ -3037,15 +2670,15 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								}
 							}
 
-							// もし攻撃カードなら、発動せずに「敵を選ぶモード」へ移行！
+							// 鬩幢ｽ｢繝ｻ・ｧ驛｢・ｧ郢晢ｽｻ繝ｻ・ｼ繝ｻ・ｰ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ驍ｵ・ｺ陷･・ｲ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驕ｶ莨√・繝ｻ・ｹ繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ繝ｻ縺､ﾂ驕ｶ謫ｾ・ｽ・ｫ髯具ｽｹ繝ｻ・ｱ鬮ｯ・ｷ陝雜｣・ｽ・ｼ隰夲ｽｫ鬮ｮ・ｷ鬩搾ｽｵ繝ｻ・ｺ髯橸ｽ｢繝ｻ・ｹ驕ｶ莨∬ｱｪ繝ｻ・ｸ繝ｻ・ｲ髫ｴ・ｴ繝ｻ・ｧ鬯ｮ・ｮ繝ｻ・ｰ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｶ隴擾ｽｶ郢晢ｽｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｶ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ繝ｻ縺､ﾂ鬯ｮ・ｦ繝ｻ・ｪ驕ｶ蜀暦ｽ｣・ｯ・ゑｽｧ郢晢ｽｻ繝ｻ・ｻ鬯ｮ・ｯ繝ｻ・ｦ鬯ｲ繝ｻ・ｼ螟ｲ・ｽ・ｽ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
 							if (needsTarget) {
 								int buff = currentTurnAtkUp_ + (player_ ? player_->GetBoostedPower() : 0);
 								pendingDamage_ = dmgVal + (buff * hitCount);
 
-								isPokerDamageTargeting_ = false;                 // 手札カード由来
-								pendingCardHandIndex_ = idx;                     // 使った手札位置を覚える
+								isPokerDamageTargeting_ = false;                 // 鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴寂・繝ｻ鬩励ｑ・ｽ・ｰ鬮ｫ・ｴ陞滂ｽｲ繝ｻ・ｽ繝ｻ・･
+								pendingCardHandIndex_ = idx;                     // 鬮｣蜴・ｽｽ・ｴ郢晢ｽｻ繝ｻ・ｿ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ髮倶ｼ∬ｱｪ郢晢ｽｻ鬮ｫ・ｴ陝ｷ・｢繝ｻ・ｽ繝ｻ・ｭ鬮｣蜴・ｽｽ・ｴ髯ｷ・･繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ髯橸ｽｳ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｦ髯橸ｽ｢繝ｻ・ｹ驕ｶ謫ｾ・ｽ・ｴ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 								handView_.SetFocusIndex(idx);
-								cardState_ = CardInputState::ChoosingEnemyTarget; // 敵選択へ
+								cardState_ = CardInputState::ChoosingEnemyTarget; // 鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬯ｯ・ｩ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｸ鬮ｫ・ｰ陞｢・ｽ繝ｻ・ｧ繝ｻ・ｭ驕ｶ荳翫・
 
 								selectedIndex_ = -1;
 								handView_.SetPreviewIndex(-1);
@@ -3133,7 +2766,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 					Vector3 previewPos = { -10.f, 2.0f, 3.0 };
 					pendingCardView_->SetTransform(previewPos, { 0.0f, 0.0f, 0.0f }, { 1.f, 1.f, 1.f });
-					pendingCardView_->Update(dt); // 描画のためにUpdateを呼ぶ
+					pendingCardView_->Update(dt); // 鬮ｫ・ｰ繝ｻ・ｰ髯ｷﾂ隲､諛医・鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｺ髮九・竏槭・・ｽ遶擾ｽｫ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫUpdate鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｨ雋ｻ・ｽ・ｻ闕ｵ貊ゑｽｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｶ
 				}
 
 				int newHover = PickFieldIndexByMouse_(mouse.x, mouse.y);
@@ -3205,7 +2838,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 			break;
 			case CardInputState::ChoosingEnemyTarget:
 			{
-				// マウスの位置にいる敵を探す
+				// 鬩幢ｽ｢隴弱・・ｽ・ｧ繝ｻ・ｭ驍ｵ・ｺ髢ｧ・ｲ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮｣蜴・ｽｽ・ｴ髯ｷ・･繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・私・ｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢繝ｻ・ｧ髯ｷ・ｻ髢ｧ・ｲ驍頑ｻ・＠繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 				int hoverIndex = enemyMgr_->PickEnemyByMouse(
 					mouse.x, mouse.y,
 					cam_->GetViewProjectionMatrix(),
@@ -3214,7 +2847,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				Vector4 defaultColor{ 1.0f, 1.f, 1.f, 1.0f };
 
-				// マウスが重なっている敵を黄色く光らせる
+				// 鬩幢ｽ｢隴弱・・ｽ・ｧ繝ｻ・ｭ驍ｵ・ｺ髢ｧ・ｲ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ鬩募●繝ｻ髯ｬ貊・＠繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・私・ｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｶ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ髴大､ｲ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ髣包ｽｳ隶抵ｽｭ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ髫ｨ・ｳ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 				for (auto& enemy : enemyMgr_->GetEnemies()) {
 					enemy.SetHighlight(false);
 				}
@@ -3222,7 +2855,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					enemyMgr_->GetEnemies()[hoverIndex].SetHighlight(true);
 				}
 
-				// 左クリックで決定して攻撃
+				// 鬮ｯ譎｢・ｽ・ｾ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ鬩｢謳ｾ・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬮ｮ謇具ｽｶ・｣繝ｻ・ｽ繝ｻ・ｺ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
 				if (lTrig) {
 					if (hoverIndex >= 0) {
 						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
@@ -3245,7 +2878,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					}
 				}
 
-				// 右クリック：キャンセルして元に戻る
+				// 鬮ｯ・ｷ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ闔会ｽ｣郢晢ｽｻ髯橸ｽ｢繝ｻ・ｹ驍ｵ・ｺ陷證ｦ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・｣鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬮ｯ・ｷ陋ｹ・ｻ郢晢ｽｻ驕ｶ鬆托ｽ･・｢繝ｻ・ｬ鬲・ｼ夲ｽｽ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 				if (rTrig) {
 					if (isPokerDamageTargeting_ && tutorialLockPokerTargetingCancel_) {
 						handView_.SetFocusIndex(-1);
@@ -3258,7 +2891,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					cardState_ = CardInputState::Idle;
 
 					if (isPokerDamageTargeting_) {
-						pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice; // ポーカー選択へ戻る
+						pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice; // 鬩幢ｽ｢隴弱・・ｺ・｢驛｢譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬯ｯ・ｩ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｸ鬮ｫ・ｰ陞｢・ｽ繝ｻ・ｧ繝ｻ・ｭ驕ｶ蝓弱Γ繝ｻ・ｬ鬲・ｼ夲ｽｽ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 					}
 				}
 			}
@@ -3268,7 +2901,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 	} else {
 		// --------------------------------------------------
-		// エネミーターンの処理
+		// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｨ鬩幢ｽ｢隴取ｨ費ｽｺ繧托ｽｾ譛ｱ繝ｻ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｯ・ｷ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｦ鬯ｨ・ｾ郢晢ｽｻ郢晢ｽｻ
 		// --------------------------------------------------
 		handView_.SetHoverIndex(-1);
 		handView_.SetDrag(-1, 0, 0, false);
@@ -3292,10 +2925,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					currentEnemyIndex_++;
 				}
 
-				// まだ行動していない敵がいる場合
+				// 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬯ｮ・ｯ繝ｻ・ｦ髫ｰ逍ｲ・ｺ・ｯ陷牙ｸ昴＠繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驕ｶ莨√・繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ鬯ｮ・ｮ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髯滓坩・ｯ莨夲ｽｽ・ｼ隶捺慣・ｽ・ｹ繝ｻ・ｧ髯ｷ・ｿ繝ｻ・･郢晢ｽｻ繝ｻ・ｰ郢晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
 				if (currentEnemyIndex_ < enemies.size()) {
 
-					// 今回行動する敵を1体だけ取得
+					// 鬮｣遒大ｴ溯楜・ｦ髯橸ｽｻ鬯･・ｴ陷崎挙・ｬ逍ｲ・ｺ・ｯ陷牙ｸ昴＠繝ｻ・ｺ髯ｷ・ｷ繝ｻ・ｶ郢晢ｽｻ驍・私・ｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮｣蜴・ｽｽ・ｴ鬮ｦ・ｮ陷ｷ・ｮ陷ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ髯樊ｻゑｽｽ・ｧ髯ｷ・ｿ陷ｻ・ｵ繝ｻ・ｰ髴域鱒繝ｻ
 					Enemy& e = enemies[currentEnemyIndex_];
 					EnemyAction action = e.GetBossAI().GetNextAction();
 
@@ -3303,29 +2936,29 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 					enemyWait_ = 1.0f;
 
-					// 次の敵の番へ進めておく
+					// 鬮ｫ・ｹ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬯ｨ・ｾ繝ｻ・｡郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｸ鬯ｯ・ｨ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢繝ｻ・ｧ驕ｶ荳橸ｽ｣・ｺ・つ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ鬩怜遜・ｽ・ｫ郢晢ｽｻ繝ｻ・･
 					currentEnemyIndex_++;
 
 				} else {
-					// 全ての敵の行動が終わった場合
+					// 鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・ｨ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬯ｮ・ｯ繝ｻ・ｦ髫ｰ逍ｲ・ｺ・ｯ陷牙ｸ昴＠繝ｻ・ｺ髫ｶ蜻ｵ・ｶ・｣繝ｻ・ｽ繝ｻ・ｵ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ陷證ｦ・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ髮九・・ｽ・ｷ郢晢ｽｻ繝ｻ・ｰ郢晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
 
-					// 状態異常ダメージ処理
+					// 鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髴托ｽ｢驕会ｽｼ郢晢ｽｻ鬮ｯ譎｢・ｽ・ｶ郢晢ｽｻ繝ｻ・ｸ鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬮ｯ・ｷ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｦ鬯ｨ・ｾ郢晢ｽｻ郢晢ｽｻ
 					if (enemyMgr_) {
-						// 全ての敵に対してループ処理を行う
+						// 鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・ｨ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ譏ｴ繝ｻ繝ｻ・ｽ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴弱・ﾂ隲帷ｿｫ繝ｻ鬯ｨ・ｾ郢晢ｽｻ郢晢ｽｻ郢晢ｽｻ陝ｶ譎剰ｷ晞辧蜍滂ｽｨ・ｯ鬲假ｽｬ
 						for (auto& enemy : enemyMgr_->GetEnemies()) {
-							// 生きている敵のみに付与
+							// 鬯ｨ・ｾ陟・屮・ｽ・ｺ陋滂ｽｪ・つ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・私・ｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｿ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮｣逧ｮ逕･・つ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｸ驛｢譎｢・ｽ・ｻ
 							if (enemy.IsAlive()) {
 								enemy.TurnEndApplyBC();
 
-								// 必要であれば各敵の頭上にエフェクトや数値を出す
+								// 鬮ｯ貊ゑｽｽ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｦ驕ｶ荳橸ｽ｣・ｹ・つ陜｣・､繝ｻ・ｸ繝ｻ・ｺ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ鬯ｮ・ｮ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬯ｯ・ｯ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｭ鬮｣蛹・ｽｽ・ｳ鬩怜遜・ｽ・ｫ驕ｶ莨∬ｱｪ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｨ鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ蜃ｾ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴主・讓溽ｹ晢ｽｻ郢晢ｽｻ繝ｻ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｰ鬮ｯ蛹ｺ・ｻ繧托ｽｽ・ｽ繝ｻ・､鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｧ・ｭ郢晢ｽｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 								// SpawnDamagePopup(enemy.GetPos(), effect.value, false); 
 							}
 						}
 					}
 
-					currentEnemyIndex_ = 0; // 次のターンに向けてリセットしておく
+					currentEnemyIndex_ = 0; // 鬮ｫ・ｹ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ・ｷ繝ｻ・ｷ髣比ｼ夲ｽｽ・｣郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ鬩怜遜・ｽ・ｫ郢晢ｽｻ繝ｻ・･
 
-					// プレイヤーターンへ移行
+					// 鬩幢ｽ｢隴惹ｸ橸ｽｹ・ｲ繝ｻ蜿厄ｽｨ謚ｵ・ｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｸ鬯ｩ蜍溪・繝ｻ・ｽ繝ｻ・ｻ鬯ｮ・ｯ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
 					turn_ = TurnState::Player;
 					StartPlayerTurn_();
 				}
@@ -3349,77 +2982,6 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		playerLastHp_ = player_->GetHP();
 	}
 
-	// ボスのHPゲージ位置と行動予告を更新する
-	if (enemyMgr_) {
-		auto& enemies = enemyMgr_->GetEnemies();
-		for (size_t i = 0; i < enemyHpBgs_.size(); ++i) {
-			if (i < enemies.size() && enemies[i].IsAlive()) {
-				float gaugeWidth = 200.0f;
-				float posX = 1000.0f; // 右上に配置
-				float posY = 40.0f + (i * 30.0f); // 30pxずつ下にずらす
-
-				enemyHpBgs_[i]->SetScale({ gaugeWidth, 15.0f, 1.0f });
-				enemyHpBgs_[i]->SetPosition({ posX, posY });
-
-				EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
-				const bool hasIntent = !nextAct.type.empty() || !nextAct.name.empty();
-				const bool actedByCount =
-					i < enemyActedByCountThisTurn_.size() && enemyActedByCountThisTurn_[i];
-				if (hasIntent) {
-
-				// 行動タイプによって色を変える！
-                if (actedByCount) {
-                    enemyIntentIcons_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
-                } else if (nextAct.type == "Attack") {
-                    enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
-                } else if (nextAct.type == "Heal") {
-                    enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
-                } else if (nextAct.type == "Block") {
-                    enemyIntentIcons_[i]->SetColor({ 0.25f, 0.55f, 1.0f, 1.0f });
-                } else {
-                    enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
-                }
-
-					enemyIntentIcons_[i]->SetScale({ 20.0f, 20.0f, 1.0f });
-					// HPゲージの原点にもよりますが、左に30pxほどずらします
-					enemyIntentIcons_[i]->SetPosition({ posX - 30.0f, posY });
-					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
-						enemyIntentTexts_[i]->SetText(actedByCount ? L"" : GetEnemyIntentText_(nextAct));
-						enemyIntentTexts_[i]->SetColor(GetEnemyIntentTextColor_(nextAct.type));
-						enemyIntentTexts_[i]->SetPosition({ posX - 100.0f, posY - 10.0f });
-					}
-					if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
-						const int count = i < enemyActionCounts_.size() ? enemyActionCounts_[i] : 0;
-						if (!actedByCount && count > 0) {
-							enemyIntentCountTexts_[i]->SetText(std::to_wstring(count));
-							enemyIntentCountTexts_[i]->SetColor({ 0.0f, 0.0f, 0.0f });
-							enemyIntentCountTexts_[i]->SetPosition({ posX - 37.0f, posY - 12.3f });
-						} else {
-							enemyIntentCountTexts_[i]->SetText(L"");
-						}
-					}
-				} else {
-					enemyIntentIcons_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
-					if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
-						enemyIntentTexts_[i]->SetText(L"");
-					}
-					if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
-						enemyIntentCountTexts_[i]->SetText(L"");
-					}
-				}
-			} else {
-				// 敵がいない、または死んでいる場合はゲージを見えなくする
-				enemyHpBgs_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
-				enemyIntentIcons_[i]->SetScale({ 0.0f, 0.0f, 1.0f });
-				if (i < enemyIntentTexts_.size() && enemyIntentTexts_[i]) {
-					enemyIntentTexts_[i]->SetText(L"");
-				}
-				if (i < enemyIntentCountTexts_.size() && enemyIntentCountTexts_[i]) {
-					enemyIntentCountTexts_[i]->SetText(L"");
-				}
-			}
-		}
-	}
 }
 
 void BattleController::UpdateVisuals_(float dt)
@@ -3437,104 +2999,60 @@ void BattleController::UpdateVisuals_(float dt)
 			discardView_->Update(dt);
 		}
 
-		for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
-			it->timer -= 1.0f;
-			it->pos.y += 0.05f;
-			if (it->timer <= 0.0f) {
-				it = damagePopups_.erase(it);
-			} else {
-				const float gap = 0.8f;
-				const int count = static_cast<int>(it->digitModels.size());
-				const float startX = -gap * 0.5f * (count - 1);
-				for (size_t i = 0; i < it->digitModels.size(); ++i) {
-					Vector3 digitPos = it->pos;
-					digitPos.x += startX + gap * i;
-					digitPos.z -= 1.0f;
-
-					it->digitModels[i]->SetTranslate(digitPos);
-					it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
-					it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
-					it->digitModels[i]->Update(dt);
-				}
-				++it;
-			}
-		}
+		damagePopupUi_.Update(dt);
 		return;
 	}
 
-	// 1. フィールドカードの更新（ラメ・アニメーションの進行）
+	// 1. 鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ隘夜ｩ幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驍ｵ・ｺ陷･・ｲ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ髯具ｽｹ繝ｻ・ｻ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴乗・・ｽ・ｹ隴∵ｻ・ｱｪ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｷ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬯ｯ・ｨ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｲ鬯ｮ・ｯ繝ｻ・ｦ鬯ｲ繝ｻ・ｼ螟ｲ・ｽ・ｽ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
 	for (auto& cardView : fieldViews_) {
 		if (cardView) {
-			cardView->Update(dt); // これが呼ばれればどんな状態でもラメが動きます
+			cardView->Update(dt); // 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ髫ｰ逍ｲ・ｻ莨夲ｽｽ・ｻ闕ｵ貊ゑｽｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩幢ｽ｢繝ｻ・ｧ髯滓坩・ｯ莨夲ｽｽ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ鬮ｦ・ｮ陷ｷ・ｮ郢晢ｽｻ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｴ・つ陜｣・､繝ｻ・ｹ繝ｻ・ｧ驛｢・ｧ郢晢ｽｻ陝ｶ・ｷ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩搾ｽｵ繝ｻ・ｺ髫ｰ逍ｲ・ｺ・ｯ陷牙ｸ昴＠繝ｻ・ｺ鬯ｮ・ｦ繝ｻ・ｪ驕ｶ謫ｾ・ｽ・ｪ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 		}
 	}
 
-	// 2. 座標の移動更新（目標地点へスムーズに動かす）
+	// 2. 鬮ｯ貅ｯ・ｶ・｣繝ｻ・ｽ繝ｻ・ｧ鬮ｫ・ｶ霓｣蛟｡蜃ｽ驛｢譎｢・ｽ・ｻ鬯ｩ蜍溪・繝ｻ・ｽ繝ｻ・ｻ鬮ｯ・ｷ隶主･・ｽｽ・｢霓｣蛛・ｽｽ・ｳ繝ｻ・ｩ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ鬮｢・ｧ繝ｻ・ｲ髯晢ｽｯ繝ｻ・ｼ鬮ｫ・ｶ霓｣蛟ｬ螳・坿・ｷ陝雜｣・ｽ・ｽ繝ｻ・､郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｸ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴趣ｽ｢繝ｻ・｣繝ｻ・ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｺ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ・ｷ陝雜｣・ｽ・ｼ隴夲ｽｿ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髯ｷ・ｻ繝ｻ・ｻ郢晢ｽｻ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
 	if (fieldLayoutDirty_ ||
 		cardState_ == CardInputState::ChoosingFieldReplace ||
 		pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi)
 	{
 		RefreshAllFieldCardTransforms_(dt);
-		// ※ Refresh~ の中で fieldLayoutDirty_ = false; をしていることを確認
+		// 鬩包ｽｯ繝ｻ・ｶ郢晢ｽｻ繝ｻ・ｻ Refresh~ 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ fieldLayoutDirty_ = false; 鬩幢ｽ｢繝ｻ・ｧ髯句ｹ｢・ｽ・ｵ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ霑｢證ｦ・ｽ・ｸ繝ｻ・ｺ鬮ｦ・ｮ陷ｷ・ｮ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯懶ｽ｣繝ｻ・､郢晢ｽｻ繝ｻ・｢郢晢ｽｻ繝ｻ・ｺ鬯ｮ・ｫ繝ｻ・ｱ驛｢譎｢・ｽ・ｻ
 	}
 
-	// 3. 手札の「出すと作れる最高役」プレビューを反映してから更新
+	// 3. 鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｲ髫ｰ逍ｲ・ｺ蛟･繝ｻ鬩搾ｽｵ繝ｻ・ｺ髯ｷ・ｷ繝ｻ・ｶ驕ｶ髮・ｽｮ螢ｽ蜑ｲ髫ｲ蟶幢ｽ･繝ｻ・ｽ・ｽ隶呵ｶ｣・ｽ・ｹ繝ｻ・ｧ髯具ｽｹ繝ｻ・ｺ髫ｲ・､陷･雜｣・ｽ・ｬ繝ｻ・ｮ髣費ｽｨ隲幢ｽｶ繝ｻ・ｽ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｲ鬯ｮ・ｦ繝ｻ・ｪ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｬ鬩幢ｽ｢隴寂或・ｾ・ｭ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｨ螂・ｽｽ・ｸ陞溷･・ｽｽ・ｭ隰ｫ・ｾ繝ｻ・｣繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ髣・ｽｽ繝ｻ・ｭ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ
 	UpdateHandPokerPreviewEffects_();
 	handView_.Update(dt);
 
-	// 4. 墓地・数字ポップアップの更新
+	// 4. 鬮ｯ貅倥・・ゑｽｧ髫ｲ・ｷ陷･・ｲ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｰ鬮ｯ譏ｴ繝ｻ陝ｷ・ｲ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｴ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ
 	if (discardView_) discardView_->Update(dt);
 
-	for (auto it = damagePopups_.begin(); it != damagePopups_.end(); ) {
-		it->timer -= 1.0f;
-		it->pos.y += 0.05f;
-		if (it->timer <= 0.0f) {
-			it = damagePopups_.erase(it);
-		} else {
-			// 数字モデルのトランスフォーム更新
-			const float gap = 0.8f;
-			const int count = static_cast<int>(it->digitModels.size());
-			const float startX = -gap * 0.5f * (count - 1);
-			for (size_t i = 0; i < it->digitModels.size(); ++i) {
-				Vector3 digitPos = it->pos;
-				digitPos.x += startX + gap * i;
-				digitPos.z -= 1.0f; // 手前に表示させる
+	damagePopupUi_.Update(dt);
 
-				it->digitModels[i]->SetTranslate(digitPos);
-				it->digitModels[i]->SetScale({ 0.8f, 0.8f, 0.8f });
-				it->digitModels[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
-				it->digitModels[i]->Update(dt);
-			}
-			++it;
-		}
-	}
-
-	// 5. HPゲージ・UI・スプライトの行列更新
+	// 5. HP鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻUI鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴惹ｸ橸ｽｹ・ｲ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴主・讓滄Δ譎｢・ｽ・ｻ鬯ｮ・ｯ繝ｻ・ｦ髫ｰ逍ｲ・ｺ蛟･繝ｻ鬮ｫ・ｴ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ
 	UpdateHpGauges();
 
 	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
 	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix((float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
 
-	if (playerHpBg_) playerHpBg_->Update(viewMat, projMat);
-	for (auto& bg : enemyHpBgs_) { if (bg) bg->Update(viewMat, projMat); }
-	for (auto& icon : enemyIntentIcons_) { if (icon) icon->Update(viewMat, projMat); }
-	for (auto& text : enemyIntentTexts_) { if (text) text->Update(viewMat, projMat); }
-	for (auto& text : enemyIntentCountTexts_) { if (text) text->Update(viewMat, projMat); }
+	if (enemyMgr_) {
+		auto& enemies = enemyMgr_->GetEnemies();
+		enemyStatusUi_.UpdateLayout(enemies, enemyActionCounts_, enemyActedByCountThisTurn_, viewMat, projMat);
+	}
 	if (highlightFilter_)highlightFilter_->Update(viewMat, projMat);
 
 	if (propManager_) {
 		propManager_->Update(dt);
 
-		// EndTurnボタン（Prop）のホバー時のフィードバック
+		// EndTurn鬩幢ｽ｢隴弱・魃ｵ驍ｵ・ｺ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻrop驛｢譎｢・ｽ・ｻ髯晢ｽｲ繝ｻ・ｨ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴取得・ｽ・ｸ陷ｷ・ｶ・趣ｽ｣鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬮ｫ・ｴ陟托ｽｱ繝ｻ繝ｻ・ｹ譎｢・ｽ・ｻ鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ隘夜ｩ幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｰ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ郢晢ｽｻ
 		for (auto& prop : propManager_->GetPropsMutable()) {
 			if (prop.name == "Button" || prop.name == "EndTurnButton") {
 				if (endTurnButtonHovered_) {
-					prop.object->SetIntensity(prop.lightIntensity * 0.3f); // 暗くなる
+					prop.object->SetIntensity(prop.lightIntensity * 0.3f); // 鬮ｫ・ｴ霑壼雀・ｹ・ｲ郢晢ｽｻ繝ｻ・･鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 				} else {
-					// ホバーしていない時は元の状態に戻す
+					// 鬩幢ｽ｢隴取得・ｽ・ｸ陷ｷ・ｶ・趣ｽ｣鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驕ｶ莨√・繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ髯ｷ繝ｻ・ｽ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬮ｯ・ｷ陋ｹ・ｻ郢晢ｽｻ驛｢譎｢・ｽ・ｻ鬮ｴ謇假ｽｽ・･郢晢ｽｻ繝ｻ・ｶ鬮ｫ・ｲ繝ｻ・ｷ髣包ｽｵ隴擾ｽｶ郢晢ｽｻ鬮ｫ・ｰ鬲・ｼ夲ｽｽ・ｽ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 					prop.object->SetIntensity(prop.lightIntensity);
 				}
-				prop.object->Update(dt); // ライトの変更を確定
+				prop.object->Update(dt); // 鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴主・讓滄Δ譎｢・ｽ・ｻ鬮ｯ讓奇ｽｺ・ｽ陋ｻ・､髯晢ｽｲ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ髯懶ｽ｣繝ｻ・､郢晢ｽｻ繝ｻ・｢郢晢ｽｻ繝ｻ・ｺ鬮ｯ讖ｸ・ｽ・ｳ驛｢譎｢・ｽ・ｻ
 			}
 		}
 	}
@@ -3604,7 +3122,7 @@ void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse,
 		return;
 	}
 
-	// チュートリアル中は「発動する」を強制ハイライト
+	// 鬩幢ｽ｢隴擾ｽｶ郢晢ｽｻ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓溘・蜿悶渚繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｲ髫ｶ蜷ｩ・ｸ・ｻ鬯ｨ鬥ｴ蛹夊泛雜｣・ｽ・ｼ隰夲ｽｫ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髣包ｽｵ隰ｨ魑ｴﾂ鬯ｮ・ｦ繝ｻ・ｪ郢晢ｽｻ陞ｳ螟ｲ・｣・ｰ隰・∞・ｽ・ｽ繝ｻ・ｷ鬮ｯ蜈ｷ・ｽ・ｻ郢晢ｽｻ繝ｻ・ｶ鬩幢ｽ｢隴乗・・ｽ・ｸ驗呻ｽｫ遶包ｽｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
 	if (tutorialActivateOnly_) {
 		if (!(PointInRect(mouse.x, mouse.y,
 			layout.infoButtonRect.x, layout.infoButtonRect.y,
@@ -3624,14 +3142,14 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 	PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
 	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
 
-	// 毎フレームいったんリセット
+	// 鬮ｮ諠ｹ・ｺ・･繝ｻ・ｼ繝ｻ・ｱ驛｢譎｢・ｽ・ｵ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｬ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・｣繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ髫ｨ繝ｻ・ｽ・ｲ鬩搾ｽｵ繝ｻ・ｺ髮九・竏槭・・ｽ鬪ｰ蜈ｷ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ
 	pokerMouseChoice_ = PokerMouseChoice::None;
 
 	// -----------------------------
-	// チュートリアル中は「ダメージ」だけ光らせる
+	// 鬩幢ｽ｢隴擾ｽｶ郢晢ｽｻ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓溘・蜿悶渚繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｲ髯溷供・ｾ貉門ｸ斟碑ｭ趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩搾ｽｵ繝ｻ・ｲ鬯ｮ・ｦ繝ｻ・ｪ髫ｨ繝ｻ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ髯樊ｻゑｽｽ・ｧ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ髫ｨ・ｳ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 	// -----------------------------
 	if (tutorialDamageOnly_) {
-		// infoボタンだけは通常通り押せる
+		// info鬩幢ｽ｢隴弱・魃ｵ驍ｵ・ｺ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髣比ｼ夲ｽｽ・｣驛｢譎｢・ｽ・ｻ鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ郢晢ｽｻ繝ｻ・ｸ鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ鬯伜∞・ｽ・ｬ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｼ鬩搾ｽｵ繝ｻ・ｺ髯晢ｽｶ陷ｻ・ｻ繝ｻ・ｽ郢晢ｽｻ
 		if (PointInRect(mouse.x, mouse.y,
 			layout.infoButtonRect.x, layout.infoButtonRect.y,
 			layout.infoButtonRect.w, layout.infoButtonRect.h)) {
@@ -3640,7 +3158,7 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 				return;
 			}
 		} else {
-			// 常にダメージだけハイライト
+			// 鬮ｯ譎｢・ｽ・ｶ郢晢ｽｻ繝ｻ・ｸ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髣比ｼ夲ｽｽ・｣驛｢譎｢・ｽ・ｯ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
 			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
 		}
 
@@ -3650,7 +3168,7 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 			tutorialLockPokerTargetingCancel_ = true;
 			pokerQuickPreviewVisible_ = false;
 
-			// ここではまだ発動完了にしない
+			// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬯ｨ・ｾ陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｺ鬮ｯ・ｷ隶手ｴ具ｽｾ蟶吶・繝ｻ・ｮ髯溷桁・ｽ・｡郢晢ｽｻ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驕ｶ莨∬ｱｪ繝ｻ・ｸ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｶ莨√・繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 			lastPokerTutorialResult_ = PokerTutorialResult::None;
 
 			cardState_ = CardInputState::ChoosingEnemyTarget;
@@ -3662,7 +3180,7 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 	}
 
 	// -----------------------------
-	// 通常時
+	// 鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ郢晢ｽｻ繝ｻ・ｸ鬮ｫ・ｴ陟托ｽｱ郢晢ｽｻ
 	// -----------------------------
 	if (PointInRect(mouse.x, mouse.y,
 		layout.infoButtonRect.x, layout.infoButtonRect.y,
@@ -3722,7 +3240,7 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		isPokerDamageTargeting_ = true;
 		pokerQuickPreviewVisible_ = false;
 
-		// ここではまだ確定しない
+		// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬯ｩ蠅捺・繝ｻ・ｽ繝ｻ・ｺ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 		lastPokerTutorialResult_ = PokerTutorialResult::None;
 
 		cardState_ = CardInputState::ChoosingEnemyTarget;
@@ -3817,39 +3335,51 @@ void BattleController::DrawDamagePopups3D(GameApp& app)
 {
 	(void)app;
 	actionDirector_.Draw3D();
-	for (auto& popup : damagePopups_) {
-		for (auto& obj : popup.digitModels) {
-			if (obj) obj->Draw();
-		}
-	}
+	damagePopupUi_.Draw3D();
+}
+
+void BattleController::DrawPlayerBattleStatusUI(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj)
+{
+	(void)app;
+	playerStatusUi_.SetTexts(
+		GetPlayerHpTexts(),
+		GetPlayerBlockText(),
+		GetPlayerPowerBoostText());
+	playerStatusUi_.DrawStatus2D(view, proj);
+}
+
+void BattleController::DrawEnemyBattleStatusHpTexts(const Matrix4x4& view, const Matrix4x4& proj)
+{
+	enemyStatusUi_.DrawHpTexts2D(view, proj);
+}
+
+void BattleController::DrawEnemyBattleStatusBcTexts(const Matrix4x4& view, const Matrix4x4& proj)
+{
+	enemyStatusUi_.DrawBcTexts2D(view, proj);
 }
 
 void BattleController::DrawCardArea3D(GameApp& app)
 {
 	(void)app;
-	// 墓地
+	// 鬮ｯ貅倥・・ゑｽｧ髫ｲ・ｷ郢晢ｽｻ
 	if (discardView_) {
 		discardView_->Draw();
 	}
 
-	// 手札
+	// 鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ
 	handView_.Draw();
 	handView_.DrawPreviewCard();
 
-	// ダメージポップアップ
-	for (auto& popup : damagePopups_) {
-		for (auto& obj : popup.digitModels) {
-			if (obj) obj->Draw();
-		}
-	}
+	// 鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩幢ｽ｢隴弱・・ｺ・｢驛｢譎｢・ｽ・｣鬩幢ｽ｢隴惹ｸ橸ｽｹ・ｲ驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｻ
+	damagePopupUi_.Draw3D();
 
-	// 場と交換時フィルター
+	// 鬮ｯ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｴ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｨ鬮｣雋ｻ・｣・ｰ郢晢ｽｻ繝ｻ・､鬮ｫ・ｰ繝ｻ・ｰ髯晢ｽｶ繝ｻ・ｶ髯ｷ繝ｻ・ｽ・ｾ鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ隘夜ｩ幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ
 	if (cardState_ == CardInputState::ChoosingFieldReplace) {
 		highlightFilter_->Draw();
 		pendingCardView_->Draw();
 	}
 
-	// 場のカード
+	// 鬮ｯ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｴ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
 	for (auto& c : fieldViews_) {
 		c->Draw();
 	}
@@ -3869,9 +3399,9 @@ void BattleController::DrawBattleOverlay3D(GameApp& app)
 		highlightFilter_->Draw();
 
 		if (enemyMgr_) {
-			// 3D描画用のパイプラインに戻す
+			// 3D鬮ｫ・ｰ繝ｻ・ｰ髯ｷﾂ隲､諛医・鬯ｨ・ｾ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｨ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢隴乗・・ｽ・ｻ繝ｻ・｣驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ隴惹ｸ橸ｽｹ・ｲ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｫ・ｰ鬲・ｼ夲ｽｽ・ｽ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 			app.ObjCom()->SetGraphicsPipelineState();
-			// Zバッファをクリアして、黒背景（highlightFilter_）よりも手前に描画されるようにする
+			// Z鬩幢ｽ｢隴寂・繝ｻ驛｢譎｢・ｽ・｣鬩幢ｽ｢隴弱・・ｽ・ｼ隴∵腸・ｼ諞ｺﾎ斐・・ｧ髯句ｹ｢・ｽ・ｵ驍ｵ・ｺ鬩｢謳ｾ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻ髯橸ｽｳ陞｢・ｹ・取ｨ｣蝙馴屆・｣繝ｻ・ｽ繝ｻ・ｯ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻighlightFilter_驛｢譎｢・ｽ・ｻ髯晢ｽｲ繝ｻ・ｨ郢晢ｽｻ髢ｧ・ｲ繝ｻ・ｹ繝ｻ・ｧ鬩怜遜・ｽ・ｫ郢晢ｽｻ郢ｧ螂・ｽｽ・ｬ郢晢ｽｻ陷夲ｽｱ髴趣ｽｯ隲ｷ蛹・ｽｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｫ・ｰ繝ｻ・ｰ髯ｷﾂ隲､諛医・鬩搾ｽｵ繝ｻ・ｺ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｹ繝ｻ・ｧ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ髢ｧ・ｲ繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驕ｶ莨∬ｱｪ繝ｻ・ｸ繝ｻ・ｺ髯ｷ・ｷ繝ｻ・ｶ郢晢ｽｻ郢晢ｽｻ
 			app.Dx()->ClearDepthBuffer();
 
 			bool hasHighlightedEnemy = false;
@@ -3999,137 +3529,31 @@ void BattleController::Draw2D(GameApp& app)
 		0, 100
 	);
 	DrawHpGaugeBloom_(app, view, proj);
-
-	const float blink = 0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * sHpDamageBlinkSpeed);
-	if (player_ && playerHpBg_) {
-		const float maxHp = static_cast<float>(std::max(1, player_->GetMaxHP()));
-		const float currentRatio = std::clamp(static_cast<float>(player_->GetHP()) / maxHp, 0.0f, 1.0f);
-		const int incomingDamage = std::max(0, CalcTotalIncomingDamage());
-		const float predictedRatio = std::clamp(
-			(static_cast<float>(player_->GetHP()) - static_cast<float>(incomingDamage)) / maxHp,
-			0.0f,
-			currentRatio
-		);
-		const float shieldEnd = std::clamp(
-			currentRatio + static_cast<float>(std::max(0, player_->GetBlock())) / maxHp,
-			0.0f,
-			1.0f
-		);
-
-		Sprite::HealthGaugeParam param{};
-		param.hpColor = { 0.17f, 0.78f, 0.18f, 1.0f };
-		param.damageColor = { 1.0f, 0.04f, 0.02f, 1.0f };
-		param.shieldColor = { 0.13f, 0.40f, 1.0f, 0.95f };
-		param.bgColor = { 0.04f, 0.07f, 0.04f, 0.82f };
-		param.borderColor = { 0.96f, 0.95f, 0.86f, 1.0f };
-		param.shadowColor = { 0.0f, 0.0f, 0.0f, 0.52f };
-		param.hpRatio = incomingDamage > 0 ? predictedRatio : currentRatio;
-		param.damageStartRatio = incomingDamage > 0 ? predictedRatio : currentRatio;
-		param.damageEndRatio = currentRatio;
-		param.shieldStartRatio = currentRatio;
-		param.shieldEndRatio = shieldEnd;
-		param.skew = 0.045f;
-		param.borderWidth = 0.018f;
-		param.blink = incomingDamage > 0 ? blink : 0.0f;
-		param.glow = 0.04f;
-		param.alpha = 1.0f;
-		playerHpBg_->SetHealthGaugeParam(param);
-		playerHpBg_->DrawHealthGauge();
+	if (player_) {
+		playerStatusUi_.DrawHpGauge(
+			player_->GetHP(),
+			player_->GetMaxHP(),
+			player_->GetBlock(),
+			std::max(0, CalcTotalIncomingDamage()),
+			sPokerGlowRainbowTime,
+			sHpDamageBlinkSpeed);
 	}
 
 	if (enemyMgr_) {
 		auto& enemies = enemyMgr_->GetEnemies();
-		for (size_t i = 0; i < enemyHpBgs_.size(); ++i) {
-			if (i >= enemies.size() || !enemyHpBgs_[i] || !enemies[i].IsAlive()) {
-				continue;
-			}
-
-			const float maxHp = static_cast<float>(std::max(1, enemies[i].GetMaxHP()));
-			const float hpRatio = std::clamp(static_cast<float>(enemies[i].GetHP()) / maxHp, 0.0f, 1.0f);
-			const float shieldEnd = std::clamp(
-				hpRatio + static_cast<float>(std::max(0, enemies[i].GetBlock())) / maxHp,
-				0.0f,
-				1.0f
-			);
-
-			Sprite::HealthGaugeParam param{};
-			param.hpColor = { 0.92f, 0.18f, 0.17f, 1.0f };
-			param.damageColor = { 1.0f, 0.55f, 0.08f, 1.0f };
-			param.shieldColor = { 0.16f, 0.42f, 1.0f, 0.95f };
-			param.bgColor = { 0.10f, 0.05f, 0.05f, 0.82f };
-			param.borderColor = { 0.94f, 0.92f, 0.82f, 1.0f };
-			param.shadowColor = { 0.0f, 0.0f, 0.0f, 0.46f };
-			param.hpRatio = hpRatio;
-			param.damageStartRatio = hpRatio;
-			param.damageEndRatio = hpRatio;
-			param.shieldStartRatio = hpRatio;
-			param.shieldEndRatio = shieldEnd;
-			param.skew = 0.045f;
-			param.borderWidth = 0.035f;
-			param.blink = 0.0f;
-			param.glow = 0.035f;
-			param.alpha = 1.0f;
-			enemyHpBgs_[i]->SetHealthGaugeParam(param);
-			enemyHpBgs_[i]->DrawHealthGauge();
-		}
+		EnemyBattleStatusUI::EnemyBloomSettings bloomSettings{};
+		bloomSettings.intentEnabled = sEnemyIntentBloomEnabled;
+		bloomSettings.intentIntensity = sEnemyIntentBloomIntensity;
+		bloomSettings.intentMinPulse = sEnemyIntentBloomMinPulse;
+		enemyStatusUi_.DrawGaugeAndIntent2D(
+			app,
+			enemies,
+			enemyActedByCountThisTurn_,
+			sPokerGlowRainbowTime,
+			view,
+			proj,
+			bloomSettings);
 	}
-	if (sEnemyIntentBloomEnabled && enemyMgr_) {
-		Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
-		Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
-			0, 0,
-			float(WinApp::kClientWidth),
-			float(WinApp::kClientHeight),
-			0, 100
-		);
-
-		auto& enemies = enemyMgr_->GetEnemies();
-		for (size_t i = 0; i < enemyIntentIcons_.size(); ++i) {
-			if (i >= enemies.size() || !enemyIntentIcons_[i] || !enemies[i].IsAlive()) {
-				continue;
-			}
-			const bool actedByCount =
-				i < enemyActedByCountThisTurn_.size() && enemyActedByCountThisTurn_[i];
-			if (actedByCount) {
-				continue;
-			}
-
-			const EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
-			if (nextAct.type.empty() && nextAct.name.empty()) {
-				continue;
-			}
-
-			Sprite* icon = enemyIntentIcons_[i].get();
-			const Vector3 originalScale = icon->GetScale();
-			const Vector4 originalColor = icon->GetColor();
-			const float scalePulse = 1.12f + 0.08f * (0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * 4.2f));
-
-			icon->SetScale({
-				originalScale.x * scalePulse,
-				originalScale.y * scalePulse,
-				originalScale.z
-			});
-			icon->SetColor(GetEnemyIntentGlowColor_(nextAct.type));
-			app.DrawSpriteObjectPost(
-				icon,
-				view,
-				proj,
-				MakeEnemyIntentBloomParam_(app.ObjectPost()->GetParam(), nextAct.type, sPokerGlowRainbowTime)
-			);
-			icon->SetScale(originalScale);
-			icon->SetColor(originalColor);
-			icon->Update(view, proj);
-		}
-	}
-	for (auto& icon : enemyIntentIcons_) {
-		if (icon) icon->Draw();
-	}
-	for (auto& text : enemyIntentCountTexts_) {
-		if (text) text->Draw();
-	}
-	for (auto& text : enemyIntentTexts_) {
-		if (text) text->Draw();
-	}
-
 	actionDirector_.Draw2D();
 }
 
@@ -4140,90 +3564,24 @@ void BattleController::DrawHpGaugeBloom_(GameApp& app, const Matrix4x4& view, co
 	}
 
 	const float baseIntensity = sHpGaugeBloomIntensity;
-	const BloomParam baseParam = app.ObjectPost()->GetParam();
-	const BloomParam hpParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity);
-	const BloomParam shieldParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity * 1.15f);
-
-	if (player_ && playerHpBg_) {
-		const float maxHp = static_cast<float>(std::max(1, player_->GetMaxHP()));
-		const float currentRatio = std::clamp(static_cast<float>(player_->GetHP()) / maxHp, 0.0f, 1.0f);
-		const int incomingDamage = std::max(0, CalcTotalIncomingDamage());
-		const float predictedRatio = std::clamp(
-			(static_cast<float>(player_->GetHP()) - static_cast<float>(incomingDamage)) / maxHp,
-			0.0f,
-			currentRatio
-		);
-		const float shieldEnd = std::clamp(
-			currentRatio + static_cast<float>(std::max(0, player_->GetBlock())) / maxHp,
-			0.0f,
-			1.0f
-		);
-		const float blink = 0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * sHpDamageBlinkSpeed);
-
-		Sprite::HealthGaugeParam gauge{};
-		gauge.hpColor = { 0.25f, 1.0f, 0.28f, 0.60f };
-		gauge.damageColor = { 1.0f, 0.02f, 0.02f, 0.86f };
-		gauge.shieldColor = { 0.18f, 0.48f, 1.0f, 0.62f };
-		gauge.bgColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-		gauge.borderColor = { 0.9f, 0.95f, 0.86f, 0.42f };
-		gauge.shadowColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-		gauge.hpRatio = incomingDamage > 0 ? predictedRatio : currentRatio;
-		gauge.damageStartRatio = incomingDamage > 0 ? predictedRatio : currentRatio;
-		gauge.damageEndRatio = currentRatio;
-		gauge.shieldStartRatio = currentRatio;
-		gauge.shieldEndRatio = shieldEnd;
-		gauge.skew = 0.045f;
-		gauge.borderWidth = 0.018f;
-		gauge.blink = incomingDamage > 0 ? blink : 0.0f;
-		gauge.glow = 0.10f;
-		gauge.alpha = 0.38f;
-		DrawHealthGaugeBloom_(
+	if (player_) {
+		playerStatusUi_.DrawHpGaugeBloom(
 			app,
-			playerHpBg_.get(),
-			gauge,
 			view,
 			proj,
-			incomingDamage > 0
-				? MakeHpGaugeBloomParam_(baseParam, sHpDamageBloomIntensity * (0.65f + 0.35f * blink))
-				: hpParam,
-			1.015f
-		);
+			player_->GetHP(),
+			player_->GetMaxHP(),
+			player_->GetBlock(),
+			std::max(0, CalcTotalIncomingDamage()),
+			sPokerGlowRainbowTime,
+			baseIntensity,
+			sHpDamageBloomIntensity,
+			sHpDamageBlinkSpeed);
 	}
 
 	if (enemyMgr_) {
 		auto& enemies = enemyMgr_->GetEnemies();
-		for (size_t i = 0; i < enemyHpBgs_.size(); ++i) {
-			if (i >= enemies.size() || !enemyHpBgs_[i] || !enemies[i].IsAlive()) {
-				continue;
-			}
-
-			const float maxHp = static_cast<float>(std::max(1, enemies[i].GetMaxHP()));
-			const float hpRatio = std::clamp(static_cast<float>(enemies[i].GetHP()) / maxHp, 0.0f, 1.0f);
-			const float shieldEnd = std::clamp(
-				hpRatio + static_cast<float>(std::max(0, enemies[i].GetBlock())) / maxHp,
-				0.0f,
-				1.0f
-			);
-
-			Sprite::HealthGaugeParam gauge{};
-			gauge.hpColor = { 1.0f, 0.20f, 0.18f, 0.54f };
-			gauge.damageColor = { 1.0f, 0.55f, 0.08f, 0.54f };
-			gauge.shieldColor = { 0.18f, 0.48f, 1.0f, 0.48f };
-			gauge.bgColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-			gauge.borderColor = { 0.94f, 0.92f, 0.82f, 0.35f };
-			gauge.shadowColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-			gauge.hpRatio = hpRatio;
-			gauge.damageStartRatio = hpRatio;
-			gauge.damageEndRatio = hpRatio;
-			gauge.shieldStartRatio = hpRatio;
-			gauge.shieldEndRatio = shieldEnd;
-			gauge.skew = 0.045f;
-			gauge.borderWidth = 0.035f;
-			gauge.blink = 0.0f;
-			gauge.glow = 0.08f;
-			gauge.alpha = 0.32f;
-			DrawHealthGaugeBloom_(app, enemyHpBgs_[i].get(), gauge, view, proj, shieldEnd > hpRatio ? shieldParam : hpParam, 1.01f);
-		}
+		enemyStatusUi_.DrawGaugeBloom(app, enemies, view, proj, baseIntensity);
 	}
 }
 
@@ -4231,15 +3589,7 @@ void BattleController::DrawHpGaugeBloom_(GameApp& app, const Matrix4x4& view, co
 #include <imgui.h>
 void BattleController::DrawPlayerHudImGuiControls()
 {
-	bool layoutChanged = false;
-	layoutChanged |= ImGui::DragFloat2("HP Shader Position", &playerHpFillPosition_.x, 1.0f);
-	layoutChanged |= ImGui::DragFloat2("HP Shader Size", &playerHpFillSize_.x, 1.0f, 1.0f, 2000.0f);
-
-	if (layoutChanged) {
-		playerHpFillSize_.x = std::max(1.0f, playerHpFillSize_.x);
-		playerHpFillSize_.y = std::max(1.0f, playerHpFillSize_.y);
-		ApplyPlayerHudLayout_();
-	}
+	playerStatusUi_.DrawImGuiControls();
 }
 
 void BattleController::DrawImGui()
@@ -4569,32 +3919,7 @@ void BattleController::SetEnemyManager(EnemyManager* enemyMgr) {
 
 void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer)
 {
-	DamagePopup p;
-	p.damage = damage;
-	p.pos = pos;
-	p.pos.y += 2.0f; // キャラクターの頭上からスタート
-	p.timer = 60.0f; // 60フレーム表示させる
-
-	// 数字を文字列（"15"など）にして、1文字ずつ処理する
-	std::string dmgStr = std::to_string(damage);
-	for (char c : dmgStr) {
-		if (c >= '0' && c <= '9') {
-			int digit = c - '0';
-
-			// プールのモデルポインタを流用してObject3dを作成（GPU再確保なし）
-			auto obj = std::make_unique<Object3d>();
-			obj->Initialize(objCom_, dx_);
-			if (digitModelPool_[digit]) {
-				// Model*を直接渡す（SetModel(path)よりはるかに軽い）
-				obj->SetModel(digitModelPool_[digit]->GetModel());
-			}
-			obj->SetCamera(cam_);
-
-			p.digitModels.push_back(std::move(obj));
-		}
-	}
-
-	damagePopups_.push_back(std::move(p));
+	damagePopupUi_.SpawnDamage(pos, damage, isPlayer);
 }
 
 const CardDef* BattleController::GetPreviewCardDef() const
@@ -4811,46 +4136,44 @@ std::wstring BattleController::GetEnergyText() const {
 
 }
 
-std::vector<std::wstring> BattleController::GetEnemyHpTexts() const {
+std::vector<std::wstring> BattleController::GetEnemyHpTexts() const
+{
 	std::vector<std::wstring> hpTexts;
-	auto& enemies = enemyMgr_->GetEnemies();
+	if (!enemyMgr_) {
+		return hpTexts;
+	}
 
+	auto& enemies = enemyMgr_->GetEnemies();
 	for (const auto& enemy : enemies) {
-		if (enemy.IsAlive()) {
-			// "100 / 100" という形式の文字列を作成
-			std::wstring text = std::to_wstring(enemy.GetHP()) + L" / " + std::to_wstring(enemy.GetMaxHP());
-			if (enemy.GetBlock() > 0) {
-				text += L"  B " + std::to_wstring(enemy.GetBlock());
-			}
-			hpTexts.push_back(text);
+		if (!enemy.IsAlive()) {
+			continue;
 		}
+		std::wstring text = std::to_wstring(enemy.GetHP()) + L" / " + std::to_wstring(enemy.GetMaxHP());
+		if (enemy.GetBlock() > 0) {
+			text += L"  B " + std::to_wstring(enemy.GetBlock());
+		}
+		hpTexts.push_back(text);
 	}
 	return hpTexts;
 }
 
-std::vector<std::wstring> BattleController::GetEnemyBCTexts() const {
+std::vector<std::wstring> BattleController::GetEnemyBCTexts() const
+{
 	std::vector<std::wstring> bcTexts;
+	if (!enemyMgr_) {
+		return bcTexts;
+	}
+
 	auto& enemies = enemyMgr_->GetEnemies();
-
 	for (const auto& enemy : enemies) {
-		if (enemy.IsAlive()) {
-			// "100 / 100" という形式の文字列を作成
-			int bcPoint = enemy.GetBCPoint();
-
-			std::wstring text;
-
-			if (bcPoint == 0) {
-				text = L"";
-			} else {
-				text = std::to_wstring(enemy.GetBCPoint());
-			}
-			bcTexts.push_back(text);
+		if (!enemy.IsAlive()) {
+			continue;
 		}
+		const int bcPoint = enemy.GetBCPoint();
+		bcTexts.push_back(bcPoint == 0 ? L"" : std::to_wstring(bcPoint));
 	}
 	return bcTexts;
 }
-
-
 
 BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
 {
@@ -4869,9 +4192,9 @@ std::wstring BattleController::GetPlayerHpTexts() const {
 bool BattleController::IsAllEnemiesDead() const {
 	auto& enemies = enemyMgr_->GetEnemies();
 	for (auto& e : enemies) {
-		if (e.IsAlive()) return false; // 一人でも生きていたらfalse
+		if (e.IsAlive()) return false; // 鬮｣蛹・ｽｽ・ｳ繝ｻ縺､ﾂ鬮｣雋ｻ・｣・ｰ郢晢ｽｻ繝ｻ・ｺ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩幢ｽ｢繝ｻ・ｧ驛｢・ｧ霑壼生繝ｻ鬩搾ｽｵ繝ｻ・ｺ鬯ｮ・ｦ繝ｻ・ｪ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ髫ｨ・ｳ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髫ｴ謫ｾ・｣・ｰalse
 	}
-	return true; // 全員死んでいたらtrue
+	return true; // 鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・ｨ鬮ｯ・ｷ繝ｻ・ｩ郢晢ｽｻ繝ｻ・｡鬮ｮ蠑ｱ繝ｻ繝ｻ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ鬮ｦ・ｮ陷ｷ・ｶ・つ陜｣・､繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ髫ｨ・ｳ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髮趣ｽｸ繝ｻ・ｲrue
 }
 
 std::wstring BattleController::GetPlayerPowerBoostText()const {
@@ -4890,14 +4213,6 @@ std::wstring BattleController::GetPlayerBlockText()const {
 	return text;
 }
 
-void BattleController::ApplyPlayerHudLayout_()
-{
-	if (playerHpBg_) {
-		playerHpBg_->SetPosition(playerHpFillPosition_);
-		playerHpBg_->SetScale({ playerHpFillSize_.x, playerHpFillSize_.y, 1.0f });
-	}
-}
-
 int BattleController::CalcTotalIncomingDamage() const {
 	int total = 0;
 	if (!enemyMgr_) return 0;
@@ -4905,19 +4220,17 @@ int BattleController::CalcTotalIncomingDamage() const {
 	for (auto& enemy : enemyMgr_->GetEnemies()) {
 		if (enemy.IsAlive()) {
 
-			// 敵が次のターンに行う攻撃力を取得（シールド等があればここで減算処理）
+			// 鬮ｫ・ｰ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ髫ｴ・ｴ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｬ郢晢ｽｻ繝ｻ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬯ｮ・ｯ繝ｻ・ｦ髯溷供・ｨ・ｯ鬲假ｽｬ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ鬯ｲ蛛・ｽｽ・ｨ鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｧ・ｫ陟募ｮ｣霎ｧ陟・§諠ｧ郢晢ｽｻ繝ｻ・ｼ髯具ｽｹ繝ｻ・ｻ驍ｵ・ｺ陷･謫ｾ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴寂・繝ｻ郢晢ｽｻ繝ｻ・ｭ髯晢ｽｲ繝ｻ・ｨ驕ｯ・ｶ繝ｻ・ｲ鬩搾ｽｵ繝ｻ・ｺ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬮ｮ荵晢ｽ・・・ｸ繝ｻ・ｷ郢晢ｽｻ繝ｻ・ｮ髫ｲ・､隲帷ｿｫ繝ｻ鬯ｨ・ｾ郢晢ｽｻ郢晢ｽｻ郢晢ｽｻ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
 			total += enemy.GetIncomingDamage() - player_->GetBlock();
 		}
 	}
 	return total;
 }
 
-void BattleController::UpdateHpGauges() {
-	ApplyPlayerHudLayout_();
-}
+void BattleController::UpdateHpGauges() {}
 
 //=====================
-//チュートリアル用
+//鬩幢ｽ｢隴擾ｽｶ郢晢ｽｻ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓溘・蜿悶渚繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬯ｨ・ｾ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｨ
 //=====================
 void BattleController::SetTutorialOpeningHand(const std::vector<CardInstance>& cards)
 {
@@ -5068,12 +4381,12 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 		enemyTurnCount_++;
 		enemyWait_ = 1.0f;
 	} else {
-		// 手札のカードでの攻撃だった場合
+		// 鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驍ｵ・ｲ陜｣・､繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ髫ｨ繝ｻ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ髮九・・ｽ・ｷ郢晢ｽｻ繝ｻ・ｰ郢晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ驛｢譎｢・ｽ・ｻ
 		int idx = pendingCardHandIndex_;
 		CardInstance inst = hand_[idx];
 		const CardDef* def = db_.Find(inst.defId);
 
-		// コストを消費して手札から消す
+		// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴主・讓溽ｹ晢ｽｻ陞ｳ螟ｲ・ｽ・ｱ繝ｻ・ｸ鬯ｩ蟶吶・繝ｻ・ｽ繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ髣・ｽｽ繝ｻ・ｱ繝ｻ・ｸ髯具ｽｹ繝ｻ・ｻ髫ｨ蛟･繝ｻ
 		energy_ -= def->cost;
 		PlaySE_("SE_CardPlay");
 		PlayAttackSEForCard_(*def);
@@ -5082,12 +4395,12 @@ void BattleController::ExecutePendingAttack_(Enemy& targetEnemy)
 
 		handView_.Rebuild(hand_);
 
-		// ダメージ以外の効果（ドローなど）を発動
+		// 鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬮｣豈費ｽｼ螟ｲ・ｽ・ｽ繝ｻ・･鬮ｯ讓奇ｽｻ阮卍ｧ驛｢譎｢・ｽ・ｻ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・ｽ繝ｻ・ｹ鬮ｫ・ｴ繝ｻ・ｫ髫ｲ蟷｢・ｽ・ｶ郢晢ｽｻ繝ｻ・ｼ髯具ｽｹ繝ｻ・ｻ驛｢譎｢・ｽ・ｩ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｭ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｩ驛｢譎｢・ｽ・ｻ髯晢ｽｲ繝ｻ・ｨ郢晢ｽｻ陝ｶ謨鳴陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｺ鬮ｯ・ｷ鬮ｦ・ｪ郢晢ｽｻ
 		ApplyCardEffects_(*def, currentEnemyIndex_);
 
 		handView_.SetFocusIndex(-1);
 
-		// 場に出す処理
+		// 鬮ｯ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｴ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ・ｷ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｺ鬩搾ｽｵ繝ｻ・ｺ髯ｷ・ｷ隴擾ｽｴ郢晢ｽｻ鬯ｨ・ｾ郢晢ｽｻ郢晢ｽｻ
 		if ((int)field_.size() < 5) {
 			field_.push_back(inst);
 			if (usedCardView) {

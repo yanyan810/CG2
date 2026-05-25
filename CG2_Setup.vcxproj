@@ -170,6 +170,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Game\Logic\CardPreview.cpp" />
+    <ClCompile Include="Game\Poker\PokerHandEvaluator.cpp" />
     <ClCompile Include="Engine\EffectSequencer.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorPose.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorSession.cpp" />
@@ -240,8 +241,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
     <ClCompile Include="Game\UI\BattleActionDirector.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
+    <ClCompile Include="Game\UI\DamagePopupUI.cpp" />
+    <ClCompile Include="Game\UI\EnemyBattleStatusUI.cpp" />
     <ClCompile Include="Game\UI\FieldUi.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
+    <ClCompile Include="Game\UI\PlayerBattleStatusUI.cpp" />
     <ClCompile Include="Game\UI\PokerHandHelpView.cpp" />
     <ClCompile Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.cpp" />
     <ClCompile Include="Game\UI\PausingUI\Selection\SelectionState.cpp" />
@@ -340,6 +344,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Game\Logic\CardPreview.h" />
+    <ClInclude Include="Game\Poker\PokerHandEvaluator.h" />
     <ClInclude Include="Engine\EffectSequencer.h" />
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
     <ClInclude Include="Engine\3D\AnimationEditorSession.h" />
@@ -435,7 +440,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\Tutorial\TutorialScene.h" />
     <ClInclude Include="Game\UI\BattleActionDirector.h" />
     <ClInclude Include="Game\UI\Card3D.h" />
+    <ClInclude Include="Game\UI\DamagePopupUI.h" />
+    <ClInclude Include="Game\UI\EnemyBattleStatusUI.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
+    <ClInclude Include="Game\UI\PlayerBattleStatusUI.h" />
     <ClInclude Include="Game\UI\PokerHandHelpView.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />
     <ClInclude Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.h" />
