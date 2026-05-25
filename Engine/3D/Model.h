@@ -29,7 +29,10 @@ public:
 	static_assert(offsetof(Model::VertexData, texcoord) == 16);
 	static_assert(offsetof(Model::VertexData, normal) == 24);
 
-	struct MaterialData { std::string textureFilePath; };
+	struct MaterialData {
+		std::string textureFilePath;
+		Vector4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
+	};
 
 	struct Joint {
 		QuaternionTransform transform;   // bind pose
@@ -246,6 +249,19 @@ public:
 
 	uint32_t GetMeshCount() const {
 		return (uint32_t)modelData_.meshes.size();
+	}
+
+	Vector4 GetMeshMaterialColor(uint32_t meshIndex) const {
+		if (meshIndex >= modelData_.meshes.size()) {
+			return { 1.0f, 1.0f, 1.0f, 1.0f };
+		}
+
+		const uint32_t materialIndex = modelData_.meshes[meshIndex].materialIndex;
+		if (materialIndex >= modelData_.materials.size()) {
+			return { 1.0f, 1.0f, 1.0f, 1.0f };
+		}
+
+		return modelData_.materials[materialIndex].color;
 	}
 
 	bool IsMeshSkinned(uint32_t meshIndex) const;

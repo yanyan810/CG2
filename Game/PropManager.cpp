@@ -5,6 +5,23 @@
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
+#include <cmath>
+
+namespace {
+constexpr float kPi = 3.14159265358979323846f;
+
+float DegToCos(float degrees) {
+	return std::cosf(degrees * (kPi / 180.0f));
+}
+
+Vector3 NormalizeOrDown(const Vector3& v) {
+	const float length = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+	if (length <= 0.0001f) {
+		return { 0.0f, -1.0f, 0.0f };
+	}
+	return { v.x / length, v.y / length, v.z / length };
+}
+}
 
 PropManager::PropManager() {}
 
@@ -14,6 +31,15 @@ void PropManager::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* 
 	cam_ = cam;
 
 	ScanModelFiles();
+}
+
+void PropManager::SetCamera(Camera* cam) {
+	cam_ = cam;
+	for (auto& prop : placedProps_) {
+		if (prop.object) {
+			prop.object->SetCamera(cam_);
+		}
+	}
 }
 
 void PropManager::ScanModelFiles() {
@@ -46,6 +72,12 @@ void PropManager::Update(float dt) {
 
 	for (auto& prop : placedProps_) {
 		if (prop.object) {
+			if (prop.useBillboard && cam_) {
+				const Vector3 camPos = cam_->GetTranslate();
+				const float dx = camPos.x - prop.pos.x;
+				const float dz = camPos.z - prop.pos.z;
+				prop.rot.y = std::atan2(dx, dz);
+			}
 			prop.object->SetTranslate(prop.pos);
 			prop.object->SetRotate(prop.rot);
 			prop.object->SetScale(prop.scale);
@@ -55,6 +87,23 @@ void PropManager::Update(float dt) {
 			prop.object->SetDirection(prop.lightDir);
 			prop.object->SetLightColor(prop.lightColor);
 			prop.object->SetIntensity(prop.lightIntensity);
+			prop.object->SetPointLightPos(prop.pointLightPos);
+			prop.object->SetPointLightColor(prop.pointLightColor);
+			prop.object->SetPointLightIntensity(prop.pointLightIntensity);
+			prop.object->SetPointLightRadius(prop.pointLightRadius);
+			prop.object->SetPointLightDecay(prop.pointLightDecay);
+			prop.spotLightDir = NormalizeOrDown(prop.spotLightDir);
+			if (prop.spotLightFalloffStartDeg > prop.spotLightAngleDeg - 0.1f) {
+				prop.spotLightFalloffStartDeg = prop.spotLightAngleDeg - 0.1f;
+			}
+			prop.object->SetSpotLightPos(prop.spotLightPos);
+			prop.object->SetSpotLightDirection(prop.spotLightDir);
+			prop.object->SetSpotLightColor(prop.spotLightColor);
+			prop.object->SetSpotLightIntensity(prop.spotLightIntensity);
+			prop.object->SetSpotLightDistance(prop.spotLightDistance);
+			prop.object->SetSpotLightDecay(prop.spotLightDecay);
+			prop.object->SetSpotLightCosAngle(DegToCos(prop.spotLightAngleDeg));
+			prop.object->SetSpotLightCosFalloffStart(DegToCos(prop.spotLightFalloffStartDeg));
 
 			prop.object->Update(dt);
 		}
@@ -82,9 +131,9 @@ void PropManager::DrawPostEffect3D(GameApp& app) {
 	}
 }
 
-void PropManager::DrawImGui() {
+void PropManager::DrawImGui(const char* windowName, const std::string& jsonPath) {
 #ifdef USE_IMGUI
-	ImGui::Begin("Scene Editor");
+	ImGui::Begin(windowName);
 
 	if (ImGui::Button("Refresh Model List")) {
 		ScanModelFiles();
@@ -151,12 +200,40 @@ void PropManager::DrawImGui() {
 		ImGui::DragFloat3("Rotation", &prop.rot.x, 0.01f);
 		ImGui::DragFloat3("Scale", &prop.scale.x, 0.1f);
 		ImGui::DragFloat2("UV Scale", &prop.uvScale.x, 0.1f);
+		ImGui::Checkbox("Use Billboard", &prop.useBillboard);
 
 		ImGui::Checkbox("Enable Lighting", &prop.enableLighting);
 		if (prop.enableLighting) {
 			ImGui::DragFloat3("Light Dir", &prop.lightDir.x, 0.01f);
 			ImGui::ColorEdit4("Light Color", &prop.lightColor.x);
 			ImGui::DragFloat("Light Intensity", &prop.lightIntensity, 0.1f);
+
+			if (ImGui::TreeNode("Point Light")) {
+				ImGui::DragFloat3("Point Pos", &prop.pointLightPos.x, 0.1f);
+				ImGui::ColorEdit4("Point Color", &prop.pointLightColor.x);
+				ImGui::DragFloat("Point Intensity", &prop.pointLightIntensity, 0.05f, 0.0f, 50.0f);
+				ImGui::DragFloat("Point Radius", &prop.pointLightRadius, 0.1f, 0.1f, 200.0f);
+				ImGui::DragFloat("Point Decay", &prop.pointLightDecay, 0.01f, 0.0f, 10.0f);
+				if (ImGui::Button("Disable Point Light")) {
+					prop.pointLightIntensity = 0.0f;
+				}
+				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNode("Spot Light")) {
+				ImGui::DragFloat3("Spot Pos", &prop.spotLightPos.x, 0.1f);
+				ImGui::DragFloat3("Spot Dir", &prop.spotLightDir.x, 0.01f, -1.0f, 1.0f);
+				ImGui::ColorEdit4("Spot Color", &prop.spotLightColor.x);
+				ImGui::DragFloat("Spot Intensity", &prop.spotLightIntensity, 0.05f, 0.0f, 200.0f);
+				ImGui::DragFloat("Spot Distance", &prop.spotLightDistance, 0.1f, 0.1f, 500.0f);
+				ImGui::DragFloat("Spot Decay", &prop.spotLightDecay, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat("Spot Angle", &prop.spotLightAngleDeg, 0.1f, 1.0f, 89.0f);
+				ImGui::DragFloat("Spot Falloff Start", &prop.spotLightFalloffStartDeg, 0.1f, 0.0f, 88.0f);
+				if (ImGui::Button("Disable Spot Light")) {
+					prop.spotLightIntensity = 0.0f;
+				}
+				ImGui::TreePop();
+			}
 		}
 
 		ImGui::Separator();
@@ -181,12 +258,12 @@ void PropManager::DrawImGui() {
 
 	ImGui::Separator();
 	if (ImGui::Button("Save Scene to JSON")) {
-		SaveToJson("resources/configs/sceneProps.json");
+		SaveToJson(jsonPath);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Load Scene from JSON")) {
 		pendingLoadFromJson_ = true;
-		pendingLoadFromJsonPath_ = "resources/configs/sceneProps.json";
+		pendingLoadFromJsonPath_ = jsonPath;
 		pendingDeletePropIndex_ = -1;
 		selectedPropIndex_ = -1;
 	}
@@ -223,10 +300,24 @@ void PropManager::SaveToJson(const std::string& filepath) {
 		j["rot"] = { prop.rot.x, prop.rot.y, prop.rot.z };
 		j["scale"] = { prop.scale.x, prop.scale.y, prop.scale.z };
 		j["uvScale"] = { prop.uvScale.x, prop.uvScale.y };
+		j["useBillboard"] = prop.useBillboard;
 		j["enableLighting"] = prop.enableLighting;
 		j["lightDir"] = { prop.lightDir.x, prop.lightDir.y, prop.lightDir.z };
 		j["lightColor"] = { prop.lightColor.x, prop.lightColor.y, prop.lightColor.z, prop.lightColor.w };
 		j["lightIntensity"] = prop.lightIntensity;
+		j["pointLightPos"] = { prop.pointLightPos.x, prop.pointLightPos.y, prop.pointLightPos.z };
+		j["pointLightColor"] = { prop.pointLightColor.x, prop.pointLightColor.y, prop.pointLightColor.z, prop.pointLightColor.w };
+		j["pointLightIntensity"] = prop.pointLightIntensity;
+		j["pointLightRadius"] = prop.pointLightRadius;
+		j["pointLightDecay"] = prop.pointLightDecay;
+		j["spotLightPos"] = { prop.spotLightPos.x, prop.spotLightPos.y, prop.spotLightPos.z };
+		j["spotLightDir"] = { prop.spotLightDir.x, prop.spotLightDir.y, prop.spotLightDir.z };
+		j["spotLightColor"] = { prop.spotLightColor.x, prop.spotLightColor.y, prop.spotLightColor.z, prop.spotLightColor.w };
+		j["spotLightIntensity"] = prop.spotLightIntensity;
+		j["spotLightDistance"] = prop.spotLightDistance;
+		j["spotLightDecay"] = prop.spotLightDecay;
+		j["spotLightAngleDeg"] = prop.spotLightAngleDeg;
+		j["spotLightFalloffStartDeg"] = prop.spotLightFalloffStartDeg;
 		j["usePostEffect"] = prop.usePostEffect;
 		j["postEffect"] = {
 			{"threshold",         prop.postEffect.threshold},
@@ -284,6 +375,7 @@ void PropManager::LoadFromJson(const std::string& filepath) {
 		if (j.contains("uvScale")) {
 			prop.uvScale.x = j["uvScale"][0]; prop.uvScale.y = j["uvScale"][1];
 		}
+		if (j.contains("useBillboard")) prop.useBillboard = j["useBillboard"];
 		if (j.contains("enableLighting")) prop.enableLighting = j["enableLighting"];
 		if (j.contains("lightDir")) {
 			prop.lightDir.x = j["lightDir"][0]; prop.lightDir.y = j["lightDir"][1]; prop.lightDir.z = j["lightDir"][2];
@@ -292,6 +384,29 @@ void PropManager::LoadFromJson(const std::string& filepath) {
 			prop.lightColor.x = j["lightColor"][0]; prop.lightColor.y = j["lightColor"][1]; prop.lightColor.z = j["lightColor"][2]; prop.lightColor.w = j["lightColor"][3];
 		}
 		if (j.contains("lightIntensity")) prop.lightIntensity = j["lightIntensity"];
+		if (j.contains("pointLightPos")) {
+			prop.pointLightPos.x = j["pointLightPos"][0]; prop.pointLightPos.y = j["pointLightPos"][1]; prop.pointLightPos.z = j["pointLightPos"][2];
+		}
+		if (j.contains("pointLightColor")) {
+			prop.pointLightColor.x = j["pointLightColor"][0]; prop.pointLightColor.y = j["pointLightColor"][1]; prop.pointLightColor.z = j["pointLightColor"][2]; prop.pointLightColor.w = j["pointLightColor"][3];
+		}
+		if (j.contains("pointLightIntensity")) prop.pointLightIntensity = j["pointLightIntensity"];
+		if (j.contains("pointLightRadius")) prop.pointLightRadius = j["pointLightRadius"];
+		if (j.contains("pointLightDecay")) prop.pointLightDecay = j["pointLightDecay"];
+		if (j.contains("spotLightPos")) {
+			prop.spotLightPos.x = j["spotLightPos"][0]; prop.spotLightPos.y = j["spotLightPos"][1]; prop.spotLightPos.z = j["spotLightPos"][2];
+		}
+		if (j.contains("spotLightDir")) {
+			prop.spotLightDir.x = j["spotLightDir"][0]; prop.spotLightDir.y = j["spotLightDir"][1]; prop.spotLightDir.z = j["spotLightDir"][2];
+		}
+		if (j.contains("spotLightColor")) {
+			prop.spotLightColor.x = j["spotLightColor"][0]; prop.spotLightColor.y = j["spotLightColor"][1]; prop.spotLightColor.z = j["spotLightColor"][2]; prop.spotLightColor.w = j["spotLightColor"][3];
+		}
+		if (j.contains("spotLightIntensity")) prop.spotLightIntensity = j["spotLightIntensity"];
+		if (j.contains("spotLightDistance")) prop.spotLightDistance = j["spotLightDistance"];
+		if (j.contains("spotLightDecay")) prop.spotLightDecay = j["spotLightDecay"];
+		if (j.contains("spotLightAngleDeg")) prop.spotLightAngleDeg = j["spotLightAngleDeg"];
+		if (j.contains("spotLightFalloffStartDeg")) prop.spotLightFalloffStartDeg = j["spotLightFalloffStartDeg"];
 		if (j.contains("usePostEffect")) prop.usePostEffect = j["usePostEffect"];
 		if (j.contains("postEffect")) {
 			const auto& pe = j["postEffect"];

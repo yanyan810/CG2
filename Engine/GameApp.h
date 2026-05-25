@@ -80,6 +80,7 @@ public:
     void SetSelectedStage(int stageId, const std::string& configPath);
     int GetSelectedStageId() const { return selectedStageId_; }
     const std::string& GetSelectedStageConfigPath() const { return selectedStageConfigPath_; }
+    std::string GetSelectedStageFieldConfigPath() const;
 
     CardDatabase* GetCardDB() { return cardDB_.get(); }
 

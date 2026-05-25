@@ -75,7 +75,7 @@ void StageSelectScene::SelectStageItem_(GameApp& app, const StageItem& item)
 {
 	if (item.stageId > 0) {
 		app.SetSelectedStage(item.stageId, item.stageConfigPath);
-		RequestChangeScene_("Game");
+		RequestChangeScene_("GameLoading");
 		return;
 	}
 

@@ -20,6 +20,7 @@
     <ClCompile Include="Engine\3D\AnimationClipDocument.cpp" />
     <ClCompile Include="Engine\3D\AnimationJsonSerializer.cpp" />
     <ClCompile Include="Game\DeckEditScene.cpp" />
+    <ClCompile Include="Game\GameLoadingScene.cpp" />
     <ClCompile Include="Engine\Audio.cpp" />
     <ClCompile Include="Engine\AudioManager.cpp" />
     <ClCompile Include="Engine\Camera\CameraAnimator.cpp" />
@@ -75,6 +76,11 @@
     <ClCompile Include="Game\GameScene.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
     <ClCompile Include="Game\UI\FieldUi.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiCore.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiDebug.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiDraw.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiLayoutIO.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiUpdate.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
     <ClCompile Include="Game\UI\PokerHandHelpView.cpp" />
     <ClCompile Include="main.cpp" />
@@ -112,6 +118,7 @@
     <ClInclude Include="Engine\3D\AnimationClipDocument.h" />
     <ClInclude Include="Engine\3D\AnimationJsonSerializer.h" />
     <ClInclude Include="Game\DeckEditScene.h" />
+    <ClInclude Include="Game\GameLoadingScene.h" />
     <ClInclude Include="Engine\Audio.h" />
     <ClInclude Include="Engine\AudioManager.h" />
     <ClInclude Include="Engine\Camera\CameraAnimator.h" />
@@ -194,6 +201,8 @@
     <ClInclude Include="Game\UI\HandView3D.h" />
     <ClInclude Include="Game\UI\PokerHandHelpView.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />
+    <ClInclude Include="Game\UI\FieldUi\FieldUiNumberSprites.h" />
+    <ClInclude Include="Game\UI\FieldUi\FieldUiPokerPreview.h" />
     <ClInclude Include="Game\UI\UiLayout.h" />
     <ClInclude Include="Engine\TrailInstance.h" />
     <ClInclude Include="Game\UI\PausingUI\PausingUI.h" />

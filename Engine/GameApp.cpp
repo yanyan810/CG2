@@ -1,6 +1,7 @@
 #include "GameApp.h"
 #include "SceneManager.h"
 #include "GameScene.h"  
+#include "GameLoadingScene.h"
 #include "TitleScene.h"
 #include"DeckEditScene.h"
 #include "TestScene.h"
@@ -195,6 +196,7 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
 	sceneMgr_->Register("DeckEdit", [] { return std::make_unique<DeckEditScene>(); });
 	sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
+	sceneMgr_->Register("GameLoading", [] { return std::make_unique<GameLoadingScene>();  });
 	sceneMgr_->Register("Test", [] { return std::make_unique<TestScene>();  });
 	sceneMgr_->Register("Tutorial", [] { return std::make_unique<TutorialScene>();  });
 	sceneMgr_->Register("StageSelect", [] { return std::make_unique<StageSelectScene>(); });
@@ -684,4 +686,14 @@ void GameApp::SetSelectedStage(int stageId, const std::string& configPath)
 {
 	selectedStageId_ = stageId;
 	selectedStageConfigPath_ = configPath;
+}
+
+std::string GameApp::GetSelectedStageFieldConfigPath() const
+{
+	if (selectedStageId_ <= 0) {
+		return "resources/configs/stage_fields/tutorial_field.json";
+	}
+
+	const std::string prefix = selectedStageId_ < 10 ? "stage0" : "stage";
+	return "resources/configs/stage_fields/" + prefix + std::to_string(selectedStageId_) + "_field.json";
 }

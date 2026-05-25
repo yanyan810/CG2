@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <string>
 #include "IScene.h"
 #include "Camera.h"
 #include "CameraAnimator.h"
@@ -20,6 +21,7 @@
 #include "BloomConstantBuffer.h"
 #include "GameResultPopup.h"
 #include "UI/PokerHandHelpView.h"
+#include "PropManager.h"
 
 class GameApp;
 
@@ -65,6 +67,8 @@ private:
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<Camera> animCamera_;
     std::unique_ptr<CameraAnimator> cameraAnim_;
+    std::unique_ptr<PropManager> battleForestProps_;
+    std::string stageFieldConfigPath_;
     std::unique_ptr<Object3d> skyDome_; // 背景の天球
 
     float splitRatio_ = 0.465f; // 画面分割割合（上がバトル画面、下がカード画面）

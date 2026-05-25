@@ -147,6 +147,48 @@ void Object3d::Initialize(Object3dCommon* object3dCommon, DirectXCommon* dx, Srv
 
 }
 
+void Object3d::EnsureMeshMaterialResources_()
+{
+	const uint32_t meshCount = model_ ? model_->GetMeshCount() : 0;
+	if (!dx_ || meshMaterialResources_.size() == meshCount) {
+		return;
+	}
+
+	meshMaterialResources_.clear();
+	meshMaterialData_.clear();
+	meshMaterialResources_.resize(meshCount);
+	meshMaterialData_.resize(meshCount, nullptr);
+
+	for (uint32_t i = 0; i < meshCount; ++i) {
+		meshMaterialResources_[i] = dx_->CreateBufferResource(sizeof(Model::Material));
+		meshMaterialResources_[i]->Map(0, nullptr, reinterpret_cast<void**>(&meshMaterialData_[i]));
+	}
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Object3d::GetMeshMaterialCBV_(uint32_t meshIndex, const Vector4& baseColor)
+{
+	if (!materialData_) {
+		return 0;
+	}
+
+	EnsureMeshMaterialResources_();
+	if (meshIndex >= meshMaterialData_.size() || !meshMaterialData_[meshIndex]) {
+		return materialResource_ ? materialResource_->GetGPUVirtualAddress() : 0;
+	}
+
+	Model::Material material = *materialData_;
+	const Vector4 meshColor = model_ ? model_->GetMeshMaterialColor(meshIndex) : Vector4{ 1, 1, 1, 1 };
+	material.color = {
+		baseColor.x * meshColor.x,
+		baseColor.y * meshColor.y,
+		baseColor.z * meshColor.z,
+		baseColor.w * meshColor.w
+	};
+	*meshMaterialData_[meshIndex] = material;
+
+	return meshMaterialResources_[meshIndex]->GetGPUVirtualAddress();
+}
+
 void Object3d::Update(float dt)
 {
 	// 1) 通常のWorld（Object3dのTransform）
@@ -318,6 +360,14 @@ void Object3d::Draw()
 	}
 
 	auto* cmd = dx_->GetCommandList();
+	const Vector4 baseMaterialColor = materialData_ ? materialData_->color : Vector4{ 1, 1, 1, 1 };
+	const auto bindMeshMaterial = [&](uint32_t meshIndex) {
+		const D3D12_GPU_VIRTUAL_ADDRESS cbv = GetMeshMaterialCBV_(meshIndex, baseMaterialColor);
+		if (cbv == 0) {
+			return;
+		}
+		cmd->SetGraphicsRootConstantBufferView(0, cbv);
+		};
 
 	// SRV heap
 	ID3D12DescriptorHeap* heaps[] = {
@@ -431,6 +481,7 @@ void Object3d::Draw()
 				cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
 
 				// 剣だけ描く
+				bindMeshMaterial(static_cast<uint32_t>(swordMeshIndex));
 				model_->DrawOneMesh(cmd, swordMeshIndex, 2);
 
 				// 戻す（任意）
@@ -472,6 +523,7 @@ void Object3d::Draw()
 					Matrix4x4::Transpose(Matrix4x4::Inverse(world));
 
 				cmd->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceModel->GetGPUVirtualAddress());
+				bindMeshMaterial(inst.meshIndex);
 				model_->DrawOneMesh(cmd, inst.meshIndex, 2);
 			}
 
@@ -542,6 +594,7 @@ void Object3d::Draw()
 				cmd->SetGraphicsRootConstantBufferView(
 					1, transformationMatrixResourceModel->GetGPUVirtualAddress());
 
+				bindMeshMaterial(inst.meshIndex);
 				model_->DrawOneMesh(cmd, inst.meshIndex, 2);
 			}
 
@@ -557,7 +610,14 @@ void Object3d::Draw()
 
 				video_->EndFrame(cmd); // 運用するなら
 			} else {
-				model_->Draw(cmd); // 通常
+				if (model_->HasIndexBuffer()) {
+					for (uint32_t meshIndex = 0; meshIndex < model_->GetMeshCount(); ++meshIndex) {
+						bindMeshMaterial(meshIndex);
+						model_->DrawOneMesh(cmd, meshIndex, 2);
+					}
+				} else {
+					model_->Draw(cmd); // 通常
+				}
 			}
 		}
 
@@ -604,6 +664,8 @@ void Object3d::SetModel(const std::string& filePath) {
 		m = mgr->FindModel(filePath);
 	}
 	model_ = m;
+	meshMaterialResources_.clear();
+	meshMaterialData_.clear();
 
 	boneMarkers_.clear();
 
