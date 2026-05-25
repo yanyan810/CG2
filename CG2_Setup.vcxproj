@@ -169,6 +169,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\Logic\Button.cpp" />
     <ClCompile Include="Game\Logic\CardPreview.cpp" />
     <ClCompile Include="Engine\EffectSequencer.cpp" />
     <ClCompile Include="Engine\3D\AnimationEditorPose.cpp" />
@@ -345,6 +346,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\Logic\Button.h" />
     <ClInclude Include="Game\Logic\CardPreview.h" />
     <ClInclude Include="Engine\EffectSequencer.h" />
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
