@@ -62,6 +62,7 @@ public:
 
 	int GetBlock() { return block_; }
 	void AddBlock(int value);
+	void DecayBlock(float decayRate);
 	void ResetBlock();
 
 	int GetBoostedPower() { return boostedPower_; }

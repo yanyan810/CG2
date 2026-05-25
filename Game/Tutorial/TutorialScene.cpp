@@ -68,7 +68,7 @@ void TutorialScene::OnEnter(GameApp& app) {
         MakeTutorialCard(2, 7, CardSuit::Heart),
         MakeTutorialCard(3, 3, CardSuit::Diamond),
         MakeTutorialCard(9, 7, CardSuit::Club),
-        MakeTutorialCard(5, 13, CardSuit::Spade),
+        MakeTutorialCard(13, 13, CardSuit::Spade),
     };
 
     battle_.SetPlayer(player_.get());

@@ -116,6 +116,24 @@ void Player::AddBlock(int value) {
     }
 }
 
+void Player::DecayBlock(float decayRate) {
+    if (block_ <= 0) {
+        return;
+    }
+
+    decayRate = std::clamp(decayRate, 0.0f, 1.0f);
+    if (decayRate <= 0.0f) {
+        return;
+    }
+
+    const int reduce = std::clamp(
+        static_cast<int>(std::ceil(static_cast<float>(block_) * decayRate)),
+        1,
+        block_
+    );
+    block_ -= reduce;
+}
+
 void Player::ResetBlock() {
     block_ = 0;
 }
@@ -570,7 +588,7 @@ void Player::EnsureShieldCellCount_() {
 
 int Player::GetTargetShieldCellCount_() const {
     if (block_ > 0) {
-        return std::clamp(block_ * 2, 1, 61);
+        return std::clamp(block_, 1, 61);
     }
     if (shieldPreviewAlways_) {
         return std::clamp(shieldCellCount_, 1, 61);
@@ -812,7 +830,7 @@ void Player::Damage(int damage)
     }
 
     if (blockBefore > 0 && block_ == 0) {
-        const int visibleCells = std::max(blockBefore * 2, static_cast<int>(std::ceil(shieldDisplayCount_)));
+        const int visibleCells = std::max(blockBefore, static_cast<int>(std::ceil(shieldDisplayCount_)));
         TriggerShieldBreak_(visibleCells);
     }
 
