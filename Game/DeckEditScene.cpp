@@ -23,21 +23,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	editingDeck_.clear();
 
 	// 1. GameAppから CardInstance型でデッキを取得
-	const auto& currentInstances = app.GetDeckInstances();
-
-	cardDB_ = app.GetCardDB();
-
-	// 2. ID(int) だけを抽出して枚数をカウント
-	for (const auto& inst : currentInstances) {
-		editingDeck_[inst.defId]++;
-	}
-
-	// 合計枚数を計算
-	RecalculateTotal();
-
-	cardCount_ = cardDB_->GetCardCount();
-
-	RebuildCardModels(app);
+	RerollDeckData(app);
 
 	// ボタンの背景スプライト（判定用）
 	changeSceneButtonBg_ = std::make_unique<Sprite>();
@@ -60,7 +46,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	warningText_->SetText(L"デッキの枚数が足りません");
 	warningText_->SetFontSize(24);
 	warningText_->SetSize({ 1.f, 1.f, 1.f });
-	warningText_->SetColor({ 1.0f, 0.0f, 0.0f }); 
+	warningText_->SetColor({ 1.0f, 0.0f, 0.0f });
 	warningText_->SetPosition({ 1000.0f, 580.0f });
 
 	countText_ = std::make_unique<TextSprite>();
@@ -92,6 +78,18 @@ void DeckEditScene::OnEnter(GameApp& app) {
 
 	scrollY_ = kInitialScrollY;
 
+	// Templateデッキ選択時
+	selectingTemplateDeckBg_ = std::make_unique<Sprite>();
+	selectingTemplateDeckBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	selectingTemplateDeckBg_->SetPosition({ 00.f, 00.f });
+	selectingTemplateDeckBg_->SetScale({ 1280.f, 720.f, 1.0f });
+	selectingTemplateDeckBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
+
+	CreateDeckSelectButton(app, L"デフォルトデッキ", "resources/deck/deck_default.json", { 480.f, 250.f });
+	CreateDeckSelectButton(app, L"毒デッキ", "resources/deck/deck_poison.json", { 480.f, 350.f });
+	CreateDeckSelectButton(app, L"凍結デッキ", "resources/deck/deck_frost.json", { 480.f, 450.f });
+	CreateDeckSelectButton(app, L"自分で変更する", "CUSTOM_EDIT", { 50.f, 50.f });
+
 }
 
 void DeckEditScene::OnExit(GameApp& app) {
@@ -99,7 +97,40 @@ void DeckEditScene::OnExit(GameApp& app) {
 }
 
 void DeckEditScene::Update(GameApp& app, float dt) {
+
 	Input* input = app.GetInput();
+	POINT mouse = input->GetMousePosition();
+	Vector2 mousePos = { (float)mouse.x, (float)mouse.y };
+
+	if (isSelectingTemplateDeck_) {
+
+		// デバッグ用
+		if (input->IsKeyTrigger(DIK_SPACE)) { isSelectingTemplateDeck_ = false; }
+
+		if (input->IsMouseTrigger(0)) {
+			for (const auto& button : deckTemplateButton_) {
+				if (button.bg_->IsMouseOver(mousePos)) {
+
+					// 【変更】「自分で変更する」ボタンだった場合の判定
+					if (button.bg_->GetName() == "CUSTOM_EDIT") {
+						// デッキをロードせず、メニューだけを閉じる
+						isSelectingTemplateDeck_ = false;
+					} else {
+						// 通常のテンプレートデッキの場合はJSONをロードする
+						app.LoadDeck(button.bg_->GetName());
+						isSelectingTemplateDeck_ = false;
+						RerollDeckData(app);
+					}
+
+					AudioManager::GetInstance()->PlaySE("SE_Tap"); // タップ音を鳴らすならここ
+					break;
+				}
+			}
+		}
+
+		UpdateSprites();
+		return;
+	}
 
 	float wheel = float(input->GetWheel()); // 奥に回すとプラス、手前に回すとマイナス
 	input->SetWheel(0);
@@ -107,8 +138,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 	// デッキの枚数が40枚ちょうどかどうか
 	isDeckValid_ = (totalCount_ == 40);
 
-	POINT mouse = input->GetMousePosition();
-	Vector2 mousePos = { (float)mouse.x, (float)mouse.y };
+	
 
 	if (countText_) {
 		// 表示する文字列を作成
@@ -122,10 +152,10 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 			countText_->SetColor({ 1.0f, 0.0f, 0.0f }); // 赤
 		}
 
-		
+
 	}
 
-	if (changeSceneButtonBg_->IsMouseOver(mousePos)&&isDeckValid_) {
+	if (changeSceneButtonBg_->IsMouseOver(mousePos) && isDeckValid_) {
 
 		changeSceneButtonBg_->SetColor({ 0.f, 0.5f, 0.5f, 0.8f });
 		// スプライトがクリックされたか判定
@@ -322,6 +352,16 @@ void DeckEditScene::Draw3D(GameApp& app) {
 	}
 }
 void DeckEditScene::Draw2D(GameApp& app) {
+	if (isSelectingTemplateDeck_) {
+		if (selectingTemplateDeckBg_)selectingTemplateDeckBg_->Draw();
+		for (const auto& button : deckTemplateButton_) {
+			if (button.bg_)button.bg_->Draw();
+			if (button.text_)button.text_->Draw();
+			
+		}
+		return;
+	}
+
 	if (changeSceneButtonBg_) {
 		changeSceneButtonBg_->Draw();
 	}
@@ -339,7 +379,7 @@ void DeckEditScene::Draw2D(GameApp& app) {
 		controlHintText_->Draw();
 	}
 
-	if (isHoverd_) 
+	if (isHoverd_)
 	{
 		if (cardPreviewBg_) {
 			cardPreviewBg_->Draw();
@@ -351,7 +391,7 @@ void DeckEditScene::Draw2D(GameApp& app) {
 }
 
 void DeckEditScene::DrawImGui(GameApp& app) {
-	
+
 }
 
 void DeckEditScene::RebuildCardModels(GameApp& app) {
@@ -437,7 +477,17 @@ void DeckEditScene::UpdateSprites() {
 	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
 	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
 
-	if(changeSceneButtonBg_) {
+	if (isSelectingTemplateDeck_) {
+		if (selectingTemplateDeckBg_)selectingTemplateDeckBg_->Update(view, proj);
+		for (const auto& button : deckTemplateButton_) {
+			if (button.bg_)button.bg_->Update(view, proj);
+			if (button.text_)button.text_->Update(view, proj);
+		}
+
+		return;
+	}
+
+	if (changeSceneButtonBg_) {
 		changeSceneButtonBg_->Update(view, proj);
 	}
 	if (changeSceneButtonText_) {
@@ -452,10 +502,10 @@ void DeckEditScene::UpdateSprites() {
 	if (controlHintText_) {
 		controlHintText_->Update(view, proj);
 	}
-	if(cardPreviewBg_) {
+	if (cardPreviewBg_) {
 		cardPreviewBg_->Update(view, proj);
 	}
-	if(cardPreviewText_) {
+	if (cardPreviewText_) {
 		cardPreviewText_->Update(view, proj);
 	}
 }
@@ -491,4 +541,48 @@ const CardDef* DeckEditScene::GetHoveredCardDef(GameApp& app) {
 		return cardDB_->Find(idx + 1);
 	}
 	return nullptr;
+}
+
+void DeckEditScene::RerollDeckData(GameApp &app) {
+	const auto& currentInstances = app.GetDeckInstances();
+
+	cardDB_ = app.GetCardDB();
+
+	// 2. ID(int) だけを抽出して枚数をカウント
+	editingDeck_.clear();
+
+	for (const auto& inst : currentInstances) {
+		editingDeck_[inst.defId]++;
+	}
+
+	// 合計枚数を計算
+	RecalculateTotal();
+
+	cardCount_ = cardDB_->GetCardCount();
+
+	RebuildCardModels(app);
+}
+
+void DeckEditScene::CreateDeckSelectButton(GameApp& app, const std::wstring& text, const std::string& spriteName, const Vector2& position) {
+	Button button;
+
+	// 背景スプライトの初期化
+	button.bg_ = std::make_unique<Sprite>();
+	button.bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	button.bg_->SetName(spriteName);
+	button.bg_->SetPosition({ position.x, position.y });
+	button.bg_->SetScale({ 320.f, 60.f, 1.0f });
+	button.bg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
+
+	// テキストスプライトの初期化
+	button.text_ = std::make_unique<TextSprite>();
+	button.text_->Initialize(app.SpriteCom(), app.Dx());
+	button.text_->SetFontSize(30);
+	button.text_->SetSize({ 1.f, 1.f, 1.f });
+	// 背景の座標から少しだけ右下にずらして中央配置っぽくする
+	button.text_->SetPosition({ position.x + 20.f, position.y + 12.f });
+	button.text_->SetText(text);
+
+	// メンバ変数のvectorに追加
+	deckTemplateButton_.push_back(std::move(button));
 }
