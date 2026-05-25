@@ -1,0 +1,108 @@
+[
+    {
+        "enableLighting": true,
+        "lightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "lightDir": [
+            -0.20999999344348907,
+            -0.5,
+            0.20000000298023224
+        ],
+        "lightIntensity": 1.25,
+        "modelPath": "Field/ForestField/forestFIeld.obj",
+        "name": "Battle Forest Field",
+        "pos": [
+            -7.099999904632568,
+            -1.0,
+            0.30000001192092896
+        ],
+        "postEffect": {
+            "borderSharp": 0.0,
+            "chromAbAmount": 0.0,
+            "curvature": 0.0,
+            "dissolveAmount": 0.0,
+            "distortionAmount": 0.0,
+            "glitchAmount": 0.0,
+            "intensity": 0.0,
+            "noiseIntensity": 0.0,
+            "scanlineFrequency": 0.0,
+            "scanlineIntensity": 0.0,
+            "threshold": 0.0,
+            "vignetteIntensity": 0.0,
+            "vignetteScale": 0.0
+        },
+        "rot": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scale": [
+            5.0,
+            5.0,
+            5.0
+        ],
+        "useBillboard": false,
+        "usePostEffect": false,
+        "uvScale": [
+            1.0,
+            1.0
+        ]
+    },
+    {
+        "enableLighting": true,
+        "lightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "lightDir": [
+            0.30000001192092896,
+            0.28999999165534973,
+            -0.2199999988079071
+        ],
+        "lightIntensity": 1.100000023841858,
+        "modelPath": "Field/ForestField/glassField.obj",
+        "name": "Battle Glass Field Billboard",
+        "pos": [
+            0.0,
+            -1.649999976158142,
+            15.0
+        ],
+        "postEffect": {
+            "borderSharp": 0.0,
+            "chromAbAmount": 0.0,
+            "curvature": 0.0,
+            "dissolveAmount": 0.0,
+            "distortionAmount": 0.0,
+            "glitchAmount": 0.0,
+            "intensity": 0.0,
+            "noiseIntensity": 0.0,
+            "scanlineFrequency": 0.0,
+            "scanlineIntensity": 0.0,
+            "threshold": 0.0,
+            "vignetteIntensity": 0.0,
+            "vignetteScale": 0.0
+        },
+        "rot": [
+            0.0,
+            3.1415927410125732,
+            0.0
+        ],
+        "scale": [
+            2.0,
+            2.0,
+            3.0
+        ],
+        "useBillboard": true,
+        "usePostEffect": false,
+        "uvScale": [
+            1.0,
+            1.0
+        ]
+    }
+]

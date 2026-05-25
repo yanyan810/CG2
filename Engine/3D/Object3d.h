@@ -102,7 +102,11 @@ public:
 
 	void Draw();
 
-	void SetModel(Model* model) { this->model_ = model; }
+	void SetModel(Model* model) {
+		this->model_ = model;
+		meshMaterialResources_.clear();
+		meshMaterialData_.clear();
+	}
 
 	void SetModel(const std::string& filePath);
 
@@ -225,6 +229,8 @@ private:
 	// 個体ごとの Material CB
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Model::Material* materialData_ = nullptr;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> meshMaterialResources_;
+	std::vector<Model::Material*> meshMaterialData_;
 
 	//ライトのリソース作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource;
@@ -322,6 +328,8 @@ private:
 		);
 
 		void UpdateSkinCluster_();
+		void EnsureMeshMaterialResources_();
+		D3D12_GPU_VIRTUAL_ADDRESS GetMeshMaterialCBV_(uint32_t meshIndex, const Vector4& baseColor);
 
 
 		int32_t swordNodeIndex_ = -1;   // ノード index

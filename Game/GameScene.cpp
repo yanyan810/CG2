@@ -323,6 +323,11 @@ void GameScene::OnEnter(GameApp& app) {
 	skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
 	skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
 
+	battleForestProps_ = std::make_unique<PropManager>();
+	battleForestProps_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
+	stageFieldConfigPath_ = app.GetSelectedStageFieldConfigPath();
+	battleForestProps_->LoadFromJson(stageFieldConfigPath_);
+
 	// --------------------------------------------------
 	// 3. プレイヤーとエネミーの初期化・配置
 	// --------------------------------------------------
@@ -656,6 +661,7 @@ void GameScene::OnExit(GameApp& app) {
 	battle_.Finalize();
 	player_.reset();
 	skyDome_.reset();
+	battleForestProps_.reset();
 	fieldParticleManager_.reset();
 	camera_.reset();
 	if (resultPopup_) { resultPopup_->Hide(); }
@@ -1110,6 +1116,17 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 	}
 
+	if (battleForestProps_) {
+		Camera* battlePropCamera = animCamera_.get();
+		if (battle_.IsActionSequencePlaying()) {
+			if (Camera* actionCamera = battle_.GetActionCamera()) {
+				battlePropCamera = actionCamera;
+			}
+		}
+		battleForestProps_->SetCamera(battlePropCamera);
+		battleForestProps_->Update(dt);
+	}
+
 	if (isPlayerDead()) {
 		if (!gameResultShown_) {
 			gameResultShown_ = true;
@@ -1295,6 +1312,9 @@ void GameScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 	app.Dx()->ClearDepthBuffer();
 
+	if (battleForestProps_) {
+		battleForestProps_->Draw3D();
+	}
 	if (player_) player_->Draw();
 	if (isBattleAnimationPlaying) {
 		if (Enemy* actionTarget = battle_.GetActionTarget()) {
@@ -1657,6 +1677,12 @@ void GameScene::DrawImGui(GameApp& app) {
 		ImGui::Begin("FieldUi Debug");
 		fieldUi_->DrawImGui();
 		ImGui::End();
+	}
+
+	if (battleForestProps_) {
+		battleForestProps_->DrawImGui(
+			"Stage Field Props",
+			stageFieldConfigPath_);
 	}
 
 	AudioManager::GetInstance()->UpdateImGui();

@@ -18,6 +18,11 @@ static void BuildMaterials(Model::ModelData& out,
 	for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
 		const aiMaterial* mtl = scene->mMaterials[i];
 		aiString texPath;
+		aiColor3D diffuse(1.0f, 1.0f, 1.0f);
+
+		if (mtl->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == AI_SUCCESS) {
+			out.materials[i].color = { diffuse.r, diffuse.g, diffuse.b, 1.0f };
+		}
 
 		if (mtl->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS) {
 			out.materials[i].textureFilePath = directoryPath + "/" + texPath.C_Str();
@@ -933,6 +938,11 @@ Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directory
 		std::string identifer;
 		std::istringstream s(line);
 		s >> identifer; // 先頭の識別子を読む
+		if (identifer == "Kd") {
+			s >> materialData.color.x >> materialData.color.y >> materialData.color.z;
+			materialData.color.w = 1.0f;
+			continue;
+		}
 		if (identifer == "map_Kd") {
 			std::string textureFilePath;
 			s >> textureFilePath; // テクスチャファイルのパスを読み込む
@@ -1127,6 +1137,11 @@ Model::ModelData Model::LoadAssimpFile(const std::string& fullPath)
 	for (unsigned int i = 0; i < scene->mNumMaterials; ++i) {
 		const aiMaterial* mtl = scene->mMaterials[i];
 		aiString texPath;
+		aiColor3D diffuse(1.0f, 1.0f, 1.0f);
+
+		if (mtl->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == AI_SUCCESS) {
+			out.materials[i].color = { diffuse.r, diffuse.g, diffuse.b, 1.0f };
+		}
 
 		if (mtl->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS) {
 

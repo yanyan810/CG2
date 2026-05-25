@@ -180,6 +180,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
     <ClCompile Include="Game\DeckEditScene.cpp" />
     <ClCompile Include="Game\FieldEditerScene.cpp" />
+    <ClCompile Include="Game\GameLoadingScene.cpp" />
     <ClCompile Include="Engine\Audio.cpp" />
     <ClCompile Include="Engine\AudioManager.cpp" />
     <ClCompile Include="Engine\Camera\CameraAnimator.cpp" />
@@ -241,6 +242,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\UI\BattleActionDirector.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
     <ClCompile Include="Game\UI\FieldUi.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiCore.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiDebug.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiDraw.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiLayoutIO.cpp" />
+    <ClCompile Include="Game\UI\FieldUi\FieldUiUpdate.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
     <ClCompile Include="Game\UI\PokerHandHelpView.cpp" />
     <ClCompile Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.cpp" />
@@ -349,6 +355,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\ParticleEditor.h" />
     <ClInclude Include="Game\BattleAnimeEditerScene.h" />
     <ClInclude Include="Game\DeckEditScene.h" />
+    <ClInclude Include="Game\GameLoadingScene.h" />
     <ClInclude Include="Game\FieldEditerScene.h" />
     <ClInclude Include="Engine\Audio.h" />
     <ClInclude Include="Engine\AudioManager.h" />
@@ -438,6 +445,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\UI\HandView3D.h" />
     <ClInclude Include="Game\UI\PokerHandHelpView.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />
+    <ClInclude Include="Game\UI\FieldUi\FieldUiNumberSprites.h" />
+    <ClInclude Include="Game\UI\FieldUi\FieldUiPokerPreview.h" />
     <ClInclude Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.h" />
     <ClInclude Include="Game\UI\PausingUI\IPauseState.h" />
     <ClInclude Include="Game\UI\PausingUI\Selection\SelectionState.h" />
