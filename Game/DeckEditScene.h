@@ -12,6 +12,8 @@
 #include "Sprite.h"
 #include "TextSprite.h"
 
+#include "Logic/Button.h"
+
 class Card3D;
 
 
@@ -27,11 +29,6 @@ public:
     void DrawSkydome(GameApp& app) override;
 
 private:
-
-    struct Button {
-        std::unique_ptr<Sprite> bg_;
-        std::unique_ptr<TextSprite> text_;
-    };
 
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<Object3d> skyDome_;
@@ -59,8 +56,8 @@ private:
 
     bool isHoverd_ = false;
 
-    std::unique_ptr<Sprite> changeSceneButtonBg_;  
-    std::unique_ptr<TextSprite> changeSceneButtonText_;
+    std::unique_ptr<Button> nosaveButton_;
+    std::unique_ptr<Button> saveDeckButton_;
     std::unique_ptr<TextSprite> warningText_;
     std::unique_ptr<TextSprite> countText_;
     const std::wstring countTextSup_ = L"デッキ枚数\n";
@@ -69,7 +66,7 @@ private:
     std::unique_ptr<TextSprite> cardPreviewText_;
 
     std::unique_ptr<Sprite> selectingTemplateDeckBg_ = nullptr;
-    std::vector<Button> deckTemplateButton_;
+    std::vector< std::unique_ptr<Button>> deckTemplateButtons_;
 
     bool isSelectingTemplateDeck_ = true;
 
@@ -77,7 +74,7 @@ private:
 
     void RebuildCardModels(GameApp& app);
     void RecalculateTotal();
-    void UpdateSprites();
+    void UpdateSprites(GameApp& app);
 
     int PickCardIndex(GameApp& app);
 
@@ -86,7 +83,5 @@ private:
     Vector2 GetPopupPosition(GameApp& app, int cardIdx);
 
     void RerollDeckData(GameApp& app);
-
-    void CreateDeckSelectButton(GameApp& app, const std::wstring& text, const std::string& spriteName, const Vector2& position);
 
 };

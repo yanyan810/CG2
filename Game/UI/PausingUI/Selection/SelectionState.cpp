@@ -8,92 +8,56 @@
 
 void SelectionState::Initialize(GameApp& app) {
 
-	baseSprite_ = std::make_unique<Sprite>();
-	baseSprite_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/PauseMenu.png");
-	baseSprite_->SetPosition({ 0.0f, 0.0f });
-	baseSprite_->SetScale({ 1.0f, 1.0f, 1.0f });
-	baseSprite_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
-	baseSprite_->SetName("Base");
+	title_ = std::make_unique<TextSprite>();
+	title_->Initialize(app.SpriteCom(), app.Dx());
+	title_->SetFontSize(30);
+	title_->SetSize({ 1.f, 1.f, 1.f });
+	title_->SetPosition({ 550.f, 100.f });
+	title_->SetText(L"ポーズ中");
 
-	// 1. スプライトの生成と名前の設定
-	auto resume = std::make_unique<Sprite>();
-	resume->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	resume->SetPosition({ 530.0f, 210.0f });
-	resume->SetScale({ 200.0f, 60.0f, 1.0f });
-	resume->SetColor({ 0.0f, 0.0f, 0.0f, 0.9f });
-	resume->SetName("Resume");
-	sprites_.push_back(std::move(resume));
+	// 再開ボタン
+	auto resumeBtn = std::make_unique<Button>();
+	resumeBtn->Initialize(app, L"再開", "ResumeButton", { 530, 210.f });
+	resumeBtn->SetScale({ 200.f,60.f });
+	resumeBtn->SetNormalColor({ 0.1f, 0.1f, 0.1f, 0.9f });
+	resumeBtn->SetHoverColor({ 0.4f, 0.4f, 0.4f, 0.9f });
+	buttons_.push_back(std::move(resumeBtn));
 
-	// デッキ確認の背景とテキスト
-	auto deckCheck = std::make_unique<Sprite>();
-	deckCheck->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	deckCheck->SetPosition({ 472.0f, 325.0f });
-	deckCheck->SetScale({ 320.0f, 60.0f, 1.0f });
-	deckCheck->SetColor({ 0.0f, 0.0f, 0.0f, 0.9f });
-	deckCheck->SetName("DeckCheck");
-	sprites_.push_back(std::move(deckCheck));
-
-	auto giveUp = std::make_unique<Sprite>();
-	giveUp->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	giveUp->SetPosition({ 530.0f, 440.0f });
-	giveUp->SetScale({ 200.0f, 60.0f, 1.0f });
-	giveUp->SetColor({ 0.0f, 0.0f, 0.0f, 0.9f });
-	giveUp->SetName("GiveUp");
-	sprites_.push_back(std::move(giveUp));
-
-	// チュートリアル確認の背景とテキスト
-	auto  tutrialCheck = std::make_unique<Sprite>();
-	tutrialCheck->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	tutrialCheck->SetPosition({ 383.0f, 554.0f });
-	tutrialCheck->SetScale({ 500.0f, 60.0f, 1.0f });
-	tutrialCheck->SetColor({ 0.0f, 0.0f, 0.0f, 0.9f });
-	tutrialCheck->SetName("Tutorial");
-	sprites_.push_back(std::move(tutrialCheck));
+	// 再開ボタン
+	auto giveUpBtn = std::make_unique<Button>();
+	giveUpBtn->Initialize(app, L"降参", "GiveUpButton", { 530, 320.f });
+	giveUpBtn->SetScale({ 200.f,60.f });
+	giveUpBtn->SetNormalColor({ 0.1f, 0.1f, 0.1f, 0.9f });
+	giveUpBtn->SetHoverColor({ 0.9f, 0.0f, 0.0f, 0.9f });
+	buttons_.push_back(std::move(giveUpBtn));
 
 }
 
-void SelectionState::Update(PausingUI* context, GameApp& app, Input* input){
-	POINT mousePoint = input->GetMousePosition();
-	Vector2 mousePos = { (float)mousePoint.x, (float)mousePoint.y };
+void SelectionState::Update(PausingUI* context, GameApp& app, Input* input) {
 
 	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
 	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
 
-	// 共通関数でホバー中のスプライトを取得
-	Sprite* hovered = CheckMouseOverByName(mousePos);
-
-	// 全ボタンを一旦デフォルト色に
-	for (auto& s : sprites_) s->SetColor({ 0.0f, 0.0f, 0.0f, 0.7f });
-
-
-	if (hovered) {
-		hovered->SetColor({ 0.5f, 0.5f, 0.5f, 0.6f }); // ホバー強調
-
-		std::string name = hovered->GetName();
-
-		if (name == "GiveUp")hovered->SetColor({ 1.f, 0.2f, 0.2f, 0.6f });
-
-		if (input->IsMouseTrigger(0)) {
-			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			if (name == "Resume") context->SetIsPaused(false);
-			//if (name == "DeckCheck")
-			if (name == "GiveUp") {
-				context->ChangeState(std::make_unique<GiveUpConfirmState>(), app); 
+	for (auto& btn : buttons_) {
+		if (btn->IsPressed()) {
+			if (btn->GetName() == "ResumeButton") {
+				context->SetIsPaused(false);
+			}else if (btn->GetName() == "GiveUpButton") {
+				context->ChangeState(std::make_unique<GiveUpConfirmState>(), app);
 				return;
 			}
-			//if (name == "Tutrial")
+
 		}
 	}
 
-	if (baseSprite_) baseSprite_->Update(view, proj);
+	if (title_) title_->Update(view, proj);
 
-	// ★重要：各ボタンの行列を更新
-	for (auto& s : sprites_) {
-		s->Update(view, proj);
+	for (auto& btn : buttons_) {
+		btn->Update(app, view, proj);
 	}
 }
 
 void SelectionState::Draw(GameApp& app) {
-	for (auto& s : sprites_) s->Draw();
-	baseSprite_->Draw();
+	for (auto& btn : buttons_) btn->Draw();
+	title_->Draw();
 }

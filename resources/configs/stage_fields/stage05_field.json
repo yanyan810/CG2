@@ -1,1 +1,266 @@
-﻿[]
+[
+    {
+        "enableLighting": true,
+        "lightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "lightDir": [
+            -0.20999999344348907,
+            -0.5,
+            0.20000000298023224
+        ],
+        "lightIntensity": 1.25,
+        "modelPath": "Field/CastleField/castle.obj",
+        "name": "Battle Castle Field",
+        "pointLightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "pointLightDecay": 1.0,
+        "pointLightIntensity": 0.0,
+        "pointLightPos": [
+            0.0,
+            3.0,
+            0.0
+        ],
+        "pointLightRadius": 10.0,
+        "pos": [
+            1.0,
+            -0.20000000298023224,
+            15.600000381469727
+        ],
+        "postEffect": {
+            "borderSharp": 0.0,
+            "chromAbAmount": 0.0,
+            "curvature": 0.0,
+            "dissolveAmount": 0.0,
+            "distortionAmount": 0.0,
+            "glitchAmount": 0.0,
+            "intensity": 0.0,
+            "noiseIntensity": 0.0,
+            "scanlineFrequency": 0.0,
+            "scanlineIntensity": 0.0,
+            "threshold": 0.0,
+            "vignetteIntensity": 0.0,
+            "vignetteScale": 0.0
+        },
+        "rot": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scale": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "spotLightAngleDeg": 30.0,
+        "spotLightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "spotLightDecay": 1.0,
+        "spotLightDir": [
+            0.0,
+            -1.0,
+            0.0
+        ],
+        "spotLightDistance": 10.0,
+        "spotLightFalloffStartDeg": 20.0,
+        "spotLightIntensity": 0.0,
+        "spotLightPos": [
+            0.0,
+            3.0,
+            0.0
+        ],
+        "useBillboard": false,
+        "usePostEffect": false,
+        "uvScale": [
+            1.0,
+            1.0
+        ]
+    },
+    {
+        "enableLighting": true,
+        "lightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "lightDir": [
+            0.0,
+            -0.07999999821186066,
+            -0.029999999329447746
+        ],
+        "lightIntensity": 1.0,
+        "modelPath": "Field/CastleField/ground.obj",
+        "name": "Prop 2",
+        "pointLightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "pointLightDecay": 1.0,
+        "pointLightIntensity": 0.0,
+        "pointLightPos": [
+            0.0,
+            3.0,
+            0.0
+        ],
+        "pointLightRadius": 10.0,
+        "pos": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "postEffect": {
+            "borderSharp": 0.0,
+            "chromAbAmount": 0.0,
+            "curvature": 0.0,
+            "dissolveAmount": 0.0,
+            "distortionAmount": 0.0,
+            "glitchAmount": 0.0,
+            "intensity": 0.0,
+            "noiseIntensity": 0.0,
+            "scanlineFrequency": 0.0,
+            "scanlineIntensity": 0.0,
+            "threshold": 0.0,
+            "vignetteIntensity": 0.0,
+            "vignetteScale": 0.0
+        },
+        "rot": [
+            0.0,
+            3.1415927410125732,
+            0.0
+        ],
+        "scale": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "spotLightAngleDeg": 30.0,
+        "spotLightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "spotLightDecay": 1.0,
+        "spotLightDir": [
+            0.0,
+            -1.0,
+            0.0
+        ],
+        "spotLightDistance": 10.0,
+        "spotLightFalloffStartDeg": 20.0,
+        "spotLightIntensity": 0.0,
+        "spotLightPos": [
+            0.0,
+            3.0,
+            0.0
+        ],
+        "useBillboard": true,
+        "usePostEffect": false,
+        "uvScale": [
+            1.0,
+            1.0
+        ]
+    },
+    {
+        "enableLighting": true,
+        "lightColor": [
+            0.5250965356826782,
+            0.5250965356826782,
+            0.5250965356826782,
+            1.0
+        ],
+        "lightDir": [
+            -0.009999999776482582,
+            0.019999999552965164,
+            0.029999999329447746
+        ],
+        "lightIntensity": 1.0,
+        "modelPath": "Field/CastleField/castle_real.obj",
+        "name": "Prop 3",
+        "pointLightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "pointLightDecay": 1.0,
+        "pointLightIntensity": 0.0,
+        "pointLightPos": [
+            -0.30000001192092896,
+            3.0,
+            0.0
+        ],
+        "pointLightRadius": 9.0,
+        "pos": [
+            0.0,
+            0.0,
+            319.1000061035156
+        ],
+        "postEffect": {
+            "borderSharp": 0.0,
+            "chromAbAmount": 0.0,
+            "curvature": 0.0,
+            "dissolveAmount": 0.0,
+            "distortionAmount": 0.0,
+            "glitchAmount": 0.0,
+            "intensity": 0.0,
+            "noiseIntensity": 0.0,
+            "scanlineFrequency": 0.0,
+            "scanlineIntensity": 0.0,
+            "threshold": 0.0,
+            "vignetteIntensity": 0.0,
+            "vignetteScale": 0.0
+        },
+        "rot": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scale": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "spotLightAngleDeg": 30.0,
+        "spotLightColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "spotLightDecay": 1.0,
+        "spotLightDir": [
+            0.0,
+            -1.0,
+            0.0
+        ],
+        "spotLightDistance": 10.0,
+        "spotLightFalloffStartDeg": 20.0,
+        "spotLightIntensity": 0.0,
+        "spotLightPos": [
+            0.0,
+            3.0,
+            0.0
+        ],
+        "useBillboard": false,
+        "usePostEffect": false,
+        "uvScale": [
+            1.0,
+            1.0
+        ]
+    }
+]
