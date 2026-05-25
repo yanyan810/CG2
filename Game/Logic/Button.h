@@ -21,9 +21,15 @@ public:
 
     void DrawImGui();
 
-    // ゲッター
+    void SetPosition(const Vector2 & position) {position_ = position;}
+    void SetScale(const Vector2& scale) { scale_ = scale; }
+    void SetTextOffset(const Vector2& textOffset) {textOffset_ = textOffset;}
+    void SetNormalColor(const Vector4& normalColor) { normalColor_ = normalColor;}
+    void SetHoverColor(const Vector4& hoverColor) {hoverColor_ = hoverColor;}
+    void SetTextString(const std::wstring& textString) {textString_ = textString;}
     const std::string& GetName() const { return name_; }
     bool IsPressed() const { return isPressed_; }
+    bool IsMouseOver()const { return isMouseOver_; }
 
 private:
     std::unique_ptr<Sprite> bg_;
@@ -32,9 +38,11 @@ private:
     bool isPressed_ = false;
 
     Vector2 position_;      // ボタン全体の座標
+    Vector2 scale_;
     Vector2 textOffset_;    // ボタン背景からのテキストのズレ量
     Vector4 normalColor_;   // 通常時の色 (RGBA)
     Vector4 hoverColor_;    // マウスホバー時の色 (RGBA)
     std::wstring textString_; // 表示テキストのキャッシュ
+    bool isMouseOver_ = false;
 
 };

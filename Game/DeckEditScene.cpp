@@ -8,6 +8,8 @@
 #include"Card3D.h"
 #include "AudioManager.h"
 #include"Logic/CardPreview.h"
+#include "../Game/Card/DeckLoader.h"
+
 
 void DeckEditScene::OnEnter(GameApp& app) {
 	AudioManager::GetInstance()->PlayBGM("BGM_DeckEdit");
@@ -25,21 +27,37 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	// 1. GameAppから CardInstance型でデッキを取得
 	RerollDeckData(app);
 
-	// ボタンの背景スプライト（判定用）
-	changeSceneButtonBg_ = std::make_unique<Sprite>();
-	changeSceneButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	changeSceneButtonBg_->SetPosition({ 1025.f, 600.f }); // 画面右下あたり
-	changeSceneButtonBg_->SetScale({ 175.f, 100.f, 1.0f });
-	changeSceneButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f }); // 暗めのグレー
-	changeSceneButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f }); // 暗めのグレー
+	//// ボタンの背景スプライト（判定用）
+	//saveDeckButtonBg_ = std::make_unique<Sprite>();
+	//saveDeckButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	//saveDeckButtonBg_->SetPosition({ 1025.f, 600.f }); // 画面右下あたり
+	//saveDeckButtonBg_->SetScale({ 175.f, 100.f, 1.0f });
+	//saveDeckButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f }); // 暗めのグレー
+	//saveDeckButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f }); // 暗めのグレー
 
-	// 「ここを押して」テキスト
-	changeSceneButtonText_ = std::make_unique<TextSprite>();
-	changeSceneButtonText_->Initialize(app.SpriteCom(), app.Dx());
-	changeSceneButtonText_->SetText(L"保存して戻る");
-	changeSceneButtonText_->SetFontSize(24);
-	changeSceneButtonText_->SetSize({ 1.f, 1.f, 1.f });
-	changeSceneButtonText_->SetPosition({ 1060.0f, 620.0f });
+	//// 「ここを押して」テキスト
+	//saveDeckButtonText_ = std::make_unique<TextSprite>();
+	//saveDeckButtonText_->Initialize(app.SpriteCom(), app.Dx());
+	//saveDeckButtonText_->SetText(L"保存して戻る");
+	//saveDeckButtonText_->SetFontSize(24);
+	//saveDeckButtonText_->SetSize({ 1.f, 1.f, 1.f });
+	//saveDeckButtonText_->SetPosition({ 1060.0f, 620.0f });
+
+	// 10,15
+	saveDeckButton_ = std::make_unique<Button>();
+	saveDeckButton_->Initialize(app, L"保存して戻る", "SaveDeckAndChangeScene", { 1025.f, 600.f });
+	saveDeckButton_->SetScale({ 175.f, 100.f });
+	saveDeckButton_->SetTextOffset({ 10.f,15.f });
+	saveDeckButton_->SetNormalColor({ 0.086f, 0.447f, 0.969f, 1.0f });
+	saveDeckButton_->SetHoverColor({ 0.0f, 0.149f, 0.710f, 1.0f });
+
+	nosaveButton_ = std::make_unique<Button>();
+	nosaveButton_->Initialize(app, L"保存せず戻る", "NoSaveDeckAndChangeScene", { 1025.f, 450.f });
+	nosaveButton_->SetScale({ 175.f, 100.f });
+	nosaveButton_->SetTextOffset({ 10.f,15.f });
+	nosaveButton_->SetNormalColor({ 0.765f, 0.0f, 0.0f, 0.8f });
+	nosaveButton_->SetHoverColor({ 0.251f, 0.0f, 0.0f, 0.8f });
+
 
 	warningText_ = std::make_unique<TextSprite>();
 	warningText_->Initialize(app.SpriteCom(), app.Dx());
@@ -90,7 +108,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	deckTemplateButtons_.push_back(std::move(defaultBtn));
 
 	auto poisonBtn = std::make_unique<Button>();
-	poisonBtn->Initialize(app, L"毒デッキ", "resources /deck/deck_poison.json", { 480.f, 450.f });
+	poisonBtn->Initialize(app, L"毒デッキ", "resources/deck/deck_poison.json", { 480.f, 450.f });
 	deckTemplateButtons_.push_back(std::move(poisonBtn));
 
 	auto frostBtn = std::make_unique<Button>();
@@ -98,7 +116,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	deckTemplateButtons_.push_back(std::move(frostBtn));
 
 	auto customBtn = std::make_unique<Button>();
-	customBtn->Initialize(app, L"自分で変更する", "CUSTOM_EDIT", { 50.f, 50.f });
+	customBtn->Initialize(app, L"選択せず進む", "CUSTOM_EDIT", { 50.f, 50.f });
 	deckTemplateButtons_.push_back(std::move(customBtn));
 
 }
@@ -132,9 +150,30 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 				if (btn->GetName() == "CUSTOM_EDIT") {
 					isSelectingTemplateDeck_ = false;
 				} else {
-					app.LoadDeck(btn->GetName());
-					isSelectingTemplateDeck_ = false;
-					RerollDeckData(app);
+					// 1. テンプレファイルを一時的な構造体にロードする
+					DeckDef tempDeckDef{};
+					std::string err;
+
+					// app.LoadDeck の中身と同じように DeckLoader を直接使う
+					if (DeckLoader::LoadFromJson(btn->GetName(), tempDeckDef) &&
+						DeckLoader::ValidateDeck(tempDeckDef, *app.GetCardDB(), err)) {
+
+						// 2. 現在の編集用マップをクリアし、テンプレの内容で数え直す
+						editingDeck_.clear();
+						for (const auto& e : tempDeckDef.cards) {
+							// 各カードの ID と枚数を設定
+							editingDeck_[e.id] = e.count;
+						}
+
+						// 3. 編集中の合計枚数を再計算し、3Dモデルを再生成
+						RecalculateTotal();
+						RebuildCardModels(app);
+
+						isSelectingTemplateDeck_ = false;
+					} else {
+						// ロード失敗時の安全弁
+						assert(false && "Template deck load failed.");
+					}
 				}
 				break;
 			}
@@ -148,7 +187,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 	// デッキの枚数が40枚ちょうどかどうか
 	isDeckValid_ = (totalCount_ == 40);
 
-	
+
 
 	if (countText_) {
 		// 表示する文字列を作成
@@ -165,41 +204,37 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 
 	}
 
-	if (changeSceneButtonBg_->IsMouseOver(mousePos) && isDeckValid_) {
-
-		changeSceneButtonBg_->SetColor({ 0.f, 0.5f, 0.5f, 0.8f });
-		// スプライトがクリックされたか判定
-		if (input->IsMouseTrigger(0)) {
-			// --- vector<int> 形式に変換 ---
-			std::vector<int> finalDeck;
-			finalDeck.reserve(40);
-			for (auto const& [id, count] : editingDeck_) {
-				for (int j = 0; j < count; ++j) {
-					finalDeck.push_back(id);
-				}
+	if (saveDeckButton_->IsPressed()&&isDeckValid_) {
+		// --- vector<int> 形式に変換 ---
+		std::vector<int> finalDeck;
+		finalDeck.reserve(40);
+		for (auto const& [id, count] : editingDeck_) {
+			for (int j = 0; j < count; ++j) {
+				finalDeck.push_back(id);
 			}
-
-			// --- GameAppに情報を渡す ---
-			app.SetDeckInstancesFromId(finalDeck);
-
-			// --- シーン遷移 ---
-			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			RequestChangeScene_("StageSelect");
-
-			return;
 		}
-	} else {
-		if (isDeckValid_) {
-			// 40枚揃っているがマウスが乗っていない
-			changeSceneButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.8f });
-		} else {
-			// 40枚揃っていない（赤く暗い色）
-			changeSceneButtonBg_->SetColor({ 0.f, 0.f, 0.3f, 0.4f });
-		}
+
+		// --- GameAppに情報を渡す ---
+		app.SetDeckInstancesFromId(finalDeck);
+
+		// --- シーン遷移 ---
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
+		RequestChangeScene_("StageSelect");
+
+		return;
+	}
+
+	if (nosaveButton_->IsPressed()) {
+		
+		// --- シーン遷移 ---
+		AudioManager::GetInstance()->PlaySE("SE_Tap");
+		RequestChangeScene_("StageSelect");
+
+		return;
 	}
 
 	// ---  スプライトの更新 ---
-	UpdateSprites();
+	UpdateSprites(app);
 
 	// --- 2. スクロール量の更新 ---
 	float scrollSpeed = 1.0f; // ホイール1目盛りあたりの移動量（調整してください）
@@ -371,12 +406,9 @@ void DeckEditScene::Draw2D(GameApp& app) {
 		return;
 	}
 
-	if (changeSceneButtonBg_) {
-		changeSceneButtonBg_->Draw();
-	}
-	if (changeSceneButtonText_) {
-		changeSceneButtonText_->Draw();
-	}
+	saveDeckButton_->Draw();
+	nosaveButton_->Draw();
+
 	if (countText_) {
 		countText_->Draw();
 	}
@@ -388,7 +420,7 @@ void DeckEditScene::Draw2D(GameApp& app) {
 		controlHintText_->Draw();
 	}
 
-	if (isHoverd_)
+	if (isHoverd_&&!nosaveButton_->IsMouseOver())
 	{
 		if (cardPreviewBg_) {
 			cardPreviewBg_->Draw();
@@ -406,6 +438,9 @@ void DeckEditScene::DrawImGui(GameApp& app) {
 		}
 		return;
 	}
+
+	if (saveDeckButton_) { saveDeckButton_->DrawImGui(); }
+	if (nosaveButton_) { nosaveButton_->DrawImGui(); }
 }
 
 void DeckEditScene::RebuildCardModels(GameApp& app) {
@@ -486,17 +521,14 @@ void DeckEditScene::RecalculateTotal() {
 	}
 }
 
-void DeckEditScene::UpdateSprites() {
+void DeckEditScene::UpdateSprites(GameApp& app) {
 
 	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
 	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
 
-	if (changeSceneButtonBg_) {
-		changeSceneButtonBg_->Update(view, proj);
-	}
-	if (changeSceneButtonText_) {
-		changeSceneButtonText_->Update(view, proj);
-	}
+	saveDeckButton_->Update(app,view, proj);
+	nosaveButton_->Update(app, view, proj);
+
 	if (warningText_ && !isDeckValid_) {
 		warningText_->Update(view, proj);
 	}
@@ -547,7 +579,7 @@ const CardDef* DeckEditScene::GetHoveredCardDef(GameApp& app) {
 	return nullptr;
 }
 
-void DeckEditScene::RerollDeckData(GameApp &app) {
+void DeckEditScene::RerollDeckData(GameApp& app) {
 	const auto& currentInstances = app.GetDeckInstances();
 
 	cardDB_ = app.GetCardDB();

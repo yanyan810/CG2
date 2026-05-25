@@ -53,8 +53,8 @@ private:
 
     bool isHoverd_ = false;
 
-    std::unique_ptr<Sprite> changeSceneButtonBg_;  
-    std::unique_ptr<TextSprite> changeSceneButtonText_;
+    std::unique_ptr<Button> nosaveButton_;
+    std::unique_ptr<Button> saveDeckButton_;
     std::unique_ptr<TextSprite> warningText_;
     std::unique_ptr<TextSprite> countText_;
     const std::wstring countTextSup_ = L"デッキ枚数\n";
@@ -71,7 +71,7 @@ private:
 
     void RebuildCardModels(GameApp& app);
     void RecalculateTotal();
-    void UpdateSprites();
+    void UpdateSprites(GameApp& app);
 
     int PickCardIndex(GameApp& app);
 

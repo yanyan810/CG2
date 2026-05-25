@@ -8,6 +8,7 @@ void Button::Initialize(GameApp& app, const std::wstring& text, const std::strin
 
     // メンバ変数への初期値キャッシュ（ImGuiで編集可能にするため）
     position_ = position;
+    scale_ = scale;
     textOffset_ = { 55.f, 0.f };
     normalColor_ = { 0.3f, 0.3f, 0.3f, 1.0f };
     hoverColor_ = { 0.2f, 0.5f, 0.4f, 1.0f };
@@ -18,7 +19,7 @@ void Button::Initialize(GameApp& app, const std::wstring& text, const std::strin
     bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
     bg_->SetName(name);
     bg_->SetPosition({ position_.x, position_.y });
-    bg_->SetScale({ scale.x, scale.y, 1.0f });
+    bg_->SetScale({ scale_.x, scale_.y, 1.0f });
     bg_->SetColor(normalColor_);
 
     // テキスト
@@ -39,13 +40,17 @@ void Button::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj) 
     // ImGuiからの編集を反映するために毎フレーム座標を再設定
     if (bg_) {
         bg_->SetPosition(position_);
+        Vector3 currentScale = { scale_.x,scale_.y ,1.f };
+        bg_->SetScale(currentScale);
     }
     if (text_) {
         text_->SetPosition({ position_.x + textOffset_.x, position_.y + textOffset_.y });
     }
 
+    isMouseOver_ = bg_->IsMouseOver(mousePos);
+
     // マウスホバー・クリック判定
-    if (bg_ && bg_->IsMouseOver(mousePos)) {
+    if (bg_ &&isMouseOver_) {
         // マウスホバー時のエフェクト
         bg_->SetColor(hoverColor_);
 
