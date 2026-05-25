@@ -105,6 +105,8 @@
     <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
     <ClCompile Include="Game\FieldEditerScene.cpp" />
     <ClCompile Include="Game\Logic\CardPreview.cpp" />
+    <ClCompile Include="Game\GameResultPopup.cpp" />
+    <ClCompile Include="Game\Logic\Button.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
@@ -212,6 +214,8 @@
     <ClInclude Include="Game\BattleAnimeEditerScene.h" />
     <ClInclude Include="Game\FieldEditerScene.h" />
     <ClInclude Include="Game\Logic\CardPreview.h" />
+    <ClInclude Include="Game\GameResultPopup.h" />
+    <ClInclude Include="Game\Logic\Button.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />
