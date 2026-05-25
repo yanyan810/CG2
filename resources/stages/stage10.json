@@ -7,8 +7,8 @@
     {
       "enemyType": "Boss",
       "enemyName": "Boss",
-      "maxHp": 300,
-      "hp": 300,
+      "maxHp": 500,
+      "hp": 500,
       "attack": 20,
       "defense": 5,
       "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
