@@ -1,6 +1,8 @@
 #pragma once
 #include "../IPauseState.h"
 
+#include "../../../Logic/Button.h"
+
 class GameApp;
 
 class SelectionState : public IPauseState {
@@ -14,5 +16,8 @@ public:
 
 private:
 
-	std::unique_ptr<Sprite > baseSprite_;
+	std::unique_ptr<TextSprite> title_;
+
+	std::vector<std::unique_ptr<Button>> buttons_;
+
 };

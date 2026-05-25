@@ -16,7 +16,7 @@ void PausingUI::Initialize(GameApp& app) {
 	pauseButton_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	pauseButton_->SetPosition({ 15.0f, 60.0f });
 	pauseButton_->SetScale({ 60.0f, 60.0f, 1.0f });
-	pauseButton_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+	pauseButton_->SetColor({ 0.0f, 0.0f, 0.0f, 1.f });
 
 	pauseButtonText_ = std::make_unique<TextSprite>();
 	pauseButtonText_->Initialize(app.SpriteCom(), app.Dx());
