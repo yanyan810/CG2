@@ -224,7 +224,7 @@ bool GameApp::Initialize_() {
 	BattleController dummyBattle;
 	dummyBattle.Preload(*this);
 
-	sceneMgr_->Change(*this, "DeckEdit");
+	sceneMgr_->Change(*this, "Title");
 
 
 	OutputDebugStringA("[GameApp] Initialize END\n");
