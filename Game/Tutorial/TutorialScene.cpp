@@ -12,6 +12,7 @@
 
 namespace {
     constexpr float kSceneStartFadeDuration = 0.75f;
+    constexpr const char* kTutorialFieldConfigPath = "resources/configs/stage_fields/tutorial_field.json";
 
     float SmoothStep01_(float t)
     {
@@ -42,6 +43,10 @@ void TutorialScene::OnEnter(GameApp& app) {
     skyDome_->SetEnableLighting(0);
     skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
     skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
+
+    tutorialFieldProps_ = std::make_unique<PropManager>();
+    tutorialFieldProps_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
+    tutorialFieldProps_->LoadFromJson(kTutorialFieldConfigPath);
 
     const float charZ = 15.0f;
 
@@ -177,6 +182,7 @@ void TutorialScene::OnExit(GameApp& app) {
 
     player_.reset();
     skyDome_.reset();
+    tutorialFieldProps_.reset();
     cameraAnim_.reset();
     animCamera_.reset();
     camera_.reset();
@@ -332,6 +338,17 @@ void TutorialScene::Update(GameApp& app, float dt) {
     if (player_) {
         player_->SetCamera(animCamera_.get());
         player_->Update(dt);
+    }
+
+    if (tutorialFieldProps_) {
+        Camera* propCamera = animCamera_.get();
+        if (battle_.IsActionSequencePlaying()) {
+            if (Camera* actionCamera = battle_.GetActionCamera()) {
+                propCamera = actionCamera;
+            }
+        }
+        tutorialFieldProps_->SetCamera(propCamera);
+        tutorialFieldProps_->Update(dt);
     }
 
     enemyMgr_.UpdateCamera(animCamera_.get());
@@ -500,6 +517,9 @@ void TutorialScene::Draw3D(GameApp& app) {
     app.ObjCom()->SetGraphicsPipelineState();
     app.Dx()->ClearDepthBuffer();
 
+    if (tutorialFieldProps_) {
+        tutorialFieldProps_->Draw3D();
+    }
     if (player_) {
         player_->Draw();
     }
@@ -673,6 +693,14 @@ void TutorialScene::DrawImGui(GameApp& app) {
         ImGui::Begin("FieldUi Debug");
         fieldUi_->DrawImGui();
         ImGui::End();
+
+        ImGui::Begin("Cost Meter Editor");
+        fieldUi_->DrawCostMeterImGui();
+        ImGui::End();
+    }
+
+    if (tutorialFieldProps_) {
+        tutorialFieldProps_->DrawImGui("Tutorial Field Props", kTutorialFieldConfigPath);
     }
 
     ImGui::Begin("Camera Setup (Tutorial)");
@@ -681,6 +709,28 @@ void TutorialScene::DrawImGui(GameApp& app) {
     ImGui::SliderFloat("Field Camera RotX Offset", &fieldCameraRotXOffset_, -0.5f, 0.5f);
     ImGui::SliderFloat("Battle Camera Zoom", &battleCameraZoom_, 0.1f, 3.0f);
     ImGui::SliderFloat("Battle Camera RotX Offset", &battleCameraRotXOffset_, -0.5f, 0.5f);
+    ImGui::End();
+
+    if (player_) {
+        Vector3 startPos = player_->GetPos() + Vector3(0.0f, 1.0f, 0.0f);
+        Vector3 targetPos = { 7.0f, 1.0f, 15.0f };
+        if (!enemyMgr_.GetEnemies().empty()) {
+            targetPos = enemyMgr_.GetEnemies().front().GetPos() + Vector3(0.0f, 1.0f, 0.0f);
+        }
+        player_->GetEffectSequencer().DrawImGuiEditor(startPos, targetPos);
+    }
+
+    ImGui::Begin("Particle Object Post (Tutorial)");
+    ImGui::Checkbox("Enable Particle Object Post", &particleObjectPostEnabled_);
+    ImGui::DragFloat("Post Threshold", &particleObjectPostParam_.threshold, 0.01f, 0.0f, 10.0f);
+    ImGui::DragFloat("Post Intensity", &particleObjectPostParam_.intensity, 0.01f, 0.0f, 10.0f);
+    ImGui::DragFloat("Chromatic Aberration", &particleObjectPostParam_.chromAbAmount, 0.001f, 0.0f, 0.1f);
+    ImGui::DragFloat("Distortion", &particleObjectPostParam_.distortionAmount, 0.001f, 0.0f, 0.2f);
+    ImGui::DragFloat("Noise", &particleObjectPostParam_.noiseIntensity, 0.001f, 0.0f, 1.0f);
+    ImGui::DragFloat("Glitch", &particleObjectPostParam_.glitchAmount, 0.001f, 0.0f, 0.2f);
+    if (ImGui::Button("Reset Particle Object Post")) {
+        ResetParticleObjectPostParam_();
+    }
     ImGui::End();
 
     if (tutorialUi_ && tutorial_) {
@@ -725,6 +775,9 @@ void TutorialScene::DrawPostEffect3D(GameApp& app) {
         }
     }
     app.ObjCom()->SetGraphicsPipelineState();
+    if (player_) {
+        player_->DrawPostEffect(app);
+    }
     app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
 

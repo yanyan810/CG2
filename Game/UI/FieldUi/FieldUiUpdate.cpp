@@ -386,7 +386,9 @@ void FieldUi::Update(GameApp& app, const BattleController& battle)
 	}
 	if (costText_) {
 		costText_->SetText(battle.GetEnergyText());
+		costText_->SetAlpha(0.0f);
 	}
+	UpdateCostMeter_(battle);
 
 	if (deckCountText_) {
 		deckCountText_->SetText(std::to_wstring(battle.GetDeckCount()));

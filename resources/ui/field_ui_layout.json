@@ -286,6 +286,76 @@
         "x": 75.0,
         "y": 405.0
     },
+    "costMeter": {
+        "currentTextScale": 1.0,
+        "currentTextX": 1228.0,
+        "currentTextY": 369.0,
+        "emptyColorB": 0.07999999821186066,
+        "emptyColorG": 0.11999999731779099,
+        "emptyColorR": 0.03999999910593033,
+        "emptyLightIntensity": 0.44999998807907104,
+        "filledLightIntensity": 1.649999976158142,
+        "lightColorB": 1.0,
+        "lightColorG": 1.0,
+        "lightColorR": 1.0,
+        "maxTextScale": 1.2200000286102295,
+        "maxTextX": 1227.0,
+        "maxTextY": 396.0,
+        "pipGapX": 18.0,
+        "pipGapY": 24.5,
+        "pipOffsets": [
+            {
+                "x": 16.0,
+                "y": 124.0
+            },
+            {
+                "x": 9.0,
+                "y": 122.0
+            },
+            {
+                "x": 5.0,
+                "y": 115.0
+            },
+            {
+                "x": -11.0,
+                "y": 72.0
+            },
+            {
+                "x": -17.0,
+                "y": 28.0
+            },
+            {
+                "x": -17.0,
+                "y": -18.0
+            },
+            {
+                "x": -11.0,
+                "y": -64.0
+            },
+            {
+                "x": 4.0,
+                "y": -107.0
+            },
+            {
+                "x": 7.0,
+                "y": -118.0
+            },
+            {
+                "x": 10.0,
+                "y": -120.0
+            }
+        ],
+        "pipOriginX": 1169.0,
+        "pipOriginY": 363.0,
+        "pipRadius": 7.5,
+        "pipScale": 1.0,
+        "postChromAbAmount": 0.0,
+        "postDistortionAmount": 0.0,
+        "postEffectEnabled": true,
+        "postIntensity": 2.200000047683716,
+        "postNoiseIntensity": 0.0,
+        "postThreshold": 0.0
+    },
     "costText": {
         "scale": 1.0,
         "x": 90.0,
