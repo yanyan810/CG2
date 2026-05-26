@@ -2900,7 +2900,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 						float sy = (1.0f - clip.y / clip.w) * 0.5f * WinApp::kClientHeight;
 
 						// モデルのスケールに応じて当たり判定の半径を計算（適度に大きめ）
-						float radius = 60.0f * prop.scale.x;
+						constexpr float kEndTurnButtonHitRadiusBase = 35.0f;
+						float radius = kEndTurnButtonHitRadiusBase * prop.scale.x;
 						float dx = mouse.x - sx;
 						float dy = mouse.y - sy;
 						if (dx * dx + dy * dy <= radius * radius) {
@@ -3947,9 +3948,7 @@ void BattleController::DrawBattleOverlay3D(GameApp& app)
 			}
 
 			for (auto& enemy : enemyMgr_->GetEnemies()) {
-				if (enemy.IsHighlighted()) {
-					enemy.Draw();
-				}
+				enemy.Draw();
 			}
 		}
 	}

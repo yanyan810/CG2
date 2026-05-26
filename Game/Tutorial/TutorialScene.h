@@ -100,6 +100,10 @@ private:
     int tutorialMenuPage_ = 0;
     TutorialManager::TutorialStep lastTutorialStep_ = TutorialManager::TutorialStep::Intro;
     float cardExplainInputBlockTimer_ = 0.0f;
+    TutorialManager::TutorialStep messageEditorStep_ = TutorialManager::TutorialStep::Intro;
+    std::array<char, 4096> messageEditBuffer_{};
+    bool messageEditorInitialized_ = false;
+    bool messageEditDirty_ = false;
 
     std::unique_ptr<TextSprite> playerHpText_;
     std::array<std::unique_ptr<TextSprite>, 8> playerHpOutlineTexts_;

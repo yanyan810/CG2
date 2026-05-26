@@ -28,6 +28,7 @@ public:
         UiRoleText,
         UiEndTurn,
         UiDeckCount,
+        UiPokerHandHelp,
         UiFinished,
 
         HoverHand,
@@ -71,6 +72,7 @@ public:
         TurnTextArea,
         RoleTextArea,
         DeckCountArea,
+        PokerHandHelpArea,
 
         PlayerIncomingDamageArea,
         EnemyNextActionArea
@@ -91,12 +93,18 @@ public:
     FocusType GetFocusType() const;
 
     bool LoadMessages(const std::string& path);
+    bool SaveMessages(const std::string& path = "") const;
 
     //文字用
     void SetMessageForCurrentStep(const std::wstring& text);
 
     void SetStepMessage(TutorialStep step, const std::wstring& text);
     std::wstring GetStepMessage(TutorialStep step) const;
+    std::wstring GetEditableStepMessage(TutorialStep step) const;
+    const std::string& GetMessagePath() const { return messagePath_; }
+    static const char* GetStepKey(TutorialStep step) { return StepToKey_(step); }
+    static std::wstring Utf8ToWString(const std::string& s);
+    static std::string WStringToUtf8(const std::wstring& s);
 
     bool ReloadMessages();
 
@@ -117,7 +125,6 @@ private:
 
     static const char* StepToKey_(TutorialStep step);
     std::wstring GetMessageFromTable_(TutorialStep step) const;
-    static std::wstring Utf8ToWString_(const std::string& s);
 
 private:
     TutorialStep step_ = TutorialStep::Intro;
