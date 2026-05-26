@@ -6,8 +6,11 @@
 #include "Sprite.h"
 #include "WinApp.h"
 #include "CardDatabase.h"
+#include "GeometryGenerator.h"
+#include "ModelManager.h"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -16,6 +19,40 @@
 #endif
 
 using json = nlohmann::json;
+
+namespace {
+	constexpr float kCostMeterCameraDistance = 10.0f;
+	constexpr float kCostMeterCameraFovY = 0.45f;
+
+	Model::ModelData MakeCostSphereModelData()
+	{
+		std::vector<Model::VertexData> vertices =
+			GeometryGenerator::GenerateSphereTriList(24, 12, 1.0f);
+
+		Model::ModelData md{};
+		md.materials.push_back({ "" });
+
+		Model::MeshData mesh{};
+		mesh.materialIndex = 0;
+		mesh.vertices = vertices;
+		mesh.skinned = false;
+		mesh.startVertex = 0;
+		mesh.vertexCount = static_cast<uint32_t>(vertices.size());
+		mesh.startIndex = 0;
+		mesh.indexCount = static_cast<uint32_t>(vertices.size());
+
+		md.meshes.push_back(std::move(mesh));
+		md.indices.resize(vertices.size());
+		for (uint32_t i = 0; i < static_cast<uint32_t>(vertices.size()); ++i) {
+			md.indices[i] = i;
+		}
+
+		md.rootNode.name = "CostSphereRoot";
+		md.rootNode.localMatrix = Matrix4x4::MakeIdentity4x4();
+		md.rootNode.meshIndices.push_back(0);
+		return md;
+	}
+}
 static std::wstring Utf8ToWStringLocal(const std::string& s)
 {
 	if (s.empty()) return L"";
@@ -82,6 +119,154 @@ void FieldUi::SetTextScale_(TextSprite* text, float s)
 {
 	if (!text) return;
 	text->SetSize({ s, s, 1.0f });
+}
+
+Vector4 FieldUi::GetCostTierColor_(int value) const
+{
+	if (value <= 10) {
+		return { 0.24f, 1.0f, 0.34f, 1.0f };
+	}
+
+	const int tier = (std::max)(0, (value - 1) / 10);
+	switch (tier % 5) {
+	case 1: return { 0.18f, 0.78f, 1.0f, 1.0f };
+	case 2: return { 0.72f, 0.35f, 1.0f, 1.0f };
+	case 3: return { 1.0f, 0.72f, 0.22f, 1.0f };
+	case 4: return { 1.0f, 0.28f, 0.2f, 1.0f };
+	default: return { 0.24f, 1.0f, 0.34f, 1.0f };
+	}
+}
+
+Vector3 FieldUi::CostMeterScreenToWorld_(float x, float y) const
+{
+	const float visibleH =
+		2.0f * kCostMeterCameraDistance * std::tanf(kCostMeterCameraFovY * 0.5f);
+	const float visibleW =
+		visibleH * (float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
+
+	return {
+		(x / float(WinApp::kClientWidth) - 0.5f) * visibleW,
+		(0.5f - y / float(WinApp::kClientHeight)) * visibleH,
+		0.0f
+	};
+}
+
+void FieldUi::RebuildCostSphereModel_()
+{
+	const std::string modelKey =
+		"FieldUiCostSphere_Generated_" + std::to_string(costSphereModelRevision_++);
+	costSphereModel_ = ModelManager::GetInstance()->CreatePrimitiveModel(
+		modelKey,
+		MakeCostSphereModelData());
+
+	for (auto& sphere : costPipSpheres_) {
+		if (sphere) {
+			sphere->SetModel(costSphereModel_);
+		}
+	}
+}
+
+void FieldUi::UpdateCostMeter_(const BattleController& battle)
+{
+	const int current = (std::max)(0, battle.GetEnergy());
+	const int maximum = (std::max)(0, battle.GetEnergyMax());
+	const int visiblePips = (std::min)(10, current);
+	const Vector4 tierColor = GetCostTierColor_(current);
+
+	const float scale = (std::max)(0.1f, layout_.costMeter.pipScale);
+	const float pipW = 14.0f * scale;
+	const float pipH = 10.0f * scale;
+	const float gapX = layout_.costMeter.pipGapX * scale;
+	const float gapY = layout_.costMeter.pipGapY * scale;
+	const float rightX = layout_.costMeter.pipOriginX;
+	const float topY = layout_.costMeter.pipOriginY;
+	const float midX = rightX - gapX;
+	const float leftX = rightX - gapX * 2.0f;
+	const float upperY = topY + gapY;
+	const float middleY = topY + gapY * 2.0f;
+	const float lowerY = topY + gapY * 3.0f;
+	const float nearBottomY = topY + gapY * 4.0f;
+	const float bottomY = topY + gapY * 5.0f;
+
+	const Vector2 pipPositions[10] = {
+		{ rightX, topY },
+		{ midX, topY },
+		{ leftX, topY },
+		{ leftX, upperY },
+		{ leftX, middleY },
+		{ leftX, lowerY },
+		{ leftX, nearBottomY },
+		{ leftX, bottomY },
+		{ midX, bottomY },
+		{ rightX, bottomY }
+	};
+
+	if (costMeterCamera_) {
+		costMeterCamera_->Update();
+	}
+
+	const float pixelToWorld =
+		(2.0f * kCostMeterCameraDistance * std::tanf(kCostMeterCameraFovY * 0.5f)) /
+		float(WinApp::kClientHeight);
+	const float sphereRadius = layout_.costMeter.pipRadius * scale * pixelToWorld;
+	const Vector4 emptyColor = {
+		layout_.costMeter.emptyColorR,
+		layout_.costMeter.emptyColorG,
+		layout_.costMeter.emptyColorB,
+		1.0f
+	};
+	const Vector4 lightColor = {
+		layout_.costMeter.lightColorR,
+		layout_.costMeter.lightColorG,
+		layout_.costMeter.lightColorB,
+		1.0f
+	};
+
+	for (int i = 0; i < 10; ++i) {
+		const bool filled = i < visiblePips;
+		const Vector2 pos = {
+			pipPositions[i].x + layout_.costMeter.pipOffsets[i].x,
+			pipPositions[i].y + layout_.costMeter.pipOffsets[i].y
+		};
+		const Vector3 worldPos =
+			CostMeterScreenToWorld_(pos.x + pipW * 0.5f, pos.y + pipH * 0.5f);
+
+		if (costPipSpheres_[i]) {
+			costPipSpheres_[i]->SetTranslate(worldPos);
+			costPipSpheres_[i]->SetScale({ sphereRadius, sphereRadius, sphereRadius });
+			costPipSpheres_[i]->SetRotate({ 0.0f, 0.0f, 0.0f });
+			costPipSpheres_[i]->SetMaterialColor(filled
+				? Vector4{ tierColor.x, tierColor.y, tierColor.z, 1.0f }
+				: emptyColor);
+			costPipSpheres_[i]->SetLightColor(filled
+				? lightColor
+				: Vector4{ 0.35f, 0.5f, 0.42f, 1.0f });
+			costPipSpheres_[i]->SetIntensity(filled
+				? layout_.costMeter.filledLightIntensity
+				: layout_.costMeter.emptyLightIntensity);
+			costPipSpheres_[i]->Update(0.0f);
+		}
+	}
+
+	if (costCurrentText_) {
+		if (current != lastCostCurrent_) {
+			costCurrentText_->SetText(std::to_wstring(current));
+		}
+		costCurrentText_->SetPosition({ layout_.costMeter.currentTextX, layout_.costMeter.currentTextY });
+		costCurrentText_->SetColor({ tierColor.x, tierColor.y, tierColor.z });
+		SetTextScale_(costCurrentText_.get(), layout_.costMeter.currentTextScale);
+	}
+	if (costMaxText_) {
+		if (maximum != lastCostMax_) {
+			costMaxText_->SetText(L"/\n" + std::to_wstring(maximum));
+		}
+		costMaxText_->SetPosition({ layout_.costMeter.maxTextX, layout_.costMeter.maxTextY });
+		costMaxText_->SetColor({ 0.78f, 0.94f, 0.86f });
+		SetTextScale_(costMaxText_.get(), layout_.costMeter.maxTextScale);
+	}
+
+	lastCostCurrent_ = current;
+	lastCostMax_ = maximum;
 }
 
 void FieldUi::ApplyFieldUiLayout_()
@@ -159,11 +344,12 @@ void FieldUi::ApplyFieldUiLayout_()
 	if (costTextBg_) {
 		costTextBg_->SetPosition({ layout_.costBg.x, layout_.costBg.y });
 		costTextBg_->SetScale({ layout_.costBg.w, layout_.costBg.h, 1.0f });
-		costTextBg_->SetColor({ 0.f,1.f,0.f,0.5f });
+		costTextBg_->SetColor({ 0.f, 0.f, 0.f, 0.f });
 	}
 	if (costText_) {
 		costText_->SetPosition({ layout_.costText.x, layout_.costText.y });
 		SetTextScale_(costText_.get(), layout_.costText.scale);
+		costText_->SetAlpha(0.0f);
 	}
 
 	if (modalOverlayBg_) {
@@ -427,10 +613,39 @@ void FieldUi::Initialize(GameApp& app)
 
 	costText_ = std::make_unique<TextSprite>();
 	costText_->Initialize(app.SpriteCom(), app.Dx());
+	costText_->SetAlpha(0.0f);
+
+	costCurrentText_ = std::make_unique<TextSprite>();
+	costCurrentText_->Initialize(app.SpriteCom(), app.Dx());
+	costCurrentText_->SetFontSize(26);
+
+	costMaxText_ = std::make_unique<TextSprite>();
+	costMaxText_->Initialize(app.SpriteCom(), app.Dx());
+	costMaxText_->SetFontSize(19);
 
 	costTextBg_ = std::make_unique<Sprite>();
 	costTextBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+	costTextBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+	costMeterCamera_ = std::make_unique<Camera>();
+	costMeterCamera_->SetFovY(kCostMeterCameraFovY);
+	costMeterCamera_->SetAspect(float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
+	costMeterCamera_->SetNearZ(0.1f);
+	costMeterCamera_->SetFarClip(100.0f);
+	costMeterCamera_->SetTranslate({ 0.0f, 0.0f, -kCostMeterCameraDistance });
+	costMeterCamera_->Update();
+
+	RebuildCostSphereModel_();
+
+	for (int i = 0; i < 10; ++i) {
+		costPipSpheres_[i] = std::make_unique<Object3d>();
+		costPipSpheres_[i]->Initialize(app.ObjCom(), app.Dx());
+		costPipSpheres_[i]->SetModel(costSphereModel_);
+		costPipSpheres_[i]->SetCamera(costMeterCamera_.get());
+		costPipSpheres_[i]->SetEnableLighting(2);
+		costPipSpheres_[i]->SetDirection({ -0.45f, -0.8f, -0.35f });
+		costPipSpheres_[i]->SetShininess(96.0f);
+	}
 
 	modalOverlayBg_ = std::make_unique<Sprite>();
 	modalOverlayBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");

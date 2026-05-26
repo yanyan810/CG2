@@ -14,6 +14,46 @@
 #endif
 
 using json = nlohmann::json;
+
+void FieldUi::DrawCostMeter_(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj)
+{
+	(void)view;
+	(void)proj;
+
+	if (layout_.costMeter.postEffectEnabled) {
+		BloomParam param = app.ObjectPost()->GetParam();
+		param.threshold = layout_.costMeter.postThreshold;
+		param.intensity = layout_.costMeter.postIntensity;
+		param.chromAbAmount = layout_.costMeter.postChromAbAmount;
+		param.distortionAmount = layout_.costMeter.postDistortionAmount;
+		param.noiseIntensity = layout_.costMeter.postNoiseIntensity;
+
+		app.ObjectPost()->SetParam(param);
+		app.BeginObjectPostEffect();
+		for (auto& sphere : costPipSpheres_) {
+			if (!sphere) continue;
+			sphere->Draw();
+		}
+		app.EndObjectPostEffect();
+		app.ObjCom()->SetGraphicsPipelineState();
+	} else {
+		for (auto& sphere : costPipSpheres_) {
+			if (!sphere) continue;
+			sphere->Draw();
+		}
+	}
+
+	app.SpriteCom()->SetGraphicsPipelineState();
+	if (costCurrentText_) {
+		costCurrentText_->Update(view, proj);
+		costCurrentText_->Draw();
+	}
+	if (costMaxText_) {
+		costMaxText_->Update(view, proj);
+		costMaxText_->Draw();
+	}
+}
+
 void FieldUi::Draw(GameApp& app, const BattleController& battle)
 {
 	app.SpriteCom()->SetGraphicsPipelineState();
@@ -348,6 +388,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		costTextBg_->Update(view, proj);
 		costTextBg_->Draw();
 	}
+	DrawCostMeter_(app, view, proj);
 
 	if (clickChoiceBg_) {
 		clickChoiceBg_->Update(view, proj);

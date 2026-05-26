@@ -38,6 +38,7 @@ public:
 
 	// 描画
 	void Draw();
+	void DrawPostEffect(GameApp& app);
 	void DrawShieldBloom(GameApp& app);
 	void DrawShieldImGui();
 

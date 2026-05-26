@@ -1677,6 +1677,10 @@ void GameScene::DrawImGui(GameApp& app) {
 		ImGui::Begin("FieldUi Debug");
 		fieldUi_->DrawImGui();
 		ImGui::End();
+
+		ImGui::Begin("Cost Meter Editor");
+		fieldUi_->DrawCostMeterImGui();
+		ImGui::End();
 	}
 
 	if (battleForestProps_) {
@@ -1893,6 +1897,10 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	// エフェクトシーケンサーの弾を描画
 	if (effectSequencer_) {
 		effectSequencer_->Draw();
+		effectSequencer_->DrawPostEffect(app);
+	}
+	if (player_) {
+		player_->DrawPostEffect(app);
 	}
 
 	if (trailManager_) {

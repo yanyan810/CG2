@@ -643,6 +643,7 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 
 		layout_.costBg = { 75.0f, 405.0f, 170.0f, 55.0f };
 		layout_.costText = { 90.0f, 400.0f, 1.0f };
+		layout_.costMeter = {};
 
 		layout_.deckLabelImage = { 40.0f, 320.0f, 1.0f };
 		layout_.discardLabelImage = { 1120.0f, 350.0f, 1.0f };
@@ -830,6 +831,44 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 		out.scale = v.value("scale", out.scale);
 		};
 
+	auto readCostMeter = [&](const char* key, UiCostMeterLayout& out) {
+		if (!j.contains(key)) return;
+		auto& v = j[key];
+		out.pipOriginX = v.value("pipOriginX", out.pipOriginX);
+		out.pipOriginY = v.value("pipOriginY", out.pipOriginY);
+		if (v.contains("pipOffsets") && v["pipOffsets"].is_array()) {
+			for (int i = 0; i < static_cast<int>(v["pipOffsets"].size()) && i < 10; ++i) {
+				const auto& offset = v["pipOffsets"][i];
+				out.pipOffsets[i].x = offset.value("x", out.pipOffsets[i].x);
+				out.pipOffsets[i].y = offset.value("y", out.pipOffsets[i].y);
+			}
+		}
+		out.pipScale = v.value("pipScale", out.pipScale);
+		out.pipGapX = v.value("pipGapX", out.pipGapX);
+		out.pipGapY = v.value("pipGapY", out.pipGapY);
+		out.pipRadius = v.value("pipRadius", out.pipRadius);
+		out.postEffectEnabled = v.value("postEffectEnabled", out.postEffectEnabled);
+		out.postThreshold = v.value("postThreshold", out.postThreshold);
+		out.postIntensity = v.value("postIntensity", out.postIntensity);
+		out.postChromAbAmount = v.value("postChromAbAmount", out.postChromAbAmount);
+		out.postDistortionAmount = v.value("postDistortionAmount", out.postDistortionAmount);
+		out.postNoiseIntensity = v.value("postNoiseIntensity", out.postNoiseIntensity);
+		out.filledLightIntensity = v.value("filledLightIntensity", out.filledLightIntensity);
+		out.emptyLightIntensity = v.value("emptyLightIntensity", out.emptyLightIntensity);
+		out.emptyColorR = v.value("emptyColorR", out.emptyColorR);
+		out.emptyColorG = v.value("emptyColorG", out.emptyColorG);
+		out.emptyColorB = v.value("emptyColorB", out.emptyColorB);
+		out.lightColorR = v.value("lightColorR", out.lightColorR);
+		out.lightColorG = v.value("lightColorG", out.lightColorG);
+		out.lightColorB = v.value("lightColorB", out.lightColorB);
+		out.currentTextX = v.value("currentTextX", out.currentTextX);
+		out.currentTextY = v.value("currentTextY", out.currentTextY);
+		out.maxTextX = v.value("maxTextX", out.maxTextX);
+		out.maxTextY = v.value("maxTextY", out.maxTextY);
+		out.currentTextScale = v.value("currentTextScale", out.currentTextScale);
+		out.maxTextScale = v.value("maxTextScale", out.maxTextScale);
+		};
+
 	auto readImageItem = [&](const json& v, UiImageItem& out) {
 		out.x = v.value("x", out.x);
 		out.y = v.value("y", out.y);
@@ -894,6 +933,7 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 	layout_.turnText = { 500.0f, 20.0f, 1.0f };
 	layout_.costBg = { 75.0f, 405.0f, 170.0f, 55.0f };
 	layout_.costText = { 90.0f, 400.0f, 1.0f };
+	layout_.costMeter = {};
 	layout_.overlay = { 0.0f, 0.0f, float(WinApp::kClientWidth), float(WinApp::kClientHeight) };
 	layout_.cardDescImage.baseEffectOffsetY = 0.0f;
 
@@ -1009,6 +1049,7 @@ bool FieldUi::LoadFieldUiLayout(const std::string& path)
 
 	readRect("costBg", layout_.costBg);
 	readText("costText", layout_.costText);
+	readCostMeter("costMeter", layout_.costMeter);
 
 	readRect("endTurnBg", layout_.endTurnBg);
 	readText("endTurnText", layout_.endTurnText);
@@ -1228,6 +1269,42 @@ bool FieldUi::SaveFieldUiLayout(const std::string& path) const
 		j[key]["scale"] = t.scale;
 		};
 
+	auto writeCostMeter = [&](const char* key, const UiCostMeterLayout& v) {
+		j[key]["pipOriginX"] = v.pipOriginX;
+		j[key]["pipOriginY"] = v.pipOriginY;
+		j[key]["pipOffsets"] = json::array();
+		for (const auto& offset : v.pipOffsets) {
+			j[key]["pipOffsets"].push_back({
+				{ "x", offset.x },
+				{ "y", offset.y }
+				});
+		}
+		j[key]["pipScale"] = v.pipScale;
+		j[key]["pipGapX"] = v.pipGapX;
+		j[key]["pipGapY"] = v.pipGapY;
+		j[key]["pipRadius"] = v.pipRadius;
+		j[key]["postEffectEnabled"] = v.postEffectEnabled;
+		j[key]["postThreshold"] = v.postThreshold;
+		j[key]["postIntensity"] = v.postIntensity;
+		j[key]["postChromAbAmount"] = v.postChromAbAmount;
+		j[key]["postDistortionAmount"] = v.postDistortionAmount;
+		j[key]["postNoiseIntensity"] = v.postNoiseIntensity;
+		j[key]["filledLightIntensity"] = v.filledLightIntensity;
+		j[key]["emptyLightIntensity"] = v.emptyLightIntensity;
+		j[key]["emptyColorR"] = v.emptyColorR;
+		j[key]["emptyColorG"] = v.emptyColorG;
+		j[key]["emptyColorB"] = v.emptyColorB;
+		j[key]["lightColorR"] = v.lightColorR;
+		j[key]["lightColorG"] = v.lightColorG;
+		j[key]["lightColorB"] = v.lightColorB;
+		j[key]["currentTextX"] = v.currentTextX;
+		j[key]["currentTextY"] = v.currentTextY;
+		j[key]["maxTextX"] = v.maxTextX;
+		j[key]["maxTextY"] = v.maxTextY;
+		j[key]["currentTextScale"] = v.currentTextScale;
+		j[key]["maxTextScale"] = v.maxTextScale;
+		};
+
 	writeRect("cardDescBg", layout_.cardDescBg);
 	writeText("cardDescText", layout_.cardDescText);
 
@@ -1251,6 +1328,7 @@ bool FieldUi::SaveFieldUiLayout(const std::string& path) const
 
 	writeRect("costBg", layout_.costBg);
 	writeText("costText", layout_.costText);
+	writeCostMeter("costMeter", layout_.costMeter);
 
 	writeRect("endTurnBg", layout_.endTurnBg);
 	writeText("endTurnText", layout_.endTurnText);

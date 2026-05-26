@@ -693,6 +693,10 @@ void TutorialScene::DrawImGui(GameApp& app) {
         ImGui::Begin("FieldUi Debug");
         fieldUi_->DrawImGui();
         ImGui::End();
+
+        ImGui::Begin("Cost Meter Editor");
+        fieldUi_->DrawCostMeterImGui();
+        ImGui::End();
     }
 
     if (tutorialFieldProps_) {
@@ -705,6 +709,28 @@ void TutorialScene::DrawImGui(GameApp& app) {
     ImGui::SliderFloat("Field Camera RotX Offset", &fieldCameraRotXOffset_, -0.5f, 0.5f);
     ImGui::SliderFloat("Battle Camera Zoom", &battleCameraZoom_, 0.1f, 3.0f);
     ImGui::SliderFloat("Battle Camera RotX Offset", &battleCameraRotXOffset_, -0.5f, 0.5f);
+    ImGui::End();
+
+    if (player_) {
+        Vector3 startPos = player_->GetPos() + Vector3(0.0f, 1.0f, 0.0f);
+        Vector3 targetPos = { 7.0f, 1.0f, 15.0f };
+        if (!enemyMgr_.GetEnemies().empty()) {
+            targetPos = enemyMgr_.GetEnemies().front().GetPos() + Vector3(0.0f, 1.0f, 0.0f);
+        }
+        player_->GetEffectSequencer().DrawImGuiEditor(startPos, targetPos);
+    }
+
+    ImGui::Begin("Particle Object Post (Tutorial)");
+    ImGui::Checkbox("Enable Particle Object Post", &particleObjectPostEnabled_);
+    ImGui::DragFloat("Post Threshold", &particleObjectPostParam_.threshold, 0.01f, 0.0f, 10.0f);
+    ImGui::DragFloat("Post Intensity", &particleObjectPostParam_.intensity, 0.01f, 0.0f, 10.0f);
+    ImGui::DragFloat("Chromatic Aberration", &particleObjectPostParam_.chromAbAmount, 0.001f, 0.0f, 0.1f);
+    ImGui::DragFloat("Distortion", &particleObjectPostParam_.distortionAmount, 0.001f, 0.0f, 0.2f);
+    ImGui::DragFloat("Noise", &particleObjectPostParam_.noiseIntensity, 0.001f, 0.0f, 1.0f);
+    ImGui::DragFloat("Glitch", &particleObjectPostParam_.glitchAmount, 0.001f, 0.0f, 0.2f);
+    if (ImGui::Button("Reset Particle Object Post")) {
+        ResetParticleObjectPostParam_();
+    }
     ImGui::End();
 
     if (tutorialUi_ && tutorial_) {
@@ -749,6 +775,9 @@ void TutorialScene::DrawPostEffect3D(GameApp& app) {
         }
     }
     app.ObjCom()->SetGraphicsPipelineState();
+    if (player_) {
+        player_->DrawPostEffect(app);
+    }
     app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
 

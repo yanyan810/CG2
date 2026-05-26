@@ -6,6 +6,7 @@
 #include "CardDatabase.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -15,8 +16,78 @@
 
 using json = nlohmann::json;
 #ifdef USE_IMGUI
+void FieldUi::DrawCostMeterImGui()
+{
+	ImGui::Text("Sphere Model");
+	ImGui::Text("Source: GeometryGenerator::GenerateSphereTriList");
+	ImGui::Text("Model Pointer: %p", static_cast<void*>(costSphereModel_));
+	ImGui::Text("Revision: %d", costSphereModelRevision_);
+	if (ImGui::Button("Regenerate Cost Sphere Geometry")) {
+		RebuildCostSphereModel_();
+	}
+
+	ImGui::Separator();
+	bool changed = false;
+	changed |= ImGui::DragFloat2("Pip 1 Position", &layout_.costMeter.pipOriginX, 1.0f);
+	changed |= ImGui::DragFloat2("C Shape Gap", &layout_.costMeter.pipGapX, 0.5f, 6.0f, 80.0f);
+	changed |= ImGui::DragFloat("Pip Scale", &layout_.costMeter.pipScale, 0.01f, 0.1f, 5.0f);
+	changed |= ImGui::DragFloat("Sphere Radius", &layout_.costMeter.pipRadius, 0.1f, 1.0f, 40.0f);
+	if (ImGui::TreeNode("Individual Pip Offsets")) {
+		for (int i = 0; i < 10; ++i) {
+			char label[32]{};
+			snprintf(label, sizeof(label), "Pip %d Offset", i + 1);
+			changed |= ImGui::DragFloat2(label, &layout_.costMeter.pipOffsets[i].x, 1.0f);
+		}
+		if (ImGui::Button("Reset Pip Offsets")) {
+			for (auto& offset : layout_.costMeter.pipOffsets) {
+				offset = {};
+			}
+			changed = true;
+		}
+		ImGui::TreePop();
+	}
+
+	ImGui::Separator();
+	changed |= ImGui::Checkbox("Enable Sphere Post Effect", &layout_.costMeter.postEffectEnabled);
+	changed |= ImGui::DragFloat("Post Threshold", &layout_.costMeter.postThreshold, 0.01f, 0.0f, 10.0f);
+	changed |= ImGui::DragFloat("Post Intensity", &layout_.costMeter.postIntensity, 0.01f, 0.0f, 10.0f);
+	changed |= ImGui::DragFloat("Post Chromatic Aberration", &layout_.costMeter.postChromAbAmount, 0.001f, 0.0f, 0.1f);
+	changed |= ImGui::DragFloat("Post Distortion", &layout_.costMeter.postDistortionAmount, 0.001f, 0.0f, 0.2f);
+	changed |= ImGui::DragFloat("Post Noise", &layout_.costMeter.postNoiseIntensity, 0.001f, 0.0f, 1.0f);
+
+	ImGui::Separator();
+	changed |= ImGui::DragFloat2("Current Text Pos", &layout_.costMeter.currentTextX, 1.0f);
+	changed |= ImGui::DragFloat("Current Text Scale", &layout_.costMeter.currentTextScale, 0.01f, 0.1f, 5.0f);
+	changed |= ImGui::DragFloat2("Max Text Pos", &layout_.costMeter.maxTextX, 1.0f);
+	changed |= ImGui::DragFloat("Max Text Scale", &layout_.costMeter.maxTextScale, 0.01f, 0.1f, 5.0f);
+
+	ImGui::Separator();
+	changed |= ImGui::ColorEdit3("Empty Pip Color", &layout_.costMeter.emptyColorR);
+	changed |= ImGui::ColorEdit3("Filled Light Color", &layout_.costMeter.lightColorR);
+	changed |= ImGui::DragFloat("Filled Light Intensity", &layout_.costMeter.filledLightIntensity, 0.01f, 0.0f, 10.0f);
+	changed |= ImGui::DragFloat("Empty Light Intensity", &layout_.costMeter.emptyLightIntensity, 0.01f, 0.0f, 10.0f);
+
+	if (changed) {
+		ApplyFieldUiLayout_();
+	}
+
+	if (ImGui::Button("Save Cost Meter Layout")) {
+		SaveFieldUiLayout(layoutPath_);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Load Cost Meter Layout")) {
+		LoadFieldUiLayout(layoutPath_);
+		ApplyFieldUiLayout_();
+	}
+}
+
 void FieldUi::DrawImGui()
 {
+	if (ImGui::TreeNode("Cost Meter Editor")) {
+		DrawCostMeterImGui();
+		ImGui::TreePop();
+	}
+
 	if (ImGui::TreeNode("PokerEffectChoiceLayout")) {
 		bool changed = false;
 
@@ -219,6 +290,17 @@ void FieldUi::DrawImGui()
 		changed |= ImGui::DragFloat4("costBg", &layout_.costBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("costText", &layout_.costText.x, 1.0f);
 
+		ImGui::Separator();
+		ImGui::Text("Cost Meter");
+		changed |= ImGui::DragFloat2("costMeterPips", &layout_.costMeter.pipOriginX, 1.0f);
+		changed |= ImGui::DragFloat("costMeterPipScale", &layout_.costMeter.pipScale, 0.01f, 0.1f, 5.0f);
+		changed |= ImGui::DragFloat2("costMeterPipGap", &layout_.costMeter.pipGapX, 0.5f, 6.0f, 60.0f);
+		changed |= ImGui::DragFloat2("costCurrentText", &layout_.costMeter.currentTextX, 1.0f);
+		changed |= ImGui::DragFloat("costCurrentScale", &layout_.costMeter.currentTextScale, 0.01f, 0.1f, 5.0f);
+		changed |= ImGui::DragFloat2("costMaxText", &layout_.costMeter.maxTextX, 1.0f);
+		changed |= ImGui::DragFloat("costMaxScale", &layout_.costMeter.maxTextScale, 0.01f, 0.1f, 5.0f);
+
+		ImGui::Separator();
 		changed |= ImGui::DragFloat4("endTurnBg", &layout_.endTurnBg.x, 1.0f);
 		changed |= ImGui::DragFloat3("endTurnText", &layout_.endTurnText.x, 1.0f);
 

@@ -109,6 +109,8 @@ public:
 	int GetHandCount() const { return static_cast<int>(hand_.size()); }
 	int GetDiscardCount() const { return static_cast<int>(discard_.size()); }
 	int GetFieldCount() const { return static_cast<int>(field_.size()); }
+	int GetEnergy() const { return energy_; }
+	int GetEnergyMax() const { return energyMax_; }
 	std::wstring GetCurrentPokerHandUiText() const;
 	std::wstring GetTurnUiText() const;
 	std::wstring GetEnergyText() const;

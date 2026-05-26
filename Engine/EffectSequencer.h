@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include "MathStruct.h"
+#include "BloomConstantBuffer.h"
 
 // 前方宣言
 class Object3d;
@@ -16,6 +17,7 @@ class Camera;
 class ModelParticleManager;
 class TrailManager;
 class TrailInstance;
+class GameApp;
 struct TrailConfig;
 
 // =============================================
@@ -23,27 +25,32 @@ struct TrailConfig;
 // =============================================
 
 struct ProjectileProfile {
+	struct Piece {
+		std::string name = "Bullet";
+		std::string modelPath = "sphere/sphere.obj";
+		Vector3 offset = { 0.0f, 0.0f, 0.0f };
+		Vector3 rot = { 0.0f, 0.0f, 0.0f };
+		Vector3 scale = { 0.3f, 0.3f, 0.3f };
+		Vector3 rotationSpeed = { 0.0f, 5.0f, 0.0f };
+		Vector4 materialColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		bool enableLighting = false;
+		Vector3 lightDir = { 0.0f, -1.0f, 0.0f };
+		Vector4 lightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		float lightIntensity = 1.0f;
+		bool usePostEffect = false;
+		BloomParam postEffect = {};
+
+		nlohmann::json ToJson() const;
+		void FromJson(const nlohmann::json& j);
+	};
+
 	std::string modelPath = "sphere/sphere.obj";
 	Vector3 scale = { 0.3f, 0.3f, 0.3f };
 	Vector3 rotationSpeed = { 0.0f, 5.0f, 0.0f };
+	std::vector<Piece> pieces;
 
-	nlohmann::json ToJson() const {
-		return nlohmann::json{
-			{"modelPath", modelPath},
-			{"scale", {scale.x, scale.y, scale.z}},
-			{"rotationSpeed", {rotationSpeed.x, rotationSpeed.y, rotationSpeed.z}}
-		};
-	}
-
-	void FromJson(const nlohmann::json& j) {
-		modelPath = j.value("modelPath", modelPath);
-		if (j.contains("scale")) {
-			scale = { j["scale"][0], j["scale"][1], j["scale"][2] };
-		}
-		if (j.contains("rotationSpeed")) {
-			rotationSpeed = { j["rotationSpeed"][0], j["rotationSpeed"][1], j["rotationSpeed"][2] };
-		}
-	}
+	nlohmann::json ToJson() const;
+	void FromJson(const nlohmann::json& j);
 };
 
 struct TrailProfile {
@@ -156,6 +163,7 @@ public:
 
 	// 弾の描画（3Dオブジェクト描画タイミングで呼ぶ）
 	void Draw();
+	void DrawPostEffect(GameApp& app);
 
 	// 状態確認
 	bool IsFinished() const { return state_ == State::Finished || state_ == State::Idle; }
@@ -213,6 +221,9 @@ private:
 	// 弾オブジェクト
 	std::unique_ptr<Object3d> projectile_;
 	Vector3 projectileRotation_ = {};
+	std::vector<ProjectileProfile::Piece> activeProjectilePieces_;
+	std::vector<std::unique_ptr<Object3d>> projectilePieces_;
+	std::vector<Vector3> projectilePieceRotations_;
 
 	// 軌跡
 	TrailInstance* trail_ = nullptr;
