@@ -66,7 +66,6 @@ private:
 	// 2D表示用スプライト
 	//--------------------------------------------------------
 	std::unique_ptr<Sprite> bg_;          // 背景画像
-	std::unique_ptr<Sprite> dissolveFade_; // 背景ディソルブ用の黒スプライト
 	std::unique_ptr<Sprite> titleLogo_;   // resonance_title画像
 	std::unique_ptr<Sprite> clickStart_;  // clickStart画像
 
@@ -77,8 +76,6 @@ private:
 	float softness_ = 0.6f;
 	float openingDissolveTimer_ = 0.0f;
 	float bgDissolveDuration_ = 1.4f;
-	float bgDissolveAmount_ = 1.0f;
-	bool bgDissolveDone_ = false;
 	float titleDissolveDelayAfterBg_ = 0.2f;
 	float openingDissolveDuration_ = 2.0f;
 	bool openingDissolveDone_ = false;

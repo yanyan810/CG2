@@ -7,8 +7,8 @@
     {
       "enemyType": "Slime",
       "enemyName": "Slime",
-      "maxHp": 50,
-      "hp": 50,
+      "maxHp": 75,
+      "hp": 75,
       "attack": 5,
       "defense": 0,
       "position": { "x": 7.0, "y": 0.0, "z": 15.0 },

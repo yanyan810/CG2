@@ -52,7 +52,7 @@ namespace {
 	float sHpDamageBlinkSpeed = 6.0f;
 	float sHpDamageBloomIntensity = 1.05f;
 	bool sPlayerBlockCarryOverEnabled = true;
-	float sPlayerBlockTurnDecayRate = 0.20f;
+	float sPlayerBlockTurnDecayRate = 0.35f;
 
 	Vector4 HsvToRgb_(float hue, float saturation, float value)
 	{
@@ -160,10 +160,10 @@ namespace {
 		if (type == "Attack") {
 			return { 1.0f, 0.25f, 0.25f };
 		}
-		if (type == "Block") {
+		if (type == "Block" || type == "BlockAll" || type == "BlockLowestAlly") {
 			return { 0.25f, 0.55f, 1.0f };
 		}
-		if (type == "Heal") {
+		if (type == "Heal" || type == "HealAll" || type == "HealLowestAlly") {
 			return { 0.25f, 1.0f, 0.35f };
 		}
 		return { 0.85f, 0.85f, 0.85f };
@@ -174,10 +174,10 @@ namespace {
 		if (type == "Attack") {
 			return { 1.0f, 0.18f, 0.14f, 1.0f };
 		}
-		if (type == "Block") {
+		if (type == "Block" || type == "BlockAll" || type == "BlockLowestAlly") {
 			return { 0.24f, 0.58f, 1.0f, 1.0f };
 		}
-		if (type == "Heal") {
+		if (type == "Heal" || type == "HealAll" || type == "HealLowestAlly") {
 			return { 0.20f, 1.0f, 0.38f, 1.0f };
 		}
 		return { 0.82f, 0.82f, 0.82f, 1.0f };
@@ -1047,6 +1047,8 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	currentEnemyIndex_ = 0;
 	nextTurnAtkUp_ = 0;
 	currentTurnAtkUp_ = 0;
+	playerTurnCount_ = 0;
+	enemyTurnCount_ = 0;
 
 	energy_ = energyMax_;
 
@@ -1096,17 +1098,10 @@ bool BattleController::DrawOne_()
 
 void BattleController::DrawTurnStartCards_()
 {
-	if((int)hand_.size() <= 0){
-		for (int i = 0; i < 5; ++i) {
-			if (!DrawOne_()) {
-				break;
-			}
-		}
-	} else {
-		for (int i = 0; i < 4; ++i) {
-			if (!DrawOne_()) {
-				break;
-			}
+	const int drawCount = (playerTurnCount_ == 1) ? 5 : 2;
+	for (int i = 0; i < drawCount; ++i) {
+		if (!DrawOne_()) {
+			break;
 		}
 	}
 
@@ -1682,57 +1677,57 @@ BattleController::PokerBonus BattleController::GetPokerBonus_(PokerHandRank rank
 
 	switch (rank) {
 	case PokerHandRank::OnePair:
-		b.atkUp = 10;
+		b.atkUp = 3;
 		b.drawCount = 2;
-		b.damage = 15;
-		break;
-
-	case PokerHandRank::TwoPair:
-		b.atkUp = 15;
-		b.drawCount = 3;
-		b.damage = 25;
-		break;
-
-	case PokerHandRank::ThreeOfAKind:
-		b.atkUp = 20;
-		b.drawCount = 3;
-		b.damage = 35;
-		break;
-
-	case PokerHandRank::Straight:
-		b.atkUp = 25;
-		b.drawCount = 4;
-		b.damage = 45;
-		break;
-
-	case PokerHandRank::Flush:
-		b.atkUp = 30;
-		b.drawCount = 4;
 		b.damage = 55;
 		break;
 
+	case PokerHandRank::TwoPair:
+		b.atkUp = 5;
+		b.drawCount = 3;
+		b.damage = 65;
+		break;
+
+	case PokerHandRank::ThreeOfAKind:
+		b.atkUp = 10;
+		b.drawCount = 3;
+		b.damage = 80;
+		break;
+
+	case PokerHandRank::Straight:
+		b.atkUp = 15;
+		b.drawCount = 4;
+		b.damage = 95;
+		break;
+
+	case PokerHandRank::Flush:
+		b.atkUp = 20;
+		b.drawCount = 4;
+		b.damage = 105;
+		break;
+
 	case PokerHandRank::FullHouse:
-		b.atkUp = 35;
+		b.atkUp = 25;
 		b.drawCount = 5;
-		b.damage = 70;
+		b.damage = 120;
 		break;
 
 	case PokerHandRank::FourOfAKind:
-		b.atkUp = 40;
+		b.atkUp = 30;
 		b.drawCount = 5;
-		b.damage = 85;
+		b.damage = 135;
 		break;
 
 	case PokerHandRank::StraightFlush:
-		b.atkUp = 50;
+		b.atkUp = 40;
 		b.drawCount = 6;
-		b.damage = 110;
+		b.damage = 160;
 		break;
 
 	case PokerHandRank::RoyalStraightFlush:
-		b.atkUp = 70;
+		b.atkUp = 60;
 		b.drawCount = 7;
-		b.damage = 150;
+		b.damage = 200;
 		break;
 
 	default:
@@ -3386,9 +3381,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
                     enemyIntentIcons_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
                 } else if (nextAct.type == "Attack") {
                     enemyIntentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
-                } else if (nextAct.type == "Heal") {
+                } else if (nextAct.type == "Heal" || nextAct.type == "HealAll" || nextAct.type == "HealLowestAlly") {
                     enemyIntentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
-                } else if (nextAct.type == "Block") {
+                } else if (nextAct.type == "Block" || nextAct.type == "BlockAll" || nextAct.type == "BlockLowestAlly") {
                     enemyIntentIcons_[i]->SetColor({ 0.25f, 0.55f, 1.0f, 1.0f });
                 } else {
                     enemyIntentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
@@ -5012,6 +5007,30 @@ bool BattleController::StartNextActionSequence_()
 
 void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action)
 {
+	auto findLowestHpAlly = [this, &enemy]() -> Enemy* {
+		if (!enemyMgr_) {
+			return &enemy;
+		}
+
+		Enemy* target = nullptr;
+		float lowestHpRatio = 2.0f;
+		for (auto& candidate : enemyMgr_->GetEnemies()) {
+			if (&candidate == &enemy || !candidate.IsAlive()) {
+				continue;
+			}
+
+			const float hpRatio =
+				static_cast<float>(candidate.GetHP()) /
+				static_cast<float>(std::max(1, candidate.GetMaxHP()));
+			if (!target || hpRatio < lowestHpRatio) {
+				target = &candidate;
+				lowestHpRatio = hpRatio;
+			}
+		}
+
+		return target ? target : &enemy;
+	};
+
 	if (action.type == "Attack") {
 		if (!player_) {
 			return;
@@ -5033,10 +5052,54 @@ void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& acti
 		if (enemy.GetHP() > beforeHp) {
 			PlaySE_("SE_Heal");
 		}
+	} else if (action.type == "HealLowestAlly") {
+		Enemy* target = findLowestHpAlly();
+		const int beforeHp = target->GetHP();
+		target->Heal(action.value);
+		if (target->GetHP() > beforeHp) {
+			PlaySE_("SE_Heal");
+		}
+	} else if (action.type == "HealAll") {
+		if (!enemyMgr_) {
+			return;
+		}
+		bool healedAny = false;
+		for (auto& target : enemyMgr_->GetEnemies()) {
+			if (!target.IsAlive()) {
+				continue;
+			}
+			const int beforeHp = target.GetHP();
+			target.Heal(action.value);
+			healedAny = healedAny || target.GetHP() > beforeHp;
+		}
+		if (healedAny) {
+			PlaySE_("SE_Heal");
+		}
 	} else if (action.type == "Block") {
 		const int beforeBlock = enemy.GetBlock();
 		enemy.AddBlock(action.value);
 		PlayBlockGainSEIfIncreased_(beforeBlock, enemy.GetBlock());
+	} else if (action.type == "BlockLowestAlly") {
+		Enemy* target = findLowestHpAlly();
+		const int beforeBlock = target->GetBlock();
+		target->AddBlock(action.value);
+		PlayBlockGainSEIfIncreased_(beforeBlock, target->GetBlock());
+	} else if (action.type == "BlockAll") {
+		if (!enemyMgr_) {
+			return;
+		}
+		bool blockedAny = false;
+		for (auto& target : enemyMgr_->GetEnemies()) {
+			if (!target.IsAlive()) {
+				continue;
+			}
+			const int beforeBlock = target.GetBlock();
+			target.AddBlock(action.value);
+			blockedAny = blockedAny || target.GetBlock() > beforeBlock;
+		}
+		if (blockedAny) {
+			PlaySE_("SE_Block");
+		}
 	}
 }
 

@@ -4,13 +4,13 @@
     {
       "id": 11,
       "name": "Quick Draw",
-      "cost": 2,
+      "cost": 1,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/QuickDraw.png",
-      "desc": "3枚引く",
+      "desc": "カードを2枚引く",
       "effects": [
-        { "type": "Draw", "value": 3 }
+        { "type": "Draw", "value": 2 }
       ]
     },
 
@@ -36,9 +36,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Blocking.png",
-      "desc": "ブロックを7獲得する",
+      "desc": "ブロックを5獲得する",
       "effects": [
-        { "type": "Block", "value": 7 }
+        { "type": "Block", "value": 5 }
       ]
     },
 
@@ -50,9 +50,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Doping.png",
-      "desc": "パワーを2獲得する",
+      "desc": "パワーを5獲得する",
       "effects": [
-        { "type": "PowerBoost", "value": 2 }
+        { "type": "PowerBoost", "value": 5 }
       ]
     },
 
@@ -64,10 +64,11 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/FlashBang.png",
-      "desc": "パワーを5獲得して、敵に10ダメージを与える。カードを1枚引く。",
+      "desc": "パワーを10獲得して、\n敵に1ダメージを2回与える。\nカードを1枚引く。",
       "effects": [
-        { "type": "PowerBoost", "value": 5 },
-        { "type": "Damage", "value": 10 },
+        { "type": "PowerBoost", "value": 10 },
+        { "type": "Damage", "value": 1 },
+        { "type": "Damage", "value": 1 },
         { "type": "Draw", "value": 1 }
       ],
       "subEffects": [
@@ -92,9 +93,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/RuneStone.png",
-      "desc": "ブロックを4獲得する",
+      "desc": "ブロックを3獲得する",
       "effects": [
-        { "type": "Block", "value": 4 }
+        { "type": "Block", "value": 3 }
       ],
       "subEffects": [
         {
@@ -114,13 +115,13 @@
     {
       "id": 17,
       "name": "Convert",
-      "cost": 2,
+      "cost": 4,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Convert.png",
-      "desc": "シールドの値分X2体力を回復",
+      "desc": "シールドの値分X1体力を回復",
       "effects": [
-        { "type": "HealByBlock", "value": 2 }
+        { "type": "HealByBlock", "value": 1 }
       ]
     },
 

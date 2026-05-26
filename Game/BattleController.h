@@ -315,8 +315,8 @@ private:
 	std::string fieldCardLayoutPath_ = "resources/configs/fieldCardLayout.json";
 	std::unique_ptr<Card3D> discardView_;
 
-	int energyMax_ = 15;
-	int energy_ = 15;
+	int energyMax_ = 10;
+	int energy_ = 10;
 
 	float enemyWait_ = 0.0f;
 
