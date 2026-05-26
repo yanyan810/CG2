@@ -264,6 +264,7 @@ public:
 	void ClearLastPokerTutorialResult() { lastPokerTutorialResult_ = PokerTutorialResult::None; }
 
 	void SetTutorialPokerRestriction(bool activateOnly, bool damageOnly);
+	void SetTutorialForcedEnemyTargetCardId(int cardDefId);
 
 	bool IsTutorialPokerTargetCancelLocked() const { return tutorialLockPokerTargetingCancel_; }
 
@@ -287,6 +288,7 @@ private:
 	bool tutorialActivateOnly_ = false;
 	bool tutorialDamageOnly_ = false;
 	bool tutorialLockPokerTargetingCancel_ = false;
+	int tutorialForcedEnemyTargetCardId_ = -1;
 
 	bool tutorialInputLocked_ = false;
 	bool tutorialEndTurnLocked_ = false;
@@ -510,6 +512,8 @@ private:
 	void UpdateFieldReplacePreviewEffects_();
 	void EmitHandCardGlitter_(float dt);
 	uint64_t BuildHandPokerPreviewSignature_() const;
+	bool IsTutorialForcedCardActive_() const;
+	bool IsTutorialForcedCardAllowed_(int handIndex) const;
 
 	std::vector<PokerHandRank> handPreviewRanks_;
 	std::vector<PokerHandRank> fieldReplacePreviewRanks_;

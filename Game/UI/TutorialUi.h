@@ -78,6 +78,7 @@ private:
     std::unique_ptr<Sprite> bg_;
     std::unique_ptr<TextSprite> text_;
     std::unique_ptr<Sprite> darkOverlay_;
+    std::array<std::unique_ptr<Sprite>, 4> spotlightPanels_;
 
     std::unique_ptr<Sprite> dimOverlay_;
 
@@ -85,6 +86,7 @@ private:
 
     float textAlpha_ = 0.0f;
     float focusBlink_ = 0.0f;
+    bool hasSpotlight_ = false;
     std::wstring prevText_;
 
     TutorialUiLayout layout_ = MakeDefaultTutorialUiLayout();

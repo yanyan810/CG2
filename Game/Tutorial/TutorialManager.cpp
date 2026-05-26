@@ -27,6 +27,7 @@ const char* TutorialManager::StepToKey_(TutorialStep step) {
 	case TutorialStep::Intro: return "Intro";
 	case TutorialStep::HoverHand: return "HoverHand";
 	case TutorialStep::PlayCard: return "PlayCard";
+	case TutorialStep::ChooseEnemyTarget: return "ChooseEnemyTarget";
 	case TutorialStep::ExplainEnergy: return "ExplainEnergy";
 	case TutorialStep::FillField: return "FillField";
 	case TutorialStep::EndPlayerTurn: return "EndPlayerTurn";
@@ -112,7 +113,17 @@ void TutorialManager::Initialize() {
 }
 
 void TutorialManager::Reset() {
+	chapter_ = TutorialChapter::Full;
 	step_ = TutorialStep::Intro;
+	isActive_ = true;
+	sawEnemyTurn_ = false;
+	skippedPokerOnce_ = false;
+	UpdateMessage_();
+}
+
+void TutorialManager::StartChapter(TutorialChapter chapter) {
+	chapter_ = chapter;
+	step_ = GetChapterStartStep_(chapter_);
 	isActive_ = true;
 	sawEnemyTurn_ = false;
 	skippedPokerOnce_ = false;
@@ -121,6 +132,7 @@ void TutorialManager::Reset() {
 
 void TutorialManager::NextStep() {
 	Advance_();
+	FinishIfPastChapterEnd_();
 	UpdateMessage_();
 }
 
@@ -152,7 +164,15 @@ void TutorialManager::Update(BattleController& battle) {
 
 	case TutorialStep::PlayCard:
 		// まず1枚場に出したら進む
-		if (battle.GetFieldCount() >= 1) {
+		if (battle.IsChoosingEnemyTarget()) {
+			Advance_();
+		} else if (battle.GetFieldCount() >= 1) {
+			Advance_();
+		}
+		break;
+
+	case TutorialStep::ChooseEnemyTarget:
+		if (!battle.IsChoosingEnemyTarget() && battle.GetFieldCount() >= 1) {
 			Advance_();
 		}
 		break;
@@ -269,6 +289,7 @@ void TutorialManager::Advance_() {
 	// HoverHand の次は個別説明を飛ばして一括説明へ
 	if (step_ == TutorialStep::HoverHand) {
 		step_ = TutorialStep::ExplainCardAll;
+		FinishIfPastChapterEnd_();
 		UpdateMessage_();
 		return;
 	}
@@ -276,6 +297,7 @@ void TutorialManager::Advance_() {
 	// ExplainCardAll の次は PlayCard
 	if (step_ == TutorialStep::ExplainCardAll) {
 		step_ = TutorialStep::PlayCard;
+		FinishIfPastChapterEnd_();
 		UpdateMessage_();
 		return;
 	}
@@ -289,7 +311,55 @@ void TutorialManager::Advance_() {
 		step_ = TutorialStep::EndAfterPoker;
 	}
 
+	FinishIfPastChapterEnd_();
 	UpdateMessage_();
+}
+
+void TutorialManager::FinishIfPastChapterEnd_() {
+	if (chapter_ == TutorialChapter::Full) {
+		return;
+	}
+
+	if (IsPastChapterEnd_(step_)) {
+		step_ = TutorialStep::Finished;
+		isActive_ = true;
+	}
+}
+
+bool TutorialManager::IsPastChapterEnd_(TutorialStep step) const {
+	const TutorialStep end = GetChapterEndStep_(chapter_);
+	return static_cast<int>(step) > static_cast<int>(end);
+}
+
+TutorialManager::TutorialStep TutorialManager::GetChapterStartStep_(TutorialChapter chapter) const {
+	switch (chapter) {
+	case TutorialChapter::FieldUi:
+		return TutorialStep::UiPlayerHp;
+	case TutorialChapter::Card:
+		return TutorialStep::HoverHand;
+	case TutorialChapter::SpecialEffect:
+		return TutorialStep::FillField;
+	case TutorialChapter::Practice:
+		return TutorialStep::HoverHand;
+	case TutorialChapter::Full:
+	default:
+		return TutorialStep::Intro;
+	}
+}
+
+TutorialManager::TutorialStep TutorialManager::GetChapterEndStep_(TutorialChapter chapter) const {
+	switch (chapter) {
+	case TutorialChapter::FieldUi:
+		return TutorialStep::UiFinished;
+	case TutorialChapter::Card:
+		return TutorialStep::ExplainEnergy;
+	case TutorialChapter::SpecialEffect:
+		return TutorialStep::EndAfterPoker;
+	case TutorialChapter::Practice:
+	case TutorialChapter::Full:
+	default:
+		return TutorialStep::Finished;
+	}
 }
 
 void TutorialManager::UpdateMessage_() {
@@ -534,6 +604,7 @@ bool TutorialManager::IsGameplayInputLocked() const {
 	// 説明だけ読む系も必要ならここに追加
 	switch (step_) {
 	case TutorialStep::Intro:
+	case TutorialStep::ExplainCardAll:
 	case TutorialStep::ExplainEnergy:
 	case TutorialStep::SkipPokerContinueTurn:
 	case TutorialStep::EndAfterPoker:

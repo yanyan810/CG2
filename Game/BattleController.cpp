@@ -2527,7 +2527,24 @@ uint64_t BattleController::BuildHandPokerPreviewSignature_() const
 	}
 
 	mix(static_cast<uint64_t>(handView_.GetCardCount()));
+	mix(static_cast<uint64_t>(tutorialForcedEnemyTargetCardId_ + 1));
 	return hash;
+}
+
+bool BattleController::IsTutorialForcedCardActive_() const
+{
+	return tutorialForcedEnemyTargetCardId_ > 0;
+}
+
+bool BattleController::IsTutorialForcedCardAllowed_(int handIndex) const
+{
+	if (!IsTutorialForcedCardActive_()) {
+		return true;
+	}
+	if (handIndex < 0 || handIndex >= static_cast<int>(hand_.size())) {
+		return false;
+	}
+	return hand_[handIndex].defId == tutorialForcedEnemyTargetCardId_;
 }
 
 void BattleController::UpdateHandPokerPreviewEffects_()
@@ -2539,6 +2556,18 @@ void BattleController::UpdateHandPokerPreviewEffects_()
 	handPreviewSignature_ = signature;
 
 	handPreviewRanks_.assign(hand_.size(), PokerHandRank::None);
+
+	if (IsTutorialForcedCardActive_()) {
+		const int handCount = std::min<int>(static_cast<int>(hand_.size()), handView_.GetCardCount());
+		for (int handIndex = 0; handIndex < handCount; ++handIndex) {
+			if (IsTutorialForcedCardAllowed_(handIndex)) {
+				handView_.SetCardEffect(handIndex, { 1.0f, 0.86f, 0.18f, 1.0f }, 1.8f);
+			} else {
+				handView_.SetCardEffect(handIndex, { 0.18f, 0.18f, 0.20f, 0.55f }, 0.0f);
+			}
+		}
+		return;
+	}
 
 	if (!sHandPokerPreviewEnabled || hand_.empty()) {
 		handView_.ClearCardEffects();
@@ -2904,6 +2933,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				cam_->GetViewProjectionMatrix(),
 				(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 			);
+			if (!IsTutorialForcedCardAllowed_(hover)) {
+				hover = -1;
+			}
 			handView_.SetHoverIndex(hover);
 		}
 	} else {
@@ -2945,6 +2977,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					cam_->GetViewProjectionMatrix(),
 					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 				);
+				if (!IsTutorialForcedCardAllowed_(hover)) {
+					hover = -1;
+				}
 				handView_.SetHoverIndex(hover);
 			} else {
 				handView_.SetHoverIndex(-1);
@@ -2961,6 +2996,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 						cam_->GetViewProjectionMatrix(),
 						(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
 					);
+					if (!IsTutorialForcedCardAllowed_(idx)) {
+						idx = -1;
+					}
 					if (idx >= 0) {
 						selectedIndex_ = idx;
 						dragStartMouse_ = mouse;
@@ -2997,6 +3035,13 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 			case CardInputState::Preview:
 				handView_.SetPreviewIndex(selectedIndex_);
+
+				if (!IsTutorialForcedCardAllowed_(selectedIndex_)) {
+					cardState_ = CardInputState::Idle;
+					selectedIndex_ = -1;
+					handView_.SetPreviewIndex(-1);
+					break;
+				}
 
 				if (lTrig) {
 					int idx = selectedIndex_;
@@ -4948,6 +4993,20 @@ void BattleController::SetTutorialOpeningHand(const std::vector<CardInstance>& c
 void BattleController::SetTutorialPokerRestriction(bool activateOnly, bool damageOnly) {
 	tutorialActivateOnly_ = activateOnly;
 	tutorialDamageOnly_ = damageOnly;
+}
+
+void BattleController::SetTutorialForcedEnemyTargetCardId(int cardDefId)
+{
+	const int newId = cardDefId > 0 ? cardDefId : -1;
+	if (tutorialForcedEnemyTargetCardId_ == newId) {
+		return;
+	}
+
+	tutorialForcedEnemyTargetCardId_ = newId;
+	handPreviewSignature_ = 0;
+	if (!IsTutorialForcedCardActive_()) {
+		handView_.ClearCardEffects();
+	}
 }
 
 std::vector<std::string> BattleController::CollectEffectTypes_(const CardDef& def) const
