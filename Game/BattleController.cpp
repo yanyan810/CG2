@@ -3,6 +3,7 @@
 #include "Battle/BattleDebugImGui.h"
 #include "Battle/BattleRenderView.h"
 #include "Battle/BattleInfoTextProvider.h"
+#include "Battle/BattleCardInputController.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include "GameApp.h"
@@ -1987,7 +1988,6 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 	bool lRel = input->IsMouseReleased(0);
 
 	bool rTrig = input->IsMouseTrigger(1);
-
 	// ---------------------------------
 	// 鬩幢ｽ｢隴擾ｽｶ郢晢ｽｻ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓溘・蜿悶渚繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮUI鬯ｮ・ｫ繝ｻ・ｱ郢晢ｽｻ繝ｻ・ｬ鬮ｫ・ｴ闕ｳ讖ｸ・ｽ・ｼ繝ｻ・ｱ驍ｵ・ｲ陜｣・､繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ
 	// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｲ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・｣繝ｻ・ｰ鬩幢ｽ｢隴惹ｸ橸ｽｹ・ｲ繝ｻ蜿厄ｽｨ謚ｵ・ｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・･鬮ｯ・ｷ霑壼遜・ｽ・ｸ陷ｷ・ｮ陷ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ鬯ｩ・｢陜ｮ繧・ｽｼ・ｯ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・ｽ繝ｻ・ｹ鬮ｯ蜈ｷ・ｽ・ｹ髫ｰ雋ｻ・ｽ・ｶ髫ｨ蛟･繝ｻ繝ｻ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
@@ -1999,6 +1999,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		lRel = false;
 		rTrig = false;
 	}
+
+	const BattleCardInputController::CardInputSnapshot cardInput{ mouse.x, mouse.y, lTrig, lRel, rTrig, lNow };
 
 	pokerMouseChoice_ = PokerMouseChoice::None;
 
@@ -2082,11 +2084,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 			cardState_ == CardInputState::Preview) {
 			handView_.SetHoverIndex(-1);
 		} else {
-			int hover = handView_.PickIndexByMouse(
-				mouse.x, mouse.y,
-				cam_->GetViewProjectionMatrix(),
-				(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-			);
+			int hover = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
 			handView_.SetHoverIndex(hover);
 		}
 	} else {
@@ -2123,11 +2121,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		} else {
 			if (cardState_ != CardInputState::Preview &&
 				cardState_ != CardInputState::ChoosingFieldReplace) {
-				int hover = handView_.PickIndexByMouse(
-					mouse.x, mouse.y,
-					cam_->GetViewProjectionMatrix(),
-					(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-				);
+				int hover = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
 				handView_.SetHoverIndex(hover);
 			} else {
 				handView_.SetHoverIndex(-1);
@@ -2139,13 +2133,10 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				handView_.SetPreviewIndex(-1);
 
 				if (lTrig) {
-					int idx = handView_.PickIndexByMouse(
-						mouse.x, mouse.y,
-						cam_->GetViewProjectionMatrix(),
-						(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-					);
-					if (idx >= 0) {
-						selectedIndex_ = idx;
+					int idx = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+					const auto handDecision = BattleCardInputController::ResolveIdle(cardInput, idx);
+					if (handDecision.action == BattleCardInputController::HandInputAction::StartDrag) {
+						selectedIndex_ = handDecision.handIndex;
 						dragStartMouse_ = mouse;
 						dragDx_ = dragDy_ = 0.0f;
 						cardState_ = CardInputState::Dragging;
@@ -2155,17 +2146,19 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 			case CardInputState::Dragging:
 			{
-				dragDx_ = float(mouse.x - dragStartMouse_.x);
-				dragDy_ = float(mouse.y - dragStartMouse_.y);
+				const float threshold = 80.0f;
+				const auto handDecision = BattleCardInputController::ResolveDragging(cardInput, selectedIndex_, dragStartMouse_.x, dragStartMouse_.y, threshold);
+
+				dragDx_ = handDecision.dragDx;
+				dragDy_ = handDecision.dragDy;
 
 				handView_.SetDrag(selectedIndex_, dragDx_, dragDy_, true);
 
-				const float threshold = 80.0f;
-
-				if (lRel) {
+				if (handDecision.action == BattleCardInputController::HandInputAction::OpenPreview ||
+					handDecision.action == BattleCardInputController::HandInputAction::ReturnToIdle) {
 					handView_.SetDrag(-1, 0, 0, false);
 
-					if (dragDy_ <= -threshold) {
+					if (handDecision.action == BattleCardInputController::HandInputAction::OpenPreview) {
 						BattleSfxPlayer::PlaySE("SE_CardFlick");
 						cardState_ = CardInputState::Preview;
 						handView_.SetPreviewIndex(selectedIndex_);
@@ -2179,6 +2172,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 			break;
 
 			case CardInputState::Preview:
+
+			{
 				handView_.SetPreviewIndex(selectedIndex_);
 
 				if (lTrig) {
@@ -2311,13 +2306,14 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					selectedIndex_ = -1;
 					handView_.SetPreviewIndex(-1);
 				}
-
-				if (rTrig) {
+				const auto previewDecision = BattleCardInputController::ResolvePreview(cardInput, selectedIndex_);
+				if (previewDecision.action == BattleCardInputController::HandInputAction::CancelPreview) {
 					cardState_ = CardInputState::Idle;
 					selectedIndex_ = -1;
 					handView_.SetPreviewIndex(-1);
 				}
 				break;
+			}
 
 			case CardInputState::ChoosingFieldReplace:
 			{
@@ -2329,13 +2325,14 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				}
 
 				int newHover = PickFieldIndexByMouse_(mouse.x, mouse.y);
+				const auto fieldReplaceDecision = BattleCardInputController::ResolveFieldReplaceInput(cardInput, newHover);
 
-				if (newHover != fieldReplaceHoverIndex_) {
-					fieldReplaceHoverIndex_ = newHover;
+				if (fieldReplaceDecision.hoverIndex != fieldReplaceHoverIndex_) {
+					fieldReplaceHoverIndex_ = fieldReplaceDecision.hoverIndex;
 					fieldLayoutDirty_ = true;
 				}
 
-				if (lTrig) {
+				if (fieldReplaceDecision.replaceRequested) {
 					int replaceIndex = fieldReplaceHoverIndex_;
 					if (replaceIndex >= 0 && replaceIndex < (int)field_.size() && hasPendingCard_) {
 						BattleSfxPlayer::PlaySE("SE_CardFlick");
@@ -2367,7 +2364,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					}
 				}
 
-				if (rTrig) {
+				if (fieldReplaceDecision.cancelRequested) {
 					if (hasPendingCard_) {
 						BattleSfxPlayer::PlaySE("SE_CardFlick");
 						deckZone_.AddToDiscard(pendingCard_);
@@ -2409,12 +2406,17 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				// 鬩幢ｽ｢隴弱・・ｽ・ｧ繝ｻ・ｭ驍ｵ・ｺ髢ｧ・ｲ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｺ鬩募●繝ｻ髯ｬ貊・＠繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ驍・私・ｽ・ｬ繝ｻ・ｨ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｶ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ髴大､ｲ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ髣包ｽｳ隶抵ｽｭ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ髫ｨ・ｳ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
 				cardTargetingController_.ClearHighlights(enemyMgr_);
 				cardTargetingController_.ApplyHoverHighlight(enemyMgr_, hoverIndex);
+                const auto targetDecision = BattleCardInputController::ResolveEnemyTargetInput(
+                    hoverIndex,
+                    lTrig,
+                    rTrig,
+                    isPokerDamageTargeting_ && tutorialLockPokerTargetingCancel_);
 
 				// 鬮ｯ譎｢・ｽ・ｾ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ鬩｢謳ｾ・ｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬮ｮ謇具ｽｶ・｣繝ｻ・ｽ繝ｻ・ｺ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬮ｫ・ｰ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｻ鬮ｫ・ｰ繝ｻ・ｦ驛｢譎｢・ｽ・ｻ
-				if (lTrig) {
-					if (cardTargetingController_.IsValidTarget(enemyMgr_, hoverIndex)) {
-						Enemy& targetEnemy = enemyMgr_->GetEnemies()[hoverIndex];
-						currentEnemyIndex_ = hoverIndex;
+				if (targetDecision.confirmRequested) {
+					if (cardTargetingController_.IsValidTarget(enemyMgr_, targetDecision.targetIndex)) {
+						Enemy& targetEnemy = enemyMgr_->GetEnemies()[targetDecision.targetIndex];
+						currentEnemyIndex_ = targetDecision.targetIndex;
 
 						if (isPokerDamageTargeting_) {
 							actionSequenceTarget_ = &targetEnemy;
@@ -2434,8 +2436,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 				}
 
 				// 鬮ｯ・ｷ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驍ｵ・ｺ闔会ｽ｣郢晢ｽｻ髯橸ｽ｢繝ｻ・ｹ驍ｵ・ｺ陷證ｦ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・｣鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬮ｯ・ｷ陋ｹ・ｻ郢晢ｽｻ驕ｶ鬆托ｽ･・｢繝ｻ・ｬ鬲・ｼ夲ｽｽ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
-				if (rTrig) {
-					if (isPokerDamageTargeting_ && tutorialLockPokerTargetingCancel_) {
+				if (targetDecision.cancelRequested) {
+					if (targetDecision.action == BattleCardInputController::TargetAction::LockedCancel) {
 						handView_.SetFocusIndex(-1);
 						handView_.SetHoverIndex(-1);
 						handView_.SetPreviewIndex(-1);
@@ -2688,38 +2690,27 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
 
 	pokerMouseChoice_ = PokerMouseChoice::None;
-	const auto hover = PokerChoiceController::ResolveEffectHover(
+	const auto decision = PokerChoiceController::ResolveEffectChoice(
 		layout,
 		mouse.x,
 		mouse.y,
+		lTrig,
+		nTrig,
 		tutorialDamageOnly_);
+	const auto& hover = decision.hover;
 
 	if (hover.infoHovered) {
-		if (lTrig) {
-			pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
-			return;
-		}
+		pokerMouseChoice_ = PokerMouseChoice::None;
 	} else {
 		pokerMouseChoice_ = ToPokerMouseChoice_(hover.choice);
 	}
 
-	if (tutorialDamageOnly_) {
-		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage) {
-			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
-			isPokerDamageTargeting_ = true;
-			tutorialLockPokerTargetingCancel_ = true;
-			pokerQuickPreviewVisible_ = false;
-			lastPokerTutorialResult_ = PokerTutorialResult::None;
-
-			cardState_ = CardInputState::ChoosingEnemyTarget;
-			pokerChoiceState_ = PokerChoiceState::None;
-			return;
-		}
-
+	switch (decision.action) {
+	case PokerChoiceController::EffectAction::ToggleInfo:
+		pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
 		return;
-	}
 
-	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp) {
+	case PokerChoiceController::EffectAction::AtkUp:
 		nextTurnAtkUp_ += bonus.atkUp;
 		TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 		ConsumeFieldCards_();
@@ -2729,9 +2720,8 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		turn_ = TurnState::Enemy;
 		enemyWait_ = 1.0f;
 		return;
-	}
 
-	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDraw) {
+	case PokerChoiceController::EffectAction::Draw:
 		DrawCards_(bonus.drawCount);
 		TriggerSubEffectsForField_(SubEffectTrigger::OnPokerSkillActivated, currentPoker_.rank);
 		ConsumeFieldCards_();
@@ -2741,26 +2731,26 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		turn_ = TurnState::Enemy;
 		enemyWait_ = 1.0f;
 		return;
-	}
 
-	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage) {
+	case PokerChoiceController::EffectAction::Damage:
 		pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 		isPokerDamageTargeting_ = true;
+		if (tutorialDamageOnly_) {
+			tutorialLockPokerTargetingCancel_ = true;
+		}
 		pokerQuickPreviewVisible_ = false;
 		lastPokerTutorialResult_ = PokerTutorialResult::None;
 
 		cardState_ = CardInputState::ChoosingEnemyTarget;
 		pokerChoiceState_ = PokerChoiceState::None;
 		return;
-	}
 
-	if (nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectBack)) {
+	case PokerChoiceController::EffectAction::Back:
 		pokerQuickPreviewVisible_ = false;
 		pokerChoiceState_ = PokerChoiceState::WaitingActivateChoice;
 		return;
-	}
 
-	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectViewBoard) {
+	case PokerChoiceController::EffectAction::ViewBoard:
 		pokerQuickPreviewVisible_ = false;
 		pokerReturnState_ = PokerChoiceState::WaitingEffectChoice;
 		pokerChoiceState_ = PokerChoiceState::ViewingBoardFromPokerUi;
@@ -2772,6 +2762,14 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 
 		fieldReplaceHoverIndex_ = -1;
 		fieldLayoutDirty_ = true;
+		return;
+
+	case PokerChoiceController::EffectAction::None:
+	default:
+		break;
+	}
+
+	if (tutorialDamageOnly_) {
 		return;
 	}
 }
@@ -2786,11 +2784,7 @@ void BattleController::HandlePokerViewBoard_(FieldUi& fieldUi, POINT mouse, bool
 	pokerMouseChoice_ = ToPokerMouseChoice_(
 		PokerChoiceController::ResolveViewBoardHover(layout, mouse.x, mouse.y));
 
-	int hover = handView_.PickIndexByMouse(
-		mouse.x, mouse.y,
-		cam_->GetViewProjectionMatrix(),
-		(float)WinApp::kClientWidth, (float)WinApp::kClientHeight
-	);
+	int hover = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
 	handView_.SetHoverIndex(hover);
 
 	if (hover < 0) {

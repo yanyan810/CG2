@@ -133,6 +133,57 @@ PokerChoiceController::HoverResult PokerChoiceController::ResolveEffectHover(
 	return {};
 }
 
+
+PokerChoiceController::EffectDecision PokerChoiceController::ResolveEffectChoice(
+	const PokerEffectChoiceLayout& layout,
+	int mouseX,
+	int mouseY,
+	bool leftTriggered,
+	bool noTriggered,
+	bool tutorialDamageOnly)
+{
+	EffectDecision result{};
+	result.hover = ResolveEffectHover(layout, mouseX, mouseY, tutorialDamageOnly);
+
+	if (result.hover.infoHovered && leftTriggered) {
+		result.action = EffectAction::ToggleInfo;
+		return result;
+	}
+
+	if (tutorialDamageOnly) {
+		if (leftTriggered && result.hover.choice == Choice::EffectDamage) {
+			result.action = EffectAction::Damage;
+		}
+		return result;
+	}
+
+	if (leftTriggered && result.hover.choice == Choice::EffectAtkUp) {
+		result.action = EffectAction::AtkUp;
+		return result;
+	}
+
+	if (leftTriggered && result.hover.choice == Choice::EffectDraw) {
+		result.action = EffectAction::Draw;
+		return result;
+	}
+
+	if (leftTriggered && result.hover.choice == Choice::EffectDamage) {
+		result.action = EffectAction::Damage;
+		return result;
+	}
+
+	if (noTriggered || (leftTriggered && result.hover.choice == Choice::EffectBack)) {
+		result.action = EffectAction::Back;
+		return result;
+	}
+
+	if (leftTriggered && result.hover.choice == Choice::EffectViewBoard) {
+		result.action = EffectAction::ViewBoard;
+		return result;
+	}
+
+	return result;
+}
 PokerChoiceController::Choice PokerChoiceController::ResolveViewBoardHover(
 	const PokerEffectChoiceLayout& layout,
 	int mouseX,

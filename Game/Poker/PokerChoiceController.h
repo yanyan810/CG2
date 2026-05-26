@@ -35,6 +35,21 @@ public:
 		ActivateAction action = ActivateAction::None;
 	};
 
+	enum class EffectAction {
+		None = 0,
+		ToggleInfo,
+		AtkUp,
+		Draw,
+		Damage,
+		Back,
+		ViewBoard,
+	};
+
+	struct EffectDecision {
+		HoverResult hover{};
+		EffectAction action = EffectAction::None;
+	};
+
 	static HoverResult ResolveActivateHover(
 		const PokerEffectChoiceLayout& layout,
 		int mouseX,
@@ -54,6 +69,14 @@ public:
 		const PokerEffectChoiceLayout& layout,
 		int mouseX,
 		int mouseY,
+		bool tutorialDamageOnly);
+
+	static EffectDecision ResolveEffectChoice(
+		const PokerEffectChoiceLayout& layout,
+		int mouseX,
+		int mouseY,
+		bool leftTriggered,
+		bool noTriggered,
 		bool tutorialDamageOnly);
 
 	static Choice ResolveViewBoardHover(

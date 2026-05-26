@@ -208,6 +208,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\Battle\BattleRenderView.cpp" />
     <ClCompile Include="Game\Battle\BattleInfoTextProvider.cpp" />
     <ClCompile Include="Game\Battle\CardTargetingController.cpp" />
+    <ClCompile Include="Game\Battle\BattleCardInputController.cpp" />
     <ClCompile Include="Game\Battle\EnemyActionCountSystem.cpp" />
     <ClCompile Include="Game\Card\CardDatabase.cpp" />
     <ClCompile Include="Engine\2D\Sprite.cpp" />
@@ -396,6 +397,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\Battle\BattleRenderView.h" />
     <ClInclude Include="Game\Battle\BattleInfoTextProvider.h" />
     <ClInclude Include="Game\Battle\CardTargetingController.h" />
+    <ClInclude Include="Game\Battle\BattleCardInputController.h" />
     <ClInclude Include="Game\Battle\EnemyActionCountSystem.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />
     <ClInclude Include="Game\Card\CardDef.h" />
