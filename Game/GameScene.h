@@ -117,41 +117,10 @@ private:
     Vector2 position_;
     Vector3 scale_;
 
-    std::unique_ptr<TextSprite> playerHpText_;
-    std::array<std::unique_ptr<TextSprite>, 8> playerHpOutlineTexts_;
-    std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
-    std::vector<std::unique_ptr<TextSprite>> enemyPoisonTexts_;
     std::unique_ptr<TextSprite> releaseDebugText_;
 
     ParticleEmitterConfig attackEffectConfig_;
     
-    std::unique_ptr<Sprite> powerBoostBg_;
-    std::unique_ptr<TextSprite> powerBoostText_;
-    std::unique_ptr<Sprite> blockBg_;
-    std::unique_ptr<TextSprite> blockText_;
-    std::array<std::unique_ptr<TextSprite>, 8> blockOutlineTexts_;
-
-    Vector2 playerHpTextPosition_{ 172.0f, 14.0f };
-    int playerHpTextFontSize_ = 28;
-    Vector4 playerHpTextColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
-    bool playerHpOutlineEnabled_ = true;
-    Vector4 playerHpOutlineColor_{ 0.0f, 0.0f, 0.0f, 1.0f };
-    float playerHpOutlineThickness_ = 2.0f;
-
-    Vector2 powerupUiPosition_{ 498.0f, 10.0f };
-    Vector2 powerupUiSize_{ 48.0f, 48.0f };
-    Vector2 powerBoostTextPosition_{ 510.0f, 18.0f };
-    bool powerupUiVisible_ = true;
-
-    Vector2 defenseUiPosition_{ 426.0f, 2.0f };
-    Vector2 defenseUiSize_{ 64.0f, 64.0f };
-    Vector2 blockTextPosition_{ 443.0f, 18.0f };
-    int blockTextFontSize_ = 28;
-    Vector4 blockTextColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
-    bool blockOutlineEnabled_ = true;
-    Vector4 blockOutlineColor_{ 0.0f, 0.0f, 0.0f, 1.0f };
-    float blockOutlineThickness_ = 2.0f;
-
     std::unique_ptr<Sprite> highlightFilter_;
     std::unique_ptr<Sprite> bossStageBannerEffectOverlay_;
     std::unique_ptr<Sprite> bossStageBannerBg_;

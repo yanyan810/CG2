@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <FxCompile Include="resources\shaders\ParticleUpdate.CS.hlsl" />
@@ -36,6 +36,15 @@
     <ClCompile Include="Engine\TrailManager.cpp" />
     <ClCompile Include="externals\imgui\ImGuizmo.cpp" />
     <ClCompile Include="Game\BattleController.cpp" />
+    <ClCompile Include="Game\Audio\BattleSfxPlayer.cpp" />
+    <ClCompile Include="Game\Battle\BattleDeckZone.cpp" />
+    <ClCompile Include="Game\Battle\BattleFieldViewController.cpp" />
+    <ClCompile Include="Game\Battle\BattleDebugImGui.cpp" />
+    <ClCompile Include="Game\Battle\BattleRenderView.cpp" />
+    <ClCompile Include="Game\Battle\BattleInfoTextProvider.cpp" />
+    <ClCompile Include="Game\Battle\CardTargetingController.cpp" />
+    <ClCompile Include="Game\Battle\BattleCardInputController.cpp" />
+    <ClCompile Include="Game\Battle\EnemyActionCountSystem.cpp" />
     <ClCompile Include="Game\Card\CardDatabase.cpp" />
     <ClCompile Include="Engine\2D\Sprite.cpp" />
     <ClCompile Include="Engine\2D\SpriteCommon.cpp" />
@@ -75,6 +84,8 @@
     <ClCompile Include="Engine\GameApp.cpp" />
     <ClCompile Include="Game\GameScene.cpp" />
     <ClCompile Include="Game\UI\Card3D.cpp" />
+    <ClCompile Include="Game\UI\DamagePopupUI.cpp" />
+    <ClCompile Include="Game\UI\EnemyBattleStatusUI.cpp" />
     <ClCompile Include="Game\UI\FieldUi.cpp" />
     <ClCompile Include="Game\UI\FieldUi\FieldUiCore.cpp" />
     <ClCompile Include="Game\UI\FieldUi\FieldUiDebug.cpp" />
@@ -82,6 +93,7 @@
     <ClCompile Include="Game\UI\FieldUi\FieldUiLayoutIO.cpp" />
     <ClCompile Include="Game\UI\FieldUi\FieldUiUpdate.cpp" />
     <ClCompile Include="Game\UI\HandView3D.cpp" />
+    <ClCompile Include="Game\UI\PlayerBattleStatusUI.cpp" />
     <ClCompile Include="Game\UI\PokerHandHelpView.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Engine\math\Matrix4x4.cpp" />
@@ -111,6 +123,12 @@
     <ClCompile Include="Game\BattleAnimeEditerScene.cpp" />
     <ClCompile Include="Game\FieldEditerScene.cpp" />
     <ClCompile Include="Game\Logic\CardPreview.cpp" />
+    <ClCompile Include="Game\Card\CardEffectExecutor.cpp" />
+    <ClCompile Include="Game\Card\CardEffectTextBuilder.cpp" />
+    <ClCompile Include="Game\Poker\PokerHandEvaluator.cpp" />
+    <ClCompile Include="Game\Poker\PokerChoiceTextBuilder.cpp" />
+    <ClCompile Include="Game\Poker\PokerChoiceQuery.cpp" />
+    <ClCompile Include="Game\Poker\PokerChoiceController.cpp" />
     <ClCompile Include="Game\GameResultPopup.cpp" />
     <ClCompile Include="Game\Logic\Button.cpp" />
   </ItemGroup>
@@ -137,6 +155,15 @@
     <ClInclude Include="Engine\TrailManager.h" />
     <ClInclude Include="externals\imgui\ImGuizmo.h" />
     <ClInclude Include="Game\BattleController.h" />
+    <ClInclude Include="Game\Audio\BattleSfxPlayer.h" />
+    <ClInclude Include="Game\Battle\BattleDeckZone.h" />
+    <ClInclude Include="Game\Battle\BattleFieldViewController.h" />
+    <ClInclude Include="Game\Battle\BattleDebugImGui.h" />
+    <ClInclude Include="Game\Battle\BattleRenderView.h" />
+    <ClInclude Include="Game\Battle\BattleInfoTextProvider.h" />
+    <ClInclude Include="Game\Battle\CardTargetingController.h" />
+    <ClInclude Include="Game\Battle\BattleCardInputController.h" />
+    <ClInclude Include="Game\Battle\EnemyActionCountSystem.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />
     <ClInclude Include="Game\Card\CardDef.h" />
     <ClInclude Include="Engine\2D\Sprite.h" />
@@ -200,7 +227,10 @@
     <ClInclude Include="Game\player\Player.h" />
     <ClInclude Include="Game\TestScene.h" />
     <ClInclude Include="Game\UI\Card3D.h" />
+    <ClInclude Include="Game\UI\DamagePopupUI.h" />
+    <ClInclude Include="Game\UI\EnemyBattleStatusUI.h" />
     <ClInclude Include="Game\UI\HandView3D.h" />
+    <ClInclude Include="Game\UI\PlayerBattleStatusUI.h" />
     <ClInclude Include="Game\UI\PokerHandHelpView.h" />
     <ClInclude Include="Game\UI\FieldUi.h" />
     <ClInclude Include="Game\UI\FieldUi\FieldUiNumberSprites.h" />
@@ -223,6 +253,12 @@
     <ClInclude Include="Game\BattleAnimeEditerScene.h" />
     <ClInclude Include="Game\FieldEditerScene.h" />
     <ClInclude Include="Game\Logic\CardPreview.h" />
+    <ClInclude Include="Game\Card\CardEffectExecutor.h" />
+    <ClInclude Include="Game\Card\CardEffectTextBuilder.h" />
+    <ClInclude Include="Game\Poker\PokerHandEvaluator.h" />
+    <ClInclude Include="Game\Poker\PokerChoiceTextBuilder.h" />
+    <ClInclude Include="Game\Poker\PokerChoiceQuery.h" />
+    <ClInclude Include="Game\Poker\PokerChoiceController.h" />
     <ClInclude Include="Game\GameResultPopup.h" />
     <ClInclude Include="Game\Logic\Button.h" />
   </ItemGroup>
