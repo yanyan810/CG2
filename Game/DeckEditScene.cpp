@@ -455,6 +455,13 @@ void DeckEditScene::DrawImGui(GameApp& app) {
 
 }
 
+void DeckEditScene::DrawSkydome(GameApp& app) {
+	(void)app;
+	if (skyDome_) {
+		skyDome_->Draw();
+	}
+}
+
 void DeckEditScene::RebuildCardModels(GameApp& app) {
 
 	cardModels_.clear();

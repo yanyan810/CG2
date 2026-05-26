@@ -57,12 +57,12 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomParam_.vignetteScale = 0.0f;
     bloomParam_.chromAbAmount = 0.01f;
     bloomParam_.distortionAmount = 0.0f;
-    bloomParam_.noiseIntensity = 0.1f;
-    bloomParam_.scanlineIntensity = 0.1f;
+    bloomParam_.noiseIntensity = 0.0f;
+    bloomParam_.scanlineIntensity = 0.0f;
     bloomParam_.scanlineFrequency = 100.0f;
     bloomParam_.curvature = 0.0f;
     bloomParam_.borderSharp = 0.0f;
-    bloomParam_.glitchAmount = 0.001f;
+    bloomParam_.glitchAmount = 0.0f;
     bloomParam_.radialBlurStrength = 0.0f;
 
     bloomCB_->Update(bloomParam_);

@@ -3,7 +3,6 @@
 #include "GameApp.h"
 #include "Camera.h"
 #include "WinApp.h"
-#include "TextureManager.h"
 #include "TutorialManager.h"
 #include "Card3D.h"
 #include "CardDatabase.h"
@@ -44,27 +43,6 @@ BloomParam MakeTitleDissolveParam(const BloomParam& baseParam, float dissolveAmo
 	return param;
 }
 
-BloomParam MakeBackgroundDissolveParam(const BloomParam& baseParam, float dissolveAmount)
-{
-	BloomParam param = baseParam;
-	param.threshold = 0.0f;
-	param.dissolveAmount = dissolveAmount;
-	param.dissolveEdgeWidth = 0.05f;
-	param.dissolveEdgeIntensity = 3.0f;
-	param.dissolveNoiseScale = 34.0f;
-	param.dissolveEdgeColor = { 0.10f, 0.95f, 1.0f, 1.0f };
-	param.intensity = 3.5f;
-	param.chromAbAmount = 0.004f;
-	param.distortionAmount = 0.0015f;
-	param.noiseIntensity = 0.0f;
-	param.scanlineIntensity = 0.0f;
-	param.glitchAmount = 0.0f;
-	param.vignetteIntensity = 0.0f;
-	param.vignetteScale = 0.0f;
-	param.isGrayscale = 0.0f;
-	param.isInverted = 0.0f;
-	return param;
-}
 }
 
 
@@ -77,8 +55,6 @@ void TitleScene::OnEnter(GameApp& app) {
 	circle_ = 1.0f;
 	softness_ = 0.6f;
 	openingDissolveTimer_ = 0.0f;
-	bgDissolveAmount_ = 1.0f;
-	bgDissolveDone_ = false;
 	openingDissolveDone_ = false;
 	titleDissolveAmount_ = 1.0f;
 	clickDissolveAmount_ = 1.0f;
@@ -116,21 +92,6 @@ void TitleScene::OnEnter(GameApp& app) {
 	bg_->SetScale({ 1.0f, 1.0f, 1.0f });
 
 	//--------------------------------------------------------
-	// 背景ディソルブ用の黒い全面スプライト
-	//--------------------------------------------------------
-	TextureManager::GetInstance()->LoadTexture("resources/black1x1.png");
-	dissolveFade_ = std::make_unique<Sprite>();
-	dissolveFade_->Initialize(app.SpriteCom(), app.Dx(), "resources/black1x1.png");
-	dissolveFade_->SetAnchorPoint({ 0.0f, 0.0f });
-	dissolveFade_->SetPosition({ 0.0f, 0.0f });
-	dissolveFade_->SetScale({
-		static_cast<float>(WinApp::kClientWidth),
-		static_cast<float>(WinApp::kClientHeight),
-		1.0f
-		});
-	dissolveFade_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
-
-	//--------------------------------------------------------
 	// Title Logo画像
 	//--------------------------------------------------------
 	titleLogo_ = std::make_unique<Sprite>();
@@ -154,23 +115,6 @@ void TitleScene::OnEnter(GameApp& app) {
 
 	AudioManager::GetInstance()->PlaySE("SE_SoundLogo");
 
-	//--------------------------------------------------------
-	// 起動時ディソルブ用の黒い全面スプライト
-	//--------------------------------------------------------
-	dissolveFade_ = std::make_unique<Sprite>();
-	dissolveFade_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	dissolveFade_->SetAnchorPoint({ 0.0f, 0.0f });
-	dissolveFade_->SetPosition({ 0.0f, 0.0f });
-	const DirectX::TexMetadata& whiteMeta =
-		TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
-	dissolveFade_->SetScale({
-		float(WinApp::kClientWidth) / float(whiteMeta.width),
-		float(WinApp::kClientHeight) / float(whiteMeta.height),
-		1.0f
-		});
-	dissolveFade_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
-
-
 }
 
 //------------------------------------------------------------
@@ -179,7 +123,6 @@ void TitleScene::OnEnter(GameApp& app) {
 void TitleScene::OnExit(GameApp&) {
 	clickStart_.reset();
 	titleLogo_.reset();
-	dissolveFade_.reset();
 	bg_.reset();
 	camera_.reset();
 }
@@ -224,10 +167,6 @@ void TitleScene::Update(GameApp& app, float dt) {
 	if (!clickDissolveDone_) {
 		openingDissolveTimer_ += dt;
 	}
-
-	float bgProgress = Clamp01(openingDissolveTimer_ / bgDissolveDuration_);
-	bgDissolveAmount_ = bgProgress;
-	bgDissolveDone_ = bgProgress >= 1.0f;
 
 	float titleStartTime = bgDissolveDuration_ + titleDissolveDelayAfterBg_;
 	float titleProgress = Clamp01((openingDissolveTimer_ - titleStartTime) / openingDissolveDuration_);
@@ -322,14 +261,6 @@ void TitleScene::Draw2D(GameApp& app) {
 	if (bg_) {
 		bg_->Update(view, proj);
 		bg_->Draw();
-	}
-
-	//--------------------------------------------------------
-	// 背景ディソルブフェード描画
-	//--------------------------------------------------------
-	if (dissolveFade_ && !bgDissolveDone_) {
-		BloomParam bgParam = MakeBackgroundDissolveParam(app.ObjectPost()->GetParam(), bgDissolveAmount_);
-		app.DrawSpriteObjectPost(dissolveFade_.get(), view, proj, bgParam);
 	}
 
 	//--------------------------------------------------------

@@ -10,7 +10,13 @@ using json = nlohmann::json;
 namespace {
     bool IsSupportedActionType_(const std::string& type)
     {
-        return type == "Attack" || type == "Block" || type == "Heal";
+        return type == "Attack" ||
+            type == "Block" ||
+            type == "Heal" ||
+            type == "BlockAll" ||
+            type == "HealAll" ||
+            type == "BlockLowestAlly" ||
+            type == "HealLowestAlly";
     }
 }
 

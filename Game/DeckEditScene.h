@@ -26,7 +26,7 @@ public:
     void Draw3D(GameApp& app) override;
     void Draw2D(GameApp& app) override;
     void DrawImGui(GameApp& app) override;
-    //void DrawSkydome(GameApp& app) override;
+    void DrawSkydome(GameApp& app) override;
 
 private:
 

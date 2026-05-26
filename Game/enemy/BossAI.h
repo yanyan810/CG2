@@ -5,7 +5,7 @@
 
 // 敵の1ターン分の行動データ
 struct EnemyAction {
-    std::string type;  // "Attack", "Block", "Heal" など
+    std::string type;  // "Attack", "Block", "Heal", "BlockAll", "HealAll", "HealLowestAlly", "BlockLowestAlly" など
     int value;         // ダメージ量や回復量
     std::string name;  // UI表示用の技名
 };
