@@ -26,7 +26,7 @@ public:
     void Draw3D(GameApp& app) override;
     void Draw2D(GameApp& app) override;
     void DrawImGui(GameApp& app) override;
-    //void DrawSkydome(GameApp& app) override;
+    void DrawSkydome(GameApp& app) override;
 
 private:
 
@@ -68,7 +68,7 @@ private:
     std::unique_ptr<Sprite> selectingTemplateDeckBg_ = nullptr;
     std::vector< std::unique_ptr<Button>> deckTemplateButtons_;
 
-    bool isSelectingTemplateDeck_ = true;
+    bool isSelectingTemplateDeck_ = false;
 
 	int cardCount_ = 0;
 

@@ -65,7 +65,7 @@ namespace {
 	float sHpDamageBlinkSpeed = 6.0f;
 	float sHpDamageBloomIntensity = 1.05f;
 	bool sPlayerBlockCarryOverEnabled = true;
-	float sPlayerBlockTurnDecayRate = 0.20f;
+	float sPlayerBlockTurnDecayRate = 0.35f;
 
 	BattleFieldViewController::FieldLayoutParams MakeFieldLayoutParams_(const BattleController::FieldCardLayout& layout)
 	{
@@ -559,6 +559,8 @@ void BattleController::Initialize(GameApp& app, Camera* camera)
 	currentEnemyIndex_ = 0;
 	nextTurnAtkUp_ = 0;
 	currentTurnAtkUp_ = 0;
+	playerTurnCount_ = 0;
+	enemyTurnCount_ = 0;
 
 	energy_ = energyMax_;
 
@@ -604,8 +606,11 @@ bool BattleController::DrawOne_()
 
 void BattleController::DrawTurnStartCards_()
 {
-	while (static_cast<int>(deckZone_.GetHandCount()) < 5) {
-		if (!DrawOne_()) break;
+	const int drawCount = (playerTurnCount_ == 1) ? 5 : 2;
+	for (int i = 0; i < drawCount; ++i) {
+		if (!DrawOne_()) {
+			break;
+		}
 	}
 	//handView_.Rebuild(hand_);
 }
@@ -1202,57 +1207,57 @@ BattleController::PokerBonus BattleController::GetPokerBonus_(PokerHandRank rank
 
 	switch (rank) {
 	case PokerHandRank::OnePair:
-		b.atkUp = 10;
+		b.atkUp = 3;
 		b.drawCount = 2;
-		b.damage = 15;
-		break;
-
-	case PokerHandRank::TwoPair:
-		b.atkUp = 15;
-		b.drawCount = 3;
-		b.damage = 25;
-		break;
-
-	case PokerHandRank::ThreeOfAKind:
-		b.atkUp = 20;
-		b.drawCount = 3;
-		b.damage = 35;
-		break;
-
-	case PokerHandRank::Straight:
-		b.atkUp = 25;
-		b.drawCount = 4;
-		b.damage = 45;
-		break;
-
-	case PokerHandRank::Flush:
-		b.atkUp = 30;
-		b.drawCount = 4;
 		b.damage = 55;
 		break;
 
+	case PokerHandRank::TwoPair:
+		b.atkUp = 5;
+		b.drawCount = 3;
+		b.damage = 65;
+		break;
+
+	case PokerHandRank::ThreeOfAKind:
+		b.atkUp = 10;
+		b.drawCount = 3;
+		b.damage = 80;
+		break;
+
+	case PokerHandRank::Straight:
+		b.atkUp = 15;
+		b.drawCount = 4;
+		b.damage = 95;
+		break;
+
+	case PokerHandRank::Flush:
+		b.atkUp = 20;
+		b.drawCount = 4;
+		b.damage = 105;
+		break;
+
 	case PokerHandRank::FullHouse:
-		b.atkUp = 35;
+		b.atkUp = 25;
 		b.drawCount = 5;
-		b.damage = 70;
+		b.damage = 120;
 		break;
 
 	case PokerHandRank::FourOfAKind:
-		b.atkUp = 40;
+		b.atkUp = 30;
 		b.drawCount = 5;
-		b.damage = 85;
+		b.damage = 135;
 		break;
 
 	case PokerHandRank::StraightFlush:
-		b.atkUp = 50;
+		b.atkUp = 40;
 		b.drawCount = 6;
-		b.damage = 110;
+		b.damage = 160;
 		break;
 
 	case PokerHandRank::RoyalStraightFlush:
-		b.atkUp = 70;
+		b.atkUp = 60;
 		b.drawCount = 7;
-		b.damage = 150;
+		b.damage = 200;
 		break;
 
 	default:
@@ -1746,7 +1751,27 @@ uint64_t BattleController::BuildHandPokerPreviewSignature_() const
 	}
 
 	mix(static_cast<uint64_t>(handView_.GetCardCount()));
+	mix(static_cast<uint64_t>(tutorialForcedEnemyTargetCardId_ + 1));
 	return hash;
+}
+
+bool BattleController::IsTutorialForcedCardActive_() const
+{
+	return tutorialForcedEnemyTargetCardId_ > 0;
+}
+
+bool BattleController::IsTutorialForcedCardAllowed_(int handIndex) const
+{
+	if (!IsTutorialForcedCardActive_()) {
+		return true;
+	}
+
+	const auto& hand = deckZone_.GetHand();
+	if (handIndex < 0 || handIndex >= static_cast<int>(hand.size())) {
+		return false;
+	}
+
+	return hand[handIndex].defId == tutorialForcedEnemyTargetCardId_;
 }
 
 void BattleController::UpdateHandPokerPreviewEffects_()
@@ -1759,6 +1784,18 @@ void BattleController::UpdateHandPokerPreviewEffects_()
 
 	const auto& hand = deckZone_.GetHand();
 	handPreviewRanks_.assign(hand.size(), PokerHandRank::None);
+
+	if (IsTutorialForcedCardActive_()) {
+		const int handCount = std::min<int>(static_cast<int>(hand.size()), handView_.GetCardCount());
+		for (int handIndex = 0; handIndex < handCount; ++handIndex) {
+			if (IsTutorialForcedCardAllowed_(handIndex)) {
+				handView_.SetCardEffect(handIndex, { 1.0f, 0.86f, 0.18f, 1.0f }, 1.8f);
+			} else {
+				handView_.SetCardEffect(handIndex, { 0.18f, 0.18f, 0.20f, 0.55f }, 0.0f);
+			}
+		}
+		return;
+	}
 
 	if (!sHandPokerPreviewEnabled || hand.empty()) {
 		handView_.ClearCardEffects();
@@ -2061,8 +2098,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 						float sx = (clip.x / clip.w + 1.0f) * 0.5f * WinApp::kClientWidth;
 						float sy = (1.0f - clip.y / clip.w) * 0.5f * WinApp::kClientHeight;
 
-						// 鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｢鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ繝ｻ蜿門旭繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｱ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ貊ゑｽｽ・｢髫ｲ蟶ｷ閻ｸ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬮ｯ貅ｷ繝ｻ關難ｽｭ髫ｨ・ｳ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ鬯ｮ・ｮ遶擾ｽｵ郢晢ｽｻ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ驛｢譎｢・ｽ・ｻ鬮ｯ・ｷ闔ｨ竏晢ｽｮ・ｦ郢晢ｽｻ繝ｻ・ｾ驛｢譎｢・ｽ・ｻ郢晢ｽｻ陝ｶ譎乗凄鬮｢・ｧ繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｮ髫ｴ莨夲ｽｽ・ｦ郢晢ｽｻ繝ｻ・ｼ鬨ｾ雜｣・ｽ・ｯ驕ｶ髮・・・・ｰ髮懶ｽ｣繝ｻ・ｽ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ讓奇ｽｻ繧托ｽｽ・ｽ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ鬯ｮ・ｦ繝ｻ・ｪ郢晢ｽｻ遶丞｣ｹ繝ｻ驛｢譎｢・ｽ・ｻ
-						float radius = 60.0f * prop.scale.x;
+						constexpr float kEndTurnButtonHitRadiusBase = 35.0f;
+						float radius = kEndTurnButtonHitRadiusBase * prop.scale.x;
 						float dx = mouse.x - sx;
 						float dy = mouse.y - sy;
 						if (dx * dx + dy * dy <= radius * radius) {
@@ -2091,6 +2128,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 			handView_.SetHoverIndex(-1);
 		} else {
 			int hover = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+			if (!IsTutorialForcedCardAllowed_(hover)) {
+				hover = -1;
+			}
 			handView_.SetHoverIndex(hover);
 		}
 	} else {
@@ -2127,8 +2167,11 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		} else {
 			if (cardState_ != CardInputState::Preview &&
 				cardState_ != CardInputState::ChoosingFieldReplace) {
-				int hover = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
-				handView_.SetHoverIndex(hover);
+			int hover = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+			if (!IsTutorialForcedCardAllowed_(hover)) {
+				hover = -1;
+			}
+			handView_.SetHoverIndex(hover);
 			} else {
 				handView_.SetHoverIndex(-1);
 			}
@@ -2140,6 +2183,9 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 				if (lTrig) {
 					int idx = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+					if (!IsTutorialForcedCardAllowed_(idx)) {
+						idx = -1;
+					}
 					const auto handDecision = BattleCardInputController::ResolveIdle(cardInput, idx);
 					if (handDecision.action == BattleCardInputController::HandInputAction::StartDrag) {
 						selectedIndex_ = handDecision.handIndex;
@@ -2181,6 +2227,13 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 			{
 				handView_.SetPreviewIndex(selectedIndex_);
+
+				if (!IsTutorialForcedCardAllowed_(selectedIndex_)) {
+					cardState_ = CardInputState::Idle;
+					selectedIndex_ = -1;
+					handView_.SetPreviewIndex(-1);
+					break;
+				}
 
 				if (lTrig) {
 					int idx = selectedIndex_;
@@ -2890,6 +2943,7 @@ void BattleController::DrawBattleOverlay3D(GameApp& app)
 	context.enemyTargetBloomParam = &targetParam;
 	BattleRenderView::DrawBattleOverlay3D(context);
 }
+
 void BattleController::DrawPostEffect3D(GameApp& app)
 {
 	BattleRenderView::DrawPostEffect3D(handView_, app);
@@ -3349,6 +3403,20 @@ void BattleController::SetTutorialPokerRestriction(bool activateOnly, bool damag
 	tutorialDamageOnly_ = damageOnly;
 }
 
+void BattleController::SetTutorialForcedEnemyTargetCardId(int cardDefId)
+{
+	const int newId = cardDefId > 0 ? cardDefId : -1;
+	if (tutorialForcedEnemyTargetCardId_ == newId) {
+		return;
+	}
+
+	tutorialForcedEnemyTargetCardId_ = newId;
+	handPreviewSignature_ = 0;
+	if (!IsTutorialForcedCardActive_()) {
+		handView_.ClearCardEffects();
+	}
+}
+
 std::vector<std::string> BattleController::CollectEffectTypes_(const CardDef& def) const
 {
 	std::vector<std::string> types;
@@ -3406,31 +3474,90 @@ bool BattleController::StartNextActionSequence_()
 
 void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action)
 {
+	auto findLowestHpAlly = [&]() -> Enemy* {
+		if (!enemyMgr_) {
+			return nullptr;
+		}
+
+		Enemy* target = nullptr;
+		for (auto& ally : enemyMgr_->GetEnemies()) {
+			if (!ally.IsAlive()) {
+				continue;
+			}
+			if (!target || ally.GetHP() < target->GetHP()) {
+				target = &ally;
+			}
+		}
+		return target;
+	};
+
 	if (action.type == "Attack") {
-		if (!player_) {
-			return;
-		}
-		enemy.PlayAttackAnim(player_->GetPos());
-		player_->TriggerHitFlash(0.2f);
-		player_->PlayDamageAnim();
-		const int beforeBlock = player_->GetBlock();
 		const int beforeHp = player_->GetHP();
+		const int beforeBlock = player_->GetBlock();
 		player_->Damage(action.value);
-		const int actualHpDamage = beforeHp - player_->GetHP();
-		BattleSfxPlayer::PlayBlockReactionSE(beforeBlock, player_->GetBlock(), actualHpDamage, action.value);
-		if (action.value > 0) {
-			SpawnDamagePopup(player_->GetPos(), actualHpDamage, true);
-		}
+		const int actualDamage = std::max(0, beforeHp - player_->GetHP());
+		const int afterBlock = player_->GetBlock();
+		BattleSfxPlayer::PlayBlockReactionSE(beforeBlock, afterBlock, actualDamage, action.value);
 	} else if (action.type == "Heal") {
 		const int beforeHp = enemy.GetHP();
 		enemy.Heal(action.value);
 		if (enemy.GetHP() > beforeHp) {
 			BattleSfxPlayer::PlaySE("SE_Heal");
 		}
+	} else if (action.type == "HealLowestAlly") {
+		Enemy* target = findLowestHpAlly();
+		if (!target) {
+			return;
+		}
+		const int beforeHp = target->GetHP();
+		target->Heal(action.value);
+		if (target->GetHP() > beforeHp) {
+			BattleSfxPlayer::PlaySE("SE_Heal");
+		}
+	} else if (action.type == "HealAll") {
+		if (!enemyMgr_) {
+			return;
+		}
+		bool healedAny = false;
+		for (auto& ally : enemyMgr_->GetEnemies()) {
+			if (!ally.IsAlive()) {
+				continue;
+			}
+			const int beforeHp = ally.GetHP();
+			ally.Heal(action.value);
+			healedAny = healedAny || ally.GetHP() > beforeHp;
+		}
+		if (healedAny) {
+			BattleSfxPlayer::PlaySE("SE_Heal");
+		}
 	} else if (action.type == "Block") {
 		const int beforeBlock = enemy.GetBlock();
 		enemy.AddBlock(action.value);
 		BattleSfxPlayer::PlayBlockGainSEIfIncreased(beforeBlock, enemy.GetBlock());
+	} else if (action.type == "BlockLowestAlly") {
+		Enemy* target = findLowestHpAlly();
+		if (!target) {
+			return;
+		}
+		const int beforeBlock = target->GetBlock();
+		target->AddBlock(action.value);
+		BattleSfxPlayer::PlayBlockGainSEIfIncreased(beforeBlock, target->GetBlock());
+	} else if (action.type == "BlockAll") {
+		if (!enemyMgr_) {
+			return;
+		}
+		bool blockedAny = false;
+		for (auto& ally : enemyMgr_->GetEnemies()) {
+			if (!ally.IsAlive()) {
+				continue;
+			}
+			const int beforeBlock = ally.GetBlock();
+			ally.AddBlock(action.value);
+			blockedAny = blockedAny || ally.GetBlock() > beforeBlock;
+		}
+		if (blockedAny) {
+			BattleSfxPlayer::PlaySE("SE_Block");
+		}
 	}
 }
 

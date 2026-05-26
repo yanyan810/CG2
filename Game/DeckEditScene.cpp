@@ -109,7 +109,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	selectingTemplateDeckBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	selectingTemplateDeckBg_->SetPosition({ 0.f, 0.f });
 	selectingTemplateDeckBg_->SetScale({ 1280.f, 720.f, 1.0f });
-	selectingTemplateDeckBg_->SetColor({ 0.1f, 0.1f, 0.1f, 0.72f });
+	selectingTemplateDeckBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
 
 	auto defaultBtn = std::make_unique<Button>();
 	defaultBtn->Initialize(app, L"デフォルトデッキ", "resources/deck/deck_default.json", { 480.f, 250.f });
@@ -126,6 +126,10 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	auto customBtn = std::make_unique<Button>();
 	customBtn->Initialize(app, L"選択せず進む", "CUSTOM_EDIT", { 50.f, 50.f });
 	deckTemplateButtons_.push_back(std::move(customBtn));
+
+	UpdateSprites(app);
+
+	isSelectingTemplateDeck_ = true;
 
 }
 
@@ -145,6 +149,9 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 	POINT mouse = input->GetMousePosition();
 	Vector2 mousePos = { (float)mouse.x, (float)mouse.y };
 
+	for (auto& card : cardModels_) {
+		card->Update(dt);
+	}
 
 	if (isSelectingTemplateDeck_) {
 		input->SetWheel(0);
@@ -406,8 +413,10 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 }
 
 void DeckEditScene::Draw3D(GameApp& app) {
-	for (auto& card : cardModels_) {
-		card->Draw();
+	if (!isSelectingTemplateDeck_) {
+		for (auto& card : cardModels_) {
+			card->Draw();
+		}
 	}
 }
 void DeckEditScene::Draw2D(GameApp& app) {
@@ -453,6 +462,13 @@ void DeckEditScene::DrawImGui(GameApp& app) {
 		return;
 	}
 
+}
+
+void DeckEditScene::DrawSkydome(GameApp& app) {
+	(void)app;
+	if (skyDome_) {
+		skyDome_->Draw();
+	}
 }
 
 void DeckEditScene::RebuildCardModels(GameApp& app) {
@@ -556,8 +572,8 @@ void DeckEditScene::UpdateSprites(GameApp& app) {
 	if (cardPreviewText_) {
 		cardPreviewText_->Update(view, proj);
 	}
+	
 }
-
 Vector2 DeckEditScene::GetPopupPosition(GameApp& app, int cardIdx) {
 	if (cardIdx == -1 || cardIdx >= (int)cardModels_.size()) return { 0, 0 };
 

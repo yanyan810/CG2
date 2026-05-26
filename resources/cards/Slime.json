@@ -2,8 +2,8 @@
   "name": "Slime",
   "maxHp": 50,
   "actions": [
-    { "type": "Attack", "value": 5, "name": "たいあたり" },
-    { "type": "Attack", "value": 5, "name": "たいあたり" },
-    { "type": "Heal",   "value": 10, "name": "自己回復" }
+    { "type": "Attack", "value": 7, "name": "たいあたり" },
+    { "type": "Attack", "value": 7, "name": "たいあたり" },
+    { "type": "Heal",   "value": 15, "name": "自己回復" }
   ]
 }

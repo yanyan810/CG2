@@ -407,10 +407,10 @@ Vector3 EnemyBattleStatusUI::GetIntentTextColor_(const std::string& type)
 	if (type == "Attack") {
 		return { 1.0f, 0.25f, 0.25f };
 	}
-	if (type == "Block") {
+	if (type == "Block" || type == "BlockAll" || type == "BlockLowestAlly") {
 		return { 0.25f, 0.55f, 1.0f };
 	}
-	if (type == "Heal") {
+	if (type == "Heal" || type == "HealAll" || type == "HealLowestAlly") {
 		return { 0.25f, 1.0f, 0.35f };
 	}
 	return { 0.85f, 0.85f, 0.85f };
@@ -421,10 +421,10 @@ Vector4 EnemyBattleStatusUI::GetIntentGlowColor_(const std::string& type)
 	if (type == "Attack") {
 		return { 1.0f, 0.18f, 0.14f, 1.0f };
 	}
-	if (type == "Block") {
+	if (type == "Block" || type == "BlockAll" || type == "BlockLowestAlly") {
 		return { 0.24f, 0.58f, 1.0f, 1.0f };
 	}
-	if (type == "Heal") {
+	if (type == "Heal" || type == "HealAll" || type == "HealLowestAlly") {
 		return { 0.20f, 1.0f, 0.38f, 1.0f };
 	}
 	return { 0.82f, 0.82f, 0.82f, 1.0f };

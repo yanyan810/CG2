@@ -92,9 +92,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/CrescentMoon.png",
-      "desc": "敵単体に13ダメージ与える。",
+      "desc": "敵単体に3ダメージ与える。",
       "effects": [
-        { "type": "DamageCrescent", "value": 13 }
+        { "type": "Damage", "value": 3 }
       ],
       "subEffects": [
         {
@@ -104,10 +104,9 @@
             "rank": "ThreeOfAKind"
           },
           "effects": [
-            { "type": "Damage", "value": 23 },
-            { "type": "Draw", "value": 3 },
-            { "type": "Heal", "value": 23 },
-            { "type": "Block", "value": 23 }
+            { "type": "Damage", "value": 33 },
+            { "type": "Heal", "value": 13 },
+            { "type": "Block", "value": 13 }
           ]
         }
       ]
@@ -117,16 +116,19 @@
       {
       "id": 7,
       "name": "OverClock",
-      "cost": 3,
+      "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/OverClock.png",
-      "desc": "敵単体に2ダメージを与える。\nこれを四回行う",
+      "desc": "2パワー得て、\n3ダメージ受けるが、\n敵単体に1ダメージを5回与える",
       "effects": [
-        { "type": "Damage", "value": 2 },
-        { "type": "Damage", "value": 2 },
-        { "type": "Damage", "value": 2 },
-        { "type": "Damage", "value": 2 }
+        { "type": "PowerBoost", "value": 2 },
+        { "type": "SelfDamage", "value": 3 },
+        { "type": "Damage", "value": 1 },
+        { "type": "Damage", "value": 1 },
+        { "type": "Damage", "value": 1 },
+        { "type": "Damage", "value": 1 },
+        { "type": "Damage", "value": 1 }
       ],
       "subEffects": [
         {
@@ -146,13 +148,14 @@
       {
       "id": 8,
       "name": "ShieldBash",
-      "cost": 2,
+      "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/ShieldBash.png",
-      "desc": "敵単体に\nブロック数x2ダメージ与える",
+      "desc": "5ブロックを得て、\n敵単体にブロック数x1ダメージ与える",
       "effects": [
-        { "type": "DamageByBlock", "value": 2 }
+        { "type": "Block", "value": 5 },
+        { "type": "DamageByBlock", "value": 1 }
       ]
      },
 
@@ -160,7 +163,7 @@
       {
       "id": 9,
       "name": "GaeBolg",
-      "cost": 4,
+      "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/GaeBolg.png",
@@ -190,10 +193,23 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Durandal.png",
-      "desc": "敵単体に25ダメージを与える。\n25のブロックを獲得する",
+      "desc": "敵単体に5ダメージを与える。\n20のブロックを獲得する",
       "effects": [
-        { "type": "Damage", "value": 25 },
-        { "type": "Block", "value": 25 }
+        { "type": "Damage", "value": 5 },
+        { "type": "Block", "value": 20 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "FullHouse"
+          },
+          "effects": [
+            { "type": "Damage", "value": 10 },
+            { "type": "Block", "value": 40 }
+          ]
+        }
       ]
      }
      

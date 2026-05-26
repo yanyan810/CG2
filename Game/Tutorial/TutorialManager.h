@@ -7,6 +7,13 @@ class BattleController;
 class TutorialManager {
 public:
 
+    enum class TutorialChapter {
+        Full,
+        FieldUi,
+        Card,
+        SpecialEffect,
+        Practice
+    };
 
     enum class TutorialStep {
         Intro,
@@ -21,6 +28,7 @@ public:
         UiRoleText,
         UiEndTurn,
         UiDeckCount,
+        UiPokerHandHelp,
         UiFinished,
 
         HoverHand,
@@ -31,6 +39,7 @@ public:
         ExplainCardAll,
 
         PlayCard,
+        ChooseEnemyTarget,
         ExplainEnergy,
         FillField,
         EndPlayerTurn,
@@ -63,6 +72,7 @@ public:
         TurnTextArea,
         RoleTextArea,
         DeckCountArea,
+        PokerHandHelpArea,
 
         PlayerIncomingDamageArea,
         EnemyNextActionArea
@@ -71,6 +81,7 @@ public:
 public:
     void Initialize();
     void Reset();
+    void StartChapter(TutorialChapter chapter);
     void Update(BattleController& battle);
     void NextStep();
 
@@ -82,12 +93,18 @@ public:
     FocusType GetFocusType() const;
 
     bool LoadMessages(const std::string& path);
+    bool SaveMessages(const std::string& path = "") const;
 
     //文字用
     void SetMessageForCurrentStep(const std::wstring& text);
 
     void SetStepMessage(TutorialStep step, const std::wstring& text);
     std::wstring GetStepMessage(TutorialStep step) const;
+    std::wstring GetEditableStepMessage(TutorialStep step) const;
+    const std::string& GetMessagePath() const { return messagePath_; }
+    static const char* GetStepKey(TutorialStep step) { return StepToKey_(step); }
+    static std::wstring Utf8ToWString(const std::string& s);
+    static std::string WStringToUtf8(const std::wstring& s);
 
     bool ReloadMessages();
 
@@ -101,13 +118,17 @@ public:
 private:
     void UpdateMessage_();
     void Advance_();
+    void FinishIfPastChapterEnd_();
+    bool IsPastChapterEnd_(TutorialStep step) const;
+    TutorialStep GetChapterStartStep_(TutorialChapter chapter) const;
+    TutorialStep GetChapterEndStep_(TutorialChapter chapter) const;
 
     static const char* StepToKey_(TutorialStep step);
     std::wstring GetMessageFromTable_(TutorialStep step) const;
-    static std::wstring Utf8ToWString_(const std::string& s);
 
 private:
     TutorialStep step_ = TutorialStep::Intro;
+    TutorialChapter chapter_ = TutorialChapter::Full;
     bool isActive_ = true;
     std::wstring message_;
 
