@@ -416,6 +416,10 @@ void Player::Draw() {
     effectSequencer_.Draw();
 }
 
+void Player::DrawPostEffect(GameApp& app) {
+    effectSequencer_.DrawPostEffect(app);
+}
+
 void Player::DrawShieldBloom(GameApp& app) {
     if (!ShouldDrawShield_() || shieldCells_.empty()) {
         return;

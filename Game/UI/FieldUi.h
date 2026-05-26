@@ -4,6 +4,8 @@
 #include "UiLayout.h"
 #include "TextSprite.h"
 #include "Sprite.h"
+#include "Object3d.h"
+#include "Camera.h"
 #include "CardDef.h"
 #include "BattleController.h"
 
@@ -33,6 +35,7 @@ public:
 
 #ifdef USE_IMGUI
 	void DrawImGui();
+	void DrawCostMeterImGui();
 #endif
 
 	bool LoadPokerEffectChoiceLayout(const std::string& path);
@@ -109,6 +112,11 @@ private:
 
 	void ApplyFieldUiLayout_();
 	void SetTextScale_(TextSprite* text, float s);
+	void UpdateCostMeter_(const BattleController& battle);
+	void DrawCostMeter_(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj);
+	void RebuildCostSphereModel_();
+	Vector4 GetCostTierColor_(int value) const;
+	Vector3 CostMeterScreenToWorld_(float x, float y) const;
 
 	bool LoadUiNumberLayout(const std::string& path);
 	bool SaveUiNumberLayout(const std::string& path) const;
@@ -134,6 +142,8 @@ private:
 	std::unique_ptr<TextSprite> pokerPreviewText_;
 	std::unique_ptr<TextSprite> turnText_;
 	std::unique_ptr<TextSprite> costText_;
+	std::unique_ptr<TextSprite> costCurrentText_;
+	std::unique_ptr<TextSprite> costMaxText_;
 
 	std::unique_ptr<TextSprite> clickChoiceText_;
 	std::unique_ptr<TextSprite> endTurnButtonText_;
@@ -155,6 +165,10 @@ private:
 	//ui用の背景スプライト
 	std::unique_ptr<Sprite>     turnTextBg_;
 	std::unique_ptr<Sprite>     costTextBg_;
+	std::array<std::unique_ptr<Object3d>, 10> costPipSpheres_;
+	Model* costSphereModel_ = nullptr;
+	int costSphereModelRevision_ = 0;
+	std::unique_ptr<Camera> costMeterCamera_;
 	std::unique_ptr<Sprite> cardDescBg_;
 	std::unique_ptr<Sprite> deckCountBg_;
 	std::unique_ptr<Sprite> discardCountBg_;
@@ -175,6 +189,8 @@ private:
 	//キャッシュ用メンバ
 	std::wstring lastPokerPreviewText_;
 	bool lastPokerPreviewVisible_ = false;
+	int lastCostCurrent_ = -1;
+	int lastCostMax_ = -1;
 
 	bool showPokerOptions_ = false;
 	int pokerHoverIndex_ = -1;

@@ -250,6 +250,36 @@ struct UiCardDescCustomLayout {
     UiCardDescSubBlockLayout subBlocks[3];
 };
 
+struct UiCostMeterLayout {
+    float pipOriginX = 1083.0f;
+    float pipOriginY = 243.0f;
+    UiVec2 pipOffsets[10];
+    float pipScale = 1.0f;
+    float pipGapX = 18.0f;
+    float pipGapY = 16.0f;
+    float pipRadius = 7.5f;
+    bool postEffectEnabled = true;
+    float postThreshold = 0.0f;
+    float postIntensity = 1.8f;
+    float postChromAbAmount = 0.003f;
+    float postDistortionAmount = 0.0f;
+    float postNoiseIntensity = 0.0f;
+    float filledLightIntensity = 1.65f;
+    float emptyLightIntensity = 0.45f;
+    float emptyColorR = 0.04f;
+    float emptyColorG = 0.12f;
+    float emptyColorB = 0.08f;
+    float lightColorR = 1.0f;
+    float lightColorG = 1.0f;
+    float lightColorB = 1.0f;
+    float currentTextX = 1218.0f;
+    float currentTextY = 250.0f;
+    float maxTextX = 1220.0f;
+    float maxTextY = 275.0f;
+    float currentTextScale = 0.85f;
+    float maxTextScale = 0.72f;
+};
+
 struct FieldUiLayout {
     UiRect cardDescBg;
     UiText cardDescText;
@@ -271,6 +301,7 @@ struct FieldUiLayout {
 
     UiRect costBg;
     UiText costText;
+    UiCostMeterLayout costMeter;
 
     UiRect endTurnBg;
     UiText endTurnText;
