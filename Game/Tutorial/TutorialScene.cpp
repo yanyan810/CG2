@@ -5,6 +5,7 @@
 #include "TextureManager.h"
 #include "AudioManager.h"
 #include <algorithm>
+#include <cstring>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -29,6 +30,40 @@ namespace {
     constexpr Vector2 kBlockTextPosition{ 443.0f, 18.0f };
     constexpr int kBlockTextFontSize = 28;
     constexpr float kBlockOutlineThickness = 2.0f;
+    constexpr TutorialManager::TutorialStep kEditableTutorialSteps[] = {
+        TutorialManager::TutorialStep::Intro,
+        TutorialManager::TutorialStep::UiPlayerHp,
+        TutorialManager::TutorialStep::UiEnemyIntentDamage,
+        TutorialManager::TutorialStep::UiEnemyHp,
+        TutorialManager::TutorialStep::UiEnemyNextAction,
+        TutorialManager::TutorialStep::UiTurnText,
+        TutorialManager::TutorialStep::UiHand,
+        TutorialManager::TutorialStep::UiField,
+        TutorialManager::TutorialStep::UiRoleText,
+        TutorialManager::TutorialStep::UiEndTurn,
+        TutorialManager::TutorialStep::UiDeckCount,
+        TutorialManager::TutorialStep::UiPokerHandHelp,
+        TutorialManager::TutorialStep::UiFinished,
+        TutorialManager::TutorialStep::HoverHand,
+        TutorialManager::TutorialStep::ExplainCardCost,
+        TutorialManager::TutorialStep::ExplainCardSuit,
+        TutorialManager::TutorialStep::ExplainCardNumber,
+        TutorialManager::TutorialStep::ExplainCardAll,
+        TutorialManager::TutorialStep::PlayCard,
+        TutorialManager::TutorialStep::ChooseEnemyTarget,
+        TutorialManager::TutorialStep::ExplainEnergy,
+        TutorialManager::TutorialStep::FillField,
+        TutorialManager::TutorialStep::EndPlayerTurn,
+        TutorialManager::TutorialStep::WaitEnemyTurn,
+        TutorialManager::TutorialStep::ExplainPokerReady,
+        TutorialManager::TutorialStep::ChoosePokerEffect,
+        TutorialManager::TutorialStep::SkipPokerContinueTurn,
+        TutorialManager::TutorialStep::SkipPokerEndTurn,
+        TutorialManager::TutorialStep::SkipPokerWaitEnemyTurn,
+        TutorialManager::TutorialStep::ViewingBoardFromPoker,
+        TutorialManager::TutorialStep::EndAfterPoker,
+        TutorialManager::TutorialStep::Finished
+    };
     constexpr std::array<Vector2, 8> kOutlineDirections{
         Vector2{ -1.0f, 0.0f },
         Vector2{ 1.0f, 0.0f },
@@ -112,14 +147,18 @@ void TutorialScene::StartTutorialChapter_(GameApp& app, TutorialManager::Tutoria
     }
 
     InitializeTutorialContent_(app);
+    if (tutorial_->GetEditableStepMessage(TutorialManager::TutorialStep::PlayCard).empty()) {
     tutorial_->SetStepMessage(
         TutorialManager::TutorialStep::PlayCard,
         L"手札の Attack! を使ってみましょう\nカードを上に出してから\n左クリックで使用します"
     );
+    }
+    if (tutorial_->GetEditableStepMessage(TutorialManager::TutorialStep::ChooseEnemyTarget).empty()) {
     tutorial_->SetStepMessage(
         TutorialManager::TutorialStep::ChooseEnemyTarget,
         L"敵を選択してください"
     );
+    }
     if (chapter == TutorialManager::TutorialChapter::Full) {
         tutorial_->Reset();
     } else {
@@ -290,7 +329,7 @@ void TutorialScene::InitializeTutorialContent_(GameApp& app)
     ResetParticleObjectPostParam_();
 
     if (Enemy* enemy = enemyMgr_.GetEnemy(0)) {
-        enemy->SetMaxHp(141, true);
+        enemy->SetMaxHp(100, true);
     }
 
     fieldUi_ = std::make_unique<FieldUi>();
@@ -851,6 +890,7 @@ void TutorialScene::Update(GameApp& app, float dt) {
                 step == Step::UiRoleText ||
                 step == Step::UiEndTurn ||
                 step == Step::UiDeckCount ||
+                step == Step::UiPokerHandHelp ||
                 step == Step::UiEnemyIntentDamage ||
                 step == Step::UiEnemyNextAction ||
                 step == Step::UiFinished ||
@@ -969,9 +1009,6 @@ void TutorialScene::Draw3D(GameApp& app) {
     enemyMgr_.DrawShieldBloom(app);
     if (player_) {
         player_->DrawShieldBloom(app);
-    }
-    if (battle_.GetNowCardInputState() == BattleController::CardInputState::ChoosingEnemyTarget && highlightFilter_) {
-        highlightFilter_->Draw();
     }
     battle_.DrawDamagePopups3D(app);
 
@@ -1176,6 +1213,82 @@ void TutorialScene::DrawImGui(GameApp& app) {
         ImGui::SameLine();
         if (ImGui::Button("Reset")) {
             tutorial_->Reset();
+        }
+
+        if (ImGui::CollapsingHeader("Message Editor")) {
+            auto loadMessageBuffer = [&]() {
+                const std::string text = TutorialManager::WStringToUtf8(
+                    tutorial_->GetEditableStepMessage(messageEditorStep_)
+                );
+                strncpy_s(messageEditBuffer_.data(), messageEditBuffer_.size(), text.c_str(), _TRUNCATE);
+                messageEditDirty_ = false;
+                messageEditorInitialized_ = true;
+            };
+
+            if (!messageEditorInitialized_) {
+                messageEditorStep_ = tutorial_->GetStep();
+                loadMessageBuffer();
+            }
+
+            ImGui::Text("Path: %s", tutorial_->GetMessagePath().c_str());
+
+            if (ImGui::Button("Use Current Step")) {
+                messageEditorStep_ = tutorial_->GetStep();
+                loadMessageBuffer();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Reload JSON")) {
+                tutorial_->ReloadMessages();
+                loadMessageBuffer();
+            }
+
+            const char* currentKey = TutorialManager::GetStepKey(messageEditorStep_);
+            if (ImGui::BeginCombo("Step", currentKey && currentKey[0] ? currentKey : "(unknown)")) {
+                for (TutorialManager::TutorialStep step : kEditableTutorialSteps) {
+                    const char* key = TutorialManager::GetStepKey(step);
+                    const bool selected = step == messageEditorStep_;
+                    if (ImGui::Selectable(key && key[0] ? key : "(unknown)", selected)) {
+                        messageEditorStep_ = step;
+                        loadMessageBuffer();
+                    }
+                    if (selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            if (ImGui::InputTextMultiline(
+                "Message",
+                messageEditBuffer_.data(),
+                messageEditBuffer_.size(),
+                ImVec2(520.0f, 140.0f),
+                ImGuiInputTextFlags_AllowTabInput
+            )) {
+                tutorial_->SetStepMessage(
+                    messageEditorStep_,
+                    TutorialManager::Utf8ToWString(messageEditBuffer_.data())
+                );
+                messageEditDirty_ = true;
+            }
+
+            if (ImGui::Button("Apply")) {
+                tutorial_->SetStepMessage(
+                    messageEditorStep_,
+                    TutorialManager::Utf8ToWString(messageEditBuffer_.data())
+                );
+                messageEditDirty_ = false;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Save JSON")) {
+                tutorial_->SetStepMessage(
+                    messageEditorStep_,
+                    TutorialManager::Utf8ToWString(messageEditBuffer_.data())
+                );
+                messageEditDirty_ = !tutorial_->SaveMessages();
+            }
+            ImGui::SameLine();
+            ImGui::Text("%s", messageEditDirty_ ? "edited" : "saved/applied");
         }
     }
 

@@ -228,6 +228,10 @@ std::vector<UiRect> TutorialUi::ResolveFocusRects_(
         rects.push_back(layout_.deckCountArea);
         break;
 
+    case Focus::PokerHandHelpArea:
+        rects.push_back(layout_.pokerHandHelpArea);
+        break;
+
     case Focus::EnemyTurnArea:
         rects.push_back(field.turnBg);
         break;
@@ -489,9 +493,6 @@ void TutorialUi::Draw(GameApp& app,
             panel->Update(view, proj);
             panel->Draw();
         }
-    } else if (darkOverlay_) {
-        darkOverlay_->Update(view, proj);
-        darkOverlay_->Draw();
     }
 
     for (auto& frame : focusFrames_) {
@@ -585,6 +586,7 @@ bool TutorialUi::SaveLayout(const std::string& path) const
     writeRect(j["turnTextArea"], layout_.turnTextArea);
     writeRect(j["roleTextArea"], layout_.roleTextArea);
     writeRect(j["deckCountArea"], layout_.deckCountArea);
+    writeRect(j["pokerHandHelpArea"], layout_.pokerHandHelpArea);
     writeRect(j["playerIncomingDamageArea"], layout_.playerIncomingDamageArea);
     writeRect(j["enemyNextActionArea"], layout_.enemyNextActionArea);
 
@@ -675,6 +677,7 @@ bool TutorialUi::LoadLayout(const std::string& path)
     if (j.contains("turnTextArea")) readRect(j["turnTextArea"], layout_.turnTextArea);
     if (j.contains("roleTextArea")) readRect(j["roleTextArea"], layout_.roleTextArea);
     if (j.contains("deckCountArea")) readRect(j["deckCountArea"], layout_.deckCountArea);
+    if (j.contains("pokerHandHelpArea")) readRect(j["pokerHandHelpArea"], layout_.pokerHandHelpArea);
     if (j.contains("playerIncomingDamageArea")) {
         readRect(j["playerIncomingDamageArea"], layout_.playerIncomingDamageArea);
     }
@@ -782,6 +785,7 @@ void TutorialUi::DrawImGui(TutorialManager& tutorial)
     ImGui::DragFloat4("turnTextArea", &layout_.turnTextArea.x, 1.0f);
     ImGui::DragFloat4("roleTextArea", &layout_.roleTextArea.x, 1.0f);
     ImGui::DragFloat4("deckCountArea", &layout_.deckCountArea.x, 1.0f);
+    ImGui::DragFloat4("pokerHandHelpArea", &layout_.pokerHandHelpArea.x, 1.0f);
 
     ImGui::DragFloat4("playerIncomingDamageArea", &layout_.playerIncomingDamageArea.x, 1.0f);
     ImGui::DragFloat4("enemyNextActionArea", &layout_.enemyNextActionArea.x, 1.0f);
