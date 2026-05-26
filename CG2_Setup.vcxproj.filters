@@ -38,6 +38,9 @@
     <ClCompile Include="Game\Audio\BattleSfxPlayer.cpp" />
     <ClCompile Include="Game\Battle\BattleDeckZone.cpp" />
     <ClCompile Include="Game\Battle\BattleFieldViewController.cpp" />
+    <ClCompile Include="Game\Battle\BattleDebugImGui.cpp" />
+    <ClCompile Include="Game\Battle\BattleRenderView.cpp" />
+    <ClCompile Include="Game\Battle\BattleInfoTextProvider.cpp" />
     <ClCompile Include="Game\Battle\CardTargetingController.cpp" />
     <ClCompile Include="Game\Battle\EnemyActionCountSystem.cpp" />
     <ClCompile Include="Game\Card\CardDatabase.cpp" />
@@ -118,6 +121,7 @@
     <ClCompile Include="Game\Poker\PokerHandEvaluator.cpp" />
     <ClCompile Include="Game\Poker\PokerChoiceTextBuilder.cpp" />
     <ClCompile Include="Game\Poker\PokerChoiceQuery.cpp" />
+    <ClCompile Include="Game\Poker\PokerChoiceController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
@@ -144,6 +148,9 @@
     <ClInclude Include="Game\Audio\BattleSfxPlayer.h" />
     <ClInclude Include="Game\Battle\BattleDeckZone.h" />
     <ClInclude Include="Game\Battle\BattleFieldViewController.h" />
+    <ClInclude Include="Game\Battle\BattleDebugImGui.h" />
+    <ClInclude Include="Game\Battle\BattleRenderView.h" />
+    <ClInclude Include="Game\Battle\BattleInfoTextProvider.h" />
     <ClInclude Include="Game\Battle\CardTargetingController.h" />
     <ClInclude Include="Game\Battle\EnemyActionCountSystem.h" />
     <ClInclude Include="Game\Card\CardDatabase.h" />
@@ -238,6 +245,7 @@
     <ClInclude Include="Game\Poker\PokerHandEvaluator.h" />
     <ClInclude Include="Game\Poker\PokerChoiceTextBuilder.h" />
     <ClInclude Include="Game\Poker\PokerChoiceQuery.h" />
+    <ClInclude Include="Game\Poker\PokerChoiceController.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />

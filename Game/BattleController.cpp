@@ -1,5 +1,8 @@
 #include "BattleController.h"
 #include "Battle/BattleFieldViewController.h"
+#include "Battle/BattleDebugImGui.h"
+#include "Battle/BattleRenderView.h"
+#include "Battle/BattleInfoTextProvider.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include "GameApp.h"
@@ -16,6 +19,9 @@
 #include <set>
 #include <random>
 #include <filesystem>
+#ifdef USE_IMGUI
+#include <imgui.h>
+#endif
 
 #include"Player.h"
 #include"Enemy.h"
@@ -26,6 +32,7 @@
 #include "Audio/BattleSfxPlayer.h"
 #include "ModelParticleManager.h"
 #include "Poker/PokerChoiceQuery.h"
+#include "Poker/PokerChoiceController.h"
 #include "Poker/PokerChoiceTextBuilder.h"
 
 namespace {
@@ -57,75 +64,34 @@ namespace {
 	float sHpDamageBlinkSpeed = 6.0f;
 	float sHpDamageBloomIntensity = 1.05f;
 
-	Vector4 HsvToRgb_(float hue, float saturation, float value)
+	BattleFieldViewController::FieldLayoutParams MakeFieldLayoutParams_(const BattleController::FieldCardLayout& layout)
 	{
-		hue = std::fmod(hue, 360.0f);
-		if (hue < 0.0f) {
-			hue += 360.0f;
-		}
-
-		const float c = value * saturation;
-		const float x = c * (1.0f - std::abs(std::fmod(hue / 60.0f, 2.0f) - 1.0f));
-		const float m = value - c;
-
-		float r = 0.0f;
-		float g = 0.0f;
-		float b = 0.0f;
-
-		if (hue < 60.0f) {
-			r = c; g = x; b = 0.0f;
-		} else if (hue < 120.0f) {
-			r = x; g = c; b = 0.0f;
-		} else if (hue < 180.0f) {
-			r = 0.0f; g = c; b = x;
-		} else if (hue < 240.0f) {
-			r = 0.0f; g = x; b = c;
-		} else if (hue < 300.0f) {
-			r = x; g = 0.0f; b = c;
-		} else {
-			r = c; g = 0.0f; b = x;
-		}
-
-		return { r + m, g + m, b + m, 1.0f };
+		BattleFieldViewController::FieldLayoutParams params{};
+		params.y = layout.y;
+		params.z = layout.z;
+		params.gap = layout.gap;
+		params.scale = layout.scale;
+		params.hoverYOffset = layout.hoverYOffset;
+		params.hoverZOffset = layout.hoverZOffset;
+		params.hoverScale = layout.hoverScale;
+		return params;
 	}
 
-	Vector4 GetPokerFrameColor_(BattleController::PokerHandRank rank, float time)
+	BattleController::PokerMouseChoice ToPokerMouseChoice_(PokerChoiceController::Choice choice)
 	{
-		switch (rank) {
-		case BattleController::PokerHandRank::OnePair:
-		case BattleController::PokerHandRank::TwoPair:
-			return { 1.0f, 0.85f, 0.20f, 1.0f };
-
-		case BattleController::PokerHandRank::ThreeOfAKind:
-		case BattleController::PokerHandRank::Straight:
-		case BattleController::PokerHandRank::Flush:
-			return { 0.25f, 0.95f, 0.35f, 1.0f };
-
-		case BattleController::PokerHandRank::FullHouse:
-			return { 0.25f, 0.60f, 1.0f, 1.0f };
-
-		case BattleController::PokerHandRank::FourOfAKind:
-		case BattleController::PokerHandRank::StraightFlush:
-			return { 1.0f, 0.25f, 0.20f, 1.0f };
-
-		case BattleController::PokerHandRank::RoyalStraightFlush:
-			return HsvToRgb_(time * 120.0f, 0.9f, 1.0f);
-
-		case BattleController::PokerHandRank::None:
-		default:
-			return { 1.0f, 1.0f, 1.0f, 1.0f };
+		switch (choice) {
+		case PokerChoiceController::Choice::ActivateYes:       return BattleController::PokerMouseChoice::ActivateYes;
+		case PokerChoiceController::Choice::ActivateNo:        return BattleController::PokerMouseChoice::ActivateNo;
+		case PokerChoiceController::Choice::ActivateViewBoard: return BattleController::PokerMouseChoice::ActivateViewBoard;
+		case PokerChoiceController::Choice::EffectAtkUp:       return BattleController::PokerMouseChoice::EffectAtkUp;
+		case PokerChoiceController::Choice::EffectDraw:        return BattleController::PokerMouseChoice::EffectDraw;
+		case PokerChoiceController::Choice::EffectDamage:      return BattleController::PokerMouseChoice::EffectDamage;
+		case PokerChoiceController::Choice::EffectBack:        return BattleController::PokerMouseChoice::EffectBack;
+		case PokerChoiceController::Choice::EffectViewBoard:   return BattleController::PokerMouseChoice::EffectViewBoard;
+		case PokerChoiceController::Choice::ReturnFromBoard:   return BattleController::PokerMouseChoice::ReturnFromBoard;
+		case PokerChoiceController::Choice::None:
+		default:                                               return BattleController::PokerMouseChoice::None;
 		}
-	}
-
-	Vector4 LerpColor_(const Vector4& a, const Vector4& b, float t)
-	{
-		t = std::clamp(t, 0.0f, 1.0f);
-		return {
-			a.x + (b.x - a.x) * t,
-			a.y + (b.y - a.y) * t,
-			a.z + (b.z - a.z) * t,
-			a.w + (b.w - a.w) * t
-		};
 	}
 
 	BloomParam MakeEnemyTargetBloomParam_(const BloomParam& baseParam, float time)
@@ -1316,14 +1282,8 @@ std::wstring BattleController::GetBaseEffectSummaryText_(const CardDef& def) con
 
 std::wstring BattleController::GetPreviewCardDetailText() const
 {
-	const CardDef* def = GetPreviewCardDef();
-	if (!def) {
-		return L"";
-	}
-
-	return CardEffectTextBuilder::BuildPreviewCardDetailText(*def);
+	return BattleInfoTextProvider::BuildPreviewCardDetailText(GetPreviewCardDef());
 }
-
 
 std::vector<std::wstring> BattleController::CollectSubEffectPreviewLines_(
 	SubEffectTrigger trigger,
@@ -1393,12 +1353,11 @@ std::wstring BattleController::GetPokerEffectPreviewText() const
 		currentPoker_.rank
 	);
 
-	return PokerChoiceTextBuilder::BuildEffectPreviewText(
+	return BattleInfoTextProvider::BuildPokerEffectPreviewText(
 		{ bonus.atkUp, bonus.drawCount, bonus.damage },
 		turnStartLines,
 		pokerActivatedLines);
 }
-
 void BattleController::TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank)
 {
 	if (field_.size() != 5) return;
@@ -1513,76 +1472,26 @@ void BattleController::RebuildFieldView_()
 
 void BattleController::UpdateFieldCardTransform_(int index, bool hovered, float dt)
 {
-	if (index < 0 || index >= (int)fieldViews_.size()) {
-		return;
-	}
-
-	const int fieldCount = (int)fieldViews_.size();
-	if (fieldCount <= 0) {
-		return;
-	}
-
-	const float y = fieldCardLayout_.y;
-	const float z = fieldCardLayout_.z;
-	const float gap = fieldCardLayout_.gap;
-	const float startX = -gap * 0.5f * (fieldCount - 1);
-
-	Vector3 pos{ startX + gap * index, y, z };
-	Vector3 rot{ 0.0f, 0.0f, 0.0f };
-	Vector3 scl{ fieldCardLayout_.scale, fieldCardLayout_.scale, fieldCardLayout_.scale };
-
-	if (hovered) {
-
-		pos.y += fieldCardLayout_.hoverYOffset;
-		pos.z += fieldCardLayout_.hoverZOffset;
-		scl = { fieldCardLayout_.hoverScale, fieldCardLayout_.hoverScale, fieldCardLayout_.hoverScale };
-
-	}
-
-	fieldViews_[index]->SetTargetTransform(pos, rot, scl, false);
-
-	Vector3 curPos = fieldViews_[index]->GetWorldPos();
-	float distSq = (curPos.x - pos.x) * (curPos.x - pos.x) +
-		(curPos.y - pos.y) * (curPos.y - pos.y) +
-		(curPos.z - pos.z) * (curPos.z - pos.z);
-	if (distSq > 0.00001f) {
+	if (BattleFieldViewController::UpdateFieldCardTransform(
+		fieldViews_,
+		MakeFieldLayoutParams_(fieldCardLayout_),
+		index,
+		hovered,
+		dt)) {
 		fieldLayoutDirty_ = true;
 	}
 }
 
-Vector4 GetPokerTransitionColor_(
-	BattleController::PokerHandRank beforeRank,
-	BattleController::PokerHandRank afterRank,
-	float time)
-{
-	const Vector4 beforeColor = GetPokerFrameColor_(beforeRank, time);
-	const Vector4 afterColor = GetPokerFrameColor_(afterRank, time);
-	const float pulse = 0.5f + 0.5f * std::sin(time * 1.6f);
-	return LerpColor_(beforeColor, afterColor, pulse);
-}
-
-float GetPokerGlitterIntensity_(BattleController::PokerHandRank rank)
-{
-	if (rank == BattleController::PokerHandRank::None) {
-		return 0.0f;
-	}
-	if (rank <= BattleController::PokerHandRank::TwoPair) {
-		return 5.0f;
-	}
-	if (rank <= BattleController::PokerHandRank::FullHouse) {
-		return 10.0f;
-	}
-	return 15.0f;
-}
-
 void BattleController::RefreshAllFieldCardTransforms_(float dt)
 {
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		const bool hovered =
-			(cardState_ == CardInputState::ChoosingFieldReplace && i == fieldReplaceHoverIndex_) ||
-			(pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi && i == fieldReplaceHoverIndex_);
-
-		UpdateFieldCardTransform_(i, hovered, dt);
+	BattleFieldViewController::TransformContext transformContext{};
+	transformContext.fieldViews = &fieldViews_;
+	transformContext.layout = MakeFieldLayoutParams_(fieldCardLayout_);
+	transformContext.hoverIndex = fieldReplaceHoverIndex_;
+	transformContext.choosingFieldReplace = cardState_ == CardInputState::ChoosingFieldReplace;
+	transformContext.viewingBoardFromPokerUi = pokerChoiceState_ == PokerChoiceState::ViewingBoardFromPokerUi;
+	if (BattleFieldViewController::RefreshFieldCardTransforms(transformContext, dt)) {
+		fieldLayoutDirty_ = true;
 	}
 
 	if (field_.size() == 5) {
@@ -1594,138 +1503,54 @@ void BattleController::RefreshAllFieldCardTransforms_(float dt)
 
 	UpdateFieldReplacePreviewEffects_();
 
-	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
-	const Vector4 frameColor = GetPokerFrameColor_(currentPoker_.rank, sPokerGlowRainbowTime);
-	const bool inReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_;
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		if (!fieldViews_[i]) {
-			continue;
-		}
-
-		PokerHandRank replacePreviewRank = PokerHandRank::None;
-		if (i < static_cast<int>(fieldReplacePreviewRanks_.size())) {
-			replacePreviewRank = fieldReplacePreviewRanks_[i];
-		}
-		const bool replacePreviewActive =
-			i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
-			fieldReplacePreviewActive_[i];
-
-		if (replacePreviewActive) {
-			fieldViews_[i]->SetFrameColor(GetPokerTransitionColor_(currentPoker_.rank, replacePreviewRank, sPokerGlowRainbowTime));
-			const float previewIntensity = std::max(
-				GetPokerGlitterIntensity_(currentPoker_.rank),
-				GetPokerGlitterIntensity_(replacePreviewRank));
-			fieldViews_[i]->SetGlitter(previewIntensity > 0.0f ? previewIntensity : 4.0f);
-		} else if (!inReplacePreview && i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None) {
-			fieldViews_[i]->SetFrameColor(frameColor);
-			fieldViews_[i]->SetGlitter(GetPokerGlitterIntensity_(currentPoker_.rank));
-		} else {
-			fieldViews_[i]->ResetFrameColor();
-			fieldViews_[i]->SetGlitter(0.0f);
-		}
-	}
+	BattleFieldViewController::FrameEffectContext frameContext{};
+	frameContext.fieldViews = &fieldViews_;
+	frameContext.currentRank = currentPoker_.rank;
+	frameContext.pokerGlowTime = sPokerGlowRainbowTime;
+	frameContext.highlightMask = GetPokerHighlightMask_();
+	frameContext.inReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_;
+	frameContext.replacePreviewRanks = &fieldReplacePreviewRanks_;
+	frameContext.replacePreviewActive = &fieldReplacePreviewActive_;
+	BattleFieldViewController::ApplyFieldFrameEffects(frameContext);
 }
 
 void BattleController::UpdateFieldReplacePreviewEffects_()
 {
-	fieldReplacePreviewRanks_.assign(fieldViews_.size(), PokerHandRank::None);
-	fieldReplacePreviewActive_.assign(fieldViews_.size(), false);
+	BattleFieldViewController::ReplacePreviewContext context{};
+	context.field = &field_;
+	context.fieldViewCount = fieldViews_.size();
+	context.pendingCard = &pendingCard_;
+	context.choosingFieldReplace = cardState_ == CardInputState::ChoosingFieldReplace;
+	context.hasPendingCard = hasPendingCard_;
+	context.hoverIndex = fieldReplaceHoverIndex_;
 
-	if (cardState_ != CardInputState::ChoosingFieldReplace ||
-		!hasPendingCard_ ||
-		field_.size() != 5 ||
-		fieldViews_.size() < 5) {
-		return;
-	}
-
-	PokerHandRank bestRank = PokerHandRank::None;
-	std::array<PokerHandRank, 5> ranks{};
-	ranks.fill(PokerHandRank::None);
-
-	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
-		std::vector<CardInstance> candidate = field_;
-		candidate[replaceIndex] = pendingCard_;
-		const PokerHandRank rank = EvaluatePokerHandForCards_(candidate).rank;
-		ranks[replaceIndex] = rank;
-		if (rank > bestRank) {
-			bestRank = rank;
-		}
-	}
-
-	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
-		fieldReplacePreviewRanks_[replaceIndex] = ranks[replaceIndex];
-	}
-
-	if (fieldReplaceHoverIndex_ >= 0 && fieldReplaceHoverIndex_ < 5) {
-		fieldReplacePreviewActive_[fieldReplaceHoverIndex_] = true;
-		return;
-	}
-
-	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
-		if (ranks[replaceIndex] == bestRank && bestRank != PokerHandRank::None) {
-			fieldReplacePreviewActive_[replaceIndex] = true;
-		}
-	}
+	const BattleFieldViewController::ReplacePreviewResult result =
+		BattleFieldViewController::BuildFieldReplacePreview(context);
+	fieldReplacePreviewRanks_ = result.ranks;
+	fieldReplacePreviewActive_ = result.active;
 }
 
 void BattleController::EmitFieldCardGlitter_(float dt)
 {
-	if (fieldViews_.empty()) {
-		fieldCardGlitterEmitTimer_ = 0.0f;
-		return;
-	}
-
-	fieldCardGlitterEmitTimer_ += dt;
-	if (fieldCardGlitterEmitTimer_ < sFieldCardGlitterEmitInterval) {
-		return;
-	}
-	fieldCardGlitterEmitTimer_ = 0.0f;
-
-	const bool hasPoker = currentPoker_.rank != PokerHandRank::None;
-	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
-	const Vector4 pokerColor = GetPokerFrameColor_(currentPoker_.rank, sPokerGlowRainbowTime);
-	const bool useReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && !fieldReplacePreviewRanks_.empty();
-	ModelParticleManager* particles = fieldParticleManager_;
-	if (!particles) {
-		return;
-	}
-
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		if (!fieldViews_[i]) {
-			continue;
-		}
-
-		PokerHandRank replacePreviewRank = PokerHandRank::None;
-		if (i < static_cast<int>(fieldReplacePreviewRanks_.size())) {
-			replacePreviewRank = fieldReplacePreviewRanks_[i];
-		}
-		const bool replacePreviewActive =
-			i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
-			fieldReplacePreviewActive_[i];
-
-		const bool highlighted = replacePreviewActive || (hasPoker && i < 5 && highlightMask[i]);
-		if (useReplacePreview && !replacePreviewActive) {
-			continue;
-		}
-
-		const uint32_t emitCount = static_cast<uint32_t>(std::max(0, highlighted ? sFieldCardGlitterHighlightCount : sFieldCardGlitterNormalCount));
-		const Vector4 highlightColor = replacePreviewActive
-			? GetPokerTransitionColor_(currentPoker_.rank, replacePreviewRank, sPokerGlowRainbowTime)
-			: pokerColor;
-
-		for (uint32_t emitIndex = 0; emitIndex < emitCount; ++emitIndex) {
-			const Vector3 localOffset = {
-				sFieldCardGlitterLocalOffset.x + Rand(-sFieldCardGlitterSpreadX, sFieldCardGlitterSpreadX),
-				sFieldCardGlitterLocalOffset.y + Rand(-sFieldCardGlitterSpreadY, sFieldCardGlitterSpreadY),
-				sFieldCardGlitterLocalOffset.z
-			};
-			Vector3 pos = fieldViews_[i]->GetWorldPointFromLocal(localOffset);
-			const Vector4 color = highlighted ? highlightColor : Vector4{ 1.0f, 1.0f, 1.0f, 0.55f };
-			particles->Emit("card_glitter", pos, 1u, color);
-		}
-	}
+	BattleFieldViewController::GlitterContext context{};
+	context.fieldViews = &fieldViews_;
+	context.particleManager = fieldParticleManager_;
+	context.emitTimer = &fieldCardGlitterEmitTimer_;
+	context.dt = dt;
+	context.emitInterval = sFieldCardGlitterEmitInterval;
+	context.normalCount = sFieldCardGlitterNormalCount;
+	context.highlightCount = sFieldCardGlitterHighlightCount;
+	context.localOffset = &sFieldCardGlitterLocalOffset;
+	context.spreadX = sFieldCardGlitterSpreadX;
+	context.spreadY = sFieldCardGlitterSpreadY;
+	context.currentRank = currentPoker_.rank;
+	context.pokerGlowTime = sPokerGlowRainbowTime;
+	context.highlightMask = GetPokerHighlightMask_();
+	context.choosingFieldReplace = cardState_ == CardInputState::ChoosingFieldReplace;
+	context.replacePreviewRanks = &fieldReplacePreviewRanks_;
+	context.replacePreviewActive = &fieldReplacePreviewActive_;
+	BattleFieldViewController::EmitFieldCardGlitter(context);
 }
-
 void BattleController::UpdateFieldEditorPreview(float dt)
 {
 	sPokerGlowRainbowTime += dt;
@@ -1963,8 +1788,8 @@ void BattleController::UpdateHandPokerPreviewEffects_()
 		handPreviewRanks_[handIndex] = bestRank;
 
 		if (bestRank != PokerHandRank::None) {
-			const Vector4 color = GetPokerFrameColor_(bestRank, sPokerGlowRainbowTime);
-			handView_.SetCardEffect(handIndex, color, GetPokerGlitterIntensity_(bestRank));
+			const Vector4 color = BattleFieldViewController::GetPokerFrameColor(bestRank, sPokerGlowRainbowTime);
+			handView_.SetCardEffect(handIndex, color, BattleFieldViewController::GetPokerGlitterIntensity(bestRank));
 			anyPreview = true;
 		} else {
 			handView_.ResetCardEffect(handIndex);
@@ -2006,7 +1831,7 @@ void BattleController::EmitHandCardGlitter_(float dt)
 			continue;
 		}
 
-		const Vector4 color = GetPokerFrameColor_(rank, sPokerGlowRainbowTime);
+		const Vector4 color = BattleFieldViewController::GetPokerFrameColor(rank, sPokerGlowRainbowTime);
 		const uint32_t emitCount = static_cast<uint32_t>(std::max(0, sHandCardGlitterCount));
 		for (uint32_t emitIndex = 0; emitIndex < emitCount; ++emitIndex) {
 			const Vector3 localOffset = {
@@ -2795,48 +2620,40 @@ void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse,
 	}
 
 	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
+	const auto decision = PokerChoiceController::ResolveActivateChoice(
+		layout,
+		mouse.x,
+		mouse.y,
+		lTrig,
+		yTrig,
+		nTrig,
+		tutorialActivateOnly_);
+	const auto& hover = decision.hover;
 
-	if (PointInRect(mouse.x, mouse.y,
-		layout.infoButtonRect.x, layout.infoButtonRect.y,
-		layout.infoButtonRect.w, layout.infoButtonRect.h)) {
+	if (hover.infoHovered) {
 		pokerMouseChoice_ = PokerMouseChoice::None;
-		if (lTrig) {
-			pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
-			return;
-		}
-	} else if (PointInRect(mouse.x, mouse.y,
-		layout.activateYesRect.x, layout.activateYesRect.y,
-		layout.activateYesRect.w, layout.activateYesRect.h)) {
-		pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
-	} else if (!tutorialActivateOnly_ &&
-		PointInRect(mouse.x, mouse.y,
-			layout.activateNoRect.x, layout.activateNoRect.y,
-			layout.activateNoRect.w, layout.activateNoRect.h)) {
-		pokerMouseChoice_ = PokerMouseChoice::ActivateNo;
-	} else if (!tutorialActivateOnly_ &&
-		PointInRect(mouse.x, mouse.y,
-			layout.activateViewBoardRect.x, layout.activateViewBoardRect.y,
-			layout.activateViewBoardRect.w, layout.activateViewBoardRect.h)) {
-		pokerMouseChoice_ = PokerMouseChoice::ActivateViewBoard;
+	} else if (hover.choice != PokerChoiceController::Choice::None) {
+		pokerMouseChoice_ = ToPokerMouseChoice_(hover.choice);
 	}
 
-	if (yTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateYes)) {
+	switch (decision.action) {
+	case PokerChoiceController::ActivateAction::ToggleInfo:
+		pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
+		return;
+
+	case PokerChoiceController::ActivateAction::Activate:
 		pokerQuickPreviewVisible_ = false;
 		pokerChoiceState_ = PokerChoiceState::WaitingEffectChoice;
 		pokerChoiceJustOpened_ = true;
 		return;
-	}
 
-	if (!tutorialActivateOnly_ &&
-		(nTrig || (lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateNo))) {
+	case PokerChoiceController::ActivateAction::Skip:
 		pokerQuickPreviewVisible_ = false;
 		lastPokerTutorialResult_ = PokerTutorialResult::Skipped;
 		pokerChoiceState_ = PokerChoiceState::None;
 		return;
-	}
 
-	if (!tutorialActivateOnly_ &&
-		lTrig && pokerMouseChoice_ == PokerMouseChoice::ActivateViewBoard) {
+	case PokerChoiceController::ActivateAction::ViewBoard:
 		pokerQuickPreviewVisible_ = false;
 		pokerReturnState_ = PokerChoiceState::WaitingActivateChoice;
 		pokerChoiceState_ = PokerChoiceState::ViewingBoardFromPokerUi;
@@ -2849,15 +2666,14 @@ void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse,
 		fieldReplaceHoverIndex_ = -1;
 		fieldLayoutDirty_ = true;
 		return;
+
+	case PokerChoiceController::ActivateAction::None:
+	default:
+		break;
 	}
 
-	// 鬩幢ｽ｢隴擾ｽｶ郢晢ｽｻ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓溘・蜿悶渚繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｲ髫ｶ蜷ｩ・ｸ・ｻ鬯ｨ鬥ｴ蛹夊泛雜｣・ｽ・ｼ隰夲ｽｫ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髣包ｽｵ隰ｨ魑ｴﾂ鬯ｮ・ｦ繝ｻ・ｪ郢晢ｽｻ陞ｳ螟ｲ・｣・ｰ隰・∞・ｽ・ｽ繝ｻ・ｷ鬮ｯ蜈ｷ・ｽ・ｻ郢晢ｽｻ繝ｻ・ｶ鬩幢ｽ｢隴乗・・ｽ・ｸ驗呻ｽｫ遶包ｽｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
-	if (tutorialActivateOnly_) {
-		if (!(PointInRect(mouse.x, mouse.y,
-			layout.infoButtonRect.x, layout.infoButtonRect.y,
-			layout.infoButtonRect.w, layout.infoButtonRect.h))) {
-			pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
-		}
+	if (tutorialActivateOnly_ && !hover.infoHovered) {
+		pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
 	}
 }
 
@@ -2871,33 +2687,28 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 	PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
 	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
 
-	// 鬮ｮ諠ｹ・ｺ・･繝ｻ・ｼ繝ｻ・ｱ驛｢譎｢・ｽ・ｵ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｬ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・｣繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ髫ｨ繝ｻ・ｽ・ｲ鬩搾ｽｵ繝ｻ・ｺ髮九・竏槭・・ｽ鬪ｰ蜈ｷ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｨ
 	pokerMouseChoice_ = PokerMouseChoice::None;
+	const auto hover = PokerChoiceController::ResolveEffectHover(
+		layout,
+		mouse.x,
+		mouse.y,
+		tutorialDamageOnly_);
 
-	// -----------------------------
-	// 鬩幢ｽ｢隴擾ｽｶ郢晢ｽｻ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴主・讓溘・蜿悶渚繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｲ髯溷供・ｾ貉門ｸ斟碑ｭ趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩搾ｽｵ繝ｻ・ｲ鬯ｮ・ｦ繝ｻ・ｪ髫ｨ繝ｻ・ｽ・｡鬩搾ｽｵ繝ｻ・ｺ髯樊ｻゑｽｽ・ｧ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ髫ｨ・ｳ霑｢證ｦ・ｽ・ｹ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ
-	// -----------------------------
-	if (tutorialDamageOnly_) {
-		// info鬩幢ｽ｢隴弱・魃ｵ驍ｵ・ｺ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髣比ｼ夲ｽｽ・｣驛｢譎｢・ｽ・ｻ鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ郢晢ｽｻ繝ｻ・ｸ鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ鬯伜∞・ｽ・ｬ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｼ鬩搾ｽｵ繝ｻ・ｺ髯晢ｽｶ陷ｻ・ｻ繝ｻ・ｽ郢晢ｽｻ
-		if (PointInRect(mouse.x, mouse.y,
-			layout.infoButtonRect.x, layout.infoButtonRect.y,
-			layout.infoButtonRect.w, layout.infoButtonRect.h)) {
-			if (lTrig) {
-				pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
-				return;
-			}
-		} else {
-			// 鬮ｯ譎｢・ｽ・ｶ郢晢ｽｻ繝ｻ・ｸ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髣比ｼ夲ｽｽ・｣驛｢譎｢・ｽ・ｯ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｩ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
-			pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
+	if (hover.infoHovered) {
+		if (lTrig) {
+			pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
+			return;
 		}
+	} else {
+		pokerMouseChoice_ = ToPokerMouseChoice_(hover.choice);
+	}
 
+	if (tutorialDamageOnly_) {
 		if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectDamage) {
 			pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 			isPokerDamageTargeting_ = true;
 			tutorialLockPokerTargetingCancel_ = true;
 			pokerQuickPreviewVisible_ = false;
-
-			// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬯ｨ・ｾ陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｺ鬮ｯ・ｷ隶手ｴ具ｽｾ蟶吶・繝ｻ・ｮ髯溷桁・ｽ・｡郢晢ｽｻ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驕ｶ莨∬ｱｪ繝ｻ・ｸ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｶ莨√・繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 			lastPokerTutorialResult_ = PokerTutorialResult::None;
 
 			cardState_ = CardInputState::ChoosingEnemyTarget;
@@ -2906,38 +2717,6 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		}
 
 		return;
-	}
-
-	// -----------------------------
-	// 鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ郢晢ｽｻ繝ｻ・ｸ鬮ｫ・ｴ陟托ｽｱ郢晢ｽｻ
-	// -----------------------------
-	if (PointInRect(mouse.x, mouse.y,
-		layout.infoButtonRect.x, layout.infoButtonRect.y,
-		layout.infoButtonRect.w, layout.infoButtonRect.h)) {
-		if (lTrig) {
-			pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
-			return;
-		}
-	} else if (PointInRect(mouse.x, mouse.y,
-		layout.backRect.x, layout.backRect.y,
-		layout.backRect.w, layout.backRect.h)) {
-		pokerMouseChoice_ = PokerMouseChoice::EffectBack;
-	} else if (PointInRect(mouse.x, mouse.y,
-		layout.effectRects[0].x, layout.effectRects[0].y,
-		layout.effectRects[0].w, layout.effectRects[0].h)) {
-		pokerMouseChoice_ = PokerMouseChoice::EffectAtkUp;
-	} else if (PointInRect(mouse.x, mouse.y,
-		layout.effectRects[1].x, layout.effectRects[1].y,
-		layout.effectRects[1].w, layout.effectRects[1].h)) {
-		pokerMouseChoice_ = PokerMouseChoice::EffectDamage;
-	} else if (PointInRect(mouse.x, mouse.y,
-		layout.effectRects[2].x, layout.effectRects[2].y,
-		layout.effectRects[2].w, layout.effectRects[2].h)) {
-		pokerMouseChoice_ = PokerMouseChoice::EffectDraw;
-	} else if (PointInRect(mouse.x, mouse.y,
-		layout.effectViewBoardRect.x, layout.effectViewBoardRect.y,
-		layout.effectViewBoardRect.w, layout.effectViewBoardRect.h)) {
-		pokerMouseChoice_ = PokerMouseChoice::EffectViewBoard;
 	}
 
 	if (lTrig && pokerMouseChoice_ == PokerMouseChoice::EffectAtkUp) {
@@ -2968,8 +2747,6 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		pendingDamage_ = CalcFinalAttackDamage_(bonus.damage);
 		isPokerDamageTargeting_ = true;
 		pokerQuickPreviewVisible_ = false;
-
-		// 鬩搾ｽｵ繝ｻ・ｺ鬮ｦ・ｮ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｾ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｰ鬯ｩ蠅捺・繝ｻ・ｽ繝ｻ・ｺ鬮ｯ讖ｸ・ｽ・ｳ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
 		lastPokerTutorialResult_ = PokerTutorialResult::None;
 
 		cardState_ = CardInputState::ChoosingEnemyTarget;
@@ -3006,14 +2783,8 @@ void BattleController::HandlePokerViewBoard_(FieldUi& fieldUi, POINT mouse, bool
 	handView_.SetFocusIndex(-1);
 
 	const auto& layout = fieldUi.GetPokerEffectChoiceLayout();
-
-	if (PointInRect(mouse.x, mouse.y,
-		layout.backRect.x, layout.backRect.y,
-		layout.backRect.w, layout.backRect.h)) {
-		pokerMouseChoice_ = PokerMouseChoice::ReturnFromBoard;
-	} else {
-		pokerMouseChoice_ = PokerMouseChoice::None;
-	}
+	pokerMouseChoice_ = ToPokerMouseChoice_(
+		PokerChoiceController::ResolveViewBoardHover(layout, mouse.x, mouse.y));
 
 	int hover = handView_.PickIndexByMouse(
 		mouse.x, mouse.y,
@@ -3051,7 +2822,6 @@ void BattleController::HandlePokerViewBoard_(FieldUi& fieldUi, POINT mouse, bool
 	}
 }
 
-
 void BattleController::Draw3D(GameApp& app)
 {
 	DrawDamagePopups3D(app);
@@ -3063,178 +2833,88 @@ void BattleController::Draw3D(GameApp& app)
 void BattleController::DrawDamagePopups3D(GameApp& app)
 {
 	(void)app;
-	actionDirector_.Draw3D();
-	damagePopupUi_.Draw3D();
+	BattleRenderView::DrawDamagePopups3D(actionDirector_, damagePopupUi_);
 }
 
 void BattleController::DrawPlayerBattleStatusUI(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj)
 {
 	(void)app;
-	playerStatusUi_.SetTexts(
+	BattleRenderView::DrawPlayerBattleStatusUI(
+		playerStatusUi_,
 		GetPlayerHpTexts(),
 		GetPlayerBlockText(),
-		GetPlayerPowerBoostText());
-	playerStatusUi_.DrawStatus2D(view, proj);
+		GetPlayerPowerBoostText(),
+		view,
+		proj);
 }
 
 void BattleController::DrawEnemyBattleStatusHpTexts(const Matrix4x4& view, const Matrix4x4& proj)
 {
-	enemyStatusUi_.DrawHpTexts2D(view, proj);
+	BattleRenderView::DrawEnemyBattleStatusHpTexts(enemyStatusUi_, view, proj);
 }
 
 void BattleController::DrawEnemyBattleStatusBcTexts(const Matrix4x4& view, const Matrix4x4& proj)
 {
-	enemyStatusUi_.DrawBcTexts2D(view, proj);
+	BattleRenderView::DrawEnemyBattleStatusBcTexts(enemyStatusUi_, view, proj);
 }
 
 void BattleController::DrawCardArea3D(GameApp& app)
 {
 	(void)app;
-	// 鬮ｯ貅倥・・ゑｽｧ髫ｲ・ｷ郢晢ｽｻ
-	if (discardView_) {
-		discardView_->Draw();
-	}
-
-	// 鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ
-	handView_.Draw();
-	handView_.DrawPreviewCard();
-
-	// 鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ鬩幢ｽ｢隴弱・・ｺ・｢驛｢譎｢・ｽ・｣鬩幢ｽ｢隴惹ｸ橸ｽｹ・ｲ驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｻ
-	damagePopupUi_.Draw3D();
-
-	// 鬮ｯ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｴ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｨ鬮｣雋ｻ・｣・ｰ郢晢ｽｻ繝ｻ・､鬮ｫ・ｰ繝ｻ・ｰ髯晢ｽｶ繝ｻ・ｶ髯ｷ繝ｻ・ｽ・ｾ鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ隘夜ｩ幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ
-	if (cardState_ == CardInputState::ChoosingFieldReplace) {
-		highlightFilter_->Draw();
-		pendingCardView_->Draw();
-	}
-
-	// 鬮ｯ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｴ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｫ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ
-	for (auto& c : fieldViews_) {
-		c->Draw();
-	}
+	BattleRenderView::CardAreaContext context{};
+	context.discardView = discardView_.get();
+	context.handView = &handView_;
+	context.damagePopupUi = &damagePopupUi_;
+	context.choosingFieldReplace = cardState_ == CardInputState::ChoosingFieldReplace;
+	context.highlightFilter = highlightFilter_.get();
+	context.pendingCardView = pendingCardView_.get();
+	context.fieldViews = &fieldViews_;
+	BattleRenderView::DrawCardArea3D(context);
 }
 
 void BattleController::DrawField3D(GameApp& app)
 {
 	(void)app;
-	if (propManager_) {
-		propManager_->Draw3D();
-	}
+	BattleRenderView::DrawField3D(propManager_.get());
 }
 
 void BattleController::DrawBattleOverlay3D(GameApp& app)
 {
-	if (cardState_ == CardInputState::ChoosingEnemyTarget) {
-		highlightFilter_->Draw();
-
-		if (enemyMgr_) {
-			// 3D鬮ｫ・ｰ繝ｻ・ｰ髯ｷﾂ隲､諛医・鬯ｨ・ｾ陋ｹ繝ｻ・ｽ・ｽ繝ｻ・ｨ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢隴乗・・ｽ・ｻ繝ｻ・｣驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ隴惹ｸ橸ｽｹ・ｲ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｫ・ｰ鬲・ｼ夲ｽｽ・ｽ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ
-			app.ObjCom()->SetGraphicsPipelineState();
-			// Z鬩幢ｽ｢隴寂・繝ｻ驛｢譎｢・ｽ・｣鬩幢ｽ｢隴弱・・ｽ・ｼ隴∵腸・ｼ諞ｺﾎ斐・・ｧ髯句ｹ｢・ｽ・ｵ驍ｵ・ｺ鬩｢謳ｾ・ｽ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻ髯橸ｽｳ陞｢・ｹ・取ｨ｣蝙馴屆・｣繝ｻ・ｽ繝ｻ・ｯ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻighlightFilter_驛｢譎｢・ｽ・ｻ髯晢ｽｲ繝ｻ・ｨ郢晢ｽｻ髢ｧ・ｲ繝ｻ・ｹ繝ｻ・ｧ鬩怜遜・ｽ・ｫ郢晢ｽｻ郢ｧ螂・ｽｽ・ｬ郢晢ｽｻ陷夲ｽｱ髴趣ｽｯ隲ｷ蛹・ｽｽ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｫ・ｰ繝ｻ・ｰ髯ｷﾂ隲､諛医・鬩搾ｽｵ繝ｻ・ｺ鬮ｴ驛・ｽｲ・ｻ繝ｻ・ｽ隶呵ｶ｣・ｽ・ｹ繝ｻ・ｧ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ髢ｧ・ｲ繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ驕ｶ莨∬ｱｪ繝ｻ・ｸ繝ｻ・ｺ髯ｷ・ｷ繝ｻ・ｶ郢晢ｽｻ郢晢ｽｻ
-			app.Dx()->ClearDepthBuffer();
-
-			bool hasHighlightedEnemy = false;
-			for (const auto& enemy : enemyMgr_->GetEnemies()) {
-				hasHighlightedEnemy = hasHighlightedEnemy || enemy.IsHighlighted();
-			}
-
-			if (sEnemyTargetBloomEnabled && hasHighlightedEnemy) {
-				BloomParam targetParam = MakeEnemyTargetBloomParam_(app.ObjectPost()->GetParam(), sPokerGlowRainbowTime);
-				app.ObjectPost()->SetParam(targetParam);
-				app.BeginObjectPostEffect();
-				for (auto& enemy : enemyMgr_->GetEnemies()) {
-					if (enemy.IsHighlighted()) {
-						enemy.Draw();
-					}
-				}
-				app.EndObjectPostEffect();
-				app.ObjCom()->SetGraphicsPipelineState();
-			}
-
-			for (auto& enemy : enemyMgr_->GetEnemies()) {
-				if (enemy.IsHighlighted()) {
-					enemy.Draw();
-				}
-			}
-		}
-	}
-
+	BloomParam targetParam = MakeEnemyTargetBloomParam_(app.ObjectPost()->GetParam(), sPokerGlowRainbowTime);
+	BattleRenderView::BattleOverlayContext context{};
+	context.app = &app;
+	context.highlightFilter = highlightFilter_.get();
+	context.enemyMgr = enemyMgr_;
+	context.choosingEnemyTarget = cardState_ == CardInputState::ChoosingEnemyTarget;
+	context.enemyTargetBloomEnabled = sEnemyTargetBloomEnabled;
+	context.enemyTargetBloomParam = &targetParam;
+	BattleRenderView::DrawBattleOverlay3D(context);
 }
-
 void BattleController::DrawPostEffect3D(GameApp& app)
 {
-	handView_.DrawDiscardingCardsObjectPost(app);
+	BattleRenderView::DrawPostEffect3D(handView_, app);
 }
 
 void BattleController::DrawFieldFrameBloom(GameApp& app)
 {
-	if (!sFieldFrameBloomEnabled) {
-		return;
-	}
-
-	const std::array<bool, 5> highlightMask = GetPokerHighlightMask_();
-	bool hasBloomTarget = false;
-	const bool inReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_;
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		const bool replacePreview = i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
-			fieldReplacePreviewActive_[i];
-		if (fieldViews_[i] && (replacePreview || (!inReplacePreview && i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None))) {
-			hasBloomTarget = true;
-			break;
-		}
-	}
-	for (PokerHandRank rank : handPreviewRanks_) {
-		if (rank != PokerHandRank::None) {
-			hasBloomTarget = true;
-			break;
-		}
-	}
-	if (!hasBloomTarget) {
-		return;
-	}
-
-	BloomParam param = app.ObjectPost()->GetParam();
-	param.threshold = sFieldFrameBloomThreshold;
-	const float pulse = sFieldFrameBloomMinPulse + (1.0f - sFieldFrameBloomMinPulse) * (0.5f + 0.5f * std::sin(sPokerGlowRainbowTime * 1.6f));
-	param.intensity = std::max(sFieldFrameBloomIntensity, sHandFrameBloomIntensity) * pulse;
-	param.vignetteIntensity = 0.0f;
-	param.vignetteScale = 0.0f;
-	param.distortionAmount = 0.0f;
-	param.chromAbAmount = sFieldFrameBloomChromAb;
-	param.isGrayscale = 0.0f;
-	param.isInverted = 0.0f;
-	param.noiseIntensity = 0.0f;
-	param.scanlineIntensity = 0.0f;
-	param.curvature = 0.0f;
-	param.borderSharp = 0.0f;
-	param.glitchAmount = 0.0f;
-	param.dissolveAmount = -1.0f;
-
-	app.ObjectPost()->SetParam(param);
-	app.BeginObjectPostEffect();
-	for (int i = 0; i < (int)fieldViews_.size(); ++i) {
-		const bool replacePreview = i < static_cast<int>(fieldReplacePreviewActive_.size()) &&
-			fieldReplacePreviewActive_[i];
-		const bool currentHighlight = !inReplacePreview && i < 5 && highlightMask[i] && currentPoker_.rank != PokerHandRank::None;
-		if (!fieldViews_[i] || (!replacePreview && !currentHighlight)) {
-			continue;
-		}
-		fieldViews_[i]->DrawFrameOnly();
-	}
-	const int handCount = std::min<int>(static_cast<int>(handPreviewRanks_.size()), handView_.GetCardCount());
-	for (int i = 0; i < handCount; ++i) {
-		if (handPreviewRanks_[i] == PokerHandRank::None) {
-			continue;
-		}
-		Card3D* card = handView_.GetCard(i);
-		if (card) {
-			card->DrawFrameOnly();
-		}
-	}
-	app.EndObjectPostEffect();
-	app.ObjCom()->SetGraphicsPipelineState();
+	BattleRenderView::FieldFrameBloomContext context{};
+	context.app = &app;
+	context.fieldViews = &fieldViews_;
+	context.handView = &handView_;
+	context.fieldReplacePreviewActive = &fieldReplacePreviewActive_;
+	context.handPreviewRanks = &handPreviewRanks_;
+	context.pokerHighlightMask = GetPokerHighlightMask_();
+	context.currentPokerRank = currentPoker_.rank;
+	context.inReplacePreview = cardState_ == CardInputState::ChoosingFieldReplace && hasPendingCard_;
+	context.enabled = sFieldFrameBloomEnabled;
+	context.threshold = sFieldFrameBloomThreshold;
+	context.intensity = sFieldFrameBloomIntensity;
+	context.handIntensity = sHandFrameBloomIntensity;
+	context.minPulse = sFieldFrameBloomMinPulse;
+	context.chromAb = sFieldFrameBloomChromAb;
+	context.time = sPokerGlowRainbowTime;
+	BattleRenderView::DrawFieldFrameBloom(context);
 }
-
 void BattleController::DrawPreviewCard3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
 	if (cardState_ == CardInputState::Preview && pendingCardView_) {
@@ -3245,310 +2925,121 @@ void BattleController::DrawPreviewCard3D(GameApp& app) {
 
 void BattleController::Draw2D(GameApp& app)
 {
-	if (actionDirector_.IsPlaying()) {
-		actionDirector_.Draw2D();
-		return;
-	}
-
-	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
-	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(
-		0, 0,
-		float(WinApp::kClientWidth),
-		float(WinApp::kClientHeight),
-		0, 100
-	);
-	DrawHpGaugeBloom_(app, view, proj);
-	if (player_) {
-		playerStatusUi_.DrawHpGauge(
-			player_->GetHP(),
-			player_->GetMaxHP(),
-			player_->GetBlock(),
-			std::max(0, CalcTotalIncomingDamage()),
-			sPokerGlowRainbowTime,
-			sHpDamageBlinkSpeed);
-	}
-
-	if (enemyMgr_) {
-		auto& enemies = enemyMgr_->GetEnemies();
-		EnemyBattleStatusUI::EnemyBloomSettings bloomSettings{};
-		bloomSettings.intentEnabled = sEnemyIntentBloomEnabled;
-		bloomSettings.intentIntensity = sEnemyIntentBloomIntensity;
-		bloomSettings.intentMinPulse = sEnemyIntentBloomMinPulse;
-		enemyStatusUi_.DrawGaugeAndIntent2D(
-			app,
-			enemies,
-			enemyActionCountSystem_.GetActedFlags(),
-			sPokerGlowRainbowTime,
-			view,
-			proj,
-			bloomSettings);
-	}
-	actionDirector_.Draw2D();
+	BattleRenderView::Draw2DContext context{};
+	context.app = &app;
+	context.actionDirector = &actionDirector_;
+	context.playerStatusUi = &playerStatusUi_;
+	context.enemyStatusUi = &enemyStatusUi_;
+	context.player = player_;
+	context.enemyMgr = enemyMgr_;
+	context.enemyActedFlags = &enemyActionCountSystem_.GetActedFlags();
+	context.incomingDamage = std::max(0, CalcTotalIncomingDamage());
+	context.time = sPokerGlowRainbowTime;
+	context.hpDamageBlinkSpeed = sHpDamageBlinkSpeed;
+	context.hpGaugeBloomEnabled = sHpGaugeBloomEnabled;
+	context.hpGaugeBloomIntensity = sHpGaugeBloomIntensity;
+	context.hpDamageBloomIntensity = sHpDamageBloomIntensity;
+	context.enemyIntentBloomEnabled = sEnemyIntentBloomEnabled;
+	context.enemyIntentBloomIntensity = sEnemyIntentBloomIntensity;
+	context.enemyIntentBloomMinPulse = sEnemyIntentBloomMinPulse;
+	BattleRenderView::Draw2D(context);
 }
 
 void BattleController::DrawHpGaugeBloom_(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj)
 {
-	if (!sHpGaugeBloomEnabled) {
-		return;
-	}
-
-	const float baseIntensity = sHpGaugeBloomIntensity;
-	if (player_) {
-		playerStatusUi_.DrawHpGaugeBloom(
-			app,
-			view,
-			proj,
-			player_->GetHP(),
-			player_->GetMaxHP(),
-			player_->GetBlock(),
-			std::max(0, CalcTotalIncomingDamage()),
-			sPokerGlowRainbowTime,
-			baseIntensity,
-			sHpDamageBloomIntensity,
-			sHpDamageBlinkSpeed);
-	}
-
-	if (enemyMgr_) {
-		auto& enemies = enemyMgr_->GetEnemies();
-		enemyStatusUi_.DrawGaugeBloom(app, enemies, view, proj, baseIntensity);
-	}
+	BattleRenderView::Draw2DContext context{};
+	context.app = &app;
+	context.playerStatusUi = &playerStatusUi_;
+	context.enemyStatusUi = &enemyStatusUi_;
+	context.player = player_;
+	context.enemyMgr = enemyMgr_;
+	context.incomingDamage = std::max(0, CalcTotalIncomingDamage());
+	context.time = sPokerGlowRainbowTime;
+	context.hpDamageBlinkSpeed = sHpDamageBlinkSpeed;
+	context.hpGaugeBloomEnabled = sHpGaugeBloomEnabled;
+	context.hpGaugeBloomIntensity = sHpGaugeBloomIntensity;
+	context.hpDamageBloomIntensity = sHpDamageBloomIntensity;
+	BattleRenderView::DrawHpGaugeBloom(context, view, proj);
 }
-
 #ifdef USE_IMGUI
-#include <imgui.h>
 void BattleController::DrawPlayerHudImGuiControls()
 {
-	playerStatusUi_.DrawImGuiControls();
+	BattleDebugImGui::DrawPlayerHudControls(playerStatusUi_);
 }
 
 void BattleController::DrawImGui()
 {
-	Card3D::DrawAdjustImGui();
-
-	ImGui::Text("turn: %s", turn_ == TurnState::Player ? "Player" : "Enemy");
-	ImGui::Text("PlayerTurnCount : %d", playerTurnCount_);
-	ImGui::Text("EnemyTurnCount : %d", enemyTurnCount_);
-	ImGui::Text("energy: %d / %d", energy_, energyMax_);
-	ImGui::Text("hand: %d  discard: %d", static_cast<int>(deckZone_.GetHandCount()), static_cast<int>(deckZone_.GetDiscardCount()));
-	ImGui::Text("field: %d", (int)field_.size());
-
-	if (ImGui::CollapsingHeader("Field Card Glitter")) {
-		ImGui::DragFloat3("Emitter Local Offset", &sFieldCardGlitterLocalOffset.x, 0.01f);
-		ImGui::DragFloat("Emitter Spread X", &sFieldCardGlitterSpreadX, 0.01f, 0.0f, 10.0f);
-		ImGui::DragFloat("Emitter Spread Y", &sFieldCardGlitterSpreadY, 0.01f, 0.0f, 10.0f);
-		ImGui::DragFloat("Emit Interval", &sFieldCardGlitterEmitInterval, 0.01f, 0.01f, 2.0f);
-		ImGui::SliderInt("Normal Count", &sFieldCardGlitterNormalCount, 0, 30);
-		ImGui::SliderInt("Highlight Count", &sFieldCardGlitterHighlightCount, 0, 60);
-		ImGui::Checkbox("Hand Poker Preview", &sHandPokerPreviewEnabled);
-		ImGui::DragFloat("Hand Emit Interval", &sHandCardGlitterEmitInterval, 0.01f, 0.01f, 2.0f);
-		ImGui::SliderInt("Hand Count", &sHandCardGlitterCount, 0, 60);
-		if (ImGui::Button("Reset Field Card Glitter")) {
-			sFieldCardGlitterLocalOffset = { 0.0f, 2.2f, 0.12f };
-			sFieldCardGlitterSpreadX = 1.05f;
-			sFieldCardGlitterSpreadY = 0.08f;
-			sFieldCardGlitterEmitInterval = 0.12f;
-			sFieldCardGlitterNormalCount = 2;
-			sFieldCardGlitterHighlightCount = 5;
-			sHandPokerPreviewEnabled = true;
-			sHandCardGlitterEmitInterval = 0.12f;
-			sHandCardGlitterCount = 3;
-		}
-	}
-
-	if (ImGui::CollapsingHeader("Field Frame Bloom")) {
-		ImGui::Checkbox("Enable Frame Bloom", &sFieldFrameBloomEnabled);
-		ImGui::DragFloat("Frame Bloom Threshold", &sFieldFrameBloomThreshold, 0.01f, 0.0f, 3.0f);
-		ImGui::DragFloat("Frame Bloom Intensity", &sFieldFrameBloomIntensity, 0.01f, 0.0f, 10.0f);
-		ImGui::DragFloat("Hand Bloom Intensity", &sHandFrameBloomIntensity, 0.01f, 0.0f, 10.0f);
-		ImGui::DragFloat("Frame Bloom Min Pulse", &sFieldFrameBloomMinPulse, 0.01f, 0.0f, 1.0f);
-		ImGui::DragFloat("Frame Bloom ChromAb", &sFieldFrameBloomChromAb, 0.0005f, 0.0f, 0.05f);
-		if (ImGui::Button("Reset Field Frame Bloom")) {
-			sFieldFrameBloomEnabled = true;
-			sFieldFrameBloomThreshold = 0.35f;
-			sFieldFrameBloomIntensity = 1.45f;
-			sHandFrameBloomIntensity = 1.15f;
-			sFieldFrameBloomMinPulse = 0.15f;
-			sFieldFrameBloomChromAb = 0.0015f;
-		}
-	}
-
-	if (ImGui::CollapsingHeader("Enemy Bloom")) {
-		ImGui::Checkbox("Intent Bloom", &sEnemyIntentBloomEnabled);
-		ImGui::DragFloat("Intent Intensity", &sEnemyIntentBloomIntensity, 0.01f, 0.0f, 10.0f);
-		ImGui::DragFloat("Intent Min Pulse", &sEnemyIntentBloomMinPulse, 0.01f, 0.0f, 1.0f);
-		ImGui::Checkbox("Target Bloom", &sEnemyTargetBloomEnabled);
-		ImGui::DragFloat("Target Intensity", &sEnemyTargetBloomIntensity, 0.01f, 0.0f, 10.0f);
-		ImGui::DragFloat("Target ChromAb", &sEnemyTargetBloomChromAb, 0.0005f, 0.0f, 0.05f);
-		if (ImGui::Button("Reset Enemy Bloom")) {
-			sEnemyIntentBloomEnabled = true;
-			sEnemyIntentBloomIntensity = 1.8f;
-			sEnemyIntentBloomMinPulse = 0.45f;
-			sEnemyTargetBloomEnabled = true;
-			sEnemyTargetBloomIntensity = 2.1f;
-			sEnemyTargetBloomChromAb = 0.002f;
-		}
-	}
-
-	if (ImGui::CollapsingHeader("HP Gauge Bloom")) {
-		ImGui::Checkbox("HP Bloom", &sHpGaugeBloomEnabled);
-		ImGui::DragFloat("HP Bloom Intensity", &sHpGaugeBloomIntensity, 0.01f, 0.0f, 5.0f);
-		ImGui::DragFloat("HP Bloom Min Pulse", &sHpGaugeBloomMinPulse, 0.01f, 0.0f, 1.0f);
-		ImGui::DragFloat("Damage Blink Speed", &sHpDamageBlinkSpeed, 0.1f, 0.0f, 20.0f);
-		ImGui::DragFloat("Damage Bloom Intensity", &sHpDamageBloomIntensity, 0.01f, 0.0f, 5.0f);
-		if (ImGui::Button("Reset HP Gauge Bloom")) {
-			sHpGaugeBloomEnabled = true;
-			sHpGaugeBloomIntensity = 0.55f;
-			sHpGaugeBloomMinPulse = 0.65f;
-			sHpDamageBlinkSpeed = 6.0f;
-			sHpDamageBloomIntensity = 1.05f;
-		}
-	}
-
-	if (ImGui::CollapsingHeader("Character Scale")) {
-		if (player_ && player_->GetObject3d()) {
-			Vector3 pScale = player_->GetObject3d()->GetScale();
-			if (ImGui::DragFloat3("Player Scale", &pScale.x, 0.01f)) {
-				player_->GetObject3d()->SetScale(pScale);
-			}
-		}
-		if (enemyMgr_) {
-			int idx = 0;
-			for (auto& enemy : enemyMgr_->GetEnemies()) {
-				if (!enemy.IsAlive() || !enemy.GetObject3d()) {
-					idx++;
-					continue;
-				}
-				ImGui::PushID(idx);
-				Vector3 eScale = enemy.GetObject3d()->GetScale();
-				if (ImGui::DragFloat3(("Enemy " + std::to_string(idx) + " Scale").c_str(), &eScale.x, 0.01f)) {
-					enemy.GetObject3d()->SetScale(eScale);
-				}
-				ImGui::PopID();
-				idx++;
-			}
-		}
-	}
-
-	handView_.DrawImGui();
-
-	const char* stateName = "";
+	const char* cardStateName = "";
 	switch (cardState_) {
-	case CardInputState::Idle: stateName = "Idle"; break;
-	case CardInputState::Dragging: stateName = "Dragging"; break;
-	case CardInputState::Preview: stateName = "Preview"; break;
-	case CardInputState::ChoosingFieldReplace: stateName = "ChoosingFieldReplace"; break;
-	}
-	ImGui::Text("cardState: %s", stateName);
-
-	if (hasPendingCard_) {
-		ImGui::Text("pending: defId=%d number=%d suit=%s",
-			pendingCard_.defId,
-			pendingCard_.number,
-			SuitToString(pendingCard_.suit));
-	} else {
-		ImGui::Text("pending: none");
+	case CardInputState::Idle: cardStateName = "Idle"; break;
+	case CardInputState::Dragging: cardStateName = "Dragging"; break;
+	case CardInputState::Preview: cardStateName = "Preview"; break;
+	case CardInputState::ChoosingFieldReplace: cardStateName = "ChoosingFieldReplace"; break;
 	}
 
-	ImGui::Separator();
-	ImGui::Text("Hand Cards");
-	const auto& hand = deckZone_.GetHand();
-	for (int i = 0; i < static_cast<int>(hand.size()); ++i) {
-		ImGui::Text("hand[%d] defId=%d number=%d suit=%s",
-			i,
-			hand[i].defId,
-			hand[i].number,
-			SuitToString(hand[i].suit));
-	}
+	const PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
 
-	ImGui::Separator();
-	ImGui::Text("Field Cards");
-	for (int i = 0; i < (int)field_.size(); ++i) {
-		ImGui::Text("field[%d] defId=%d number=%d suit=%s",
-			i,
-			field_[i].defId,
-			field_[i].number,
-			SuitToString(field_[i].suit));
-	}
+	BattleDebugImGui::Context context{};
+	context.playerStatusUi = &playerStatusUi_;
+	context.turnName = turn_ == TurnState::Player ? "Player" : "Enemy";
+	context.playerTurnCount = playerTurnCount_;
+	context.enemyTurnCount = enemyTurnCount_;
+	context.energy = energy_;
+	context.energyMax = energyMax_;
+	context.deckZone = &deckZone_;
+	context.field = &field_;
+	context.handView = &handView_;
+	context.cardStateName = cardStateName;
+	context.hasPendingCard = hasPendingCard_;
+	context.pendingCard = pendingCard_;
+	context.evaluatedPoker = EvaluatePokerHand_();
+	context.currentPoker = currentPoker_;
+	context.waitingActivateChoice = pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice;
+	context.waitingEffectChoice = pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice;
+	context.currentPokerBonus = { bonus.atkUp, bonus.drawCount, bonus.damage };
+	context.player = player_;
+	context.enemyMgr = enemyMgr_;
+	context.propManager = propManager_.get();
+	context.useDebugPreviewBuff = &useDebugPreviewBuff_;
+	context.currentTurnAtkUp = &currentTurnAtkUp_;
+	context.nextTurnAtkUp = &nextTurnAtkUp_;
+	context.debugPreviewPowerBoost = &debugPreviewPowerBoost_;
+	context.debugPreviewCurrentTurnAtkUp = &debugPreviewCurrentTurnAtkUp_;
+	context.debugPreviewNextTurnAtkUp = &debugPreviewNextTurnAtkUp_;
+	context.actionDirector = &actionDirector_;
+	context.camera = cam_;
 
-	ImGui::Separator();
-	PokerHandResult poker = EvaluatePokerHand_();
-	ImGui::Text("Poker Hand: %s", GetPokerHandName_(poker.rank));
-	ImGui::Text("Poker Power: %d", poker.power);
+	context.fieldCardGlitter.localOffset = &sFieldCardGlitterLocalOffset;
+	context.fieldCardGlitter.spreadX = &sFieldCardGlitterSpreadX;
+	context.fieldCardGlitter.spreadY = &sFieldCardGlitterSpreadY;
+	context.fieldCardGlitter.emitInterval = &sFieldCardGlitterEmitInterval;
+	context.fieldCardGlitter.normalCount = &sFieldCardGlitterNormalCount;
+	context.fieldCardGlitter.highlightCount = &sFieldCardGlitterHighlightCount;
+	context.fieldCardGlitter.handPreviewEnabled = &sHandPokerPreviewEnabled;
+	context.fieldCardGlitter.handEmitInterval = &sHandCardGlitterEmitInterval;
+	context.fieldCardGlitter.handCount = &sHandCardGlitterCount;
 
-	if (pokerChoiceState_ == PokerChoiceState::WaitingActivateChoice)
-	{
-		ImGui::Separator();
-		ImGui::Text("Poker Skill Available!");
-		ImGui::Text("Hand : %s", GetPokerHandName_(currentPoker_.rank));
-		ImGui::Text("Press Y = Activate");
-		ImGui::Text("Press N = Skip");
-	}
+	context.fieldFrameBloom.enabled = &sFieldFrameBloomEnabled;
+	context.fieldFrameBloom.threshold = &sFieldFrameBloomThreshold;
+	context.fieldFrameBloom.intensity = &sFieldFrameBloomIntensity;
+	context.fieldFrameBloom.handIntensity = &sHandFrameBloomIntensity;
+	context.fieldFrameBloom.minPulse = &sFieldFrameBloomMinPulse;
+	context.fieldFrameBloom.chromAb = &sFieldFrameBloomChromAb;
 
-	if (pokerChoiceState_ == PokerChoiceState::WaitingEffectChoice)
-	{
-		PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
+	context.enemyBloom.intentEnabled = &sEnemyIntentBloomEnabled;
+	context.enemyBloom.intentIntensity = &sEnemyIntentBloomIntensity;
+	context.enemyBloom.intentMinPulse = &sEnemyIntentBloomMinPulse;
+	context.enemyBloom.targetEnabled = &sEnemyTargetBloomEnabled;
+	context.enemyBloom.targetIntensity = &sEnemyTargetBloomIntensity;
+	context.enemyBloom.targetChromAb = &sEnemyTargetBloomChromAb;
 
-		ImGui::Separator();
-		ImGui::Text("Choose Poker Effect");
-		ImGui::Text("Hand : %s", GetPokerHandName_(currentPoker_.rank));
-		ImGui::Text("1 : Next Turn ATK UP (+%d)", bonus.atkUp);
-		ImGui::Text("2 : Draw %d", bonus.drawCount);
-		ImGui::Text("3 : Damage %d", bonus.damage);
-		ImGui::Text("N : Back");
-	}
-	ImGui::Separator();
+	context.hpGaugeBloom.enabled = &sHpGaugeBloomEnabled;
+	context.hpGaugeBloom.intensity = &sHpGaugeBloomIntensity;
+	context.hpGaugeBloom.minPulse = &sHpGaugeBloomMinPulse;
+	context.hpGaugeBloom.damageBlinkSpeed = &sHpDamageBlinkSpeed;
+	context.hpGaugeBloom.damageIntensity = &sHpDamageBloomIntensity;
 
-	if (player_) {
-		ImGui::Text("Player Hp: %d", player_->GetHP());
-		ImGui::Text("Player Hp: %d (Block: %d)", player_->GetHP(), player_->GetBlock());
-		ImGui::Text("Player Power: %d (CurrentTurnAtkUp: %d / NextTurnAtkUp: %d)",
-			player_->GetBoostedPower(),
-			currentTurnAtkUp_,
-			nextTurnAtkUp_);
-	} else {
-		ImGui::Text("Player: null");
-		ImGui::Text("Player Power: preview mode (CurrentTurnAtkUp: %d / NextTurnAtkUp: %d)",
-			currentTurnAtkUp_,
-			nextTurnAtkUp_);
-	}
-
-	if (enemyMgr_ && !enemyMgr_->GetEnemies().empty()) {
-		ImGui::Text("Enemy Hp: %d", enemyMgr_->GetEnemies()[0].GetHP());
-	} else {
-		ImGui::Text("Enemy: null");
-	}
-
-	ImGui::Separator();
-	if (propManager_) {
-		propManager_->DrawImGui();
-	}
-
-	ImGui::Separator();
-	ImGui::Text("Attack Debug");
-
-	ImGui::Checkbox("Use Debug Preview Buff", &useDebugPreviewBuff_);
-
-	if (player_) {
-		ImGui::Text("Runtime Player Connected");
-
-		int previewPower = player_->GetBoostedPower();
-		if (ImGui::DragInt("Player PowerBoost", &previewPower, 1.0f, -999, 999)) {
-			player_->ResetPowerBoost();
-			if (previewPower > 0) {
-				player_->PowerBoost(previewPower);
-			}
-		}
-
-		ImGui::DragInt("CurrentTurnAtkUp", &currentTurnAtkUp_, 1.0f, -999, 999);
-		ImGui::DragInt("NextTurnAtkUp", &nextTurnAtkUp_, 1.0f, -999, 999);
-	} else {
-		ImGui::Text("Preview Only (No Player Connected)");
-		ImGui::DragInt("Debug PowerBoost", &debugPreviewPowerBoost_, 1.0f, -999, 999);
-		ImGui::DragInt("Debug CurrentTurnAtkUp", &debugPreviewCurrentTurnAtkUp_, 1.0f, -999, 999);
-		ImGui::DragInt("Debug NextTurnAtkUp", &debugPreviewNextTurnAtkUp_, 1.0f, -999, 999);
-	}
-
-	actionDirector_.DrawImGuiEditor(cam_);
+	BattleDebugImGui::Draw(context);
 }
 #endif
 
@@ -3703,8 +3194,23 @@ bool BattleController::HasPokerChoiceUi() const
 std::wstring BattleController::GetPokerChoiceUiText() const
 {
 	const PokerBonus bonus = GetPokerBonus_(currentPoker_.rank);
-	return PokerChoiceTextBuilder::BuildChoiceUiText(
-		PokerChoiceQuery::ToTextBuilderState(pokerChoiceState_),
+	BattleInfoTextProvider::PokerChoiceState choiceState = BattleInfoTextProvider::PokerChoiceState::None;
+	switch (pokerChoiceState_) {
+	case PokerChoiceState::WaitingActivateChoice:
+		choiceState = BattleInfoTextProvider::PokerChoiceState::WaitingActivateChoice;
+		break;
+	case PokerChoiceState::WaitingEffectChoice:
+		choiceState = BattleInfoTextProvider::PokerChoiceState::WaitingEffectChoice;
+		break;
+	case PokerChoiceState::ViewingBoardFromPokerUi:
+		choiceState = BattleInfoTextProvider::PokerChoiceState::ViewingBoard;
+		break;
+	case PokerChoiceState::None:
+	default:
+		break;
+	}
+	return BattleInfoTextProvider::BuildPokerChoiceUiText(
+		choiceState,
 		currentPoker_.rank,
 		{ bonus.atkUp, bonus.drawCount, bonus.damage });
 }
@@ -3736,128 +3242,52 @@ bool BattleController::ShouldShowOperationUi() const
 
 std::wstring BattleController::GetOperationUiText() const
 {
+	BattleInfoTextProvider::OperationState operationState = BattleInfoTextProvider::OperationState::Basic;
 	if (cardState_ == CardInputState::ChoosingFieldReplace) {
-		std::wstring text;
-		text += L"カード交換\n";
-		text += L"左クリック : 選択中の場カードと入れ替える\n";
-		text += L"右クリック : 入れ替えず墓地へ送る\n";
-		return text;
+		operationState = BattleInfoTextProvider::OperationState::ChoosingFieldReplace;
+	} else if (cardState_ == CardInputState::Preview) {
+		operationState = BattleInfoTextProvider::OperationState::Preview;
 	}
 
-	if (cardState_ == CardInputState::Preview) {
-		std::wstring text;
-		text += L"カード選択中\n";
-		text += L"左クリック : 使用する\n";
-		text += L"右クリック : キャンセル\n";
-		text += L"Tab : 操作説明を表示\n";
-		return text;
-	}
-
-	std::wstring text;
-	text += L"基本操作\n";
-	text += L"左クリック＋上ドラッグ : カードをプレビュー\n";
-	text += L"プレビュー中に左クリック : カードを使用\n";
-	text += L"プレビュー中に右クリック : キャンセル\n";
-	text += L"Enter : ターン終了\n";
-	text += L"Tab : 操作説明を表示\n";
-	return text;
+	return BattleInfoTextProvider::BuildOperationText(operationState);
 }
 
 std::wstring BattleController::GetZoneCountUiText() const
 {
-	std::wstring text;
-	text += L"山札 : " + std::to_wstring(deckZone_.GetDeckCount()) + L"\n";
-	text += L"手札 : " + std::to_wstring(deckZone_.GetHandCount()) + L"\n";
-	text += L"墓地 : " + std::to_wstring(deckZone_.GetDiscardCount()) + L"\n";
-	text += L"場   : " + std::to_wstring(field_.size()) + L"\n";
-	return text;
+	return BattleInfoTextProvider::BuildZoneCountText({
+		static_cast<int>(deckZone_.GetDeckCount()),
+		static_cast<int>(deckZone_.GetHandCount()),
+		static_cast<int>(deckZone_.GetDiscardCount()),
+		static_cast<int>(field_.size()) });
 }
 
 std::wstring BattleController::GetCurrentPokerHandUiText() const
 {
 	PokerHandResult poker = EvaluatePokerHand_();
-
-	if (field_.size() < 5) {
-		return L"役:       判定中";
-	}
-
-	if (poker.rank == PokerHandRank::None) {
-		return L"役:       なし";
-	}
-
-	switch (poker.rank) {
-	case PokerHandRank::OnePair: return L"役: ワンペア";
-	case PokerHandRank::TwoPair: return L"役: ツーペア";
-	case PokerHandRank::ThreeOfAKind: return L"役: スリーカード";
-	case PokerHandRank::Straight: return L"役: ストレート";
-	case PokerHandRank::Flush: return L"役: フラッシュ";
-	case PokerHandRank::FullHouse: return L"役: フルハウス";
-	case PokerHandRank::FourOfAKind: return L"役: フォーカード";
-	case PokerHandRank::StraightFlush: return L"役: ストレートフラッシュ";
-	case PokerHandRank::RoyalStraightFlush: return L"役: ロイヤルストレートフラッシュ";
-	default: return L"役: ?";
-	}
+	return BattleInfoTextProvider::BuildCurrentPokerHandText(poker.rank, field_.size());
 }
 
 std::wstring BattleController::GetTurnUiText() const
 {
-	std::wstring text;
-
-	switch (turn_) {
-	case TurnState::Player: return L"あなたのターン : " + std::to_wstring(playerTurnCount_);
-	case TurnState::Enemy: return L"あいてのターン : " + std::to_wstring(enemyTurnCount_);
-	}
-
-	return text;
+	return BattleInfoTextProvider::BuildTurnText({
+		turn_ == TurnState::Player,
+		playerTurnCount_,
+		enemyTurnCount_ });
 }
 
-std::wstring BattleController::GetEnergyText() const {
-
-	std::wstring text;
-
-	text += std::to_wstring(energy_) + L" / " + std::to_wstring(energyMax_);
-
-	return text;
-
+std::wstring BattleController::GetEnergyText() const
+{
+	return BattleInfoTextProvider::BuildEnergyText(energy_, energyMax_);
 }
 
 std::vector<std::wstring> BattleController::GetEnemyHpTexts() const
 {
-	std::vector<std::wstring> hpTexts;
-	if (!enemyMgr_) {
-		return hpTexts;
-	}
-
-	auto& enemies = enemyMgr_->GetEnemies();
-	for (const auto& enemy : enemies) {
-		if (!enemy.IsAlive()) {
-			continue;
-		}
-		std::wstring text = std::to_wstring(enemy.GetHP()) + L" / " + std::to_wstring(enemy.GetMaxHP());
-		if (enemy.GetBlock() > 0) {
-			text += L"  B " + std::to_wstring(enemy.GetBlock());
-		}
-		hpTexts.push_back(text);
-	}
-	return hpTexts;
+	return BattleInfoTextProvider::BuildEnemyHpTexts(enemyMgr_);
 }
 
 std::vector<std::wstring> BattleController::GetEnemyBCTexts() const
 {
-	std::vector<std::wstring> bcTexts;
-	if (!enemyMgr_) {
-		return bcTexts;
-	}
-
-	auto& enemies = enemyMgr_->GetEnemies();
-	for (const auto& enemy : enemies) {
-		if (!enemy.IsAlive()) {
-			continue;
-		}
-		const int bcPoint = enemy.GetBCPoint();
-		bcTexts.push_back(bcPoint == 0 ? L"" : std::to_wstring(bcPoint));
-	}
-	return bcTexts;
+	return BattleInfoTextProvider::BuildEnemyBcTexts(enemyMgr_);
 }
 
 BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
@@ -3866,12 +3296,9 @@ BattleController::PokerBonus BattleController::GetCurrentPokerBonusForUi() const
 }
 
 
-std::wstring BattleController::GetPlayerHpTexts() const {
-	std::wstring text;
-
-	text = std::to_wstring(player_->GetHP()) + L" / " + std::to_wstring(player_->GetMaxHP());
-
-	return text;
+std::wstring BattleController::GetPlayerHpTexts() const
+{
+	return BattleInfoTextProvider::BuildPlayerHpText(*player_);
 }
 
 bool BattleController::IsAllEnemiesDead() const {
@@ -3882,22 +3309,15 @@ bool BattleController::IsAllEnemiesDead() const {
 	return true; // 鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・ｨ鬮ｯ・ｷ繝ｻ・ｩ郢晢ｽｻ繝ｻ・｡鬮ｮ蠑ｱ繝ｻ繝ｻ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ鬮ｦ・ｮ陷ｷ・ｶ・つ陜｣・､繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ髫ｨ・ｳ郢晢ｽｻ繝ｻ・ｹ繝ｻ・ｧ髮趣ｽｸ繝ｻ・ｲrue
 }
 
-std::wstring BattleController::GetPlayerPowerBoostText()const {
-	std::wstring text;
-
-	text = std::to_wstring(player_->GetBoostedPower());
-
-	return text;
+std::wstring BattleController::GetPlayerPowerBoostText() const
+{
+	return BattleInfoTextProvider::BuildPlayerPowerBoostText(*player_);
 }
 
-std::wstring BattleController::GetPlayerBlockText()const {
-	std::wstring text;
-
-	text = std::to_wstring(player_->GetBlock());
-
-	return text;
+std::wstring BattleController::GetPlayerBlockText() const
+{
+	return BattleInfoTextProvider::BuildPlayerBlockText(*player_);
 }
-
 int BattleController::CalcTotalIncomingDamage() const {
 	int total = 0;
 	if (!enemyMgr_ || !player_) return 0;
