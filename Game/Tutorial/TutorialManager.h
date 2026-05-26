@@ -7,6 +7,13 @@ class BattleController;
 class TutorialManager {
 public:
 
+    enum class TutorialChapter {
+        Full,
+        FieldUi,
+        Card,
+        SpecialEffect,
+        Practice
+    };
 
     enum class TutorialStep {
         Intro,
@@ -31,6 +38,7 @@ public:
         ExplainCardAll,
 
         PlayCard,
+        ChooseEnemyTarget,
         ExplainEnergy,
         FillField,
         EndPlayerTurn,
@@ -71,6 +79,7 @@ public:
 public:
     void Initialize();
     void Reset();
+    void StartChapter(TutorialChapter chapter);
     void Update(BattleController& battle);
     void NextStep();
 
@@ -101,6 +110,10 @@ public:
 private:
     void UpdateMessage_();
     void Advance_();
+    void FinishIfPastChapterEnd_();
+    bool IsPastChapterEnd_(TutorialStep step) const;
+    TutorialStep GetChapterStartStep_(TutorialChapter chapter) const;
+    TutorialStep GetChapterEndStep_(TutorialChapter chapter) const;
 
     static const char* StepToKey_(TutorialStep step);
     std::wstring GetMessageFromTable_(TutorialStep step) const;
@@ -108,6 +121,7 @@ private:
 
 private:
     TutorialStep step_ = TutorialStep::Intro;
+    TutorialChapter chapter_ = TutorialChapter::Full;
     bool isActive_ = true;
     std::wstring message_;
 
