@@ -39,9 +39,6 @@ void SelectionState::Update(PausingUI* context, GameApp& app, Input* input) {
 	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
 
 	for (auto& btn : buttons_) {
-		if (btn->GetName() == "GiveUpButton") {
-			btn->SetTextString(context->IsTutorialExitMode() ? L"終了" : L"降参");
-		}
 		if (btn->IsPressed()) {
 			if (btn->GetName() == "ResumeButton") {
 				context->SetIsPaused(false);

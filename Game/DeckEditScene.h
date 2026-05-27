@@ -68,7 +68,7 @@ private:
     std::unique_ptr<Sprite> selectingTemplateDeckBg_ = nullptr;
     std::vector< std::unique_ptr<Button>> deckTemplateButtons_;
 
-    bool isSelectingTemplateDeck_ = false;
+    bool isSelectingTemplateDeck_ = true;
 
 	int cardCount_ = 0;
 

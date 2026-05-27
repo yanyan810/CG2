@@ -523,7 +523,6 @@ struct TutorialUiLayout {
     UiRect turnTextArea;
     UiRect roleTextArea;
     UiRect deckCountArea;
-    UiRect pokerHandHelpArea;
 
     UiRect playerIncomingDamageArea;
     UiRect enemyNextActionArea;
@@ -549,7 +548,6 @@ inline TutorialUiLayout MakeDefaultTutorialUiLayout()
     l.turnTextArea = { 860.0f, 80.0f, 420.0f, 120.0f };
     l.roleTextArea = { 900.0f, 530.0f, 360.0f, 120.0f };
     l.deckCountArea = { 80.0f, 700.0f, 340.0f, 140.0f };
-    l.pokerHandHelpArea = { 18.0f, 660.0f, 118.0f, 42.0f };
 
     l .playerHpArea = { 80.0f, 30.0f, 251.0f, 29.0f };
     l.playerIncomingDamageArea = { 320.0f, 20.0f, 90.0f, 60.0f };
