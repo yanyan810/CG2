@@ -26,11 +26,15 @@ public:
 	bool GetIsSceneChangeRequested() const { return isSceneChanageReqested_; }
 	void RequestSceneChange(bool paused) { isSceneChanageReqested_ = paused; }
 
+    void SetTutorialExitMode(bool mode) { tutorialExitMode_ = mode; }
+    bool IsTutorialExitMode() const { return tutorialExitMode_; }
+
 private:
     // 状態管理
     bool isPaused_ = false;
 
 	bool isSceneChanageReqested_ = false;
+    bool tutorialExitMode_ = false;
 
     std::unique_ptr<IPauseState> currentState_;
 
