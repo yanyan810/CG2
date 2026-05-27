@@ -108,9 +108,9 @@ void EnemyBattleStatusUI::UpdateLayout(
 					intentIcons_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
 				} else if (nextAct.type == "Attack") {
 					intentIcons_[i]->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
-				} else if (nextAct.type == "Heal") {
+				} else if (nextAct.type == "Heal" || nextAct.type == "HealAll" || nextAct.type == "HealLowestAlly") {
 					intentIcons_[i]->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
-				} else if (nextAct.type == "Block") {
+				} else if (nextAct.type == "Block" || nextAct.type == "BlockAll" || nextAct.type == "BlockLowestAlly") {
 					intentIcons_[i]->SetColor({ 0.25f, 0.55f, 1.0f, 1.0f });
 				} else {
 					intentIcons_[i]->SetColor({ 0.8f, 0.8f, 0.8f, 1.0f });
