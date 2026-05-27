@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 
 struct UiVec2 {
@@ -193,7 +193,7 @@ struct PokerEffectChoiceLayout {
     UiText previewPanelTitleImage;
     UiText previewPanelText;
 
-    // 追加
+    // 霑ｽ蜉
     UiText activateTitleText;
     UiText activateYesText;
     UiText activateNoText;
@@ -223,7 +223,7 @@ struct UiNumberItem {
 
 struct UiCardDescBaseRowLayout {
     UiImageItem target;
-    UiImageItem particle;   // に / は
+    UiImageItem particle;   // 縺ｫ / 縺ｯ
     UiImageItem effectType;
     UiNumberItem value;
 
@@ -238,7 +238,7 @@ struct UiCardDescSubBlockLayout {
     UiImageItem suffix;
 
     UiImageItem target;
-    UiImageItem particle;   // に / は
+    UiImageItem particle;   // 縺ｫ / 縺ｯ
     UiImageItem effectType;
     UiNumberItem value;
 };
@@ -312,8 +312,8 @@ struct FieldUiLayout {
 
     UiRect overlay;
 
-    UiCardDescImageLayout cardDescImage;      // 既存
-    UiCardDescCustomLayout cardDescCustom;    // 追加
+    UiCardDescImageLayout cardDescImage;      // 譌｢蟄・
+    UiCardDescCustomLayout cardDescCustom;    // 霑ｽ蜉
 };
 
 struct UiNumber {
@@ -427,11 +427,11 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
     l.effectTitleText = { 515.0f, 170.0f, 1.0f };
     l.backText = { 78.0f, 78.0f, 1.0f };
     l.effectTexts[0] = { 95.0f, 280.0f, 0.95f };   // ATK UP
-    l.effectTexts[1] = { 545.0f, 280.0f, 0.95f };  // ダメージ
-    l.effectTexts[2] = { 993.0f, 280.0f, 0.95f };  // ドロー
+    l.effectTexts[1] = { 545.0f, 280.0f, 0.95f };  // 繝繝｡繝ｼ繧ｸ
+    l.effectTexts[2] = { 993.0f, 280.0f, 0.95f };  // 繝峨Ο繝ｼ
     l.effectViewBoardText = { 555.0f, 655.0f, 1.0f };
 
-    // ターン開始時
+    // 繧ｿ繝ｼ繝ｳ髢句ｧ区凾
     for (int i = 0; i < 5; ++i) {
         float y = 475.0f + 62.0f * i;
 
@@ -443,7 +443,7 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
         l.previewImages.turnStartEffectAnchors.none.lanes[i] = { 725.0f, y };
     }
 
-    // 特殊効果発動時
+    // 迚ｹ谿雁柑譫懃匱蜍墓凾
     for (int i = 0; i < 5; ++i) {
         float y = 585.0f + 62.0f * i;
 
@@ -504,7 +504,7 @@ inline PokerEffectChoiceLayout MakeDefaultPokerEffectChoiceLayout()
 }
 
 //=========================
-//チュートリアル用
+//繝√Η繝ｼ繝医Μ繧｢繝ｫ逕ｨ
 //=========================
 
 struct TutorialUiLayout {
@@ -514,7 +514,7 @@ struct TutorialUiLayout {
 
     UiRect darkOverlay;
 
-    // FieldUiに専用rectがないものだけ持つ
+    // FieldUi縺ｫ蟆ら畑rect縺後↑縺・ｂ縺ｮ縺縺第戟縺､
     UiRect handArea;
     UiRect fieldArea;
 
@@ -523,6 +523,7 @@ struct TutorialUiLayout {
     UiRect turnTextArea;
     UiRect roleTextArea;
     UiRect deckCountArea;
+    UiRect pokerHandHelpArea;
 
     UiRect playerIncomingDamageArea;
     UiRect enemyNextActionArea;
@@ -539,7 +540,7 @@ inline TutorialUiLayout MakeDefaultTutorialUiLayout()
 
     l.darkOverlay = { 0.0f, 0.0f, 1280.0f, 720.0f };
 
-    // とりあえずの初期値。あとでImGuiで合わせる
+    // 縺ｨ繧翫≠縺医★縺ｮ蛻晄悄蛟､縲ゅ≠縺ｨ縺ｧImGui縺ｧ蜷医ｏ縺帙ｋ
     l.handArea = { 170.0f, 560.0f, 950.0f, 140.0f };
     l.fieldArea = { 200.0f, 330.0f, 900.0f, 190.0f };
 
