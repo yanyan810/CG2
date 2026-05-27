@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -91,11 +92,15 @@ public:
         const std::vector<std::string>& effectTypes) const;
 
 	void LoadDeck(const std::string& deckConfigPath);
+    void BeginStartupLoading();
+    bool LoadStartupStep();
+    float GetStartupLoadingProgress() const;
 
 private:
     bool Initialize_();
     void Finalize_();
     void WarmupAssets_();
+    void BuildStartupLoadSteps_();
     void LoadActionSequenceProfiles_();
     const ActionSequenceProfile* PickSequenceFromNames_(const std::vector<std::string>& names) const;
     std::string NormalizeActionSequenceEffectType_(const std::string& effectType) const;
@@ -129,4 +134,6 @@ private:
     std::vector<std::string> cardUseSequenceNames_;
     std::unordered_map<std::string, std::vector<std::string>> effectSequenceNames_;
     std::unordered_map<int, std::vector<std::string>> cardSequenceNames_;
+    std::vector<std::function<void()>> startupLoadSteps_;
+    size_t startupLoadIndex_ = 0;
 };

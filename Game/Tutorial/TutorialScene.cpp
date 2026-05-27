@@ -401,6 +401,10 @@ void TutorialScene::InitializeTutorialContent_(GameApp& app)
     tutorialUi_ = std::make_unique<TutorialUi>();
     tutorialUi_->Initialize(app);
 
+    pausingUI_ = std::make_unique<PausingUI>();
+    pausingUI_->Initialize(app);
+    pausingUI_->SetTutorialExitMode(true);
+
     pokerHandHelpView_ = std::make_unique<PokerHandHelpView>();
     pokerHandHelpView_->Initialize(app.SpriteCom(), app.Dx());
 
@@ -591,6 +595,7 @@ void TutorialScene::OnEnter(GameApp& app) {
 void TutorialScene::OnExit(GameApp& app) {
     (void)app;
     tutorialUi_.reset();
+    pausingUI_.reset();
     tutorial_.reset();
     tutorialMenuBg_.reset();
     tutorialMenuButtons_.clear();
@@ -683,6 +688,21 @@ void TutorialScene::Update(GameApp& app, float dt) {
         }
         UpdateTutorialMenu_(app);
         return;
+    }
+
+    if (pausingUI_) {
+        pausingUI_->Update(app, input);
+        if (pausingUI_->GetIsSceneChangeRequested()) {
+            ReturnToTitle_();
+            return;
+        }
+        if (pausingUI_->GetIsPaused()) {
+            battle_.SetTutorialInputLocked(true);
+            if (fieldUi_) {
+                fieldUi_->SetTutorialInputLocked(true);
+            }
+            return;
+        }
     }
 
     bool isTargeting = battle_.IsPlayerTargeting();
@@ -849,6 +869,7 @@ void TutorialScene::Update(GameApp& app, float dt) {
 
     // ImGui操作中もゲーム側入力を止める
     lockGameplayInput = lockGameplayInput || imguiCapturingMouse;
+    lockGameplayInput = lockGameplayInput || input->IsKeyPressed(DIK_TAB);
 
     battle_.SetTutorialInputLocked(lockGameplayInput);
     if (fieldUi_) {
@@ -1070,6 +1091,9 @@ void TutorialScene::Draw2D(GameApp& app) {
 
     if (battle_.IsActionSequencePlaying()) {
         battle_.Draw2D(app);
+        if (pausingUI_) {
+            pausingUI_->Draw(app);
+        }
         app.SpriteCom()->DrawCircleMask(circle_, softness_);
         if (startFadeActive_ && startFadeMask_) {
             app.SpriteCom()->SetGraphicsPipelineState();
@@ -1188,6 +1212,10 @@ void TutorialScene::Draw2D(GameApp& app) {
     // 円形マスク描画
     if (pokerHandHelpView_) {
         pokerHandHelpView_->Draw(view, proj);
+    }
+
+    if (pausingUI_) {
+        pausingUI_->Draw(app);
     }
 
     app.SpriteCom()->DrawCircleMask(circle_, softness_);
