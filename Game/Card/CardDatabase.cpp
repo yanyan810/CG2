@@ -1,5 +1,6 @@
 #include "CardDatabase.h"
 #include <fstream>
+#include <cmath>
 #include "externals/nlohmann/json.hpp"
 #include "TextureManager.h"
 
@@ -19,6 +20,25 @@ static SubEffectConditionType ParseSubEffectConditionType(const std::string& s)
     if (s == "AtLeastRank") return SubEffectConditionType::AtLeastRank;
     if (s == "RankFamily") return SubEffectConditionType::RankFamily;
     return SubEffectConditionType::None;
+}
+
+static CardEffectDef ReadCardEffectDef_(const json& jEffect)
+{
+    CardEffectDef effect{};
+    effect.type = jEffect.value("type", "");
+
+    if (jEffect.contains("value") && jEffect["value"].is_number()) {
+        effect.valueFloat = jEffect["value"].get<float>();
+        effect.value = static_cast<int>(std::lround(effect.valueFloat));
+        effect.valueIsFloat = std::fabs(effect.valueFloat - static_cast<float>(effect.value)) > 0.0001f;
+    } else {
+        effect.value = jEffect.value("value", 0);
+        effect.valueFloat = static_cast<float>(effect.value);
+        effect.valueIsFloat = false;
+    }
+
+    effect.valueText = jEffect.value("valueText", "");
+    return effect;
 }
 
 void CardDatabase::BuildSample() {
@@ -78,10 +98,7 @@ bool CardDatabase::LoadFromJson(const std::string& path)
 
         if (jCard.contains("effects") && jCard["effects"].is_array()) {
             for (const auto& jEffect : jCard["effects"]) {
-                CardEffectDef effect{};
-                effect.type = jEffect.value("type", "");
-                effect.value = jEffect.value("value", 0);
-                def.effects.push_back(effect);
+                def.effects.push_back(ReadCardEffectDef_(jEffect));
             }
         }
 
@@ -100,11 +117,7 @@ bool CardDatabase::LoadFromJson(const std::string& path)
 
                 if (jSub.contains("effects") && jSub["effects"].is_array()) {
                     for (const auto& jEffect : jSub["effects"]) {
-                        CardEffectDef effect{};
-                        effect.type = jEffect.value("type", "");
-                        effect.value = jEffect.value("value", 0);
-                        effect.valueText = jEffect.value("valueText", "");
-                        sub.effects.push_back(effect);
+                        sub.effects.push_back(ReadCardEffectDef_(jEffect));
                     }
                 }
 

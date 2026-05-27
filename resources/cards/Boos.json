@@ -8,6 +8,6 @@
     { "type": "Attack", "value": 36, "name": "滅砕撃" },
     { "type": "Block",  "value": 50, "name": "鋼の構え" },
     { "type": "Block",  "value": 50, "name": "鋼の構え" },
-    { "type": "Heal",   "value": 55, "name": "闇の再生" }
+    { "type": "Heal",   "value": 45, "name": "闇の再生" }
   ]
 }

@@ -17,8 +17,7 @@
 namespace {
     constexpr float kIconX = 18.0f;
     constexpr float kIconY = 660.0f;
-    constexpr float kIconW = 118.0f;
-    constexpr float kIconH = 42.0f;
+    constexpr float kIconSize = 42.0f;
 
     constexpr float kPanelX = 18.0f;
     constexpr float kPanelY = 292.0f;
@@ -86,15 +85,15 @@ void PokerHandHelpView::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx
     iconBg_->Initialize(spriteCommon, dx, "resources/ui/white.png");
     iconBg_->SetAnchorPoint({ 0.0f, 0.0f });
     iconBg_->SetPosition({ kIconX, kIconY });
-    iconBg_->SetScale({ kIconW, kIconH, 1.0f });
+    iconBg_->SetScale({ kIconSize, kIconSize, 1.0f });
 
     iconText_ = std::make_unique<TextSprite>();
     iconText_->Initialize(spriteCommon, dx);
-    iconText_->SetText(L"役確認");
-    iconText_->SetFontSize(24);
+    iconText_->SetText(L"?");
+    iconText_->SetFontSize(28);
     iconText_->SetColor({ 0.95f, 0.95f, 1.0f });
-    iconText_->SetSize({ 0.58f, 0.58f, 1.0f });
-    iconText_->SetPosition({ kIconX + 16.0f, kIconY + 5.0f });
+    iconText_->SetSize({ 0.18f, 0.18f, 1.0f });
+    iconText_->SetPosition({ kIconX + 11.0f, kIconY - 1.0f });
 
     panelBg_ = std::make_unique<Sprite>();
     panelBg_->Initialize(spriteCommon, dx, "resources/ui/white.png");
@@ -248,9 +247,9 @@ bool PokerHandHelpView::IsMouseOverIcon_(const Vector2& mouse) const
 {
     constexpr float kHoverPad = 18.0f;
     const bool overIcon = mouse.x >= kIconX - kHoverPad &&
-        mouse.x <= kIconX + kIconW + kHoverPad &&
+        mouse.x <= kIconX + kIconSize + kHoverPad &&
         mouse.y >= kIconY - kHoverPad &&
-        mouse.y <= kIconY + kIconH + kHoverPad;
+        mouse.y <= kIconY + kIconSize + kHoverPad;
     if (!visible_) {
         return overIcon;
     }

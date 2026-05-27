@@ -3,7 +3,6 @@
 #include <memory>
 #include "TextSprite.h"
 #include "Sprite.h"
-#include <array>
 #include <vector>
 
 #include "Camera.h"
@@ -18,7 +17,6 @@
 #include "TutorialManager.h"
 #include "TutorialUi.h"
 #include "UI/PokerHandHelpView.h"
-#include "UI/PausingUI/PausingUI.h"
 #include "PropManager.h"
 
 class GameApp;
@@ -43,29 +41,11 @@ public:
 
 private:
     void ResetParticleObjectPostParam_();
-    void InitializeTutorialContent_(GameApp& app);
-    void InitializeTutorialMenu_(GameApp& app);
-    void UpdateTutorialMenu_(GameApp& app);
-    void DrawTutorialMenu_(GameApp& app);
-    void ShowTutorialMenu_(int page);
-    void StartTutorialChapter_(GameApp& app, TutorialManager::TutorialChapter chapter);
-    void ReturnToTitle_();
-    void ReturnToTutorialMenu_(GameApp& app);
 
     enum class State {
         EnterOpen,
         Idle,
         ExitClose
-    };
-
-    struct TutorialMenuButton {
-        UiRect rect;
-        std::wstring label;
-        TutorialManager::TutorialChapter chapter = TutorialManager::TutorialChapter::Full;
-        int nextPage = -1;
-        std::unique_ptr<Sprite> bg;
-        std::unique_ptr<TextSprite> text;
-        bool hovered = false;
     };
 
 private:
@@ -94,21 +74,8 @@ private:
 
     std::unique_ptr<TutorialManager> tutorial_;
     std::unique_ptr<TutorialUi> tutorialUi_;
-    std::unique_ptr<PausingUI> pausingUI_;
-    std::vector<TutorialMenuButton> tutorialMenuButtons_;
-    std::unique_ptr<Sprite> tutorialMenuBg_;
-    bool tutorialMenuVisible_ = true;
-    bool tutorialContentInitialized_ = false;
-    int tutorialMenuPage_ = 0;
-    TutorialManager::TutorialStep lastTutorialStep_ = TutorialManager::TutorialStep::Intro;
-    float cardExplainInputBlockTimer_ = 0.0f;
-    TutorialManager::TutorialStep messageEditorStep_ = TutorialManager::TutorialStep::Intro;
-    std::array<char, 4096> messageEditBuffer_{};
-    bool messageEditorInitialized_ = false;
-    bool messageEditDirty_ = false;
 
     std::unique_ptr<TextSprite> playerHpText_;
-    std::array<std::unique_ptr<TextSprite>, 8> playerHpOutlineTexts_;
     std::vector<std::unique_ptr<TextSprite>> enemyHpTexts_;
 
     std::unique_ptr<Sprite> powerBoostBg_;
@@ -116,8 +83,6 @@ private:
 
     std::unique_ptr<Sprite> blockBg_;
     std::unique_ptr<TextSprite> blockText_;
-    std::array<std::unique_ptr<TextSprite>, 8> blockOutlineTexts_;
-    std::unique_ptr<Sprite> highlightFilter_;
 
     std::unique_ptr<Sprite> startFadeMask_;
     float startFadeTimer_ = 0.0f;

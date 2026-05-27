@@ -5,6 +5,8 @@
 struct CardEffectDef {
     std::string type; // "Damage" / "Block" / "Draw" / "Heal" ...
     int value = 0;
+    float valueFloat = 0.0f;
+    bool valueIsFloat = false;
 
     // 将来用
     std::string valueText; // "Heart" など文字系を扱いたい時用

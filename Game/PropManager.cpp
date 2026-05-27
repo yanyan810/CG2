@@ -110,6 +110,15 @@ void PropManager::Update(float dt) {
 	}
 }
 
+void PropManager::WarmupDrawResources()
+{
+	for (auto& prop : placedProps_) {
+		if (prop.object) {
+			prop.object->WarmupDrawResources();
+		}
+	}
+}
+
 void PropManager::Draw3D() {
 	for (auto& prop : placedProps_) {
 		if (prop.object && !prop.usePostEffect) {
