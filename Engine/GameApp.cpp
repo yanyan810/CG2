@@ -2,6 +2,7 @@
 #include "SceneManager.h"
 #include "GameScene.h"  
 #include "GameLoadingScene.h"
+#include "StartupLoadingScene.h"
 #include "TitleScene.h"
 #include"DeckEditScene.h"
 #include "TestScene.h"
@@ -186,16 +187,9 @@ bool GameApp::Initialize_() {
 
 	win_->SetInputPointer(input_.get());
 
-	WarmupAssets_();
-
-	ModelParticleManager::GetInstance()->Initialize(dx_.get(), srv_.get());
-
-	Audio::GetInstance()->Initialize();
-	AudioManager::GetInstance()->LoadAllConfigs("resources/configs/audioSettings.json");
-	LoadActionSequenceProfiles_();
-
 	// SceneManager
 	sceneMgr_ = std::make_unique<SceneManager>();
+	sceneMgr_->Register("StartupLoading", [] { return std::make_unique<StartupLoadingScene>(); });
 	sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
 	sceneMgr_->Register("DeckEdit", [] { return std::make_unique<DeckEditScene>(); });
 	sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
@@ -208,23 +202,7 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("BattleAnimeEditer", [] { return std::make_unique<BattleAnimeEditerScene>(); });
 	sceneMgr_->Register("FieldEditer", [] { return std::make_unique<FieldEditerScene>(); });
 
-	// カードデータの読み込み
-	std::vector<std::string> cardFiles = {
-	  "resources/cards/data/UtilityAttack.json",
-	  "resources/cards/data/UtilitySupport.json",
-	  "resources/cards/data/Poison.json",
-	  "resources/cards/data/Frost.json"
-	};
-	cardDB_ = std::make_unique<CardDatabase>();
-	cardDB_->LoadFromJsons(cardFiles);
-
-	LoadDeck("resources/deck/deck_default.json");
-
-	// 事前にカードなどの全アセットを読み込んでおく（画面遷移時のカクつき防止）
-	BattleController dummyBattle;
-	dummyBattle.Preload(*this);
-
-	sceneMgr_->Change(*this, "Title");
+	sceneMgr_->Change(*this, "StartupLoading");
 
 
 	OutputDebugStringA("[GameApp] Initialize END\n");
@@ -397,6 +375,176 @@ void GameApp::ResetRadialBlur()
 	if (bloom_) {
 		bloom_->ResetRadialBlur();
 	}
+}
+
+void GameApp::BeginStartupLoading()
+{
+	BuildStartupLoadSteps_();
+	startupLoadIndex_ = 0;
+}
+
+bool GameApp::LoadStartupStep()
+{
+	if (startupLoadIndex_ >= startupLoadSteps_.size()) {
+		return true;
+	}
+
+	startupLoadSteps_[startupLoadIndex_]();
+	++startupLoadIndex_;
+	return startupLoadIndex_ >= startupLoadSteps_.size();
+}
+
+float GameApp::GetStartupLoadingProgress() const
+{
+	if (startupLoadSteps_.empty()) {
+		return 1.0f;
+	}
+
+	return static_cast<float>(startupLoadIndex_) / static_cast<float>(startupLoadSteps_.size());
+}
+
+void GameApp::BuildStartupLoadSteps_()
+{
+	startupLoadSteps_.clear();
+
+	const auto addTexture = [this](const std::string& path) {
+		startupLoadSteps_.push_back([path]() {
+			TextureManager::GetInstance()->LoadTexture(path);
+			});
+		};
+	const auto addModel = [this](const std::string& path) {
+		startupLoadSteps_.push_back([path]() {
+			ModelManager::GetInstance()->LoadModel(path);
+			});
+		};
+
+	const std::vector<std::string> texturePaths = {
+		"resources/shadow/shadow.png",
+		"resources/ui/text/activatingEffect.png",
+		"resources/ui/text/activation.png",
+		"resources/ui/text/back.png",
+		"resources/ui/text/backChooseActive.png",
+		"resources/ui/text/chooseActive.png",
+		"resources/ui/text/doActivation.png",
+		"resources/ui/text/effectsList.png",
+		"resources/ui/text/noActivation.png",
+		"resources/ui/text/showField.png",
+		"resources/ui/text/damage.png",
+		"resources/ui/text/draw.png",
+		"resources/ui/text/attakUp.png",
+		"resources/ui/text/hand.png",
+		"resources/ui/text/deck.png",
+		"resources/ui/text/discard.png",
+		"resources/ui/num/0.png",
+		"resources/ui/num/1.png",
+		"resources/ui/num/2.png",
+		"resources/ui/num/3.png",
+		"resources/ui/num/4.png",
+		"resources/ui/num/5.png",
+		"resources/ui/num/6.png",
+		"resources/ui/num/7.png",
+		"resources/ui/num/8.png",
+		"resources/ui/num/9.png",
+		"resources/ui/white.png",
+		"resources/ui/text/enemySingle.png",
+		"resources/ui/text/enemyAll.png",
+		"resources/ui/text/self.png",
+		"resources/ui/text/ni.png",
+		"resources/ui/text/ha.png",
+		"resources/ui/text/cost.png",
+		"resources/ui/text/power.png",
+		"resources/ui/text/x1.png",
+		"resources/ui/text/blockCountBlue.png",
+		"resources/ui/text/basicEffect.png",
+		"resources/ui/text/startTurn.png",
+		"resources/ui/text/specialEffectsActivat.png",
+		"resources/ui/text/playerField.png",
+		"resources/ui/text/onePair.png",
+		"resources/ui/text/twoPair.png",
+		"resources/ui/text/threeCard.png",
+		"resources/ui/text/straightType.png",
+		"resources/ui/text/flashType.png",
+		"resources/ui/text/fullHouse.png",
+		"resources/ui/text/fourCard.png",
+		"resources/ui/text/straightFlash.png",
+		"resources/ui/text/RoyalStraightFlush.png",
+		"resources/ui/text/inTheCase.png",
+		"resources/ui/text/inTheAboveCases.png",
+		"resources/ui/text/colon.png",
+		"resources/ui/text/nasi.png",
+		"resources/ui/text/heal.png",
+		"resources/ui/text/block.png",
+		"resources/ui/text/nextTurnATKUP.png",
+		"resources/ui/text/resonance_title.png",
+		"resources/ui/text/clickStart.png",
+		"resources/ui/card_desc/desc_6.png",
+		"resources/ui/card_desc/desc_17.png",
+		"resources/ui/card_desc/desc_18.png",
+		"resources/ui/card_desc/desc_19.png",
+		"resources/ui/PauseMenu.png",
+		"resources/ui/GiveUpCheck.png",
+		"resources/ui/stage_select/bg.png",
+		"resources/ui/stage_select/title_stage_select.png",
+		"resources/ui/stage_select/button_tutorial.png",
+		"resources/ui/stage_select/button_battle.png",
+		"resources/ui/stage_select/button_deckEdit.png",
+		"resources/ui/stage_select/desc_bg.png"
+	};
+
+	for (const std::string& path : texturePaths) {
+		addTexture(path);
+	}
+
+	const std::vector<std::string> modelPaths = {
+		"human/walk.gltf",
+		"human/sneakWalk.gltf",
+		"Player/player.gltf",
+		"Player/sword.obj",
+		"enemy/boss/boss.gltf",
+		"cards/models/1.obj",
+		"cards/models/2.obj",
+		"cards/models/3.obj",
+		"cards/models/4.obj",
+		"cards/models/5.obj",
+		"cards/models/art_plane.obj",
+		"cards/models/frame.obj",
+		"triangleParticle.obj"
+	};
+
+	for (const std::string& path : modelPaths) {
+		addModel(path);
+	}
+
+	startupLoadSteps_.push_back([]() {
+		ParticleManager::GetInstance()->LoadAllEffects();
+		});
+	startupLoadSteps_.push_back([this]() {
+		ModelParticleManager::GetInstance()->Initialize(dx_.get(), srv_.get());
+		});
+	startupLoadSteps_.push_back([]() {
+		Audio::GetInstance()->Initialize();
+		AudioManager::GetInstance()->LoadAllConfigs("resources/configs/audioSettings.json");
+		});
+	startupLoadSteps_.push_back([this]() {
+		LoadActionSequenceProfiles_();
+		});
+	startupLoadSteps_.push_back([this]() {
+		std::vector<std::string> cardFiles = {
+			"resources/cards/data/UtilityAttack.json",
+			"resources/cards/data/UtilitySupport.json",
+			"resources/cards/data/Poison.json",
+			"resources/cards/data/Frost.json"
+		};
+		cardDB_ = std::make_unique<CardDatabase>();
+		cardDB_->LoadFromJsons(cardFiles);
+		});
+	startupLoadSteps_.push_back([this]() {
+		LoadDeck("resources/deck/deck_default.json");
+		});
+	startupLoadSteps_.push_back([this]() {
+		BattleController dummyBattle;
+		dummyBattle.Preload(*this);
+		});
 }
 
 void GameApp::WarmupAssets_() {

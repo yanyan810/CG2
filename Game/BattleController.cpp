@@ -2076,7 +2076,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		enterTrig = false;
 	}
 
-	operationUiVisible_ = input->IsKeyPressed(DIK_TAB);
+	operationUiVisible_ = !tutorialInputLocked_ && input->IsKeyPressed(DIK_TAB);
 
 	bool endTurnButtonClicked = false;
 	endTurnButtonHovered_ = false;

@@ -21,6 +21,7 @@
     <ClCompile Include="Engine\3D\AnimationJsonSerializer.cpp" />
     <ClCompile Include="Game\DeckEditScene.cpp" />
     <ClCompile Include="Game\GameLoadingScene.cpp" />
+    <ClCompile Include="Game\StartupLoadingScene.cpp" />
     <ClCompile Include="Engine\Audio.cpp" />
     <ClCompile Include="Engine\AudioManager.cpp" />
     <ClCompile Include="Engine\Camera\CameraAnimator.cpp" />
@@ -139,6 +140,7 @@
     <ClInclude Include="Engine\3D\AnimationJsonSerializer.h" />
     <ClInclude Include="Game\DeckEditScene.h" />
     <ClInclude Include="Game\GameLoadingScene.h" />
+    <ClInclude Include="Game\StartupLoadingScene.h" />
     <ClInclude Include="Engine\Audio.h" />
     <ClInclude Include="Engine\AudioManager.h" />
     <ClInclude Include="Engine\Camera\CameraAnimator.h" />

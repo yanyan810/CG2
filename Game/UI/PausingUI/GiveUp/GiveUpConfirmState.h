@@ -1,5 +1,6 @@
 #pragma once
 #include "../IPauseState.h"
+#include "TextSprite.h"
 
 class GiveUpConfirmState : public IPauseState {
 public:
@@ -13,6 +14,9 @@ public:
 private:
     // 背景画像（「本当に降参しますか？」などのテキストが含まれるテクスチャを想定）
     std::unique_ptr<Sprite> confirmBoard_;
+    std::unique_ptr<TextSprite> titleText_;
+    std::unique_ptr<TextSprite> yesText_;
+    std::unique_ptr<TextSprite> noText_;
 
 	bool pushedYes_ = false;
 };

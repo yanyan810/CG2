@@ -18,6 +18,7 @@
 #include "TutorialManager.h"
 #include "TutorialUi.h"
 #include "UI/PokerHandHelpView.h"
+#include "UI/PausingUI/PausingUI.h"
 #include "PropManager.h"
 
 class GameApp;
@@ -93,6 +94,7 @@ private:
 
     std::unique_ptr<TutorialManager> tutorial_;
     std::unique_ptr<TutorialUi> tutorialUi_;
+    std::unique_ptr<PausingUI> pausingUI_;
     std::vector<TutorialMenuButton> tutorialMenuButtons_;
     std::unique_ptr<Sprite> tutorialMenuBg_;
     bool tutorialMenuVisible_ = true;

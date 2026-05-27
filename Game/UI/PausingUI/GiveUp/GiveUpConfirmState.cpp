@@ -28,6 +28,26 @@ void GiveUpConfirmState::Initialize(GameApp& app) {
     noBtn->SetColor({ 0.0f, 0.0f, 0.0f, 0.9f });
     noBtn->SetName("No");
     sprites_.push_back(std::move(noBtn));
+
+    titleText_ = std::make_unique<TextSprite>();
+    titleText_->Initialize(app.SpriteCom(), app.Dx());
+    titleText_->SetFontSize(32);
+    titleText_->SetSize({ 1.0f, 1.0f, 1.0f });
+    titleText_->SetPosition({ 430.0f, 250.0f });
+
+    yesText_ = std::make_unique<TextSprite>();
+    yesText_->Initialize(app.SpriteCom(), app.Dx());
+    yesText_->SetFontSize(30);
+    yesText_->SetSize({ 1.0f, 1.0f, 1.0f });
+    yesText_->SetPosition({ 425.0f, 430.0f });
+    yesText_->SetText(L"はい");
+
+    noText_ = std::make_unique<TextSprite>();
+    noText_->Initialize(app.SpriteCom(), app.Dx());
+    noText_->SetFontSize(30);
+    noText_->SetSize({ 1.0f, 1.0f, 1.0f });
+    noText_->SetPosition({ 795.0f, 430.0f });
+    noText_->SetText(L"いいえ");
 }
 
 void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) {
@@ -43,7 +63,22 @@ void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) 
     Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
 
+    if (context->IsTutorialExitMode()) {
+        confirmBoard_->SetColor({ 0.04f, 0.04f, 0.05f, 0.96f });
+        confirmBoard_->SetPosition({ 280.0f, 205.0f });
+        confirmBoard_->SetScale({ 720.0f, 330.0f, 1.0f });
+        if (titleText_) {
+            titleText_->SetText(L"チュートリアルを終了しますか？");
+            titleText_->Update(view, proj);
+        }
+    } else {
+        confirmBoard_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+        confirmBoard_->SetPosition({ 0.0f, 0.0f });
+        confirmBoard_->SetScale({ 1.0f, 1.0f, 1.0f });
+    }
     confirmBoard_->Update(view, proj);
+    if (yesText_) yesText_->Update(view, proj);
+    if (noText_) noText_->Update(view, proj);
 
     // ホバー判定
     Sprite* hovered = CheckMouseOverByName(mousePos);
@@ -75,8 +110,13 @@ void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) 
 }
 
 void GiveUpConfirmState::Draw(GameApp& app) {
+    confirmBoard_->Draw();
+    if (titleText_) {
+        titleText_->Draw();
+    }
     for (auto& s : sprites_) {
         s->Draw();
     }
-    confirmBoard_->Draw();
+    if (yesText_) yesText_->Draw();
+    if (noText_) noText_->Draw();
 }
