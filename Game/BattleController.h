@@ -409,6 +409,7 @@ private:
 	std::vector<std::string> CollectEffectTypes_(const CardDef& def) const;
 	bool BeginCardActionSequence_(GameApp& app, const CardDef& def, const CardInstance& card, Enemy& targetEnemy);
 	bool StartNextActionSequence_();
+	bool ApplyFrostBeforeEnemyAction_(Enemy& enemy);
 
 	PlayerBattleStatusUI playerStatusUi_;
 	EnemyBattleStatusUI enemyStatusUi_;

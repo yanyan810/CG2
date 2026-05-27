@@ -126,6 +126,15 @@ void BattleDebugImGui::Draw(const Context& context)
 		}
 	}
 
+	if (ImGui::CollapsingHeader("Frost Action Trigger")) {
+		ImGui::DragInt("Burst Threshold", context.frostAction.threshold, 1.0f, 1, 999);
+		ImGui::DragInt("Burst Multiplier", context.frostAction.burstMultiplier, 1.0f, 1, 99);
+		if (ImGui::Button("Reset Frost Action Trigger")) {
+			*context.frostAction.threshold = 15;
+			*context.frostAction.burstMultiplier = 3;
+		}
+	}
+
 	if (ImGui::CollapsingHeader("Character Scale")) {
 		if (context.player && context.player->GetObject3d()) {
 			Vector3 pScale = context.player->GetObject3d()->GetScale();

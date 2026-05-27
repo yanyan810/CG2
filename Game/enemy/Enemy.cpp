@@ -792,15 +792,6 @@ void Enemy::TurnEndApplyBC() {
 
 		break;
 	case BadCondition::kFrost:
-
-		// 凍結耐性を超えるポイントが溜まったら状態異常を解除して耐性を上げる
-		if (badConditionPoint_ >= 5) {
-			badConditionPoint_ = 0;
-			freezeResistance_ += 5;
-			isAbleToAct_ = false;
-		} else {
-			badConditionPoint_ -= 1;
-		}
 		break;
 
 	}

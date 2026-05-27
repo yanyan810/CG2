@@ -61,6 +61,11 @@ public:
 		float* damageIntensity = nullptr;
 	};
 
+	struct FrostActionControls {
+		int* threshold = nullptr;
+		int* burstMultiplier = nullptr;
+	};
+
 	struct Context {
 		PlayerBattleStatusUI* playerStatusUi = nullptr;
 		const char* turnName = "";
@@ -94,6 +99,7 @@ public:
 		FieldFrameBloomControls fieldFrameBloom{};
 		EnemyBloomControls enemyBloom{};
 		HpGaugeBloomControls hpGaugeBloom{};
+		FrostActionControls frostAction{};
 	};
 
 	static void DrawPlayerHudControls(PlayerBattleStatusUI& playerStatusUi);

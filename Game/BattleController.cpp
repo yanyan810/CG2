@@ -66,6 +66,8 @@ namespace {
 	float sHpDamageBloomIntensity = 1.05f;
 	bool sPlayerBlockCarryOverEnabled = true;
 	float sPlayerBlockTurnDecayRate = 0.35f;
+	int sFrostBurstThreshold = 15;
+	int sFrostBurstMultiplier = 3;
 
 	float EffectValueFloat_(const CardEffectDef& effect)
 	{
@@ -3217,6 +3219,8 @@ void BattleController::DrawImGui()
 	context.hpGaugeBloom.minPulse = &sHpGaugeBloomMinPulse;
 	context.hpGaugeBloom.damageBlinkSpeed = &sHpDamageBlinkSpeed;
 	context.hpGaugeBloom.damageIntensity = &sHpDamageBloomIntensity;
+	context.frostAction.threshold = &sFrostBurstThreshold;
+	context.frostAction.burstMultiplier = &sFrostBurstMultiplier;
 
 	BattleDebugImGui::Draw(context);
 }
@@ -3597,8 +3601,41 @@ bool BattleController::StartNextActionSequence_()
 	return true;
 }
 
+bool BattleController::ApplyFrostBeforeEnemyAction_(Enemy& enemy)
+{
+	if (!enemy.IsAlive() ||
+		enemy.GetBC() != Enemy::BadCondition::kFrost ||
+		enemy.GetBCPoint() <= 0) {
+		return false;
+	}
+
+	const int frostPoint = enemy.GetBCPoint();
+	const bool burst = frostPoint >= std::max(1, sFrostBurstThreshold);
+	const int damage = burst
+		? frostPoint * std::max(1, sFrostBurstMultiplier)
+		: frostPoint;
+	const int actualDamage = enemy.Damage(damage);
+
+	enemy.TriggerHitFlash(0.2f);
+	enemy.PlayDamageAnim();
+	if (actualDamage > 0) {
+		SpawnDamagePopup(enemy.GetPos(), actualDamage, false);
+	}
+
+	if (burst) {
+		enemy.RemoveBC();
+		return true;
+	}
+
+	return !enemy.IsAlive();
+}
+
 void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& action)
 {
+	if (ApplyFrostBeforeEnemyAction_(enemy)) {
+		return;
+	}
+
 	auto findLowestHpAlly = [&]() -> Enemy* {
 		if (!enemyMgr_) {
 			return nullptr;
@@ -3617,6 +3654,10 @@ void BattleController::ExecuteEnemyAction_(Enemy& enemy, const EnemyAction& acti
 	};
 
 	if (action.type == "Attack") {
+		if (!player_) {
+			return;
+		}
+		enemy.PlayAttackAnim(player_->GetPos());
 		const int beforeHp = player_->GetHP();
 		const int beforeBlock = player_->GetBlock();
 		player_->Damage(action.value);
