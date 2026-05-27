@@ -54,6 +54,45 @@ namespace {
 	bool sPlayerBlockCarryOverEnabled = true;
 	float sPlayerBlockTurnDecayRate = 0.35f;
 
+	float EffectValueFloat_(const CardEffectDef& effect)
+	{
+		if (effect.valueIsFloat) {
+			return effect.valueFloat;
+		}
+		if (effect.valueFloat != 0.0f || effect.value == 0) {
+			return effect.valueFloat;
+		}
+		return static_cast<float>(effect.value);
+	}
+
+	int EffectValueInt_(const CardEffectDef& effect)
+	{
+		return std::max(0, static_cast<int>(std::lround(EffectValueFloat_(effect))));
+	}
+
+	int ScaleEffectAmount_(int baseValue, const CardEffectDef& effect)
+	{
+		return std::max(0, static_cast<int>(std::lround(static_cast<float>(baseValue) * EffectValueFloat_(effect))));
+	}
+
+	std::wstring FormatEffectValue_(const CardEffectDef& effect)
+	{
+		const float value = EffectValueFloat_(effect);
+		if (effect.valueIsFloat) {
+			wchar_t buffer[32]{};
+			swprintf_s(buffer, L"%.2f", value);
+			std::wstring text = buffer;
+			while (!text.empty() && text.back() == L'0') {
+				text.pop_back();
+			}
+			if (!text.empty() && text.back() == L'.') {
+				text.pop_back();
+			}
+			return text;
+		}
+		return std::to_wstring(EffectValueInt_(effect));
+	}
+
 	Vector4 HsvToRgb_(float hue, float saturation, float value)
 	{
 		hue = std::fmod(hue, 360.0f);
@@ -1098,7 +1137,7 @@ bool BattleController::DrawOne_()
 
 void BattleController::DrawTurnStartCards_()
 {
-	const int drawCount = (playerTurnCount_ == 1) ? 5 : 2;
+	const int drawCount = (playerTurnCount_ == 1) ? 5 : 3;
 	for (int i = 0; i < drawCount; ++i) {
 		if (!DrawOne_()) {
 			break;
@@ -1202,7 +1241,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "DamageByBlock") {
 			if (enemyMgr_) {
-				int baseVal = (player_ ? player_->GetBlock() : 0) * effect.value;
+				int baseVal = ScaleEffectAmount_(player_ ? player_->GetBlock() : 0, effect);
 				int finalDamage = applyAttackBuff ? CalcFinalAttackDamage_(baseVal) : std::max(0, baseVal);
 
 				if (targetIndex >= 0 && targetIndex < enemyMgr_->GetEnemies().size()) {
@@ -1299,7 +1338,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 
 		} else if (effect.type == "HealByBlock") {
 			if (player_) {
-				int healAmount = player_->GetBlock() * effect.value; // ブロック数 × 倍率
+				int healAmount = ScaleEffectAmount_(player_->GetBlock(), effect); // ブロック数 × 倍率
 				int beforeHp = player_->GetHP();
 				player_->Heal(healAmount);
 				PlayHealSEIfHpIncreased_(player_, beforeHp);
@@ -1314,7 +1353,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 						count++; // 1コストのカードだったらカウントを増やす
 					}
 				}
-				int healAmount = count * effect.value;
+				int healAmount = ScaleEffectAmount_(count, effect);
 				if (healAmount > 0) {
 					int beforeHp = player_->GetHP();
 					player_->Heal(healAmount);
@@ -1811,38 +1850,38 @@ std::wstring BattleController::GetSubEffectConditionText_(const CardSubEffectDef
 std::wstring BattleController::GetEffectValueText_(const CardEffectDef& effect) const
 {
 	if (!effect.valueText.empty()) {
-		return Utf8ToWString(effect.valueText) + L": " + std::to_wstring(effect.value);
+		return Utf8ToWString(effect.valueText) + L": " + FormatEffectValue_(effect);
 	}
 
 	if (effect.type == "Draw") {
-		return L"ドロー: " + std::to_wstring(effect.value);
+		return L"ドロー: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Damage") {
-		return L"ダメージ: " + std::to_wstring(effect.value);
+		return L"ダメージ: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "DamageAll") {
-		return L"全体ダメージ: " + std::to_wstring(effect.value);
+		return L"全体ダメージ: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Heal") {
-		return L"回復: " + std::to_wstring(effect.value);
+		return L"回復: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Block") {
-		return L"ブロック: " + std::to_wstring(effect.value);
+		return L"ブロック: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "PowerBoost") {
-		return L"パワー: " + std::to_wstring(effect.value);
+		return L"パワー: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "EnergyCharge") {
-		return L"コスト回復: " + std::to_wstring(effect.value);
+		return L"コスト回復: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "NextTurnAtkUp") {
-		return L"次ターンATK UP: " + std::to_wstring(effect.value);
+		return L"次ターンATK UP: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "SelfDamage") {
-		return L"自傷: " + std::to_wstring(effect.value);
+		return L"自傷: " + FormatEffectValue_(effect);
 	}
 
-	return Utf8ToWString(effect.type) + L": " + std::to_wstring(effect.value);
+	return Utf8ToWString(effect.type) + L": " + FormatEffectValue_(effect);
 }
 
 std::wstring BattleController::GetBaseEffectSummaryText_(const CardDef& def) const
@@ -1937,21 +1976,21 @@ std::vector<std::wstring> BattleController::CollectSubEffectPreviewLines_(
 				}
 
 				if (effect.type == "Draw") {
-					line += L"カードを" + std::to_wstring(effect.value) + L"枚引く";
+					line += L"カードを" + FormatEffectValue_(effect) + L"枚引く";
 				} else if (effect.type == "Damage") {
-					line += L"敵単体に" + std::to_wstring(effect.value) + L"ダメージ";
+					line += L"敵単体に" + FormatEffectValue_(effect) + L"ダメージ";
 				} else if (effect.type == "DamageAll") {
-					line += L"敵全体に" + std::to_wstring(effect.value) + L"ダメージ";
+					line += L"敵全体に" + FormatEffectValue_(effect) + L"ダメージ";
 				} else if (effect.type == "Heal") {
-					line += L"体力を" + std::to_wstring(effect.value) + L"回復";
+					line += L"体力を" + FormatEffectValue_(effect) + L"回復";
 				} else if (effect.type == "Block") {
-					line += L"ブロックを" + std::to_wstring(effect.value) + L"獲得";
+					line += L"ブロックを" + FormatEffectValue_(effect) + L"獲得";
 				} else if (effect.type == "PowerBoost") {
-					line += L"パワーを" + std::to_wstring(effect.value) + L"獲得";
+					line += L"パワーを" + FormatEffectValue_(effect) + L"獲得";
 				} else if (effect.type == "EnergyCharge") {
-					line += L"コストを" + std::to_wstring(effect.value) + L"回復";
+					line += L"コストを" + FormatEffectValue_(effect) + L"回復";
 				} else {
-					line += Utf8ToWString(effect.type) + L" : " + std::to_wstring(effect.value);
+					line += Utf8ToWString(effect.type) + L" : " + FormatEffectValue_(effect);
 				}
 
 				if (uniqueLines.insert(line).second) {
@@ -3030,7 +3069,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								// シールドバッシュ
 								else if (effect.type == "DamageByBlock") {
 									needsTarget = true;
-									dmgVal += (player_ ? player_->GetBlock() : 0) * effect.value;
+									dmgVal += ScaleEffectAmount_(player_ ? player_->GetBlock() : 0, effect);
 									hitCount++;
 								}
 								if (effect.type == "Poison") {
@@ -4528,17 +4567,17 @@ int BattleController::GetDisplayEffectValue(const CardEffectDef& effect, bool ap
 			return value;
 		}
 		if (effect.type == "DamageByBlock") {
-			return (player_ ? player_->GetBlock() : 0) * effect.value;
+			return ScaleEffectAmount_(player_ ? player_->GetBlock() : 0, effect);
 		}
-		return effect.value;
+		return EffectValueInt_(effect);
 	}
 
 	if (effect.type == "Damage") {
-		return CalcFinalAttackDamage_(effect.value);
+		return CalcFinalAttackDamage_(EffectValueInt_(effect));
 	}
 
 	if (effect.type == "DamageAll") {
-		return CalcFinalAttackDamage_(effect.value);
+		return CalcFinalAttackDamage_(EffectValueInt_(effect));
 	}
 
 	if (effect.type == "DamageCrescent") {
@@ -4550,11 +4589,11 @@ int BattleController::GetDisplayEffectValue(const CardEffectDef& effect, bool ap
 	}
 
 	if (effect.type == "DamageByBlock") {
-		int value = (player_ ? player_->GetBlock() : 0) * effect.value;
+		int value = ScaleEffectAmount_(player_ ? player_->GetBlock() : 0, effect);
 		return CalcFinalAttackDamage_(value);
 	}
 
-	return effect.value;
+	return EffectValueInt_(effect);
 }
 
 int BattleController::ApplyDamageToEnemy_(Enemy& enemy, int damage)

@@ -8,6 +8,8 @@
 #include "MathStruct.h"
 #include "UiLayout.h"
 #include "TextSprite.h"
+#include "Object3d.h"
+#include "PropManager.h"
 
 class Camera;
 class GameApp;
@@ -50,12 +52,15 @@ private:
     void SelectStageItem_(GameApp& app, const StageItem& item);
     void ChangeStage_(int delta);
     void ApplyCurrentStageToBattleItem_();
+    void LoadStageFieldBackgrounds_(GameApp& app);
+    void UpdateStageFieldBackground_();
     void DrawDescriptionText_(GameApp& app, const std::wstring& text, float x, float y);
 
 private:
     std::unique_ptr<Camera> camera_;
-
-    std::unique_ptr<Sprite> bg_;
+    std::unique_ptr<Object3d> skyDome_;
+    PropManager* stageFieldProps_ = nullptr;
+    std::string stageFieldConfigPath_;
     std::unique_ptr<Sprite> bossStageWarningOverlay_;
     std::unique_ptr<Sprite> titleSprite_;
     std::unique_ptr<Sprite> descBgTop_;
@@ -100,5 +105,9 @@ private:
     void ApplyLayout_();
     void SaveLayout_() const;
     void LoadLayout_();
+
+private:
+    static std::vector<std::unique_ptr<PropManager>> stageFieldPropsCache_;
+    static bool stageFieldPropsCacheReady_;
 
 };

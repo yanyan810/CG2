@@ -630,6 +630,14 @@ void Object3d::Draw()
 	}
 }
 
+void Object3d::WarmupDrawResources()
+{
+	EnsureMeshMaterialResources_();
+	if (model_ && model_->HasSkinning() && poseReady_) {
+		UpdateSkinCluster_();
+	}
+}
+
 void Object3d::DrawWithOverrideSrv(const D3D12_GPU_DESCRIPTOR_HANDLE& srv)
 {
 	if (!model_) return;

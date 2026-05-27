@@ -56,6 +56,7 @@ public:
 	void Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* cam);
 	void SetCamera(Camera* cam);
 	void Update(float dt);
+	void WarmupDrawResources();
 	void Draw3D();
 	void DrawPostEffect3D(GameApp& app); // エフェクト付きオブジェクトの描画
 	void DrawImGui(

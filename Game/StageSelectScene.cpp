@@ -14,6 +14,7 @@
 #include <imgui.h>
 #endif
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -22,6 +23,16 @@ namespace {
 	std::string MakeStageConfigPath_(int stageId)
 	{
 		return "resources/stages/stage" + std::string(stageId < 10 ? "0" : "") + std::to_string(stageId) + ".json";
+	}
+
+	std::string MakeStageFieldConfigPath_(int stageId)
+	{
+		if (stageId <= 0) {
+			return "resources/configs/stage_fields/tutorial_field.json";
+		}
+
+		const std::string prefix = stageId < 10 ? "stage0" : "stage";
+		return "resources/configs/stage_fields/" + prefix + std::to_string(stageId) + "_field.json";
 	}
 
 	std::wstring MakeStageLabel_(int stageId)
@@ -64,6 +75,9 @@ namespace {
 	}
 }
 
+std::vector<std::unique_ptr<PropManager>> StageSelectScene::stageFieldPropsCache_;
+bool StageSelectScene::stageFieldPropsCacheReady_ = false;
+
 bool StageSelectScene::PointInRect_(float mx, float my, const Rect& rect) const {
 	return mx >= rect.x &&
 		mx <= rect.x + rect.w &&
@@ -98,6 +112,7 @@ void StageSelectScene::ChangeStage_(int delta)
 		bossShakeTimer_ = 0.0f;
 	}
 	ApplyCurrentStageToBattleItem_();
+	UpdateStageFieldBackground_();
 	selectIndex_ = 1;
 }
 
@@ -113,10 +128,46 @@ void StageSelectScene::ApplyCurrentStageToBattleItem_()
 	stageItems_[1].stageConfigPath = MakeStageConfigPath_(currentStageId_);
 }
 
+void StageSelectScene::LoadStageFieldBackgrounds_(GameApp& app)
+{
+	if (!stageFieldPropsCacheReady_) {
+		stageFieldPropsCache_.clear();
+		stageFieldPropsCache_.resize(11);
+
+		for (int stageId = 1; stageId <= 10; ++stageId) {
+			auto props = std::make_unique<PropManager>();
+			props->Initialize(app.ObjCom(), app.Dx(), camera_.get());
+			props->LoadFromJson(MakeStageFieldConfigPath_(stageId));
+			props->Update(0.0f);
+			props->WarmupDrawResources();
+			stageFieldPropsCache_[stageId] = std::move(props);
+		}
+
+		stageFieldPropsCacheReady_ = true;
+		return;
+	}
+
+	for (auto& props : stageFieldPropsCache_) {
+		if (props) {
+			props->SetCamera(camera_.get());
+		}
+	}
+}
+
+void StageSelectScene::UpdateStageFieldBackground_()
+{
+	stageFieldConfigPath_ = MakeStageFieldConfigPath_(currentStageId_);
+	stageFieldProps_ = nullptr;
+	if (currentStageId_ >= 1 &&
+		currentStageId_ < static_cast<int>(stageFieldPropsCache_.size())) {
+		stageFieldProps_ = stageFieldPropsCache_[currentStageId_].get();
+	}
+}
+
 void StageSelectScene::OnEnter(GameApp& app) {
 	hoverIndex_ = -1;
 	selectIndex_ = 0;
-	currentStageId_ = 1;
+	currentStageId_ = std::clamp(app.GetSelectedStageId(), 1, 10);
 	bossWarningBurstTimer_ = 0.0f;
 	bossShakeTimer_ = 0.0f;
 	circle_ = 0.0f;
@@ -124,14 +175,20 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	AudioManager::GetInstance()->PlayBGM("BGM_TitleSelect");
 
 	camera_ = std::make_unique<Camera>();
-	camera_->SetTranslate({ 0.0f, 0.0f, 0.0f });
-	camera_->SetRotate({ 0.0f, 0.0f, 0.0f });
+	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+	camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
 	app.ObjCom()->SetDefaultCamera(camera_.get());
 
-	bg_ = std::make_unique<Sprite>();
-	bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/bg.png");
-	bg_->SetAnchorPoint({ 0.0f, 0.0f });
-	bg_->SetPosition({ 0.0f, 0.0f });
+	skyDome_ = std::make_unique<Object3d>();
+	skyDome_->Initialize(app.ObjCom(), app.Dx());
+	skyDome_->SetModel("skydome/skydome.obj");
+	skyDome_->SetCamera(camera_.get());
+	skyDome_->SetEnableLighting(0);
+	skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
+	skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
+
+	LoadStageFieldBackgrounds_(app);
+	UpdateStageFieldBackground_();
 
 	bossStageWarningOverlay_ = std::make_unique<Sprite>();
 	bossStageWarningOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -264,13 +321,27 @@ void StageSelectScene::OnExit(GameApp& app) {
 	descBgTop_.reset();
 	titleSprite_.reset();
 	bossStageWarningOverlay_.reset();
-	bg_.reset();
+	stageFieldProps_ = nullptr;
+	for (auto& props : stageFieldPropsCache_) {
+		if (props) {
+			props->SetCamera(nullptr);
+		}
+	}
+	skyDome_.reset();
 	camera_.reset();
 	descTextSprite_.reset();
 }
 
 void StageSelectScene::Update(GameApp& app, float dt) {
 	ApplyLayout_();
+	if (skyDome_) {
+		skyDome_->SetCamera(camera_.get());
+		skyDome_->Update(dt);
+	}
+	if (stageFieldProps_) {
+		stageFieldProps_->SetCamera(camera_.get());
+		stageFieldProps_->Update(dt);
+	}
 	if (currentStageId_ == 10 && bossWarningBurstTimer_ > 0.0f) {
 		bossWarningBurstTimer_ -= dt;
 		if (bossWarningBurstTimer_ < 0.0f) {
@@ -384,6 +455,9 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 
 void StageSelectScene::Draw3D(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
+	if (stageFieldProps_) {
+		stageFieldProps_->Draw3D();
+	}
 }
 
 void StageSelectScene::DrawDescriptionText_(GameApp& app, const std::wstring& text, float x, float y) {
@@ -433,13 +507,6 @@ void StageSelectScene::Draw2D(GameApp& app) {
 		const float strength = bossShakeMagnitude_ * (bossShakeTimer_ / bossShakeDuration_);
 		shakeOffset.x = static_cast<float>(std::sin(elapsed * 90.0f)) * strength;
 		shakeOffset.y = static_cast<float>(std::cos(elapsed * 72.0f)) * strength * 0.55f;
-	}
-
-
-	if (bg_) {
-		bg_->SetPosition({ shakeOffset.x, shakeOffset.y });
-		bg_->Update(view, proj);
-		bg_->Draw();
 	}
 
 	if (currentStageId_ == 10 && bossStageWarningOverlay_) {
@@ -612,6 +679,10 @@ void StageSelectScene::DrawImGui(GameApp& app) {
 	ImGui::Text("hoverIndex = %d", hoverIndex_);
 	ImGui::Text("selectIndex = %d", selectIndex_);
 
+	if (stageFieldProps_) {
+		stageFieldProps_->DrawImGui("Stage Select Field Props", stageFieldConfigPath_);
+	}
+
 	ImGui::End();
 #else
 	(void)app;
@@ -620,10 +691,15 @@ void StageSelectScene::DrawImGui(GameApp& app) {
 
 void StageSelectScene::DrawSkydome(GameApp& app) {
 	app.ObjCom()->SetGraphicsPipelineState();
+	if (skyDome_) {
+		skyDome_->Draw();
+	}
 }
 
 void StageSelectScene::DrawPostEffect3D(GameApp& app) {
-	(void)app;
+	if (stageFieldProps_) {
+		stageFieldProps_->DrawPostEffect3D(app);
+	}
 }
 
 void StageSelectScene::DrawPostEffect2D(GameApp& app) {

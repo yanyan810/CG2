@@ -7,8 +7,8 @@
     {
       "enemyType": "needle",
       "enemyName": "needle",
-      "maxHp": 100,
-      "hp": 100,
+      "maxHp": 150,
+      "hp": 150,
       "attack": 12,
       "defense": 3,
       "position": { "x": 7.0, "y": 0.0, "z": 10.0 },
@@ -18,8 +18,8 @@
     {
       "enemyType": "needle",
       "enemyName": "needle",
-      "maxHp": 100,
-      "hp": 100,
+      "maxHp": 150,
+      "hp": 150,
       "attack": 12,
       "defense": 3,
       "position": { "x": 7.0, "y": 0.0, "z": 20.0 },
