@@ -34,6 +34,11 @@ class SceneManager;
 
 class GameApp {
 public:
+    enum class LoadingMode {
+        BootToTitle,
+        StageToGame,
+    };
+
     GameApp();
     ~GameApp();
 
@@ -95,6 +100,8 @@ public:
     void BeginStartupLoading();
     bool LoadStartupStep();
     float GetStartupLoadingProgress() const;
+    void SetLoadingMode(LoadingMode mode) { loadingMode_ = mode; }
+    LoadingMode GetLoadingMode() const { return loadingMode_; }
 
 private:
     bool Initialize_();
@@ -136,4 +143,5 @@ private:
     std::unordered_map<int, std::vector<std::string>> cardSequenceNames_;
     std::vector<std::function<void()>> startupLoadSteps_;
     size_t startupLoadIndex_ = 0;
+    LoadingMode loadingMode_ = LoadingMode::BootToTitle;
 };

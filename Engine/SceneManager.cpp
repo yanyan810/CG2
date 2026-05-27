@@ -19,10 +19,33 @@ void SceneManager::Change(GameApp& app, const std::string& name) {
     current_->OnEnter(app);
 }
 
+void SceneManager::ChangeToPrepared(GameApp& app, const std::string& name, std::unique_ptr<IScene> scene) {
+    assert(scene && "prepared scene must not be null");
+
+    if (current_) {
+        current_->OnExit(app);
+    }
+
+    current_ = std::move(scene);
+    currentName_ = name;
+}
+
+void SceneManager::RequestPreparedChange(const std::string& name, std::unique_ptr<IScene> scene) {
+    assert(scene && "prepared scene must not be null");
+    pendingPreparedName_ = name;
+    pendingPreparedScene_ = std::move(scene);
+}
+
 void SceneManager::Update(GameApp& app, float dt) {
     if (!current_) return;
 
     current_->Update(app, dt);
+
+    if (pendingPreparedScene_) {
+        ChangeToPrepared(app, pendingPreparedName_, std::move(pendingPreparedScene_));
+        pendingPreparedName_.clear();
+        return;
+    }
 
     const char* next = current_->GetRequestedScene_();
     if (next && next[0] != '\0') {

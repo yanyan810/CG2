@@ -135,6 +135,14 @@ void Sprite::SetAnchorPointKeepingVisual(const Vector2& ap) {
 
 
 void Sprite::Draw() {
+    DrawInternal_(SpriteCommon::BlendMode::Normal);
+}
+
+void Sprite::DrawAdditive() {
+    DrawInternal_(SpriteCommon::BlendMode::Add);
+}
+
+void Sprite::DrawInternal_(SpriteCommon::BlendMode blendMode) {
     assert(spriteCommon_ && "Sprite not initialized (spriteCommon_ is null)");
     assert(dx_ && "Sprite not initialized (dx_ is null)");
 
@@ -153,7 +161,7 @@ void Sprite::Draw() {
     auto* cmd = dx_->GetCommandList();
 
     // 呼び出し側不要：ここでPSO/RootSigをセット
-    spriteCommon_->SetGraphicsPipelineState();
+    spriteCommon_->SetGraphicsPipelineState(blendMode);
 
     cmd->IASetVertexBuffers(0, 1, &vertexBufferView_);
     cmd->IASetIndexBuffer(&indexBufferView_);

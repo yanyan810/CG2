@@ -75,6 +75,8 @@ void StageSelectScene::SelectStageItem_(GameApp& app, const StageItem& item)
 {
 	if (item.stageId > 0) {
 		app.SetSelectedStage(item.stageId, item.stageConfigPath);
+		// ステージ決定後は本編用ロードを挟んでからGameSceneへ遷移する。
+		app.SetLoadingMode(GameApp::LoadingMode::StageToGame);
 		RequestChangeScene_("GameLoading");
 		return;
 	}

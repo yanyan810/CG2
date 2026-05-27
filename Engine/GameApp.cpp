@@ -2,7 +2,6 @@
 #include "SceneManager.h"
 #include "GameScene.h"  
 #include "GameLoadingScene.h"
-#include "StartupLoadingScene.h"
 #include "TitleScene.h"
 #include"DeckEditScene.h"
 #include "TestScene.h"
@@ -189,7 +188,6 @@ bool GameApp::Initialize_() {
 
 	// SceneManager
 	sceneMgr_ = std::make_unique<SceneManager>();
-	sceneMgr_->Register("StartupLoading", [] { return std::make_unique<StartupLoadingScene>(); });
 	sceneMgr_->Register("Title", [] { return std::make_unique<TitleScene>(); });
 	sceneMgr_->Register("DeckEdit", [] { return std::make_unique<DeckEditScene>(); });
 	sceneMgr_->Register("Game", [] { return std::make_unique<GameScene>();  });
@@ -202,7 +200,9 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("BattleAnimeEditer", [] { return std::make_unique<BattleAnimeEditerScene>(); });
 	sceneMgr_->Register("FieldEditer", [] { return std::make_unique<FieldEditerScene>(); });
 
-	sceneMgr_->Change(*this, "StartupLoading");
+	// 起動直後は共通アセットロード用のモードでローディングシーンへ入る。
+	SetLoadingMode(LoadingMode::BootToTitle);
+	sceneMgr_->Change(*this, "GameLoading");
 
 
 	OutputDebugStringA("[GameApp] Initialize END\n");
