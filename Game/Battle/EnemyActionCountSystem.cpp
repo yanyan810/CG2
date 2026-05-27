@@ -42,6 +42,7 @@ std::vector<std::size_t> EnemyActionCountSystem::OnPlayerCardUsed(const std::vec
         counts_[i]--;
         if (counts_[i] <= 0) {
             counts_[i] = 0;
+            actedFlags_[i] = true;
             triggeredEnemies.push_back(i);
         }
     }
@@ -76,10 +77,12 @@ void EnemyActionCountSystem::MarkActedByCount(std::size_t index)
 
 void EnemyActionCountSystem::EnsureSize_(std::size_t enemyCount)
 {
-    if (counts_.size() == enemyCount && actedFlags_.size() == enemyCount) {
-        return;
+    if (counts_.size() < enemyCount) {
+        counts_.resize(enemyCount, 0);
     }
-    Resize(enemyCount);
+    if (actedFlags_.size() < enemyCount) {
+        actedFlags_.resize(enemyCount, false);
+    }
 }
 
 int EnemyActionCountSystem::RollActionCount_() const
