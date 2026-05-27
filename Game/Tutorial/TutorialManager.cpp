@@ -1,12 +1,13 @@
 #include "TutorialManager.h"
 #include "BattleController.h"
 #include <fstream>
+#include <iomanip>
 #include <Windows.h>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
-std::wstring TutorialManager::Utf8ToWString_(const std::string& s) {
+std::wstring TutorialManager::Utf8ToWString(const std::string& s) {
 	if (s.empty()) {
 		return L"";
 	}
@@ -22,11 +23,32 @@ std::wstring TutorialManager::Utf8ToWString_(const std::string& s) {
 	return result;
 }
 
+std::string TutorialManager::WStringToUtf8(const std::wstring& s) {
+	if (s.empty()) {
+		return "";
+	}
+
+	int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, s.c_str(), -1, nullptr, 0, nullptr, nullptr);
+	if (sizeNeeded <= 0) {
+		return "";
+	}
+
+	std::string result;
+	result.resize(sizeNeeded - 1);
+	WideCharToMultiByte(CP_UTF8, 0, s.c_str(), -1, result.data(), sizeNeeded, nullptr, nullptr);
+	return result;
+}
+
 const char* TutorialManager::StepToKey_(TutorialStep step) {
 	switch (step) {
 	case TutorialStep::Intro: return "Intro";
 	case TutorialStep::HoverHand: return "HoverHand";
+	case TutorialStep::ExplainCardCost: return "ExplainCardCost";
+	case TutorialStep::ExplainCardSuit: return "ExplainCardSuit";
+	case TutorialStep::ExplainCardNumber: return "ExplainCardNumber";
+	case TutorialStep::ExplainCardAll: return "ExplainCardAll";
 	case TutorialStep::PlayCard: return "PlayCard";
+	case TutorialStep::ChooseEnemyTarget: return "ChooseEnemyTarget";
 	case TutorialStep::ExplainEnergy: return "ExplainEnergy";
 	case TutorialStep::FillField: return "FillField";
 	case TutorialStep::EndPlayerTurn: return "EndPlayerTurn";
@@ -39,13 +61,16 @@ const char* TutorialManager::StepToKey_(TutorialStep step) {
 	case TutorialStep::ViewingBoardFromPoker: return "ViewingBoardFromPoker";
 	case TutorialStep::EndAfterPoker: return "EndAfterPoker";
 	case TutorialStep::UiPlayerHp: return "UiPlayerHp";
+	case TutorialStep::UiEnemyIntentDamage: return "UiEnemyIntentDamage";
 	case TutorialStep::UiEnemyHp: return "UiEnemyHp";
+	case TutorialStep::UiEnemyNextAction: return "UiEnemyNextAction";
 	case TutorialStep::UiTurnText: return "UiTurnText";
 	case TutorialStep::UiHand: return "UiHand";
 	case TutorialStep::UiField: return "UiField";
 	case TutorialStep::UiRoleText: return "UiRoleText";
 	case TutorialStep::UiEndTurn: return "UiEndTurn";
 	case TutorialStep::UiDeckCount: return "UiDeckCount";
+	case TutorialStep::UiPokerHandHelp: return "UiPokerHandHelp";
 	case TutorialStep::UiFinished: return "UiFinished";
 	case TutorialStep::Finished: return "Finished";
 	default: return "";
@@ -69,10 +94,34 @@ bool TutorialManager::LoadMessages(const std::string& path) {
 
 	for (auto it = j["messages"].begin(); it != j["messages"].end(); ++it) {
 		if (it.value().is_string()) {
-			messageTable_[it.key()] = Utf8ToWString_(it.value().get<std::string>());
+			messageTable_[it.key()] = Utf8ToWString(it.value().get<std::string>());
 		}
 	}
 
+	return true;
+}
+
+bool TutorialManager::SaveMessages(const std::string& path) const {
+	const std::string outPath = path.empty() ? messagePath_ : path;
+	std::ofstream ofs(outPath);
+	if (!ofs.is_open()) {
+		return false;
+	}
+
+	json messages = json::object();
+	for (const auto& [key, text] : messageTable_) {
+		messages[key] = WStringToUtf8(text);
+	}
+	for (const auto& [stepValue, text] : overrideMessages_) {
+		const char* key = StepToKey_(static_cast<TutorialStep>(stepValue));
+		if (key && key[0] != '\0') {
+			messages[key] = WStringToUtf8(text);
+		}
+	}
+
+	json root;
+	root["messages"] = messages;
+	ofs << std::setw(2) << root << '\n';
 	return true;
 }
 
@@ -106,13 +155,41 @@ std::wstring TutorialManager::GetStepMessage(TutorialStep step) const {
 	return L"";
 }
 
+std::wstring TutorialManager::GetEditableStepMessage(TutorialStep step) const {
+	auto it = overrideMessages_.find(static_cast<int>(step));
+	if (it != overrideMessages_.end()) {
+		return it->second;
+	}
+
+	std::wstring tableMessage = GetMessageFromTable_(step);
+	if (!tableMessage.empty()) {
+		return tableMessage;
+	}
+
+	if (step_ == step) {
+		return message_;
+	}
+
+	return L"";
+}
+
 void TutorialManager::Initialize() {
 	LoadMessages(messagePath_);
 	Reset();
 }
 
 void TutorialManager::Reset() {
+	chapter_ = TutorialChapter::Full;
 	step_ = TutorialStep::Intro;
+	isActive_ = true;
+	sawEnemyTurn_ = false;
+	skippedPokerOnce_ = false;
+	UpdateMessage_();
+}
+
+void TutorialManager::StartChapter(TutorialChapter chapter) {
+	chapter_ = chapter;
+	step_ = GetChapterStartStep_(chapter_);
 	isActive_ = true;
 	sawEnemyTurn_ = false;
 	skippedPokerOnce_ = false;
@@ -121,6 +198,7 @@ void TutorialManager::Reset() {
 
 void TutorialManager::NextStep() {
 	Advance_();
+	FinishIfPastChapterEnd_();
 	UpdateMessage_();
 }
 
@@ -152,7 +230,15 @@ void TutorialManager::Update(BattleController& battle) {
 
 	case TutorialStep::PlayCard:
 		// まず1枚場に出したら進む
-		if (battle.GetFieldCount() >= 1) {
+		if (battle.IsChoosingEnemyTarget()) {
+			Advance_();
+		} else if (battle.GetFieldCount() >= 1) {
+			Advance_();
+		}
+		break;
+
+	case TutorialStep::ChooseEnemyTarget:
+		if (!battle.IsChoosingEnemyTarget() && battle.GetFieldCount() >= 1) {
 			Advance_();
 		}
 		break;
@@ -269,6 +355,7 @@ void TutorialManager::Advance_() {
 	// HoverHand の次は個別説明を飛ばして一括説明へ
 	if (step_ == TutorialStep::HoverHand) {
 		step_ = TutorialStep::ExplainCardAll;
+		FinishIfPastChapterEnd_();
 		UpdateMessage_();
 		return;
 	}
@@ -276,6 +363,7 @@ void TutorialManager::Advance_() {
 	// ExplainCardAll の次は PlayCard
 	if (step_ == TutorialStep::ExplainCardAll) {
 		step_ = TutorialStep::PlayCard;
+		FinishIfPastChapterEnd_();
 		UpdateMessage_();
 		return;
 	}
@@ -289,7 +377,55 @@ void TutorialManager::Advance_() {
 		step_ = TutorialStep::EndAfterPoker;
 	}
 
+	FinishIfPastChapterEnd_();
 	UpdateMessage_();
+}
+
+void TutorialManager::FinishIfPastChapterEnd_() {
+	if (chapter_ == TutorialChapter::Full) {
+		return;
+	}
+
+	if (IsPastChapterEnd_(step_)) {
+		step_ = TutorialStep::Finished;
+		isActive_ = true;
+	}
+}
+
+bool TutorialManager::IsPastChapterEnd_(TutorialStep step) const {
+	const TutorialStep end = GetChapterEndStep_(chapter_);
+	return static_cast<int>(step) > static_cast<int>(end);
+}
+
+TutorialManager::TutorialStep TutorialManager::GetChapterStartStep_(TutorialChapter chapter) const {
+	switch (chapter) {
+	case TutorialChapter::FieldUi:
+		return TutorialStep::UiPlayerHp;
+	case TutorialChapter::Card:
+		return TutorialStep::HoverHand;
+	case TutorialChapter::SpecialEffect:
+		return TutorialStep::FillField;
+	case TutorialChapter::Practice:
+		return TutorialStep::HoverHand;
+	case TutorialChapter::Full:
+	default:
+		return TutorialStep::Intro;
+	}
+}
+
+TutorialManager::TutorialStep TutorialManager::GetChapterEndStep_(TutorialChapter chapter) const {
+	switch (chapter) {
+	case TutorialChapter::FieldUi:
+		return TutorialStep::UiFinished;
+	case TutorialChapter::Card:
+		return TutorialStep::ExplainEnergy;
+	case TutorialChapter::SpecialEffect:
+		return TutorialStep::EndAfterPoker;
+	case TutorialChapter::Practice:
+	case TutorialChapter::Full:
+	default:
+		return TutorialStep::Finished;
+	}
 }
 
 void TutorialManager::UpdateMessage_() {
@@ -407,6 +543,10 @@ void TutorialManager::UpdateMessage_() {
 		message_ = L"左下は残り枚数の表示です\n残りが少ないと選択肢も減ります";
 		break;
 
+	case TutorialStep::UiPokerHandHelp:
+		message_ = L"左下の役確認にマウスを乗せると\nポーカー役の強さを確認できます";
+		break;
+
 	case TutorialStep::UiFinished:
 		message_ = L"UIの説明は以上です\n左クリックで先へ進みましょう";
 		break;
@@ -484,6 +624,9 @@ TutorialManager::FocusType TutorialManager::GetFocusType() const {
 	case TutorialStep::UiDeckCount:
 		return FocusType::DeckCountArea;
 
+	case TutorialStep::UiPokerHandHelp:
+		return FocusType::PokerHandHelpArea;
+
 	case TutorialStep::UiFinished:
 		return FocusType::None;
 
@@ -516,6 +659,7 @@ bool TutorialManager::IsUiExplanationStep() const {
 	case TutorialStep::UiRoleText:
 	case TutorialStep::UiEndTurn:
 	case TutorialStep::UiDeckCount:
+	case TutorialStep::UiPokerHandHelp:
 	case TutorialStep::UiEnemyIntentDamage:
 	case TutorialStep::UiEnemyNextAction:
 	case TutorialStep::UiFinished:
@@ -534,6 +678,7 @@ bool TutorialManager::IsGameplayInputLocked() const {
 	// 説明だけ読む系も必要ならここに追加
 	switch (step_) {
 	case TutorialStep::Intro:
+	case TutorialStep::ExplainCardAll:
 	case TutorialStep::ExplainEnergy:
 	case TutorialStep::SkipPokerContinueTurn:
 	case TutorialStep::EndAfterPoker:

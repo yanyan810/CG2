@@ -22,6 +22,8 @@ public:
     // ポーズ状態の取得・設定
     bool GetIsPaused() const { return isPaused_; }
     void SetIsPaused(bool paused) { isPaused_ = paused; }
+    void SetTutorialExitMode(bool enabled) { tutorialExitMode_ = enabled; }
+    bool IsTutorialExitMode() const { return tutorialExitMode_; }
 
 	bool GetIsSceneChangeRequested() const { return isSceneChanageReqested_; }
 	void RequestSceneChange(bool paused) { isSceneChanageReqested_ = paused; }
@@ -31,6 +33,7 @@ private:
     bool isPaused_ = false;
 
 	bool isSceneChanageReqested_ = false;
+    bool tutorialExitMode_ = false;
 
     std::unique_ptr<IPauseState> currentState_;
 

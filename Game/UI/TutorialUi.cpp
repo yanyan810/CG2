@@ -6,6 +6,7 @@
 #include "WinApp.h"
 
 #include <fstream>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
 #ifdef USE_IMGUI
@@ -50,6 +51,14 @@ void TutorialUi::Initialize(GameApp& app)
     darkOverlay_ = std::make_unique<Sprite>();
     darkOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
     darkOverlay_->SetColor({ 0.0f, 0.0f, 0.0f, 0.45f });
+
+    for (auto& panel : spotlightPanels_) {
+        panel = std::make_unique<Sprite>();
+        panel->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+        panel->SetColor({ 0.0f, 0.0f, 0.0f, 0.58f });
+        panel->SetPosition({ 0.0f, 0.0f });
+        panel->SetScale({ 0.0f, 0.0f, 1.0f });
+    }
 
     dimOverlay_ = std::make_unique<Sprite>();
     dimOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -219,6 +228,10 @@ std::vector<UiRect> TutorialUi::ResolveFocusRects_(
         rects.push_back(layout_.deckCountArea);
         break;
 
+    case Focus::PokerHandHelpArea:
+        rects.push_back(layout_.pokerHandHelpArea);
+        break;
+
     case Focus::EnemyTurnArea:
         rects.push_back(field.turnBg);
         break;
@@ -280,6 +293,51 @@ void TutorialUi::Update(GameApp& app,
     darkOverlay_->SetScale({ layout_.darkOverlay.w, layout_.darkOverlay.h, 1.0f });
 
     std::vector<UiRect> focusRects = ResolveFocusRects_(tutorial, battle, fieldUi);
+    hasSpotlight_ = !focusRects.empty();
+
+    if (hasSpotlight_) {
+        UiRect focus = focusRects.front();
+        for (const UiRect& r : focusRects) {
+            const float left = std::min(focus.x, r.x);
+            const float top = std::min(focus.y, r.y);
+            const float right = std::max(focus.x + focus.w, r.x + r.w);
+            const float bottom = std::max(focus.y + focus.h, r.y + r.h);
+            focus = { left, top, right - left, bottom - top };
+        }
+
+        constexpr float kSpotlightPadding = 12.0f;
+        const float screenW = static_cast<float>(WinApp::kClientWidth);
+        const float screenH = static_cast<float>(WinApp::kClientHeight);
+        const float left = std::clamp(focus.x - kSpotlightPadding, 0.0f, screenW);
+        const float top = std::clamp(focus.y - kSpotlightPadding, 0.0f, screenH);
+        const float right = std::clamp(focus.x + focus.w + kSpotlightPadding, 0.0f, screenW);
+        const float bottom = std::clamp(focus.y + focus.h + kSpotlightPadding, 0.0f, screenH);
+
+        const UiRect panels[4] = {
+            { 0.0f, 0.0f, screenW, top },
+            { 0.0f, bottom, screenW, screenH - bottom },
+            { 0.0f, top, left, bottom - top },
+            { right, top, screenW - right, bottom - top },
+        };
+
+        for (int i = 0; i < 4; ++i) {
+            if (!spotlightPanels_[i]) {
+                continue;
+            }
+            spotlightPanels_[i]->SetPosition({ panels[i].x, panels[i].y });
+            spotlightPanels_[i]->SetScale({ panels[i].w, panels[i].h, 1.0f });
+            spotlightPanels_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 0.58f });
+        }
+    } else {
+        for (auto& panel : spotlightPanels_) {
+            if (!panel) {
+                continue;
+            }
+            panel->SetPosition({ 0.0f, 0.0f });
+            panel->SetScale({ 0.0f, 0.0f, 1.0f });
+            panel->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+        }
+    }
 
     for (int i = 0; i < kMaxFocusFrames; ++i) {
         if (!focusFrames_[i]) {
@@ -427,9 +485,14 @@ void TutorialUi::Draw(GameApp& app,
         0, 100
     );
 
-    if (darkOverlay_) {
-        darkOverlay_->Update(view, proj);
-        darkOverlay_->Draw();
+    if (hasSpotlight_) {
+        for (auto& panel : spotlightPanels_) {
+            if (!panel) {
+                continue;
+            }
+            panel->Update(view, proj);
+            panel->Draw();
+        }
     }
 
     for (auto& frame : focusFrames_) {
@@ -523,6 +586,7 @@ bool TutorialUi::SaveLayout(const std::string& path) const
     writeRect(j["turnTextArea"], layout_.turnTextArea);
     writeRect(j["roleTextArea"], layout_.roleTextArea);
     writeRect(j["deckCountArea"], layout_.deckCountArea);
+    writeRect(j["pokerHandHelpArea"], layout_.pokerHandHelpArea);
     writeRect(j["playerIncomingDamageArea"], layout_.playerIncomingDamageArea);
     writeRect(j["enemyNextActionArea"], layout_.enemyNextActionArea);
 
@@ -613,6 +677,7 @@ bool TutorialUi::LoadLayout(const std::string& path)
     if (j.contains("turnTextArea")) readRect(j["turnTextArea"], layout_.turnTextArea);
     if (j.contains("roleTextArea")) readRect(j["roleTextArea"], layout_.roleTextArea);
     if (j.contains("deckCountArea")) readRect(j["deckCountArea"], layout_.deckCountArea);
+    if (j.contains("pokerHandHelpArea")) readRect(j["pokerHandHelpArea"], layout_.pokerHandHelpArea);
     if (j.contains("playerIncomingDamageArea")) {
         readRect(j["playerIncomingDamageArea"], layout_.playerIncomingDamageArea);
     }
@@ -720,6 +785,7 @@ void TutorialUi::DrawImGui(TutorialManager& tutorial)
     ImGui::DragFloat4("turnTextArea", &layout_.turnTextArea.x, 1.0f);
     ImGui::DragFloat4("roleTextArea", &layout_.roleTextArea.x, 1.0f);
     ImGui::DragFloat4("deckCountArea", &layout_.deckCountArea.x, 1.0f);
+    ImGui::DragFloat4("pokerHandHelpArea", &layout_.pokerHandHelpArea.x, 1.0f);
 
     ImGui::DragFloat4("playerIncomingDamageArea", &layout_.playerIncomingDamageArea.x, 1.0f);
     ImGui::DragFloat4("enemyNextActionArea", &layout_.enemyNextActionArea.x, 1.0f);
