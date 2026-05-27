@@ -13,6 +13,8 @@ public:
 
     void Register(const std::string& name, Factory factory);
     void Change(GameApp& app, const std::string& name);
+    void ChangeToPrepared(GameApp& app, const std::string& name, std::unique_ptr<IScene> scene);
+    void RequestPreparedChange(const std::string& name, std::unique_ptr<IScene> scene);
 
     void Update(GameApp& app, float dt);
 
@@ -31,5 +33,7 @@ public:
 private:
     std::unordered_map<std::string, Factory> factories_;
     std::unique_ptr<IScene> current_;
+    std::unique_ptr<IScene> pendingPreparedScene_;
     std::string currentName_;
+    std::string pendingPreparedName_;
 };

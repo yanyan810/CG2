@@ -9,6 +9,7 @@ void SpriteCommon::Initialize(DirectXCommon* dx) {
 
     // 既存スプライト
     CreateGraphicsPipelineState();
+    CreateAddGraphicsPipelineState_();
 
     // ★追加：円マスク（1回だけ作る）
     CreateCircleMaskPipeline_();
@@ -130,13 +131,57 @@ void SpriteCommon::CreateGraphicsPipelineState() {
     assert(SUCCEEDED(hr));
 }
 
-void SpriteCommon::SetGraphicsPipelineState() {
+void SpriteCommon::CreateAddGraphicsPipelineState_() {
+    // Additive sprites make black pixels contribute nothing, useful for glow textures.
+    Microsoft::WRL::ComPtr<IDxcBlob> vs = dx_->CompilesSharder(L"resources/shaders/Sprite2d.VS.hlsl", L"vs_6_0");
+    Microsoft::WRL::ComPtr<IDxcBlob> ps = dx_->CompilesSharder(L"resources/shaders/Sprite2d.PS.hlsl", L"ps_6_0");
+
+    D3D12_BLEND_DESC blend{};
+    blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blend.RenderTarget[0].BlendEnable = TRUE;
+    blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    blend.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+    blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+
+    D3D12_RASTERIZER_DESC rast{};
+    rast.CullMode = D3D12_CULL_MODE_NONE;
+    rast.FillMode = D3D12_FILL_MODE_SOLID;
+
+    D3D12_DEPTH_STENCIL_DESC ds{};
+    ds.DepthEnable = FALSE;
+    ds.StencilEnable = FALSE;
+    ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    ds.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+    psoDesc.pRootSignature = rootSignature_.Get();
+    psoDesc.InputLayout = inputLayout_;
+    psoDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+    psoDesc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+    psoDesc.BlendState = blend;
+    psoDesc.RasterizerState = rast;
+    psoDesc.DepthStencilState = ds;
+    psoDesc.NumRenderTargets = 1;
+    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    psoDesc.SampleDesc.Count = 1;
+    psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+    HRESULT hr = dx_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&addPso_));
+    assert(SUCCEEDED(hr));
+}
+
+void SpriteCommon::SetGraphicsPipelineState(BlendMode mode) {
     auto* cmd = dx_->GetCommandList();
 
     // ルートシグネチャ
     cmd->SetGraphicsRootSignature(rootSignature_.Get());
     // グラフィックスパイプラインステート（PSO）
-    cmd->SetPipelineState(pso_.Get());
+    cmd->SetPipelineState(mode == BlendMode::Add ? addPso_.Get() : pso_.Get());
     // プリミティブトポロジ（スプライトは三角形リスト）
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }

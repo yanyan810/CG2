@@ -48,6 +48,10 @@ public:
     void DrawPostEffect2D(GameApp& app) override;
 
     void ChangeRandomCamera();
+    void BeginEnterPreparation(GameApp& app);
+    bool PrepareEnterStep(GameApp& app);
+    float GetEnterPreparationProgress() const;
+    bool IsEnterPreparationComplete() const { return enterPreparationComplete_; }
 
 private:
 
@@ -62,6 +66,7 @@ private:
     void DrawBattleAnimationDebugWindow_();
     void DrawPlayerHudImGui_();
     void UpdateReleaseDebugText_();
+    void PrepareEnterReset_(GameApp& app);
 
 private:
     std::unique_ptr<Camera> camera_;
@@ -192,6 +197,8 @@ private:
     // ゲーム結果ポップアップ
     std::unique_ptr<GameResultPopup> resultPopup_;
     std::unique_ptr<PokerHandHelpView> pokerHandHelpView_;
+    int enterPreparationStep_ = 0;
+    bool enterPreparationComplete_ = false;
     bool gameResultShown_ = false; // ポップアップ表示済みフラグ
 };
 

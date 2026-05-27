@@ -278,7 +278,323 @@ namespace {
 	}
 }
 
+namespace {
+constexpr int kGameSceneEnterStepCount = 9;
+}
+
+void GameScene::BeginEnterPreparation(GameApp& app)
+{
+	PrepareEnterReset_(app);
+	enterPreparationStep_ = 0;
+	enterPreparationComplete_ = false;
+}
+
+float GameScene::GetEnterPreparationProgress() const
+{
+	if (enterPreparationComplete_) {
+		return 1.0f;
+	}
+	return std::clamp(
+		static_cast<float>(enterPreparationStep_) / static_cast<float>(kGameSceneEnterStepCount),
+		0.0f,
+		1.0f);
+}
+
+void GameScene::PrepareEnterReset_(GameApp& app)
+{
+	isBossStage_ = false;
+	bossStageBannerTimer_ = 0.0f;
+	battleEndTimer_ = 120;
+	clearTransitionActive_ = false;
+	clearTransitionTimer_ = 0.0f;
+	clearBaseFieldCameraPos_ = {};
+	clearBaseFieldCameraRot_ = {};
+	clearBaseBattleCameraPos_ = {};
+	clearBaseBattleCameraRot_ = {};
+	app.ResetRadialBlur();
+}
+
+bool GameScene::PrepareEnterStep(GameApp& app)
+{
+	if (enterPreparationComplete_) {
+		return true;
+	}
+
+	switch (enterPreparationStep_) {
+	case 0:
+		camera_ = std::make_unique<Camera>();
+		camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+		camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+		app.ObjCom()->SetDefaultCamera(camera_.get());
+
+		animCamera_ = std::make_unique<Camera>();
+		animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+		animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+
+		cameraAnim_ = std::make_unique<CameraAnimator>();
+		cameraAnim_->Initialize(animCamera_.get(), app.GetInput());
+
+		ReloadCameraFileList_();
+		if (!cameraFiles_.empty()) {
+			ChangeRandomCamera();
+		}
+		break;
+
+	case 1:
+		skyDome_ = std::make_unique<Object3d>();
+		skyDome_->Initialize(app.ObjCom(), app.Dx());
+		skyDome_->SetModel("skydome/skydome.obj");
+		skyDome_->SetCamera(camera_.get());
+		skyDome_->SetEnableLighting(0);
+		skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
+		skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
+
+		battleForestProps_ = std::make_unique<PropManager>();
+		battleForestProps_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
+		stageFieldConfigPath_ = app.GetSelectedStageFieldConfigPath();
+		battleForestProps_->LoadFromJson(stageFieldConfigPath_);
+		break;
+
+	case 2: {
+		const float charZ = 15.0f;
+		player_ = std::make_unique<Player>();
+		player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
+		player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
+		player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+
+#ifndef _DEBUG
+		if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
+			struct CustomAnimationFile {
+				const char* path;
+				const char* name;
+			};
+
+			static const CustomAnimationFile kCustomAnimationFiles[] = {
+				{ "resources/CustomAnim/CustomAnim.json", "CustomAnim" },
+				{ "resources/CustomAnim/CustomAnim_attack_1.json", "CustomAnim_attack_1" },
+				{ "resources/CustomAnim/CustomAnim_attack_2.json", "CustomAnim_attack_2" },
+				{ "resources/CustomAnim/CustomAnim_attack_3.json", "CustomAnim_attack_3" },
+				{ "resources/CustomAnim/CustomAnim_attack_received_1.json", "CustomAnim_attack_received_1" },
+				{ "resources/CustomAnim/CustomAnim_attack_received_2.json", "CustomAnim_attack_received_2" },
+			};
+
+			bool loadedDefaultCustomAnim = false;
+			for (const auto& customAnimationFile : kCustomAnimationFiles) {
+				Animation animation{};
+				if (!AnimationJsonSerializer::LoadFromJson(customAnimationFile.path, animation)) {
+					continue;
+				}
+
+				player_->GetObject3d()->GetModel()->AddAnimation(customAnimationFile.name, animation);
+				if (std::string(customAnimationFile.name) == "CustomAnim") {
+					loadedDefaultCustomAnim = true;
+				}
+			}
+
+			if (loadedDefaultCustomAnim) {
+				player_->GetObject3d()->PlayAnimation("CustomAnim", true);
+			}
+		}
+#endif
+
+		animationEditTarget_ = player_ ? player_->GetObject3d() : nullptr;
+		cameraEditTarget_ = animCamera_.get();
+		break;
+	}
+
+	case 3: {
+		enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
+		std::vector<StageEnemyConfig> stageEnemies;
+		std::string stageBgmId;
+		bool stageIsBoss = false;
+		if (LoadStageEnemyConfigs_(app.GetSelectedStageConfigPath(), stageEnemies, stageBgmId, stageIsBoss)) {
+			isBossStage_ = stageIsBoss;
+			for (const StageEnemyConfig& config : stageEnemies) {
+				enemyMgr_.SpawnWithConfig(config);
+			}
+		} else {
+			isBossStage_ = false;
+			SpawnDefaultEnemies_(enemyMgr_);
+		}
+		bossStageBannerTimer_ = isBossStage_ ? kBossStageBannerDuration : 0.0f;
+		AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Stage1_5" : stageBgmId);
+
+		light_.lightingMode = 1;
+		light_.dir = { 0.3f, -1.0f, 0.2f };
+		light_.dirIntensity = 1.5f;
+		light_.dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		break;
+	}
+
+	case 4:
+		battle_.SetPlayer(player_.get());
+		battle_.SetEnemyManager(&enemyMgr_);
+		battle_.Initialize(app, camera_.get());
+		break;
+
+	case 5:
+		cardDescText_ = std::make_unique<TextSprite>();
+		cardDescText_->Initialize(app.SpriteCom(), app.Dx());
+		cardDescText_->SetPosition({ 40.0f, 620.0f });
+
+		cardDescBg_ = std::make_unique<Sprite>();
+		cardDescBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		cardDescBg_->SetPosition({ 20.0f, 60.0f });
+		cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
+		cardDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+
+		fieldUi_ = std::make_unique<FieldUi>();
+		fieldUi_->Initialize(app);
+		releaseDebugText_ = std::make_unique<TextSprite>();
+		releaseDebugText_->Initialize(app.SpriteCom(), app.Dx());
+		releaseDebugText_->SetFontSize(18);
+		releaseDebugText_->SetSize({ 1.0f, 1.0f, 1.0f });
+		releaseDebugText_->SetPosition({ 12.0f, 120.0f });
+		releaseDebugText_->SetColor({ 0.9f, 1.0f, 0.45f });
+		releaseDebugText_->SetText(L"");
+
+		TextureManager::GetInstance()->LoadTexture("resources/gradation.png");
+		trailManager_ = std::make_unique<TrailManager>();
+		trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
+		testTrail_ = trailManager_->CreateInstance();
+		testTrail_->SetIsPermanent(true);
+		player_->SetTrailInstance(testTrail_);
+		break;
+
+	case 6:
+		highlightFilter_ = std::make_unique<Sprite>();
+		highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		highlightFilter_->SetPosition({ 0.0f, 0.0f });
+		highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
+		highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+
+		bossStageBannerBg_ = std::make_unique<Sprite>();
+		bossStageBannerBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		bossStageBannerBg_->SetPosition({ kBossStageBannerX, kBossStageBannerY });
+		bossStageBannerBg_->SetScale({ kBossStageBannerWidth, kBossStageBannerHeight, 1.0f });
+		bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f });
+
+		bossStageBannerEffectOverlay_ = std::make_unique<Sprite>();
+		bossStageBannerEffectOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		bossStageBannerEffectOverlay_->SetPosition({ kBossStageBannerX - 24.0f, kBossStageBannerY - 12.0f });
+		bossStageBannerEffectOverlay_->SetScale({ kBossStageBannerWidth + 48.0f, kBossStageBannerHeight + 24.0f, 1.0f });
+		bossStageBannerEffectOverlay_->SetColor({ 1.0f, 0.02f, 0.0f, 0.18f });
+
+		bossStageBannerGlowText_ = std::make_unique<TextSprite>();
+		bossStageBannerGlowText_->Initialize(app.SpriteCom(), app.Dx());
+		bossStageBannerGlowText_->SetText(L"BOSS STAGE");
+		bossStageBannerGlowText_->SetFontSize(56);
+		bossStageBannerGlowText_->SetColor({ 1.0f, 0.18f, 0.04f });
+		bossStageBannerGlowText_->SetPosition({ kBossStageTextX, kBossStageTextY });
+		bossStageBannerGlowText_->SetSize({ 1.0f, 1.0f, 1.0f });
+
+		bossStageBannerText_ = std::make_unique<TextSprite>();
+		bossStageBannerText_->Initialize(app.SpriteCom(), app.Dx());
+		bossStageBannerText_->SetText(L"BOSS STAGE");
+		bossStageBannerText_->SetFontSize(56);
+		bossStageBannerText_->SetColor({ 1.0f, 0.78f, 0.2f });
+		bossStageBannerText_->SetPosition({ kBossStageTextX, kBossStageTextY });
+		bossStageBannerText_->SetSize({ 1.0f, 1.0f, 1.0f });
+		break;
+
+	case 7:
+		particleManager_ = ModelParticleManager::GetInstance();
+		particleManager_->ClearParticles();
+		particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
+		particleManager_->RegisterEffect("player_fire", "fire_particle.json");
+		particleManager_->RegisterEffect("fireExplosive", "fireExplosive.json");
+		particleManager_->RegisterEffect("particle_image", "0.json");
+		particleManager_->RegisterEffect("Vacuum_Fly", "Vacuum_Fly.json");
+		particleManager_->RegisterEffect("Vacuum_Hit", "Vacuum_Hit.json");
+		particleManager_->RegisterEffect("Flare_Fly", "Flare_Fly.json");
+		particleManager_->RegisterEffect("Flare_Hit", "Flare_Hit.json");
+		particleManager_->RegisterEffect("Air_Fly", "Air_Fly.json");
+		particleManager_->RegisterEffect("Air_Hit", "Air_Hit.json");
+
+		fieldParticleManager_ = std::make_unique<ModelParticleManager>();
+		fieldParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+		fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
+		battle_.SetFieldParticleManager(fieldParticleManager_.get());
+
+		particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
+		ResetParticleObjectPostParam_();
+		break;
+
+	case 8: {
+		TrailConfig config;
+		trailConfig_.maxPoints = 200;
+		trailConfig_.interpolationSteps = 8;
+		trailConfig_.startColor = { 1, 1, 1, 1 };
+		trailConfig_.endColor = { 1, 0, 0, 0.2f };
+		player_->SetTrailConfig(config);
+
+		effectSequencer_ = std::make_unique<EffectSequencer>();
+		effectSequencer_->Initialize(
+			app.ObjCom(), app.Dx(), animCamera_.get(),
+			particleManager_, trailManager_.get()
+		);
+
+		if (player_) {
+			player_->GetEffectSequencer().Initialize(
+				app.ObjCom(), app.Dx(), animCamera_.get(),
+				particleManager_, trailManager_.get()
+			);
+
+			player_->AddAttackMove({ "CustomAnim_attack_1", "attack_1.json", 0.1f });
+			player_->AddAttackMove({ "CustomAnim_attack_2", "attack_2.json", 0.15f });
+			player_->AddAttackMove({ "CustomAnim_attack_3", "attack_3.json", 0.2f });
+		}
+
+		pausingUI_ = std::make_unique<PausingUI>();
+		pausingUI_->Initialize(app);
+
+		pokerHandHelpView_ = std::make_unique<PokerHandHelpView>();
+		pokerHandHelpView_->Initialize(app.SpriteCom(), app.Dx());
+
+		startFadeMask_ = std::make_unique<Sprite>();
+		startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		startFadeMask_->SetAnchorPoint({ 0.0f, 0.0f });
+		startFadeMask_->SetPosition({ 0.0f, 0.0f });
+		const DirectX::TexMetadata& whiteMeta =
+			TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
+		startFadeMask_->SetScale({
+			float(WinApp::kClientWidth) / float(whiteMeta.width),
+			float(WinApp::kClientHeight) / float(whiteMeta.height),
+			1.0f
+			});
+		startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+		startFadeDuration_ = kSceneStartFadeDuration;
+		startFadeTimer_ = 0.0f;
+		startFadeActive_ = true;
+
+		gameResultShown_ = false;
+		if (!resultPopup_) {
+			resultPopup_ = std::make_unique<GameResultPopup>();
+			resultPopup_->Initialize(app);
+		} else {
+			resultPopup_->Hide();
+		}
+		break;
+	}
+
+	default:
+		enterPreparationComplete_ = true;
+		return true;
+	}
+
+	++enterPreparationStep_;
+	if (enterPreparationStep_ >= kGameSceneEnterStepCount) {
+		enterPreparationComplete_ = true;
+	}
+	return enterPreparationComplete_;
+}
+
 void GameScene::OnEnter(GameApp& app) {
+	BeginEnterPreparation(app);
+	while (!PrepareEnterStep(app)) {
+	}
+	return;
+
 	isBossStage_ = false;
 	bossStageBannerTimer_ = 0.0f;
 	battleEndTimer_ = 120;

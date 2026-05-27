@@ -4,6 +4,7 @@
 #include "Vector3.h"
 #include "Matrix4x4.h"
 #include "TextureManager.h"
+#include "SpriteCommon.h"
 
 class SpriteCommon;
 class DirectXCommon;
@@ -74,6 +75,7 @@ public:
 
 	// === 引数なし Draw（内部でPSOとSRVをセット） ===
 	void Draw();
+	void DrawAdditive();
     void SetHealthGaugeParam(const HealthGaugeParam& param);
     void DrawHealthGauge();
 
@@ -119,8 +121,7 @@ public:
 	}
 
 private:
-
-
+	void DrawInternal_(SpriteCommon::BlendMode blendMode);
 
 private:
 	struct Material {
