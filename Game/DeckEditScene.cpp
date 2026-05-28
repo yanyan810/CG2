@@ -149,6 +149,8 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	UpdateSprites(app);
 
 	isSelectingTemplateDeck_ = true;
+
+	statusMenu_.Initialize(app, { 100.f, 300.f });
 }
 
 void DeckEditScene::OnExit(GameApp& app) {
@@ -180,6 +182,8 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		selectingTemplateDeckBg_->Update(view, proj);
 
 		bool isAnyButtonHovered = false;
+
+		statusMenu_.Update(app, view, proj);
 
 		// インデックス付きでループを回す
 		for (size_t i = 0; i < deckTemplateButtons_.size(); ++i) {
@@ -457,6 +461,9 @@ void DeckEditScene::Draw2D(GameApp& app) {
 
 	if (isSelectingTemplateDeck_) {
 		if (selectingTemplateDeckBg_) selectingTemplateDeckBg_->Draw();
+
+		
+
 		for (const auto& btn : deckTemplateButtons_) {
 			btn->Draw();
 		}
@@ -464,6 +471,9 @@ void DeckEditScene::Draw2D(GameApp& app) {
 			if (templateTooltipBg_) templateTooltipBg_->Draw();
 			if (templateTooltipText_) templateTooltipText_->Draw();
 		}
+
+		statusMenu_.Draw();
+
 		return;
 	}
 
@@ -495,6 +505,7 @@ void DeckEditScene::Draw2D(GameApp& app) {
 
 void DeckEditScene::DrawImGui(GameApp& app) {
 	if (isSelectingTemplateDeck_) {
+		statusMenu_.DrawImGui();
 		for (const auto& btn : deckTemplateButtons_) {
 			btn->DrawImGui();
 		}
