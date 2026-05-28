@@ -1,4 +1,5 @@
 #include "StageSelectScene.h"
+#include "DeckEditScene.h"
 
 #include "GameApp.h"
 #include "Camera.h"
@@ -147,6 +148,10 @@ void StageSelectScene::SelectStageItem_(GameApp& app, const StageItem& item)
 		return;
 	}
 
+	if (item.sceneName == "DeckEdit") {
+		DeckEditScene::returnSceneName_ = "StageSelect";
+	}
+
 	RequestChangeScene_(item.sceneName.c_str());
 }
 
@@ -221,12 +226,17 @@ void StageSelectScene::UpdateStageFieldBackground_()
 void StageSelectScene::OnEnter(GameApp& app) {
 	hoverIndex_ = -1;
 	selectIndex_ = 0;
+	isUsingMouse_ = true;
 	currentStageId_ = std::clamp(app.GetSelectedStageId(), 1, 10);
 	bossWarningBurstTimer_ = 0.0f;
 	bossShakeTimer_ = 0.0f;
 	circle_ = 0.0f;
 	softness_ = 0.6f;
 	AudioManager::GetInstance()->PlayBGM("BGM_TitleSelect");
+
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Stage_select.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Deck_editing.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/return.png");
 
 	camera_ = std::make_unique<Camera>();
 	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
@@ -258,7 +268,7 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	bossStageWarningOverlay_->SetColor({ 1.0f, 0.04f, 0.02f, 0.18f });
 
 	titleSprite_ = std::make_unique<Sprite>();
-	titleSprite_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/title_stage_select.png");
+	titleSprite_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/Stage_select.png");
 	titleSprite_->SetAnchorPoint({ 0.0f, 0.0f });
 	titleSprite_->SetPosition({ 470.0f, 80.0f });
 
@@ -297,7 +307,7 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	stageItems_[0].buttonSprite->SetPosition({ stageItems_[0].buttonRect.x, stageItems_[0].buttonRect.y });
 
 	stageItems_[1].sceneName = "DeckEdit";
-	stageItems_[1].displayText = L"デッキ編集";
+	stageItems_[1].displayText = L""; // テキストは画像に含まれるため空
 	stageItems_[1].descText = L"使用するデッキを編成します";
 	stageItems_[1].buttonRect = {
 	layout_.deckEditButtonRect.x,
@@ -306,7 +316,7 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	layout_.deckEditButtonRect.h
 	};
 	stageItems_[1].buttonSprite = std::make_unique<Sprite>();
-	stageItems_[1].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	stageItems_[1].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/Deck_editing.png");
 	stageItems_[1].buttonSprite->SetAnchorPoint({ 0.0f, 0.0f });
 	stageItems_[1].buttonSprite->SetPosition({ stageItems_[1].buttonRect.x, stageItems_[1].buttonRect.y });
 
@@ -345,17 +355,11 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	rightArrowText_->SetOutline(textOutlineColor_, textOutlineWidth_);
 
 	backButtonBg_ = std::make_unique<Sprite>();
-	backButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	backButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/return.png");
 	backButtonBg_->SetAnchorPoint({ 0.0f, 0.0f });
 	backButtonBg_->SetPosition({ backButtonRect_.x, backButtonRect_.y });
 
-	backButtonText_ = std::make_unique<TextSprite>();
-	backButtonText_->Initialize(app.SpriteCom(), app.Dx());
-	backButtonText_->SetText(L"戻る");
-	backButtonText_->SetFontSize(28);
-	backButtonText_->SetSize({ 1.0f, 1.0f, 1.0f });
-	backButtonText_->SetAlpha(1.0f);
-	backButtonText_->SetOutline(textOutlineColor_, textOutlineWidth_);
+	// backButtonText_ is no longer needed since return.png has text
 
 	LoadLayout_();
 	ApplyLayout_();
@@ -427,7 +431,14 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
+	POINT mouse = input->GetMousePosition();
+	const float mx = static_cast<float>(mouse.x);
+	const float my = static_cast<float>(mouse.y);
 
+	POINT mouseDelta = input->GetMouseDelta();
+	if (mouseDelta.x != 0 || mouseDelta.y != 0 || input->IsMouseTrigger(0)) {
+		isUsingMouse_ = true;
+	}
 
 	if (input->IsKeyTrigger(DIK_A)) {
 		RequestChangeScene_("BattleAnimeEditer");
@@ -435,10 +446,6 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 	}
 
 	hoverIndex_ = -1;
-
-	POINT mouse = input->GetMousePosition();
-	const float mx = static_cast<float>(mouse.x);
-	const float my = static_cast<float>(mouse.y);
 
 	if (input->IsKeyTrigger(DIK_ESCAPE) ||
 		(PointInRect_(mx, my, backButtonRect_) && input->IsMouseTrigger(0))) {
@@ -467,10 +474,9 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 	}
 
 	if (hoverIndex_ != -1) {
-		selectIndex_ = hoverIndex_;
-
 		if (input->IsMouseTrigger(0)) {
 			AudioManager::GetInstance()->PlaySE("SE_Tap");
+			selectIndex_ = hoverIndex_;
 			SelectStageItem_(app, stageItems_[selectIndex_]);
 			return;
 		}
@@ -478,6 +484,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 
 	// キーボード操作
 	if (input->IsKeyTrigger(DIK_UP) || input->IsKeyTrigger(DIK_W)) {
+		isUsingMouse_ = false;
 		selectIndex_--;
 		if (selectIndex_ < 0) {
 			selectIndex_ = static_cast<int>(stageItems_.size()) - 1;
@@ -485,6 +492,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 	}
 
 	if (input->IsKeyTrigger(DIK_DOWN) || input->IsKeyTrigger(DIK_S)) {
+		isUsingMouse_ = false;
 		selectIndex_++;
 		if (selectIndex_ >= static_cast<int>(stageItems_.size())) {
 			selectIndex_ = 0;
@@ -493,6 +501,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 
 	if (input->IsKeyTrigger(DIK_LEFT) || input->IsKeyTrigger(DIK_A)) {
 		if (currentStageId_ > 1) {
+			isUsingMouse_ = false;
 			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			ChangeStage_(-1);
 		}
@@ -500,6 +509,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 
 	if (input->IsKeyTrigger(DIK_RIGHT) || input->IsKeyTrigger(DIK_D)) {
 		if (currentStageId_ < 10) {
+			isUsingMouse_ = false;
 			AudioManager::GetInstance()->PlaySE("SE_Tap");
 			ChangeStage_(1);
 		}
@@ -511,7 +521,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
-	const int showIndex = hoverIndex_ >= 0 ? hoverIndex_ : selectIndex_;
+	const int showIndex = isUsingMouse_ ? hoverIndex_ : selectIndex_;
 	if (showIndex >= 0 && showIndex < static_cast<int>(stageItems_.size())) {
 		currentDescText_ = stageItems_[showIndex].descText;
 		currentDescPos_ = {
@@ -544,7 +554,7 @@ void StageSelectScene::DrawDescriptionText_(GameApp& app, const std::wstring& te
 	);
 
 	float scale = 1.2f;
-	const int showIndex = hoverIndex_ >= 0 ? hoverIndex_ : selectIndex_;
+	const int showIndex = isUsingMouse_ ? hoverIndex_ : selectIndex_;
 	if (showIndex == 0) {
 		scale = layout_.battleDescText.scale;
 	} else if (showIndex == 1) {
@@ -623,11 +633,12 @@ void StageSelectScene::Draw2D(GameApp& app) {
 		}();
 
 	if (backButtonBg_) {
+		const DirectX::TexMetadata& meta = TextureManager::GetInstance()->GetMetaData(backButtonBg_->GetTextureFilePath());
 		backButtonBg_->SetPosition({ backButtonRect_.x + shakeOffset.x, backButtonRect_.y + shakeOffset.y });
-		backButtonBg_->SetScale({ backButtonRect_.w, backButtonRect_.h, 1.0f });
+		backButtonBg_->SetScale({ backButtonRect_.w / static_cast<float>(meta.width), backButtonRect_.h / static_cast<float>(meta.height), 1.0f });
 		backButtonBg_->SetColor(isBackHovered
-			? Vector4{ 0.06f, 0.08f, 0.10f, 0.94f }
-			: Vector4{ 0.0f, 0.0f, 0.0f, 0.82f });
+			? Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }
+			: Vector4{ 0.8f, 0.8f, 0.8f, 1.0f });
 		backButtonBg_->Update(view, proj);
 		backButtonBg_->Draw();
 	}
@@ -647,20 +658,31 @@ void StageSelectScene::Draw2D(GameApp& app) {
 			continue;
 		}
 
-		const bool isSelected = i == selectIndex_;
-		const bool isHovered = i == hoverIndex_;
+		const bool isHovered = (i == hoverIndex_);
+		const bool isSelected = (i == selectIndex_);
+		const bool shouldHighlight = isUsingMouse_ ? isHovered : isSelected;
 
 		float scale = 1.0f;
-		if (isSelected || isHovered) {
+		if (shouldHighlight) {
 			scale = hoverScale_;
 		}
+
+		const DirectX::TexMetadata& meta = TextureManager::GetInstance()->GetMetaData(stageItems_[i].buttonSprite->GetTextureFilePath());
+		float scaleX = (stageItems_[i].buttonRect.w * scale) / static_cast<float>(meta.width);
+		float scaleY = (stageItems_[i].buttonRect.h * scale) / static_cast<float>(meta.height);
 
 		stageItems_[i].buttonSprite->SetPosition({
 			stageItems_[i].buttonRect.x + shakeOffset.x,
 			stageItems_[i].buttonRect.y + shakeOffset.y
 			});
-		stageItems_[i].buttonSprite->SetScale({ stageItems_[i].buttonRect.w * scale, stageItems_[i].buttonRect.h * scale, 1.0f });
-		stageItems_[i].buttonSprite->SetColor({ 1.0f, 1.0f, 1.0f, 0.0f });
+		stageItems_[i].buttonSprite->SetScale({ scaleX, scaleY, 1.0f });
+
+		Vector4 btnColor = { 1.0f, 1.0f, 1.0f, 0.0f }; // default invisible for non-image buttons
+		if (i == 1) {
+			btnColor = shouldHighlight ? Vector4{ 1.0f, 1.0f, 1.0f, 1.0f } : Vector4{ 0.8f, 0.8f, 0.8f, 1.0f };
+		}
+		stageItems_[i].buttonSprite->SetColor(btnColor);
+
 		stageItems_[i].buttonSprite->Update(view, proj);
 		stageItems_[i].buttonSprite->Draw();
 	}
@@ -671,17 +693,16 @@ void StageSelectScene::Draw2D(GameApp& app) {
 		}
 
 		const Rect& r = stageItems_[i].buttonRect;
-		const bool isSelected = i == selectIndex_;
-		const bool isHovered = i == hoverIndex_;
+		const bool isHovered = (i == hoverIndex_);
+		const bool isSelected = (i == selectIndex_);
+		const bool shouldHighlight = isUsingMouse_ ? isHovered : isSelected;
+		
 		const bool isBossStage = stageItems_[i].stageId == 10;
 		Vector3 textColor = { 1.0f, 1.0f, 1.0f };
 		if (isBossStage) {
 			textColor = { 1.0f, 0.78f, 0.2f };
 		}
-		if (isHovered && !isSelected) {
-			textColor = { 0.68f, 0.9f, 1.0f };
-		}
-		if (isSelected) {
+		if (shouldHighlight) {
 			textColor = { 1.0f, 0.92f, 0.45f };
 		}
 
@@ -723,10 +744,17 @@ void StageSelectScene::Draw2D(GameApp& app) {
 	// デバッグ用：当たり判定表示
 	if (showDebugHitBox_) {
 		for (int i = 0; i < static_cast<int>(stageItems_.size()); ++i) {
+			if (i >= static_cast<int>(debugHitBgs_.size())) {
+				continue;
+			}
 			const Rect& r = stageItems_[i].buttonRect;
 
+			const bool isHovered = (i == hoverIndex_);
+			const bool isSelected = (i == selectIndex_);
+			const bool shouldHighlight = isUsingMouse_ ? isHovered : isSelected;
+
 			Vector4 color = { 0.0f, 0.0f, 0.0f, 0.45f };
-			if (i == hoverIndex_) {
+			if (shouldHighlight) {
 				color = { 1.0f, 0.0f, 0.0f, 0.45f };
 			}
 
@@ -801,6 +829,51 @@ void StageSelectScene::DrawImGui(GameApp& app) {
 		ApplyLayout_();
 	}
 
+	ImGui::Separator();
+	if (ImGui::TreeNode("Title Box")) {
+		float pos[2] = { layout_.titlePos.x, layout_.titlePos.y };
+		if (ImGui::DragFloat2("Pos##Title", pos, 1.0f)) {
+			layout_.titlePos = { pos[0], pos[1] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Back Button")) {
+		float rect[4] = { layout_.backButtonRect.x, layout_.backButtonRect.y, layout_.backButtonRect.w, layout_.backButtonRect.h };
+		if (ImGui::DragFloat4("Rect##Back", rect, 1.0f)) {
+			layout_.backButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Battle Button")) {
+		float rect[4] = { layout_.battleButtonRect.x, layout_.battleButtonRect.y, layout_.battleButtonRect.w, layout_.battleButtonRect.h };
+		if (ImGui::DragFloat4("Rect##Battle", rect, 1.0f)) {
+			layout_.battleButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Deck Edit Button")) {
+		float rect[4] = { layout_.deckEditButtonRect.x, layout_.deckEditButtonRect.y, layout_.deckEditButtonRect.w, layout_.deckEditButtonRect.h };
+		if (ImGui::DragFloat4("Rect##DeckEdit", rect, 1.0f)) {
+			layout_.deckEditButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Left Arrow")) {
+		float rect[4] = { layout_.leftArrowRect.x, layout_.leftArrowRect.y, layout_.leftArrowRect.w, layout_.leftArrowRect.h };
+		if (ImGui::DragFloat4("Rect##LeftArrow", rect, 1.0f)) {
+			layout_.leftArrowRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Right Arrow")) {
+		float rect[4] = { layout_.rightArrowRect.x, layout_.rightArrowRect.y, layout_.rightArrowRect.w, layout_.rightArrowRect.h };
+		if (ImGui::DragFloat4("Rect##RightArrow", rect, 1.0f)) {
+			layout_.rightArrowRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	ImGui::Separator();
+
 	ImGui::Text("hoverIndex = %d", hoverIndex_);
 	ImGui::Text("selectIndex = %d", selectIndex_);
 
@@ -857,46 +930,29 @@ void StageSelectScene::ApplyLayout_() {
 		descBgBottom_->SetPosition({ 360.0f, 560.0f });
 	}
 
+	backButtonRect_ = { layout_.backButtonRect.x, layout_.backButtonRect.y, layout_.backButtonRect.w, layout_.backButtonRect.h };
+	leftArrowRect_ = { layout_.leftArrowRect.x, layout_.leftArrowRect.y, layout_.leftArrowRect.w, layout_.leftArrowRect.h };
+	rightArrowRect_ = { layout_.rightArrowRect.x, layout_.rightArrowRect.y, layout_.rightArrowRect.w, layout_.rightArrowRect.h };
+
 	if (stageItems_.size() >= 2) {
-		const float battleW = 420.0f;
-		const float battleH = 120.0f;
-		const float battleX = (static_cast<float>(WinApp::kClientWidth) - battleW) * 0.5f;
-		const float battleY = 390.0f;
-		const float deckGap = 40.0f;
-		const float deckW = layout_.deckEditButtonRect.w;
-		const float deckH = layout_.deckEditButtonRect.h;
-		const float deckX = layout_.tutorialButtonRect.x + layout_.tutorialButtonRect.w + deckGap;
-		const float deckY = layout_.tutorialButtonRect.y;
-		const float descX = 420.0f;
-		const float descY = 585.0f;
-
 		stageItems_[0].buttonRect = {
-			battleX,
-			battleY,
-			battleW,
-			battleH
-		};
-
-		stageItems_[1].descRect = {
-			descX,
-			descY,
-			deckW,
-			deckH
+			layout_.battleButtonRect.x,
+			layout_.battleButtonRect.y,
+			layout_.battleButtonRect.w,
+			layout_.battleButtonRect.h
 		};
 
 		stageItems_[1].buttonRect = {
-			deckX,
-			deckY,
-			deckW,
-			deckH
+			layout_.deckEditButtonRect.x,
+			layout_.deckEditButtonRect.y,
+			layout_.deckEditButtonRect.w,
+			layout_.deckEditButtonRect.h
 		};
 
-		stageItems_[0].descRect = {
-			descX,
-			descY,
-			battleW,
-			battleH
-		};
+		const float descX = 420.0f;
+		const float descY = 585.0f;
+		stageItems_[0].descRect = { descX, descY, layout_.battleButtonRect.w, layout_.battleButtonRect.h };
+		stageItems_[1].descRect = { descX, descY, layout_.deckEditButtonRect.w, layout_.deckEditButtonRect.h };
 
 		for (auto& item : stageItems_) {
 			if (item.buttonSprite) {
@@ -929,6 +985,34 @@ void StageSelectScene::SaveLayout_() const {
 		{"y", layout_.battleButtonRect.y},
 		{"w", layout_.battleButtonRect.w},
 		{"h", layout_.battleButtonRect.h}
+	};
+
+	j["deckEditButtonRect"] = {
+		{"x", layout_.deckEditButtonRect.x},
+		{"y", layout_.deckEditButtonRect.y},
+		{"w", layout_.deckEditButtonRect.w},
+		{"h", layout_.deckEditButtonRect.h}
+	};
+
+	j["backButtonRect"] = {
+		{"x", layout_.backButtonRect.x},
+		{"y", layout_.backButtonRect.y},
+		{"w", layout_.backButtonRect.w},
+		{"h", layout_.backButtonRect.h}
+	};
+
+	j["leftArrowRect"] = {
+		{"x", layout_.leftArrowRect.x},
+		{"y", layout_.leftArrowRect.y},
+		{"w", layout_.leftArrowRect.w},
+		{"h", layout_.leftArrowRect.h}
+	};
+
+	j["rightArrowRect"] = {
+		{"x", layout_.rightArrowRect.x},
+		{"y", layout_.rightArrowRect.y},
+		{"w", layout_.rightArrowRect.w},
+		{"h", layout_.rightArrowRect.h}
 	};
 
 	j["tutorialDescBgPos"] = {
@@ -995,6 +1079,34 @@ void StageSelectScene::LoadLayout_() {
 		layout_.battleButtonRect.y = j["battleButtonRect"].value("y", layout_.battleButtonRect.y);
 		layout_.battleButtonRect.w = j["battleButtonRect"].value("w", layout_.battleButtonRect.w);
 		layout_.battleButtonRect.h = j["battleButtonRect"].value("h", layout_.battleButtonRect.h);
+	}
+
+	if (j.contains("deckEditButtonRect")) {
+		layout_.deckEditButtonRect.x = j["deckEditButtonRect"].value("x", layout_.deckEditButtonRect.x);
+		layout_.deckEditButtonRect.y = j["deckEditButtonRect"].value("y", layout_.deckEditButtonRect.y);
+		layout_.deckEditButtonRect.w = j["deckEditButtonRect"].value("w", layout_.deckEditButtonRect.w);
+		layout_.deckEditButtonRect.h = j["deckEditButtonRect"].value("h", layout_.deckEditButtonRect.h);
+	}
+
+	if (j.contains("backButtonRect")) {
+		layout_.backButtonRect.x = j["backButtonRect"].value("x", layout_.backButtonRect.x);
+		layout_.backButtonRect.y = j["backButtonRect"].value("y", layout_.backButtonRect.y);
+		layout_.backButtonRect.w = j["backButtonRect"].value("w", layout_.backButtonRect.w);
+		layout_.backButtonRect.h = j["backButtonRect"].value("h", layout_.backButtonRect.h);
+	}
+
+	if (j.contains("leftArrowRect")) {
+		layout_.leftArrowRect.x = j["leftArrowRect"].value("x", layout_.leftArrowRect.x);
+		layout_.leftArrowRect.y = j["leftArrowRect"].value("y", layout_.leftArrowRect.y);
+		layout_.leftArrowRect.w = j["leftArrowRect"].value("w", layout_.leftArrowRect.w);
+		layout_.leftArrowRect.h = j["leftArrowRect"].value("h", layout_.leftArrowRect.h);
+	}
+
+	if (j.contains("rightArrowRect")) {
+		layout_.rightArrowRect.x = j["rightArrowRect"].value("x", layout_.rightArrowRect.x);
+		layout_.rightArrowRect.y = j["rightArrowRect"].value("y", layout_.rightArrowRect.y);
+		layout_.rightArrowRect.w = j["rightArrowRect"].value("w", layout_.rightArrowRect.w);
+		layout_.rightArrowRect.h = j["rightArrowRect"].value("h", layout_.rightArrowRect.h);
 	}
 
 	if (j.contains("tutorialDescBgPos")) {

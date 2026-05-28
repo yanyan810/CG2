@@ -85,6 +85,7 @@ private:
 
     int hoverIndex_ = -1;
     int selectIndex_ = 0;
+    bool isUsingMouse_ = true;
 
     float hoverScale_ = 1.05f;
 

@@ -10,6 +10,7 @@
 #include "Logic/CardPreview.h"
 #include "../Game/Card/DeckLoader.h"
 
+std::string DeckEditScene::returnSceneName_ = "StageSelect";
 
 void DeckEditScene::OnEnter(GameApp& app) {
 	AudioManager::GetInstance()->PlayBGM("BGM_DeckEdit");
@@ -283,7 +284,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 
 		// --- シーン遷移 ---
 		AudioManager::GetInstance()->PlaySE("SE_Tap");
-		RequestChangeScene_("StageSelect");
+		RequestChangeScene_(returnSceneName_.c_str());
 
 		return;
 	}
@@ -300,7 +301,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 	if (nosaveButton_->IsPressed()) {
 		// --- シーン遷移 ---
 		AudioManager::GetInstance()->PlaySE("SE_Tap");
-		RequestChangeScene_("StageSelect");
+		RequestChangeScene_(returnSceneName_.c_str());
 
 		return;
 	}
