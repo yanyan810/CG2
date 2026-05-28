@@ -102,7 +102,8 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
             // 確定した新しい改行数で、即座に凍結ボタンの位置を再計算して上書き
             freezeYOffset = 105.f;
             if (activeDetailIndex_ == 1) {
-                freezeYOffset += 45.f + (currentNewLineCount_ * 30.f);
+                freezeYOffset += 35.f + (currentNewLineCount_ * 30.f);
+
             }
             freezePos = { parentPos.x + 30.f, parentPos.y + freezeYOffset };
             freezeButton_.SetPosition(freezePos);
@@ -124,31 +125,16 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
         // 表示座標の調整
         if (activeDetailIndex_ == 1) {
             Vector2 poisonPos = poisonButton_.GetPosition();
-            detailText_->SetPosition({ poisonPos.x + 15.f, poisonPos.y + 50.f });
+            detailText_->SetPosition({ poisonPos.x + 15.f, poisonPos.y + 45.f });
         } else if (activeDetailIndex_ == 2) {
             Vector2 freezePos = freezeButton_.GetPosition();
-            detailText_->SetPosition({ freezePos.x + 15.f, freezePos.y + 50.f });
+            detailText_->SetPosition({ freezePos.x + 15.f, freezePos.y + 45.f });
         }
 
         detailText_->Update(view, proj);
     }
 
-    // --- 3. 詳細テキストの文字列更新 ---
-    if (activeDetailIndex_ == 1) {
-        detailText_->SetText(L"【毒状態】\n毎ターン最大HPの10%の\nダメージを受ける。");
-
-        // 毒の下にテキストを配置（毒ボタンから少し右にずらすと見やすいです）
-        Vector2 poisonPos = poisonButton_.GetPosition();
-        detailText_->SetPosition({ poisonPos.x + 15.f, poisonPos.y + 35.f });
-
-    } else if (activeDetailIndex_ == 2) {
-        detailText_->SetText(L"【凍結状態】\n行動不能になる。\n物理攻撃を受けると解除。");
-
-        // 凍結の下にテキストを配置
-        Vector2 freezePos = freezeButton_.GetPosition();
-        detailText_->SetPosition({ freezePos.x + 15.f, freezePos.y + 35.f });
-    }
-
+   
     if (activeDetailIndex_ != 0) {
         detailText_->Update(view, proj);
     }
