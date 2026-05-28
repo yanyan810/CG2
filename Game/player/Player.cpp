@@ -858,12 +858,13 @@ void Player::Damage(int damage)
 void Player::UpdatePowerBoostEffect_(float dt) {
     powerBoostEffectTimer_ += dt;
 
-    if (!powerBoostEffectEnabled_ || !particleManager_ || boostedPower_ <= 0 || !isAlive_) {
+    const int effectPower = boostedPower_ + powerBoostEffectBonus_;
+    if (!powerBoostEffectEnabled_ || !particleManager_ || effectPower <= 0 || !isAlive_) {
         powerBoostEmitAccumulator_ = 0.0f;
         return;
     }
 
-    const float power = static_cast<float>(std::max(0, boostedPower_));
+    const float power = static_cast<float>(std::max(0, effectPower));
     const float rate = std::clamp(powerBoostBaseRate_ + powerBoostRatePerPower_ * power, 0.0f, 120.0f);
     powerBoostEmitAccumulator_ += rate * dt;
 
@@ -881,7 +882,7 @@ void Player::EmitPowerBoostParticles_(uint32_t count) {
         return;
     }
 
-    const float power = static_cast<float>(std::max(0, boostedPower_));
+    const float power = static_cast<float>(std::max(0, boostedPower_ + powerBoostEffectBonus_));
     const float power01 = std::clamp(power / 10.0f, 0.0f, 1.0f);
     const float radius = powerBoostRadius_ + powerBoostRadiusPerPower_ * power;
     const float spawnSwirlSpeed = powerBoostSwirlSpeed_ + powerBoostSwirlSpeedPerPower_ * power;

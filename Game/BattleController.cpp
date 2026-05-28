@@ -1258,6 +1258,7 @@ void BattleController::StartPlayerTurn_()
 		}
 		player_->ResetVampireHeal();
 		player_->ResetPowerBoost();
+		player_->SetPowerBoostEffectBonus(currentTurnAtkUp_);
 	}
 	playerTurnCount_++;
 
@@ -2675,6 +2676,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					EnemyAction action = e.GetBossAI().GetNextAction();
 
 					ExecuteEnemyAction_(e, action);
+					enemyActionCountSystem_.MarkActedByCount(currentEnemyIndex_);
 
 					enemyWait_ = 1.0f;
 
@@ -3494,7 +3496,8 @@ bool BattleController::IsAllEnemiesDead() const {
 
 std::wstring BattleController::GetPlayerPowerBoostText() const
 {
-	return BattleInfoTextProvider::BuildPlayerPowerBoostText(*player_);
+	const int power = player_ ? player_->GetBoostedPower() : 0;
+	return std::to_wstring(power + currentTurnAtkUp_);
 }
 
 std::wstring BattleController::GetPlayerBlockText() const

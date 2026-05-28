@@ -68,7 +68,11 @@ public:
 
 	int GetBoostedPower() { return boostedPower_; }
 	void PowerBoost(int value) { boostedPower_ += value; }
-	void ResetPowerBoost() { boostedPower_ = 0; }
+	void ResetPowerBoost() {
+		boostedPower_ = 0;
+		powerBoostEffectBonus_ = 0;
+	}
+	void SetPowerBoostEffectBonus(int value) { powerBoostEffectBonus_ = value; }
 
 	void Heal(int value) {
 		hp_ += value;
@@ -158,6 +162,7 @@ private:
 	int block_ = 0;
 
 	int boostedPower_ = 0;
+	int powerBoostEffectBonus_ = 0;
 
 	// 攻撃時に回復する量
 	int vampireHeal_ = 0;
