@@ -1,5 +1,6 @@
 {
   "name": "凍結デッキ",
+  "description": "凍結を活用するデッキ\n凍結付与による防御力低下と\n行動停止をうまく使うデッキ",
   "minCards": 40,
   "maxCards": 40,
   "maxSameCard": 4,

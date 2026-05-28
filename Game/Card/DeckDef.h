@@ -9,6 +9,7 @@ struct DeckEntryDef {
 
 struct DeckDef {
     std::string name;
+    std::string description;
     int minCards = 40;
     int maxCards = 52;
     int maxSameCard = 4;

@@ -33,11 +33,11 @@ private:
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<Object3d> skyDome_;
 
-	CardDatabase* cardDB_ = nullptr; // カードデータベースへのポインタ
+    CardDatabase* cardDB_ = nullptr; // カードデータベースへのポインタ
 
-	std::map<int, int> editingDeck_; // カードIDと枚数のマップ
-	int totalCount_ = 0;             // デッキ内のカードの合計枚数
-;
+    std::map<int, int> editingDeck_; // カードIDと枚数のマップ
+    int totalCount_ = 0;             // デッキ内のカードの合計枚数
+
     std::vector<std::unique_ptr<Card3D>> cardModels_;
 
     // レイアウト計算用の定数
@@ -45,7 +45,7 @@ private:
     const float kCardStartY = 1.5; // カードの最初の座標
     const float kCardSpacingX = 1.5f;// カードの間の横幅
     const float kCardSpacingY = 2.f; // カードの間の立幅
-    const int kCardsPerRow = 4;      
+    const int kCardsPerRow = 4;
 
     float scrollY_ = 0.0f;
     const float kInitialScrollY = 2.0f; // 最初のスクロール量
@@ -61,27 +61,26 @@ private:
     std::unique_ptr<TextSprite> warningText_;
     std::unique_ptr<TextSprite> countText_;
     const std::wstring countTextSup_ = L"デッキ枚数\n";
-	std::unique_ptr<TextSprite> controlHintText_;
-	std::unique_ptr<Sprite> cardPreviewBg_;
+    std::unique_ptr<TextSprite> controlHintText_;
+    std::unique_ptr<Sprite> cardPreviewBg_;
     std::unique_ptr<TextSprite> cardPreviewText_;
 
     std::unique_ptr<Sprite> selectingTemplateDeckBg_ = nullptr;
-    std::vector< std::unique_ptr<Button>> deckTemplateButtons_;
+    std::vector<std::unique_ptr<Button>> deckTemplateButtons_;
 
     bool isSelectingTemplateDeck_ = false;
 
-	int cardCount_ = 0;
+    // ★修正：テンプレデッキの説明文キャッシュと表示用UIの変数を追加
+    std::vector<std::wstring> deckTemplateDescriptions_;
+    std::unique_ptr<Sprite> templateTooltipBg_;
+    std::unique_ptr<TextSprite> templateTooltipText_;
 
-    void RebuildCardModels(GameApp& app);
-    void RecalculateTotal();
-    void UpdateSprites(GameApp& app);
-
-    int PickCardIndex(GameApp& app);
-
-    const CardDef* GetHoveredCardDef(GameApp& app);
-
-    Vector2 GetPopupPosition(GameApp& app, int cardIdx);
+    int cardCount_ = 40; // 総カード種類数
 
     void RerollDeckData(GameApp& app);
-
+    void RebuildCardModels(GameApp& app);
+    int PickCardIndex(GameApp& app);
+    void RecalculateTotal();
+    void UpdateSprites(GameApp& app);
+    Vector2 GetPopupPosition(GameApp& app, int cardIdx);
 };
