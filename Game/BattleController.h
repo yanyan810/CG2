@@ -163,6 +163,7 @@ public:
 	void SetPlayer(Player* player);
 	void SetEnemyManager(EnemyManager* enemyMgr);
 	void SetFieldParticleManager(ModelParticleManager* particleMgr) { fieldParticleManager_ = particleMgr; }
+	void SetBattleParticleManager(ModelParticleManager* particleMgr) { battleParticleManager_ = particleMgr; }
 
 	void UpdateFieldCardTransform_(int index, bool hovered, float dt);
 	void RefreshAllFieldCardTransforms_(float dt);
@@ -324,6 +325,8 @@ private:
 	PokerHandResult currentPoker_;
 	float fieldCardGlitterEmitTimer_ = 0.0f;
 	ModelParticleManager* fieldParticleManager_ = nullptr;
+	ModelParticleManager* battleParticleManager_ = nullptr;
+	std::vector<float> poisonIdleEffectTimers_;
 
 	//キー用
 	bool prevY_ = false;
@@ -513,6 +516,8 @@ private:
 	void UpdateHandPokerPreviewEffects_();
 	void UpdateFieldReplacePreviewEffects_();
 	void EmitHandCardGlitter_(float dt);
+	void EmitPoisonAppliedEffect_(Enemy& enemy, int poisonPoint);
+	void UpdatePoisonIdleEffects_(float dt);
 	uint64_t BuildHandPokerPreviewSignature_() const;
 	bool IsTutorialForcedCardActive_() const;
 	bool IsTutorialForcedCardAllowed_(int handIndex) const;

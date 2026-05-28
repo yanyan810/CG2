@@ -918,12 +918,14 @@ void BattleController::ApplyPoisonEffect_(const CardEffectDef& effect, int targe
 			if (e.IsAlive()) {
 				e.SetBC(Enemy::BadCondition::kPoison);
 				e.AddBC(effect.value);
+				EmitPoisonAppliedEffect_(e, effect.value);
 			}
 		} else {
 			for (auto& e : enemyMgr_->GetEnemies()) {
 				if (e.IsAlive()) {
 					e.SetBC(Enemy::BadCondition::kPoison);
 					e.AddBC(effect.value);
+					EmitPoisonAppliedEffect_(e, effect.value);
 					break;
 				}
 			}
@@ -943,6 +945,13 @@ void BattleController::ApplyPoisonAllEffect_(const CardEffectDef& effect)
 		DrawCards_(count);
 	};
 	CardEffectExecutor::ApplyPoisonAll(context, effect);
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
+				EmitPoisonAppliedEffect_(e, effect.value);
+			}
+		}
+	}
 }
 
 void BattleController::ApplyPoisonAmplifyEffect_(const CardEffectDef& effect)
@@ -950,6 +959,13 @@ void BattleController::ApplyPoisonAmplifyEffect_(const CardEffectDef& effect)
 	CardEffectExecutor::Context context;
 	context.enemyMgr = enemyMgr_;
 	CardEffectExecutor::ApplyPoisonAmplify(context, effect);
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
+				EmitPoisonAppliedEffect_(e, e.GetBCPoint());
+			}
+		}
+	}
 }
 
 void BattleController::ApplyPoisonDamageEffect_(const CardEffectDef& effect)
@@ -957,6 +973,13 @@ void BattleController::ApplyPoisonDamageEffect_(const CardEffectDef& effect)
 	CardEffectExecutor::Context context;
 	context.enemyMgr = enemyMgr_;
 	CardEffectExecutor::ApplyPoisonDamage(context, effect);
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
+				EmitPoisonAppliedEffect_(e, effect.value);
+			}
+		}
+	}
 }
 
 void BattleController::ApplyPoisonDrawEffect_(const CardEffectDef& effect)
@@ -968,6 +991,13 @@ void BattleController::ApplyPoisonDrawEffect_(const CardEffectDef& effect)
 		DrawCards_(count);
 	};
 	CardEffectExecutor::ApplyPoisonDraw(context, effect);
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
+				EmitPoisonAppliedEffect_(e, effect.value);
+			}
+		}
+	}
 }
 
 void BattleController::ApplyPoisonRemoveEffect_()
@@ -2738,6 +2768,7 @@ void BattleController::UpdateVisuals_(float dt)
 		turn_ == TurnState::Enemy;
 
 	if (actionOrEnemyAttack) {
+		UpdatePoisonIdleEffects_(dt);
 		handView_.Update(dt);
 		if (discardView_) {
 			discardView_->Update(dt);
@@ -2746,6 +2777,8 @@ void BattleController::UpdateVisuals_(float dt)
 		damagePopupUi_.Update(dt);
 		return;
 	}
+
+	UpdatePoisonIdleEffects_(dt);
 
 	// 1. 鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ隘夜ｩ幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驍ｵ・ｺ陷･・ｲ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ髯具ｽｹ繝ｻ・ｻ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴乗・・ｽ・ｹ隴∵ｻ・ｱｪ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｷ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬯ｯ・ｨ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｲ鬯ｮ・ｯ繝ｻ・ｦ鬯ｲ繝ｻ・ｼ螟ｲ・ｽ・ｽ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
 	for (auto& cardView : fieldViews_) {
@@ -3326,6 +3359,56 @@ void BattleController::SetEnemyManager(EnemyManager* enemyMgr) {
 void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isPlayer)
 {
 	damagePopupUi_.SpawnDamage(pos, damage, isPlayer);
+}
+
+void BattleController::EmitPoisonAppliedEffect_(Enemy& enemy, int poisonPoint)
+{
+	if (!battleParticleManager_) {
+		return;
+	}
+
+	if (player_) {
+		player_->PlayStatusCastAnim();
+	}
+
+	const int point = std::max(1, poisonPoint);
+	const uint32_t emitCount = static_cast<uint32_t>(std::clamp(8 + point * 2, 10, 36));
+	Vector3 emitPos = enemy.GetPos() + Vector3{ 0.0f, 1.35f, 0.0f };
+	battleParticleManager_->Emit("player_poison", emitPos, emitCount);
+}
+
+void BattleController::UpdatePoisonIdleEffects_(float dt)
+{
+	if (!battleParticleManager_ || !enemyMgr_) {
+		return;
+	}
+
+	auto& enemies = enemyMgr_->GetEnemies();
+	if (poisonIdleEffectTimers_.size() < enemies.size()) {
+		poisonIdleEffectTimers_.resize(enemies.size(), 0.0f);
+	} else if (poisonIdleEffectTimers_.size() > enemies.size()) {
+		poisonIdleEffectTimers_.resize(enemies.size());
+	}
+
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		Enemy& enemy = enemies[i];
+		if (!enemy.IsAlive() || enemy.GetBC() != Enemy::BadCondition::kPoison || enemy.GetBCPoint() <= 0) {
+			poisonIdleEffectTimers_[i] = 0.0f;
+			continue;
+		}
+
+		const int point = enemy.GetBCPoint();
+		const float interval = std::clamp(1.15f - static_cast<float>(point) * 0.045f, 0.22f, 1.15f);
+		poisonIdleEffectTimers_[i] -= dt;
+		if (poisonIdleEffectTimers_[i] > 0.0f) {
+			continue;
+		}
+
+		const uint32_t emitCount = static_cast<uint32_t>(std::clamp(1 + point / 4, 2, 10));
+		Vector3 emitPos = enemy.GetPos() + Vector3{ 0.0f, 1.25f, 0.0f };
+		battleParticleManager_->Emit("player_poison", emitPos, emitCount);
+		poisonIdleEffectTimers_[i] = interval;
+	}
 }
 
 const CardDef* BattleController::GetPreviewCardDef() const
