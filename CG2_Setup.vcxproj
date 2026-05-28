@@ -206,6 +206,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\Audio\BattleSfxPlayer.cpp" />
     <ClCompile Include="Game\Battle\BattleDeckZone.cpp" />
     <ClCompile Include="Game\Battle\BattleFieldViewController.cpp" />
+    <ClCompile Include="Game\Title\TitleFallingCardEffect.cpp" />
     <ClCompile Include="Game\Battle\BattleDebugImGui.cpp" />
     <ClCompile Include="Game\Battle\BattleRenderView.cpp" />
     <ClCompile Include="Game\Battle\BattleInfoTextProvider.cpp" />
@@ -402,6 +403,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\Audio\BattleSfxPlayer.h" />
     <ClInclude Include="Game\Battle\BattleDeckZone.h" />
     <ClInclude Include="Game\Battle\BattleFieldViewController.h" />
+    <ClInclude Include="Game\Title\TitleFallingCardEffect.h" />
     <ClInclude Include="Game\Battle\BattleDebugImGui.h" />
     <ClInclude Include="Game\Battle\BattleRenderView.h" />
     <ClInclude Include="Game\Battle\BattleInfoTextProvider.h" />

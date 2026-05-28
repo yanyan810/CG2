@@ -23,9 +23,13 @@
 class Particle;
 class Camera;
 class Card3D;
+class TitleFallingCardEffect;
 
 class TitleScene : public IScene {
 public:
+	TitleScene();
+	~TitleScene() override;
+
 	void OnEnter(GameApp& app) override;
 	void OnExit(GameApp& app) override;
 
@@ -66,6 +70,7 @@ private:
 	// 2D表示用スプライト
 	//--------------------------------------------------------
 	std::unique_ptr<Sprite> bg_;          // 背景画像
+	std::unique_ptr<TitleFallingCardEffect> fallingCardEffect_;
 	std::unique_ptr<Sprite> titleLogo_;   // resonance_title画像
 	std::unique_ptr<Sprite> clickStart_;  // clickStart画像
 

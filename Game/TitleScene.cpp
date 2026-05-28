@@ -7,6 +7,7 @@
 #include "Card3D.h"
 #include "CardDatabase.h"
 #include "AudioManager.h"
+#include "Title/TitleFallingCardEffect.h"
 
 
 namespace {
@@ -45,6 +46,9 @@ BloomParam MakeTitleDissolveParam(const BloomParam& baseParam, float dissolveAmo
 
 }
 
+
+TitleScene::TitleScene() = default;
+TitleScene::~TitleScene() = default;
 
 //------------------------------------------------------------
 // シーン開始時の初期化
@@ -91,6 +95,13 @@ void TitleScene::OnEnter(GameApp& app) {
 	bg_->SetPosition({ 0.0f, 0.0f });
 	bg_->SetScale({ 1.0f, 1.0f, 1.0f });
 
+	fallingCardEffect_ = std::make_unique<TitleFallingCardEffect>();
+	fallingCardEffect_->Initialize(
+		app.SpriteCom(),
+		app.Dx(),
+		static_cast<float>(WinApp::kClientWidth),
+		static_cast<float>(WinApp::kClientHeight));
+
 	//--------------------------------------------------------
 	// Title Logo画像
 	//--------------------------------------------------------
@@ -123,6 +134,7 @@ void TitleScene::OnEnter(GameApp& app) {
 void TitleScene::OnExit(GameApp&) {
 	clickStart_.reset();
 	titleLogo_.reset();
+	fallingCardEffect_.reset();
 	bg_.reset();
 	camera_.reset();
 }
@@ -231,6 +243,9 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 
 	//3D更新
+	if (fallingCardEffect_) {
+		fallingCardEffect_->Update(dt);
+	}
 	skyDome_->Update(dt);
 }
 
@@ -261,6 +276,10 @@ void TitleScene::Draw2D(GameApp& app) {
 	if (bg_) {
 		bg_->Update(view, proj);
 		bg_->Draw();
+	}
+
+	if (fallingCardEffect_) {
+		fallingCardEffect_->Draw(view, proj);
 	}
 
 	//--------------------------------------------------------
