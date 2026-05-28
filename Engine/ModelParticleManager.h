@@ -60,6 +60,8 @@ struct ParticleEmitterConfig {
 
 	// --- 新機能: モデルパス ---
 	std::string modelPath = "triangleParticle.obj";
+	std::string texturePath = "";
+	bool useJewelShader = true;
 
 	// --- 新機能: エミッター形状 ---
 	EmitterShape emitterShape = EmitterShape::Point;
@@ -92,6 +94,8 @@ struct ParticleEmitterConfig {
 			{"angularVelocityMin", {angularVelocityMin.x, angularVelocityMin.y, angularVelocityMin.z}},
 			{"angularVelocityMax", {angularVelocityMax.x, angularVelocityMax.y, angularVelocityMax.z}},
 			{"modelPath", modelPath},
+			{"texturePath", texturePath},
+			{"useJewelShader", useJewelShader},
 			{"emitterShape", static_cast<int>(emitterShape)},
 			{"shapeSize", {shapeSize.x, shapeSize.y, shapeSize.z}},
 			{"easingType", static_cast<int>(easingType)},
@@ -137,6 +141,8 @@ struct ParticleEmitterConfig {
 			angularVelocityMax = { j["angularVelocityMax"][0], j["angularVelocityMax"][1], j["angularVelocityMax"][2] };
 		}
 		modelPath = j.value("modelPath", modelPath);
+		texturePath = j.value("texturePath", texturePath);
+		useJewelShader = j.value("useJewelShader", useJewelShader);
 		if (j.contains("emitterShape")) {
 			emitterShape = static_cast<EmitterShape>(j["emitterShape"].get<int>());
 		}
@@ -263,6 +269,11 @@ public:
 	void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
 	void Emit(const std::string& effectName, const Vector3& position, uint32_t count, const Vector4& color);
 private:
+	void ApplyRenderConfig_(const ParticleEmitterConfig& config);
+	void SetRenderModel_(const std::string& modelPath);
+	void UpdateDrawVertexCount_(uint32_t vertexCount);
+	std::string ResolveRenderTexturePath_() const;
+
 	// エフェクト設定を名前で引けるようにする
 	std::map<std::string, ParticleEmitterConfig> effectLibrary_;
 	std::map<std::string, Model*> effectModels_;  // エフェクト名 → モデル
@@ -276,6 +287,9 @@ private:
 	uint32_t srvIndex_;
 
 	Model* model_ = nullptr;
+	std::string currentModelPath_ = "triangleParticle.obj";
+	std::string currentTexturePath_;
+	bool currentUseJewelShader_ = true;
 
 	// 定数バッファ関連
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;

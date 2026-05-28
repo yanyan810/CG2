@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace {
-	constexpr float kEnemyUiRowStride = 74.0f;
+	constexpr float kEnemyUiRowStride = 45.0f;
 	constexpr Vector2 kStatusIconTextureSize{ 64.0f, 64.0f };
 	constexpr Vector2 kStatusIconSize{ 26.0f, 26.0f };
 }
@@ -123,6 +123,7 @@ void EnemyBattleStatusUI::Clear()
 	blockTexts_.clear();
 	poisonTexts_.clear();
 	frostTexts_.clear();
+	displayEnemyIndices_.clear();
 }
 
 void EnemyBattleStatusUI::UpdateLayout(
@@ -132,8 +133,27 @@ void EnemyBattleStatusUI::UpdateLayout(
 	const Matrix4x4& view,
 	const Matrix4x4& proj)
 {
+	displayEnemyIndices_.clear();
+	displayEnemyIndices_.reserve(std::min(enemies.size(), hpGauges_.size()));
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		if (enemies[i].IsAlive()) {
+			displayEnemyIndices_.push_back(i);
+		}
+	}
+	std::sort(
+		displayEnemyIndices_.begin(),
+		displayEnemyIndices_.end(),
+		[&](size_t lhs, size_t rhs) {
+			return enemies[lhs].GetPos().z > enemies[rhs].GetPos().z;
+		});
+	if (displayEnemyIndices_.size() > hpGauges_.size()) {
+		displayEnemyIndices_.resize(hpGauges_.size());
+	}
+
 	for (size_t i = 0; i < hpGauges_.size(); ++i) {
-		if (i < enemies.size() && enemies[i].IsAlive()) {
+		if (i < displayEnemyIndices_.size()) {
+			const size_t enemyIndex = displayEnemyIndices_[i];
+			Enemy& enemy = enemies[enemyIndex];
 			const float gaugeWidth = 200.0f;
 			const float posX = 1000.0f;
 			const float posY = 40.0f + (static_cast<float>(i) * kEnemyUiRowStride);
@@ -141,9 +161,9 @@ void EnemyBattleStatusUI::UpdateLayout(
 			hpGauges_[i]->SetScale({ gaugeWidth, 15.0f, 1.0f });
 			hpGauges_[i]->SetPosition({ posX, posY });
 
-			EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
+			EnemyAction nextAct = enemy.GetBossAI().GetNextAction();
 			const bool hasIntent = !nextAct.type.empty() || !nextAct.name.empty();
-			const bool acted = i < actedByCount.size() && actedByCount[i];
+			const bool acted = enemyIndex < actedByCount.size() && actedByCount[enemyIndex];
 
 			if (hasIntent) {
 				if (acted) {
@@ -168,7 +188,7 @@ void EnemyBattleStatusUI::UpdateLayout(
 				}
 
 				if (i < intentCountTexts_.size() && intentCountTexts_[i]) {
-					const int count = i < actionCounts.size() ? actionCounts[i] : 0;
+					const int count = enemyIndex < actionCounts.size() ? actionCounts[enemyIndex] : 0;
 					if (!acted && count > 0) {
 						intentCountTexts_[i]->SetText(std::to_wstring(count));
 						intentCountTexts_[i]->SetColor({ 0.0f, 0.0f, 0.0f });
@@ -202,16 +222,9 @@ void EnemyBattleStatusUI::UpdateLayout(
 		}
 	}
 
-	const size_t rowCount = std::min(enemies.size(), hpTexts_.size());
+	const size_t rowCount = std::min(displayEnemyIndices_.size(), hpTexts_.size());
 	for (size_t i = 0; i < rowCount; ++i) {
-		const auto& enemy = enemies[i];
-		if (!enemy.IsAlive()) {
-			hpTexts_[i]->SetText(L"");
-			SetStatusItem_(blockIcons_[i].get(), blockTexts_[i].get(), 0, {}, {}, {});
-			SetStatusItem_(poisonIcons_[i].get(), poisonTexts_[i].get(), 0, {}, {}, {});
-			SetStatusItem_(frostIcons_[i].get(), frostTexts_[i].get(), 0, {}, {}, {});
-			continue;
-		}
+		const auto& enemy = enemies[displayEnemyIndices_[i]];
 		const float rowY = static_cast<float>(i) * kEnemyUiRowStride;
 		hpTexts_[i]->SetText(GetHpText_(enemy));
 		hpTexts_[i]->SetPosition({ 1025.0f, 10.0f + rowY });
@@ -274,15 +287,21 @@ void EnemyBattleStatusUI::DrawGaugeAndIntent2D(
 	const Matrix4x4& proj,
 	const EnemyBloomSettings& bloomSettings)
 {
-	for (size_t i = 0; i < hpGauges_.size(); ++i) {
-		if (i >= enemies.size() || !hpGauges_[i] || !enemies[i].IsAlive()) {
+	for (size_t i = 0; i < displayEnemyIndices_.size(); ++i) {
+		if (i >= hpGauges_.size() || !hpGauges_[i]) {
 			continue;
 		}
 
-		const float maxHp = static_cast<float>(std::max(1, enemies[i].GetMaxHP()));
-		const float hpRatio = std::clamp(static_cast<float>(enemies[i].GetHP()) / maxHp, 0.0f, 1.0f);
+		const size_t enemyIndex = displayEnemyIndices_[i];
+		if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+			continue;
+		}
+
+		const Enemy& enemy = enemies[enemyIndex];
+		const float maxHp = static_cast<float>(std::max(1, enemy.GetMaxHP()));
+		const float hpRatio = std::clamp(static_cast<float>(enemy.GetHP()) / maxHp, 0.0f, 1.0f);
 		const float shieldEnd = std::clamp(
-			hpRatio + static_cast<float>(std::max(0, enemies[i].GetBlock())) / maxHp,
+			hpRatio + static_cast<float>(std::max(0, enemy.GetBlock())) / maxHp,
 			0.0f,
 			1.0f
 		);
@@ -309,16 +328,20 @@ void EnemyBattleStatusUI::DrawGaugeAndIntent2D(
 	}
 
 	if (bloomSettings.intentEnabled) {
-		for (size_t i = 0; i < intentIcons_.size(); ++i) {
-			if (i >= enemies.size() || !intentIcons_[i] || !enemies[i].IsAlive()) {
+		for (size_t i = 0; i < displayEnemyIndices_.size(); ++i) {
+			if (i >= intentIcons_.size() || !intentIcons_[i]) {
 				continue;
 			}
-			const bool acted = i < actedByCount.size() && actedByCount[i];
+			const size_t enemyIndex = displayEnemyIndices_[i];
+			if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+				continue;
+			}
+			const bool acted = enemyIndex < actedByCount.size() && actedByCount[enemyIndex];
 			if (acted) {
 				continue;
 			}
 
-			const EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
+			const EnemyAction nextAct = enemies[enemyIndex].GetBossAI().GetNextAction();
 			if (nextAct.type.empty() && nextAct.name.empty()) {
 				continue;
 			}
@@ -368,15 +391,21 @@ void EnemyBattleStatusUI::DrawGaugeBloom(
 	const BloomParam hpParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity);
 	const BloomParam shieldParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity * 1.15f);
 
-	for (size_t i = 0; i < hpGauges_.size(); ++i) {
-		if (i >= enemies.size() || !hpGauges_[i] || !enemies[i].IsAlive()) {
+	for (size_t i = 0; i < displayEnemyIndices_.size(); ++i) {
+		if (i >= hpGauges_.size() || !hpGauges_[i]) {
 			continue;
 		}
 
-		const float maxHp = static_cast<float>(std::max(1, enemies[i].GetMaxHP()));
-		const float hpRatio = std::clamp(static_cast<float>(enemies[i].GetHP()) / maxHp, 0.0f, 1.0f);
+		const size_t enemyIndex = displayEnemyIndices_[i];
+		if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+			continue;
+		}
+
+		const Enemy& enemy = enemies[enemyIndex];
+		const float maxHp = static_cast<float>(std::max(1, enemy.GetMaxHP()));
+		const float hpRatio = std::clamp(static_cast<float>(enemy.GetHP()) / maxHp, 0.0f, 1.0f);
 		const float shieldEnd = std::clamp(
-			hpRatio + static_cast<float>(std::max(0, enemies[i].GetBlock())) / maxHp,
+			hpRatio + static_cast<float>(std::max(0, enemy.GetBlock())) / maxHp,
 			0.0f,
 			1.0f
 		);

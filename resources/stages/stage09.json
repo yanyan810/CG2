@@ -11,7 +11,7 @@
       "hp": 150,
       "attack": 13,
       "defense": 3,
-      "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
+      "position": { "x": 7.0, "y": 0.0, "z": 7.0 },
       "behaviorJson": "resources/cards/needle.json",
       "bossFlag": false
     },
@@ -22,7 +22,7 @@
       "hp": 300,
       "attack": 13,
       "defense": 3,
-      "position": { "x": 7.0, "y": 0.0, "z": 0.0 },
+      "position": { "x": 7.0, "y": 0.0, "z": 15.0 },
       "behaviorJson": "resources/cards/Golem.json",
       "bossFlag": false
     }
