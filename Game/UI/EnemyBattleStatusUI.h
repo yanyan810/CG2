@@ -89,4 +89,5 @@ private:
 	std::vector<std::unique_ptr<TextSprite>> blockTexts_;
 	std::vector<std::unique_ptr<TextSprite>> poisonTexts_;
 	std::vector<std::unique_ptr<TextSprite>> frostTexts_;
+	std::vector<size_t> displayEnemyIndices_;
 };

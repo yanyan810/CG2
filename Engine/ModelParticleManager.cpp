@@ -1,8 +1,10 @@
 #include "ModelParticleManager.h"
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include "Object3dCommon.h"
 #include "Matrix4x4.h"
+#include "TextureManager.h"
 #define M_PI 3.141592653589793
 
 std::mt19937 rng(std::random_device{}());
@@ -94,6 +96,16 @@ Vector4 ClampColor(const Vector4& color) {
 float RandomizedScale(float baseScale, float randomRange) {
     return std::max(0.0f, baseScale + Rand(-randomRange, randomRange));
 }
+
+std::string NormalizeModelPath_(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    constexpr const char* resourcesPrefix = "resources/";
+    if (path.rfind(resourcesPrefix, 0) == 0) {
+        path = path.substr(std::strlen(resourcesPrefix));
+    }
+    return path;
+}
 }
 
 ModelParticleManager* ModelParticleManager::GetInstance()
@@ -113,6 +125,7 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     // 1. モデルの取得（ModelManagerを使用）
     ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
     model_ = ModelManager::GetInstance()->FindModel("triangleParticle.obj");
+    currentModelPath_ = "triangleParticle.obj";
 
     // 2. インスタンシング用リソースの作成
     instancingResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ModelParticleTransformationMatrix) * maxInstance_, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -262,6 +275,10 @@ void ModelParticleManager::RegisterEffect(const std::string& effectName, const s
     // --- 新機能: エフェクトごとのモデル読み込み ---
     ModelManager::GetInstance()->LoadModel(config.modelPath);
     effectModels_[effectName] = ModelManager::GetInstance()->FindModel(config.modelPath);
+    if (!config.texturePath.empty()) {
+        TextureManager::GetInstance()->LoadTexture(config.texturePath);
+    }
+    ApplyRenderConfig_(config);
 }
 
 void ModelParticleManager::Emit(const std::string& effectName, const Vector3& position, uint32_t count) {
@@ -274,6 +291,7 @@ void ModelParticleManager::Emit(const std::string& effectName, const Vector3& po
     // 設定を取り出し、座標をセット
     ParticleEmitterConfig& config = effectLibrary_[effectName];
     config.position = position;
+    ApplyRenderConfig_(config);
 
     // 今回のエミット用のリストを作成
     std::vector<Particle> particles;
@@ -303,6 +321,7 @@ void ModelParticleManager::Emit(const std::string& effectName, const Vector3& po
     config.endColor = { color.x, color.y, color.z, 0.0f };
     config.startColorRandom = { 0.05f, 0.05f, 0.05f, 0.0f };
     config.endColorRandom = { 0.04f, 0.04f, 0.04f, 0.0f };
+    ApplyRenderConfig_(config);
 
     std::vector<Particle> particles;
     particles.reserve(count);
@@ -522,6 +541,80 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
         D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 }
 
+void ModelParticleManager::ApplyRenderConfig_(const ParticleEmitterConfig& config)
+{
+    SetRenderModel_(config.modelPath.empty() ? "triangleParticle.obj" : config.modelPath);
+
+    if (currentTexturePath_ != config.texturePath) {
+        currentTexturePath_ = config.texturePath;
+        if (!currentTexturePath_.empty()) {
+            TextureManager::GetInstance()->LoadTexture(currentTexturePath_);
+        }
+    }
+
+    currentUseJewelShader_ = config.useJewelShader;
+    if (materialData_) {
+        materialData_->enableLighting = currentUseJewelShader_ ? 1 : 0;
+    }
+}
+
+void ModelParticleManager::SetRenderModel_(const std::string& modelPath)
+{
+    const std::string normalizedPath = NormalizeModelPath_(modelPath);
+    if (normalizedPath.empty() || currentModelPath_ == normalizedPath) {
+        return;
+    }
+
+    ModelManager::GetInstance()->LoadModel(normalizedPath);
+    Model* nextModel = ModelManager::GetInstance()->FindModel(normalizedPath);
+    if (!nextModel) {
+        OutputDebugStringA(("[ModelParticle] model not found: " + normalizedPath + "\n").c_str());
+        return;
+    }
+
+    model_ = nextModel;
+    currentModelPath_ = normalizedPath;
+    if (!model_->GetModelData().meshes.empty()) {
+        UpdateDrawVertexCount_(static_cast<uint32_t>(model_->GetModelData().meshes[0].vertices.size()));
+    }
+}
+
+void ModelParticleManager::UpdateDrawVertexCount_(uint32_t vertexCount)
+{
+    if (!dxCommon_ || !drawArgsResource_) {
+        return;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> staging = dxCommon_->CreateBufferResource(sizeof(uint32_t));
+    uint32_t* mapped = nullptr;
+    staging->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+    *mapped = vertexCount;
+    staging->Unmap(0, nullptr);
+
+    TransitionResource(
+        dxCommon_->GetCommandList(),
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_COPY_DEST);
+    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, staging.Get(), 0, sizeof(uint32_t));
+    TransitionResource(
+        dxCommon_->GetCommandList(),
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+}
+
+std::string ModelParticleManager::ResolveRenderTexturePath_() const
+{
+    if (!currentTexturePath_.empty()) {
+        return currentTexturePath_;
+    }
+    if (model_ && !model_->GetModelData().materials.empty()) {
+        return model_->GetModelData().materials[0].textureFilePath;
+    }
+    return "";
+}
+
 void ModelParticleManager::Draw() {
 
     auto commandList = dxCommon_->GetCommandList();
@@ -543,11 +636,18 @@ void ModelParticleManager::Draw() {
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // 2. 頂点バッファの設定
+    if (!model_) {
+        return;
+    }
+
     commandList->IASetVertexBuffers(0, 1, &model_->GetVBV());
 
     // --- ここからルートパラメータのセット (InitalizeForModelParticleの順番に合わせる) ---
 
     // Index 0: Material (b0) - CBV
+    if (materialData_) {
+        materialData_->enableLighting = currentUseJewelShader_ ? 1 : 0;
+    }
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     // Index 1: DirectionalLight (b1) - CBV
@@ -561,7 +661,11 @@ void ModelParticleManager::Draw() {
     commandList->SetGraphicsRootDescriptorTable(3, srvManager_->GetGPUDescriptionHandle(srvIndex_));
 
     // Index 4: Texture (t0) - DescriptorTable
-	commandList->SetGraphicsRootDescriptorTable(4, TextureManager::GetInstance()->GetSrvHandleGPU(model_->GetModelData().materials[0].textureFilePath)); // 0番目のマテリアルのSRVをセット
+    const std::string texturePath = ResolveRenderTexturePath_();
+    if (!texturePath.empty()) {
+        TextureManager::GetInstance()->LoadTexture(texturePath);
+    }
+	commandList->SetGraphicsRootDescriptorTable(4, TextureManager::GetInstance()->GetSrvHandleGPU(texturePath));
     
     commandList->ExecuteIndirect(
         commandSignature_.Get(),
@@ -576,6 +680,7 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     ImGui::Begin("37 Particle Editor");
 
     ImGui::Text("Editing: %s", effectName.c_str());
+    ApplyRenderConfig_(editingConfig);
 
     // 値が変更されたかどうかをチェックするフラグ
     bool changed = false;
@@ -636,15 +741,78 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     ImGui::Separator();
     changed |= ImGui::Checkbox("Billboard", &editingConfig.isBillboard);
 
-    // --- 新機能: モデルパス ---
+    // --- Render Settings ---
     ImGui::Separator();
-    static char modelPathBuf[128] = "";
-    if (modelPathBuf[0] == '\0') {
+    if (ImGui::CollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
+        std::vector<std::string> modelPaths;
+        std::vector<std::string> texturePaths;
+        namespace fs = std::filesystem;
+        if (fs::exists("resources")) {
+            for (const auto& entry : fs::recursive_directory_iterator("resources")) {
+                if (!entry.is_regular_file()) {
+                    continue;
+                }
+
+                const fs::path path = entry.path();
+                const std::string ext = path.extension().string();
+                if (ext == ".obj") {
+                    modelPaths.push_back(fs::relative(path, "resources").generic_string());
+                } else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg") {
+                    texturePaths.push_back(path.generic_string());
+                }
+            }
+            std::sort(modelPaths.begin(), modelPaths.end());
+            std::sort(texturePaths.begin(), texturePaths.end());
+        }
+
+        if (ImGui::BeginCombo("Model", editingConfig.modelPath.c_str())) {
+            for (const auto& path : modelPaths) {
+                const bool selected = editingConfig.modelPath == path;
+                if (ImGui::Selectable(path.c_str(), selected)) {
+                    editingConfig.modelPath = path;
+                    changed = true;
+                }
+                if (selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        char modelPathBuf[256]{};
         strncpy_s(modelPathBuf, editingConfig.modelPath.c_str(), sizeof(modelPathBuf) - 1);
-    }
-    if (ImGui::InputText("Model Path", modelPathBuf, IM_ARRAYSIZE(modelPathBuf))) {
-        editingConfig.modelPath = modelPathBuf;
-        changed = true;
+        if (ImGui::InputText("Model Path", modelPathBuf, IM_ARRAYSIZE(modelPathBuf))) {
+            editingConfig.modelPath = modelPathBuf;
+            changed = true;
+        }
+
+        const std::string texturePreview = editingConfig.texturePath.empty() ? "None (model/default)" : editingConfig.texturePath;
+        if (ImGui::BeginCombo("Texture Override", texturePreview.c_str())) {
+            if (ImGui::Selectable("None (model/default)", editingConfig.texturePath.empty())) {
+                editingConfig.texturePath.clear();
+                changed = true;
+            }
+            for (const auto& path : texturePaths) {
+                const bool selected = editingConfig.texturePath == path;
+                if (ImGui::Selectable(path.c_str(), selected)) {
+                    editingConfig.texturePath = path;
+                    changed = true;
+                }
+                if (selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        char texturePathBuf[256]{};
+        strncpy_s(texturePathBuf, editingConfig.texturePath.c_str(), sizeof(texturePathBuf) - 1);
+        if (ImGui::InputText("Texture Path", texturePathBuf, IM_ARRAYSIZE(texturePathBuf))) {
+            editingConfig.texturePath = texturePathBuf;
+            changed = true;
+        }
+
+        changed |= ImGui::Checkbox("Use Jewel Shader", &editingConfig.useJewelShader);
     }
 
     editingConfig.speedMin = std::max(0.0f, editingConfig.speedMin);
@@ -667,6 +835,7 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     // ★ リアルタイム反映：値が変わったら即座に Library を上書き
     if (changed) {
         effectLibrary_[effectName] = editingConfig;
+        ApplyRenderConfig_(editingConfig);
     }
 
     ImGui::Separator();
@@ -681,12 +850,14 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
         SaveToJson(filename, editingConfig);
         // 保存時にも確実に最新を反映
         effectLibrary_[effectName] = editingConfig;
+        ApplyRenderConfig_(editingConfig);
     }
 
     if (ImGui::Button("Load from JSON")) {
         LoadFromJson(filename, editingConfig);
         // ロードしたら Library も更新
         effectLibrary_[effectName] = editingConfig;
+        ApplyRenderConfig_(editingConfig);
     }
 
     ImGui::End();

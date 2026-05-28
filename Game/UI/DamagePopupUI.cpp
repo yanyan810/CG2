@@ -3,8 +3,37 @@
 #include "DirectXCommon.h"
 #include "Object3dCommon.h"
 
+#include <cmath>
 #include <string>
 #include <utility>
+
+namespace {
+	constexpr float kOverlapCheckRadiusX = 2.2f;
+	constexpr float kOverlapCheckRadiusZ = 2.2f;
+	constexpr float kLaneOffsetScaleX = 1.5f;
+	constexpr float kLaneOffsetScaleY = 1.5f;
+
+	Vector3 GetPopupLaneOffset_(int lane)
+	{
+		Vector3 offset{};
+
+		switch (lane % 8) {
+		case 0: offset = { 0.0f, 0.0f, 0.0f }; break;
+		case 1: offset = { -1.05f, 0.18f, 0.12f }; break;
+		case 2: offset = { 1.05f, 0.36f,-0.12f }; break;
+		case 3: offset = { -0.55f, 0.54f, 0.58f }; break;
+		case 4: offset = { 0.55f, 0.72f, 0.58f }; break;
+		case 5: offset = { -1.45f, 0.90f,-0.35f }; break;
+		case 6: offset = { 1.45f, 1.08f, 0.35f }; break;
+		default: offset = { 0.0f, 1.26f,-0.65f }; break;
+		}
+
+		offset.x *= kLaneOffsetScaleX;
+		offset.y *= kLaneOffsetScaleY;
+
+		return offset;
+	}
+}
 
 void DamagePopupUI::Initialize(Object3dCommon* objCom, DirectXCommon* dx, Camera* camera)
 {
@@ -42,7 +71,7 @@ void DamagePopupUI::Update(float dt)
 			continue;
 		}
 
-		const float gap = 0.8f;
+		const float gap = 0.7f;
 		const int count = static_cast<int>(it->digitModels.size());
 		const float startX = -gap * 0.5f * (count - 1);
 		for (size_t i = 0; i < it->digitModels.size(); ++i) {
@@ -74,10 +103,22 @@ void DamagePopupUI::SpawnDamage(const Vector3& pos, int damage, bool isPlayer)
 {
 	(void)isPlayer;
 
+	int overlapCount = 0;
+	for (const auto& popup : damagePopups_) {
+		if (std::fabs(popup.pos.x - pos.x) <= kOverlapCheckRadiusX &&
+			std::fabs(popup.pos.z - pos.z) <= kOverlapCheckRadiusZ) {
+			++overlapCount;
+		}
+	}
+	const Vector3 laneOffset = GetPopupLaneOffset_(overlapCount);
+
 	DamagePopup p;
 	p.damage = damage;
 	p.pos = pos;
+	p.pos.x += laneOffset.x;
 	p.pos.y += 2.0f;
+	p.pos.y += laneOffset.y;
+	p.pos.z += laneOffset.z;
 	p.timer = 60.0f;
 
 	std::string dmgStr = std::to_string(damage);
