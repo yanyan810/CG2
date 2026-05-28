@@ -8,7 +8,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/BelowFreezing.png",
-      "desc": "敵単体に4ダメージ\n敵単体に凍結を1付与",
+      "desc": "敵単体に5ダメージ\n敵単体に凍結を2付与",
        "effects": [
         { "type": "Damage", "value": 5 },
         { "type": "Frost", "value": 2 }
@@ -23,7 +23,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/AbsoluteZero.png",
-      "desc": "敵全体に4ダメージ\n敵全体に凍結を1付与",
+      "desc": "敵全体に5ダメージ\n敵全体に凍結を2付与",
        "effects": [
         { "type": "DamageAll", "value": 5 },
         { "type": "FrostAll", "value": 2 }
@@ -38,10 +38,22 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/EdgeHammer.png",
-      "desc": "敵単体に10ダメージ\n敵単体に凍結を３付与",
+      "desc": "敵単体に10ダメージ\n敵単体に凍結を6付与",
        "effects": [
         { "type": "Damage", "value": 10 },
-        { "type": "Frost", "value":  3}
+        { "type": "Frost", "value":  6 }
+      ],
+      "subEffects": [
+        {
+          "trigger": "OnPokerSkillActivated",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "ThreeOfAKind"
+          },
+          "effects": [
+            { "type": "Frost", "value":  15 }
+          ]
+        }
       ]
     },
 
@@ -67,20 +79,20 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/IceAge.png",
-      "desc": "敵全体の凍結を２倍にする",
+      "desc": "敵全体の凍結を1.5倍にする",
        "effects": [
-         { "type": "FrostAmplify", "value": 2 }
+         { "type": "FrostAmplify", "value": 1.5 }
       ]
     },
 
     {
       "id": 36,
       "name": "IceBlock",
-      "cost": 5,
+      "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/IceBlock.png",
-      "desc": "敵全体の凍結の値分ブロックを得る",
+      "desc": "敵全体の凍結の値x1分ブロックを得る",
        "effects": [
          { "type": "FrostBlock", "value": 1 }
       ]

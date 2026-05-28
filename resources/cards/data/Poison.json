@@ -22,9 +22,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/HardPoisonBottle!.png",
-      "desc": "敵全体に毒を2付与",
+      "desc": "敵全体に毒を3付与",
       "effects": [
-        { "type": "PoisonAll", "value": 5 }
+        { "type": "PoisonAll", "value": 3 }
       ],
        "subEffects": [
         {
@@ -34,7 +34,7 @@
             "rank": "OnePair"
           },
           "effects": [
-           { "type": "PoisonAll", "value": 10 }
+           { "type": "PoisonAll", "value": 5 }
           ]
         }
       ]
@@ -63,11 +63,11 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/Flowers.png",
-      "desc": "自身は20ダメージを受けて、\n敵に毒を20与える。\n20ブロックを得る",
+      "desc": "自身は15ダメージを受けて、\n敵に毒を20与える。\n15ブロックを得る",
        "effects": [
-        { "type": "SelfDamage", "value": 20 },
+        { "type": "SelfDamage", "value": 15 },
         { "type": "Poison", "value": 20 },
-        { "type": "Block", "value": 20 }
+        { "type": "Block", "value": 15 }
       ],
        "subEffects": [
         {
@@ -77,10 +77,8 @@
             "rank": "Flush"
           },
           "effects": [
-           { "type": "Block", "value": 20 },
-           { "type": "Heal", "value": 20 },
-           { "type": "Damage", "value": 66 },
-           { "type": "Poison", "value": 20 }
+           { "type": "Heal", "value": 15 },
+           { "type": "Poison", "value": 10 }
           ]
         }
       ]
@@ -94,9 +92,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonFollowUp.png",
-      "desc": "敵全体に毒を10付与\nそのあと、毒ダメージを1度与える",
+      "desc": "敵全体に毒を8付与\nそのあと、毒ダメージを1度与える",
        "effects": [
-        { "type": "PoisonAll", "value": 10 },
+        { "type": "PoisonAll", "value": 8 },
         { "type": "PoisonDamage", "value": 1 }
       ],
        "subEffects": [
@@ -107,7 +105,8 @@
             "rank": "FullHouse"
           },
           "effects": [
-           { "type": "PoisonAmplify", "value": 3 }
+           { "type": "PoisonAll", "value": 3 },
+           { "type": "PoisonAmplify", "value": 2 }
           ]
         }
       ]
@@ -135,11 +134,11 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/TheRodOfAsclepius.png",
-      "desc": "敵全体に毒ダメージを２度与える\nそのあと、敵全体の毒を解除し、\nその値の合計値分体力を回復する",
+      "desc": "敵全体に毒ダメージを２度与える\nそのあと、敵全体の毒を解除し、\nその値の合計値x0.5分体力を回復する",
        "effects": [
         { "type": "PoisonDamage", "value": 2 },
-        { "type": "PoisonRemove", "value": 1 },
-        { "type": "Poisonheal", "value": 2 }
+        { "type": "PoisonHeal", "value": 0.5 },
+        { "type": "PoisonRemove", "value": 1 }
       ],
       "subEffects": [
         {
@@ -149,7 +148,7 @@
             "rank": "ThreeOfAKind"
           },
           "effects": [
-            { "type": "PosionAll", "value": 20 }
+            { "type": "PosionAll", "value": 10 }
           ]
         }
       ]
@@ -178,9 +177,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/FriendlyPoison.png",
-      "desc": "敵全体の毒の値の合計値分X2体力を回復する",
+      "desc": "敵全体の毒の値の合計値X0.5分体力を回復する",
        "effects": [
-        { "type": "Poisonheal", "value": 2 }
+        { "type": "PoisonHeal", "value": 0.5 }
       ]
     },
 

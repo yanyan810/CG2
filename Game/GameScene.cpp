@@ -26,6 +26,9 @@ static std::wstring Utf8ToWString(const std::string& s)
 }
 
 namespace {
+	constexpr Vector2 kDefenseUiTextureSize{ 64.0f, 64.0f };
+	constexpr Vector2 kPowerupUiTextureSize{ 48.0f, 48.0f };
+
 	constexpr float kSceneStartFadeDuration = 0.75f;
 
 	constexpr float kClearTransitionDuration = 2.0f;
@@ -33,6 +36,17 @@ namespace {
 	constexpr float kFinisherSlowDuration = 0.85f;
 	constexpr float kFinisherShakeDuration = 0.65f;
 	constexpr float kFinisherShakeMagnitude = 0.34f;
+
+	constexpr std::array<Vector2, 8> kOutlineDirections{
+		Vector2{ -1.0f, 0.0f },
+		Vector2{ 1.0f, 0.0f },
+		Vector2{ 0.0f, -1.0f },
+		Vector2{ 0.0f, 1.0f },
+		Vector2{ -1.0f, -1.0f },
+		Vector2{ 1.0f, -1.0f },
+		Vector2{ -1.0f, 1.0f },
+		Vector2{ 1.0f, 1.0f },
+	};
 
 	float SmoothStep01_(float t)
 	{
@@ -277,7 +291,7 @@ void GameScene::OnEnter(GameApp& app) {
 	app.ResetRadialBlur();
 
 	// --------------------------------------------------
-	// 1. 郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ邵ｺ・ｮ陋ｻ譎・ｄ陋ｹ謔ｶ竊帝坎・ｭ陞ｳ繝ｻ
+	// 1. カメラの初期化と設定
 	// --------------------------------------------------
 	camera_ = std::make_unique<Camera>();
 	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
@@ -298,14 +312,14 @@ void GameScene::OnEnter(GameApp& app) {
 	}
 
 	// --------------------------------------------------
-	// 2. 髢ｭ譴ｧ蜍ｹ繝ｻ莠･・､・ｩ騾・・・ｼ蟲ｨ繝ｻ陋ｻ譎・ｄ陋ｹ繝ｻ
+	// 2. 背景（天球）の初期化
 	// --------------------------------------------------
 	skyDome_ = std::make_unique<Object3d>();
 	skyDome_->Initialize(app.ObjCom(), app.Dx());
 	skyDome_->SetModel("skydome/skydome.obj");
 	skyDome_->SetCamera(camera_.get());
 	skyDome_->SetEnableLighting(0);
-	// 隨倥・縺咲ｹ晢ｽ｡郢晢ｽｩ邵ｺ謔滓ｬ｡霓､・ｹ邵ｺ・ｫ邵ｺ・ｪ邵ｺ・｣邵ｺ貅倥・邵ｺ・ｧ邵ｲ竏晢ｽ､・ｩ騾・・繝ｻ闕ｳ・ｭ陟｢繝ｻ・り惷貅ｽ縺帷ｸｺ・ｫ邵ｺ蜷ｶ・・
+	// ★カメラが原点になったので、天球の中心も原点にする
 	skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
 	skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
 
@@ -315,12 +329,12 @@ void GameScene::OnEnter(GameApp& app) {
 	battleForestProps_->LoadFromJson(stageFieldConfigPath_);
 
 	// --------------------------------------------------
-	// 3. 郢晏干ﾎ樒ｹｧ・､郢晢ｽ､郢晢ｽｼ邵ｺ・ｨ郢ｧ・ｨ郢晞亂ﾎ醍ｹ晢ｽｼ邵ｺ・ｮ陋ｻ譎・ｄ陋ｹ謔ｶ繝ｻ鬩溷調・ｽ・ｮ
+	// 3. プレイヤーとエネミーの初期化・配置
 	// --------------------------------------------------
-	// 郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ邵ｺ謔滓ｬ｡霓､・ｹ邵ｺ・ｪ邵ｺ・ｮ邵ｺ・ｧ邵ｲ竏壹￥郢晢ｽ｣郢晢ｽｩ郢ｧ・ｯ郢ｧ・ｿ郢晢ｽｼ邵ｺ・ｯ Z 隴・ｽｹ陷ｷ莉｣竊楢ｬ夲ｽｼ邵ｺ諤懊・邵ｺ蜉ｱ窶ｻ郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ邵ｺ・ｮ陷鷹亂竊馴р・ｮ邵ｺ繝ｻ
-	const float charZ = 15.0f; // 郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ邵ｺ荵晢ｽ・5.0f 陞ゑｽ･
+	// カメラが原点なので、キャラクターは Z 方向に押し出してカメラの前に置く
+	const float charZ = 15.0f; // カメラから15.0f 奥
 
-	// 郢晏干ﾎ樒ｹｧ・､郢晢ｽ､郢晢ｽｼ邵ｺ・ｮ鬩溷調・ｽ・ｮ繝ｻ莠･・ｷ・ｦ陋幢ｽｴ郢晢ｽｻ陷ｿ・ｳ陷ｷ莉｣窶ｳ繝ｻ繝ｻ
+	// プレイヤーの配置（左側・右向き）
 	player_ = std::make_unique<Player>();
 	player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
 	player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
@@ -364,7 +378,7 @@ void GameScene::OnEnter(GameApp& app) {
 	animationEditTarget_ = player_ ? player_->GetObject3d() : nullptr;
 	cameraEditTarget_ = animCamera_.get();
 
-	// 郢ｧ・ｨ郢晞亂ﾎ醍ｹ晢ｽｼ邵ｺ・ｮ鬩溷調・ｽ・ｮ繝ｻ莠･謇ｿ陋幢ｽｴ郢晢ｽｻ陝ｾ・ｦ陷ｷ莉｣窶ｳ繝ｻ繝ｻ
+	// エネミーの配置（右側・左向き）
 	enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
 	std::vector<StageEnemyConfig> stageEnemies;
 	std::string stageBgmId;
@@ -382,7 +396,7 @@ void GameScene::OnEnter(GameApp& app) {
 
 	AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Stage1_5" : stageBgmId);
 	// --------------------------------------------------
-	// 4. 郢晢ｽｩ郢ｧ・､郢晏現繝ｻ陋ｻ譎・ｄ髫ｪ・ｭ陞ｳ繝ｻ
+	// 4. ライトの初期設定
 	// --------------------------------------------------
 	light_.lightingMode = 1;
 	light_.dir = { 0.3f, -1.0f, 0.2f };
@@ -390,30 +404,44 @@ void GameScene::OnEnter(GameApp& app) {
 	light_.dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 	// --------------------------------------------------
-   //  5. 郢晁・繝ｨ郢晢ｽｫ郢ｧ・ｳ郢晢ｽｳ郢晏現ﾎ溽ｹ晢ｽｼ郢晢ｽｩ郢晢ｽｼ
+   //  5. バトルコントローラー
    // --------------------------------------------------
 	battle_.SetPlayer(player_.get());
 	battle_.SetEnemyManager(&enemyMgr_);
 	battle_.Initialize(app, camera_.get());
 
 	// --------------------------------------------------
-	// 6. 隴√・・ｭ邇ｲ邱帝包ｽｻ邵ｺ・ｮ陋ｻ譎・ｄ陋ｹ繝ｻ
+	// 6. 文字描画の初期化
 	// --------------------------------------------------
 
 	cardDescText_ = std::make_unique<TextSprite>();
 	cardDescText_->Initialize(app.SpriteCom(), app.Dx());
 	cardDescText_->SetPosition({ 40.0f, 620.0f });
 
-	//騾具ｽｽ郢昴・縺醍ｹｧ・ｹ郢昶・ﾎ・
+	//白テクスチャ
 	cardDescBg_ = std::make_unique<Sprite>();
 	cardDescBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	cardDescBg_->SetPosition({ 20.0f, 60.0f });
 	cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
 	cardDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
-	// 郢晁ｼ斐≦郢晢ｽｼ郢晢ｽｫ郢晁爆I
+	// フィールドUI
 	fieldUi_ = std::make_unique<FieldUi>();
 	fieldUi_->Initialize(app);
+
+	// プレイヤーHP数字
+	playerHpText_ = std::make_unique<TextSprite>();
+	playerHpText_->Initialize(app.SpriteCom(), app.Dx());
+	playerHpText_->SetFontSize(playerHpTextFontSize_);
+	playerHpText_->SetSize({ 1.0f,1.0f,1.0f });
+	playerHpText_->SetPosition(playerHpTextPosition_);
+	for (auto& outlineText : playerHpOutlineTexts_) {
+		outlineText = std::make_unique<TextSprite>();
+		outlineText->Initialize(app.SpriteCom(), app.Dx());
+		outlineText->SetFontSize(playerHpTextFontSize_);
+		outlineText->SetSize({ 1.0f,1.0f,1.0f });
+	}
+
 	releaseDebugText_ = std::make_unique<TextSprite>();
 	releaseDebugText_->Initialize(app.SpriteCom(), app.Dx());
 	releaseDebugText_->SetFontSize(18);
@@ -422,13 +450,68 @@ void GameScene::OnEnter(GameApp& app) {
 	releaseDebugText_->SetColor({ 0.9f, 1.0f, 0.45f });
 	releaseDebugText_->SetText(L"");
 
+	// 敵HP数字
+	for (int i = 0; i < 3; i++) {
+		auto text = std::make_unique<TextSprite>();
+		text->Initialize(app.SpriteCom(), app.Dx());
+		text->SetSize({ 1.0f,1.0f,1.0f });
+		text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
+		enemyHpTexts_.push_back(std::move(text));
+
+		auto poisonText = std::make_unique<TextSprite>();
+		poisonText->Initialize(app.SpriteCom(), app.Dx());
+		poisonText->SetSize({ 1.0f,1.0f,1.0f });
+		poisonText->SetColor({ 0.5f, 0.0f, 0.5f }); // 紫色
+		enemyPoisonTexts_.push_back(std::move(poisonText));
+
+	}
+
+	// パワーブースト
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Powerup_UI.png");
+	powerBoostBg_ = std::make_unique<Sprite>();
+	powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/gauge/Powerup_UI.png");
+	powerBoostBg_->SetPosition(powerupUiPosition_);
+	powerBoostBg_->SetScale({
+		powerupUiSize_.x / kPowerupUiTextureSize.x,
+		powerupUiSize_.y / kPowerupUiTextureSize.y,
+		1.0f
+		});
+	powerBoostBg_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+	powerBoostText_ = std::make_unique<TextSprite>();
+	powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
+	powerBoostText_->SetSize({ 1.f,1.f,0.5f });
+	powerBoostText_->SetPosition(powerBoostTextPosition_);
+
+	// ブロック
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Defense_UI.png");
+	blockBg_ = std::make_unique<Sprite>();
+	blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/gauge/Defense_UI.png");
+	blockBg_->SetPosition(defenseUiPosition_);
+	blockBg_->SetScale({
+		defenseUiSize_.x / kDefenseUiTextureSize.x,
+		defenseUiSize_.y / kDefenseUiTextureSize.y,
+		1.0f
+		});
+	blockBg_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+	blockText_ = std::make_unique<TextSprite>();
+	blockText_->Initialize(app.SpriteCom(), app.Dx());
+	blockText_->SetFontSize(blockTextFontSize_);
+	blockText_->SetSize({ 1.f,1.f,0.5f });
+	blockText_->SetPosition(blockTextPosition_);
+	for (auto& outlineText : blockOutlineTexts_) {
+		outlineText = std::make_unique<TextSprite>();
+		outlineText->Initialize(app.SpriteCom(), app.Dx());
+		outlineText->SetFontSize(blockTextFontSize_);
+		outlineText->SetSize({ 1.0f,1.0f,0.5f });
+	}
+
 	TextureManager::GetInstance()->LoadTexture("resources/gradation.png");
 
-	// 1. TrailManager邵ｺ・ｮ陋ｻ譎・ｄ陋ｹ蜴・ｽｼ莠包ｽｻ・ｮ邵ｺ・ｫ郢晢ｽ｡郢晢ｽｳ郢昜ｻ呻ｽ､逕ｻ辟・std::unique_ptr<TrailManager> trailManager_ 郢ｧ螳夲ｽｿ・ｽ陷会｣ｰ繝ｻ繝ｻ
+	// 1. TrailManagerの初期化（仮にメンバ変数 std::unique_ptr<TrailManager> trailManager_ を追加）
 	trailManager_ = std::make_unique<TrailManager>();
-	// 髴・霜・ｷ・｡騾包ｽｨ邵ｺ・ｮ郢昴・縺醍ｹｧ・ｹ郢昶・ﾎ慕ｹｧ蜻域ｬ陞ｳ螟ｲ・ｼ蛹ｻ竊堤ｹｧ鄙ｫ竕邵ｺ蛹ｻ笘・ｭ鯉ｽ｢陝・･繝ｻ郢ｧ繧・・邵ｺ・ｧ郢ｧ・尻繝ｻ繝ｻ
+	// 軌跡用のテクスチャを指定（とりあえず既存のものでもOK）
 	trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
-	// 髴・霜・ｷ・｡郢ｧ・､郢晢ｽｳ郢ｧ・ｹ郢ｧ・ｿ郢晢ｽｳ郢ｧ・ｹ郢ｧ蜑・ｽｽ諛医・
+	// 軌跡インスタンスを作成
 	testTrail_ = trailManager_->CreateInstance();
 	testTrail_->SetIsPermanent(true);
 	player_->SetTrailInstance(testTrail_);
@@ -488,34 +571,34 @@ void GameScene::OnEnter(GameApp& app) {
 	fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
 	battle_.SetFieldParticleManager(fieldParticleManager_.get());
 
-	// 驍ｱ・ｨ鬮ｮ繝ｻ逡題棔逕ｻ辟夂ｸｺ・ｫ陋ｻ譎・ｄ陋滂ｽ､郢ｧ蛛ｵ縺慕ｹ晄鱒繝ｻ邵ｺ蜉ｱ窶ｻ邵ｺ鄙ｫ・･
+	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 	ResetParticleObjectPostParam_();
 
-	// 髴・霜・ｷ・｡邵ｺ・ｮ髫穂ｹ昶螺騾ｶ・ｮ邵ｺ・ｮ髫ｪ・ｭ陞ｳ繝ｻ
+	// 軌跡の見た目の設定
 	TrailConfig config;
-	// 髴・霜・ｷ・｡邵ｺ・ｮ髫ｪ・ｭ陞ｳ螢ｹ・定棔・ｧ陝ｷ繝ｻ竊楢托ｽｷ陋ｹ繝ｻ
-	trailConfig_.maxPoints = 200;           // 髫ｪ蛟ｬ鮖ｸ隰ｨ・ｰ郢ｧ雋橸ｽ｢蜉ｱ・・ｸｺ蜻ｻ・ｼ繝ｻ0邵ｺ・ｰ邵ｺ・ｨ闕ｳﾂ霑ｸ・ｬ邵ｺ・ｧ驍ｨ繧・ｽ冗ｹｧ鄙ｫ竏ｪ邵ｺ蜻ｻ・ｼ繝ｻ
-	trailConfig_.interpolationSteps = 8;     // 髯ｬ諞ｺ菫｣郢ｧ雋橸ｽ｢蜉ｱ・・ｸｺ蜉ｱ窶ｻ陝・・・ｺ・ｦ郢ｧ蜑・ｽｸ鄙ｫ・｡郢ｧ繝ｻ
-	trailConfig_.startColor = { 1, 1, 1, 1 };  // 隴崢陋ｻ譏ｴ繝ｻ郢昜ｸ翫Ε郢ｧ・ｭ郢晢ｽｪ騾具ｽｽ
-	trailConfig_.endColor = { 1, 0, 0, 0.2f }; // 隴崢陟募ｾ娯穐邵ｺ・ｧ陝・ｻ｣・豼ｶ・ｲ郢ｧ蜻茨ｽｮ荵昶・
+	// 軌跡の設定を大幅に強化
+	trailConfig_.maxPoints = 200;           // 記録数を増やす（50だと一瞬で終わります）
+	trailConfig_.interpolationSteps = 8;     // 補間を増やして密度を上げる
+	trailConfig_.startColor = { 1, 1, 1, 1 };  // 最初はハッキリ白
+	trailConfig_.endColor = { 1, 0, 0, 0.2f }; // 最後まで少し色を残す
 	player_->SetTrailConfig(config);
 
-	// 郢ｧ・ｨ郢晁ｼ斐♂郢ｧ・ｯ郢晏現縺咏ｹ晢ｽｼ郢ｧ・ｱ郢晢ｽｳ郢ｧ・ｵ郢晢ｽｼ邵ｺ・ｮ陋ｻ譎・ｄ陋ｹ蜴・ｽｼ繝ｻameScene騾包ｽｨ繝ｻ繝ｻ
+	// エフェクトシーケンサーの初期化（GameScene用）
 	effectSequencer_ = std::make_unique<EffectSequencer>();
 	effectSequencer_->Initialize(
 		app.ObjCom(), app.Dx(), animCamera_.get(),
 		particleManager_, trailManager_.get()
 	);
 
-	// 郢晏干ﾎ樒ｹｧ・､郢晢ｽ､郢晢ｽｼ邵ｺ・ｮEffectSequencer郢ｧ雋槭・陋ｻ譎・ｄ陋ｹ蜴・ｽｼ繝ｻrailManager/particleManager邵ｺ譴ｧ邏皮ｸｺ・｣邵ｺ貅ｷ・ｾ魃会ｽｼ繝ｻ
+	// プレイヤーのEffectSequencerを再初期化（TrailManager/particleManagerが揃った後）
 	if (player_) {
 		player_->GetEffectSequencer().Initialize(
 			app.ObjCom(), app.Dx(), animCamera_.get(),
 			particleManager_, trailManager_.get()
 		);
 
-		// 郢昴・繝ｵ郢ｧ・ｩ郢晢ｽｫ郢晏現繝ｻ隰ｾ・ｻ隰ｦ繝ｻ讖ｿ郢ｧ蝣､蛹ｳ鬪ｭ・ｲ繝ｻ繝ｻSON郢晁ｼ斐＜郢ｧ・､郢晢ｽｫ陷ｷ髦ｪ繝ｻ陞ｳ貊・怙邵ｺ・ｮ郢晁ｼ斐＜郢ｧ・､郢晢ｽｫ邵ｺ・ｫ陷ｷ蛹ｻ・冗ｸｺ蟶吮ｻ陞溽判蟲ｩ繝ｻ繝ｻ
+		// デフォルトの攻撃技を登録（JSONファイル名は実際のファイルに合わせて変更）
 		player_->AddAttackMove({ "CustomAnim_attack_1", "attack_1.json", 0.1f });
 		player_->AddAttackMove({ "CustomAnim_attack_2", "attack_2.json", 0.15f });
 		player_->AddAttackMove({ "CustomAnim_attack_3", "attack_3.json", 0.2f });
@@ -543,7 +626,7 @@ void GameScene::OnEnter(GameApp& app) {
 	startFadeTimer_ = 0.0f;
 	startFadeActive_ = true;
 
-	// 郢ｧ・ｲ郢晢ｽｼ郢晢｣ｰ驍ｨ蜈域｣｡郢晄亢繝｣郢晏干縺・ｹ昴・繝ｻ
+	// ゲーム結果ポップアップ
 	gameResultShown_ = false;
 	if (!resultPopup_) {
 		resultPopup_ = std::make_unique<GameResultPopup>();
@@ -584,10 +667,10 @@ void GameScene::OnExit(GameApp& app) {
 	if (resultPopup_) { resultPopup_->Hide(); }
 	gameResultShown_ = false;
 
-	// EnemyManager 邵ｺ・ｫ Clear() 邵ｺ蠕娯旺郢ｧ荵昶・郢ｧ迚吩ｻ也ｸｺ・ｶ
+	// EnemyManager に Clear() があるなら呼ぶ
 	// enemyMgr_.Clear();
 
-	// battle_ 邵ｺ・ｫ隴丞ｮ茨ｽ､・ｺ騾ｧ繝ｻ竊鷹囓・｣隰ｾ・ｾ鬮｢・｢隰ｨ・ｰ郢ｧ蜑・ｽｽ諛奇ｽ狗ｸｺ・ｮ邵ｺ讙守ｊ隲・ｳ
+	// battle_ に明示的な解放関数を作るのが理想
 	// battle_.Finalize();
 }
 void GameScene::Update(GameApp& app, float dt) {
@@ -752,7 +835,7 @@ void GameScene::Update(GameApp& app, float dt) {
 				gameResultShown_ = true;
 				if (resultPopup_) { resultPopup_->Show(ResultKind::GameClear); }
 			}
-			// 郢晄亢繝｣郢晏干縺・ｹ昴・繝ｻ隴厄ｽｴ隴・ｽｰ郢晢ｽｻ郢ｧ・｢郢ｧ・ｯ郢ｧ・ｷ郢晢ｽｧ郢晢ｽｳ陷・ｽｦ騾・・
+			// ポップアップ更新・アクション処理
 			if (resultPopup_) {
 				resultPopup_->Update(app, dt);
 				const ResultAction act = resultPopup_->GetAction();
@@ -801,8 +884,8 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	if (cameraAnim_ && cameraAnim_->IsEditing()) {
-		cameraAnim_->Update(dt); // 郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ邵ｺ・ｮ隰ｫ蝣ｺ・ｽ諛岩味邵ｺ莉｣繝ｻ陷ｿ蜉ｱ・闔牙･・郢ｧ繝ｻ
-		animCamera_->Update();   // 郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ髯ｦ謔溘・隴厄ｽｴ隴・ｽｰ
+		cameraAnim_->Update(dt); // カメラの操作だけは受け付ける
+		animCamera_->Update();   // カメラ行列更新
 
 		if (skyDome_) {
 			skyDome_->SetCamera(animCamera_.get());
@@ -819,11 +902,11 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	//if (battle_.IsPlayerTargeting()) {
-	//	// 郢ｧ・ｫ郢晢ｽｼ郢晏ｳｨ・帝囓・ｦ邵ｺ・｣邵ｺ・ｦ邵ｺ繝ｻ・玖ｭ弱ｅ繝ｻ郢ｧ・｢郢昜ｹ斟鍋ｹ晢ｽｼ郢ｧ・ｷ郢晢ｽｧ郢晢ｽｳ邵ｺ・ｮ隴弱ｋ菫｣郢ｧ蜻茨ｽｭ・｢郢ｧ竏壺ｻ陋ｻ譎・ｄ闖ｴ蜥ｲ・ｽ・ｮ邵ｺ・ｫ陜暦ｽｺ陞ｳ螢ｹ笘・ｹｧ繝ｻ
+	//	// カードを触っている時はアニメーションの時間を止めて初期位置に固定する
 	//	animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
 	//	animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
 	//} else {
-	//	// 髫暦ｽｦ邵ｺ・｣邵ｺ・ｦ邵ｺ繝ｻ竊醍ｸｺ繝ｻ蜃ｾ邵ｺ・ｯ邵ｲ竏ｽ・ｻ鄙ｫ竏ｪ邵ｺ・ｧ鬨ｾ螢ｹ・顔ｹｧ・｢郢昜ｹ斟鍋ｹ晢ｽｼ郢ｧ・ｷ郢晢ｽｧ郢晢ｽｳ郢ｧ雋槭・騾墓ｺ倪・郢ｧ繝ｻ
+	//	// 触っていない時は、今まで通りアニメーションを再生する
 	//	if (cameraAnim_) {
 	//		if (cameraAnim_->Update(dt)) {
 	//			ChangeRandomCamera();
@@ -833,7 +916,7 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	//bool isTargeting = battle_.IsPlayerTargeting();
 
-	//// 陷托ｽｲ陷ｷ蛹ｻ・帝坎閧ｲ・ｮ證ｦ・ｼ繝ｻ.2驕伜・ﾂｰ邵ｺ莉｣窶ｻ 0.0 邵ｺ・ｨ 1.0 邵ｺ・ｮ鬮｢阮呻ｽ帝§・ｻ陷崎ｼ披・郢ｧ蜈ｷ・ｼ繝ｻ
+	//// 割合を計算（0.2秒かけて 0.0 と 1.0 の間を移動する）
 	//if (isTargeting) {
 	//	cameraBlend_ += dt * 5.0f;
 	//	if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
@@ -844,10 +927,10 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	//if (cameraAnim_) {
 	//	if (isTargeting) {
-	//		// 郢ｧ・ｿ郢晢ｽｼ郢ｧ・ｲ郢昴・繝ｨ闕ｳ・ｭ邵ｺ・ｯ郢ｧ・｢郢昜ｹ斟鍋ｸｺ・ｮ隴弱ｋ菫｣郢ｧ蜻茨ｽｭ・｢郢ｧ竏夲ｽ九・閧ｲ讓溯舉・ｨ陜ｨ・ｰ郢ｧ蛛ｵ縺冗ｹ晢ｽｼ郢晄圜・ｼ繝ｻ
+	//		// ターゲット中はアニメの時間を止める（現在地をキープ）
 	//		cameraAnim_->Update(0.0f);
 	//	} else {
-	//		// 郢ｧ・ｿ郢晢ｽｼ郢ｧ・ｲ郢昴・繝ｨ髫暦ｽ｣鬮ｯ・､陟募ｾ後・郢ｧ・｢郢昜ｹ斟鍋ｹｧ雋槭・鬮｢荵昶・郢ｧ繝ｻ
+	//		// ターゲット解除後はアニメを再開する
 	//		if (cameraAnim_->Update(dt)) {
 	//			ChangeRandomCamera();
 	//		}
@@ -856,7 +939,7 @@ void GameScene::Update(GameApp& app, float dt) {
 
 	bool isTargeting = battle_.IsPlayerTargeting();
 
-	// 陷托ｽｲ陷ｷ蛹ｻ・帝坎閧ｲ・ｮ繝ｻ
+	// 割合を計算
 	if (isTargeting) {
 		cameraBlend_ += dt * 5.0f;
 		if (cameraBlend_ > 1.0f) cameraBlend_ = 1.0f;
@@ -869,7 +952,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		bool finished = false;
 
 		if (isTargeting) {
-			// 郢ｧ・ｿ郢晢ｽｼ郢ｧ・ｲ郢昴・繝ｨ闕ｳ・ｭ邵ｺ・ｯ隴弱ｋ菫｣陋帶㊧・ｭ・｢
+			// ターゲット中は時間停止
 			finished = cameraAnim_->Update(0.0f);
 		} else {
 			finished = cameraAnim_->Update(dt);
@@ -882,7 +965,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 	}
 
-	// 陷托ｽｲ陷ｷ蛹ｻ窶ｲ 0.0 郢ｧ蛹ｻ・願棔・ｧ邵ｺ髦ｪ・樒ｸｺ・ｪ郢ｧ蟲ｨﾂ竏壹＞郢昜ｹ斟鍋ｸｺ・ｮ陟趣ｽｧ隶灘生竊定摎・ｺ陞ｳ螢ｼ・ｺ・ｧ隶灘生・定ｱｺ・ｷ邵ｺ諛奇ｽ九・繝ｻerp繝ｻ繝ｻ
+	// 割合が 0.0 より大きいなら、アニメの座標と固定座標を混ぜる（Lerp）
 	if (cameraBlend_ > 0.0f) {
 		Vector3 animPos = animCamera_->GetTranslate();
 		Vector3 animRot = animCamera_->GetRotate();
@@ -893,7 +976,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		float t = cameraBlend_;
 		float easeT = t * t * (3.0f - 2.0f * t);
 
-		// 郢ｧ・｢郢昜ｹ斟鍋ｸｺ・ｮ陜｣・ｴ隰・(0.0) 邵ｺ荵晢ｽ・陜暦ｽｺ陞ｳ螢ｻ・ｽ蜥ｲ・ｽ・ｮ(1.0) 邵ｺ・ｸ郢晄じﾎ樒ｹ晢ｽｳ郢昴・
+		// アニメの場所(0.0) から 固定位置(1.0) へブレンド
 		Vector3 blendedPos = {
 			animPos.x + (defaultPos.x - animPos.x) * easeT,
 			animPos.y + (defaultPos.y - animPos.y) * easeT,
@@ -905,7 +988,7 @@ void GameScene::Update(GameApp& app, float dt) {
 			animRot.z + (defaultRot.z - animRot.z) * easeT
 		};
 
-		// 雎ｺ・ｷ邵ｺ謔ｶ笆ｲ邵ｺ貅倥Ξ郢晢ｽｫ郢昴・竊堤ｸｺ蜉ｱ笳・趣ｽｧ隶灘生・堤ｹｧ・ｫ郢晢ｽ｡郢晢ｽｩ邵ｺ・ｫ郢ｧ・ｻ郢昴・繝ｨ繝ｻ繝ｻ
+		// 混ざったヌルッとした座標をカメラにセット！
 		animCamera_->SetTranslate(blendedPos);
 		animCamera_->SetRotate(blendedRot);
 	}
@@ -916,13 +999,13 @@ void GameScene::Update(GameApp& app, float dt) {
 		int fieldHeight = windowH - static_cast<int>(windowH * splitRatio_);
 		camera_->SetAspect((float)windowW / fieldHeight);
 
-		// FOV邵ｺ・ｨ髫苓ｲ橸ｽｺ・ｦ邵ｺ・ｮ髯ｬ諛茨ｽｭ・｣ (陷医・繝ｻ郢ｧ・ｵ郢ｧ・､郢ｧ・ｺ隲｢貅假ｽ帝け・ｭ隰問・・邵ｺ・､邵ｺ・､髫募唱繝ｻ郢ｧ蠕娯・邵ｺ繝ｻ・育ｸｺ繝ｻ竊鍋ｸｺ蜷ｶ・・
+		// FOVと角度の補正 (元のサイズ感を維持しつつ見切れないようにする)
 		float origFovY = 0.45f;
 		float zoomRatio = ((float)fieldHeight / windowH) / fieldCameraZoom_;
 		float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
 		camera_->SetFovY(newFovY);
 
-		// 陝・ｻ｣・闕ｳ荵晢ｽ定惺莉｣・邵ｺ・ｦ郢ｧ・ｫ郢晢ｽｼ郢晏ｳｨ窶ｲ髫募唱繝ｻ郢ｧ蠕娯・邵ｺ繝ｻ・育ｸｺ繝ｻ竊鍋ｸｺ蜷ｶ・・
+		// 少し下を向けてカードが見切れないようにする
 		Vector3 rot = camera_->GetRotate();
 		rot.x = 0.15f + fieldCameraRotXOffset_;
 		camera_->SetRotate(rot);
@@ -932,7 +1015,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		shiftField.m[3][1] = -splitRatio_;
 		camera_->SetProjectionShift(shiftField);
 
-		camera_->Update();     // 陜暦ｽｺ陞ｳ螢ｹ縺咲ｹ晢ｽ｡郢晢ｽｩ邵ｺ・ｮ隴厄ｽｴ隴・ｽｰ
+		camera_->Update();     // 固定カメラの更新
 	}
 	if (animCamera_) {
 		int windowW = WinApp::kClientWidth;
@@ -940,13 +1023,13 @@ void GameScene::Update(GameApp& app, float dt) {
 		int battleHeight = static_cast<int>(windowH * splitRatio_);
 		animCamera_->SetAspect((float)windowW / battleHeight);
 
-		// FOV邵ｺ・ｨ髫苓ｲ橸ｽｺ・ｦ邵ｺ・ｮ髯ｬ諛茨ｽｭ・｣
+		// FOVと角度の補正
 		float origFovY = 0.45f;
 		float zoomRatio = ((float)battleHeight / windowH) / battleCameraZoom_;
 		float newFovY = 2.0f * std::atan(zoomRatio * std::tan(origFovY / 2.0f));
 		animCamera_->SetFovY(newFovY);
 
-		// 陝・ｻ｣・闕ｳ鄙ｫ・定惺莉｣・邵ｺ・ｦ郢ｧ・ｭ郢晢ｽ｣郢晢ｽｩ郢ｧ・ｯ郢ｧ・ｿ郢晢ｽｼ邵ｺ・ｮ鬯・ｽｭ邵ｺ迹夲ｽｦ蜿･繝ｻ郢ｧ蠕娯・邵ｺ繝ｻ・育ｸｺ繝ｻ竊鍋ｸｺ蜷ｶ・・
+		// 少し上を向けてキャラクターの頭が見切れないようにする
 		Vector3 rot = animCamera_->GetRotate();
 		if (!cameraAnim_ || cameraAnim_->GetKeyframes().empty()) {
 			rot.x = 0.15f;
@@ -959,7 +1042,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		shiftBattle.m[3][1] = 1.0f - splitRatio_;
 		animCamera_->SetProjectionShift(shiftBattle);
 
-		animCamera_->Update(); // 陷崎ｼ費ｿ･郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ邵ｺ・ｮ隴厄ｽｴ隴・ｽｰ
+		animCamera_->Update(); // 動くカメラの更新
 	}
 
 
@@ -974,17 +1057,17 @@ void GameScene::Update(GameApp& app, float dt) {
 	enemyMgr_.Update(dt);
 	enemyMgr_.SetLighting(light_);
 
-	// 陞滂ｽｩ騾・・・ｼ驛√Ξ隴趣ｽｯ繝ｻ蟲ｨ竊楢恪霈費ｿ･郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ郢ｧ蛛ｵ縺晉ｹ昴・繝ｨ
+	// 天球（背景）に動くカメラをセット
 	if (skyDome_) {
 		skyDome_->SetCamera(animCamera_.get());
 	}
 
-	// 郢晏干ﾎ樒ｹｧ・､郢晢ｽ､郢晢ｽｼ邵ｺ・ｫ陷崎ｼ費ｿ･郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ郢ｧ蛛ｵ縺晉ｹ昴・繝ｨ
+	// プレイヤーに動くカメラをセット
 	if (player_) {
 		player_->SetCamera(animCamera_.get());
 	}
 
-	// 邵ｺ蜷ｶ竏狗ｸｺ・ｦ邵ｺ・ｮ隰ｨ・ｵ邵ｺ・ｫ陷崎ｼ費ｿ･郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ郢ｧ蛛ｵ縺晉ｹ昴・繝ｨ
+	// すべての敵に動くカメラをセット
 	for (auto& enemy : enemyMgr_.GetEnemies()) {
 		enemy.SetCamera(animCamera_.get());
 	}
@@ -1105,11 +1188,62 @@ void GameScene::Update(GameApp& app, float dt) {
 		costText_->SetText(battle_.GetEnergyText());
 	}
 
+	if (playerHpText_) {
+		const std::wstring playerHpText = battle_.GetPlayerHpTexts();
+		playerHpText_->SetText(playerHpText);
+		for (auto& outlineText : playerHpOutlineTexts_) {
+			if (outlineText) {
+				outlineText->SetText(playerHpText);
+			}
+		}
+	}
+
+	if (powerBoostText_) {
+		powerBoostText_->SetText(battle_.GetPlayerPowerBoostText());
+	}
+
+	if (blockText_) {
+		const std::wstring blockText = battle_.GetPlayerBlockText();
+		blockText_->SetText(blockText);
+		for (auto& outlineText : blockOutlineTexts_) {
+			if (outlineText) {
+				outlineText->SetText(blockText);
+			}
+		}
+	}
+
+	std::vector<std::wstring> hpData = battle_.GetEnemyHpTexts();
+	std::vector<std::wstring> bcData = battle_.GetEnemyBCTexts();
+
+	for (size_t i = 0; i < enemyHpTexts_.size(); i++) {
+		if (i < hpData.size()) {
+			enemyHpTexts_[i]->SetText(hpData[i]);
+
+			enemyHpTexts_[i]->SetPosition({ 1025.0f, 10.0f + (i * 30.0f) });
+		} else {
+
+			enemyHpTexts_[i]->SetText(L"");
+		}
+	}
+
+
+	for (size_t i = 0; i < enemyPoisonTexts_.size(); i++) {
+		if (i < bcData.size()) {
+			enemyPoisonTexts_[i]->SetText(bcData[i]);
+
+			enemyPoisonTexts_[i]->SetPosition({ 1200.0f, 10.0f + (i * 30.0f) });
+
+		} else {
+			enemyPoisonTexts_[i]->SetText(L"");
+		}
+	}
+
+	// 1. マネージャ自体の更新（不要になったインスタンスの自動削除など）
 	trailManager_->Update(dt);
 
 	//particleManager_->Emit("particle_image", Vector3(0, 0.0f, 0), 10);
 
-	// 郢ｧ・ｨ郢晁ｼ斐♂郢ｧ・ｯ郢晏現縺咏ｹ晢ｽｼ郢ｧ・ｱ郢晢ｽｳ郢ｧ・ｵ郢晢ｽｼ邵ｺ・ｮ隴厄ｽｴ隴・ｽｰ
+	// エフェクトシーケンサーの更新
 	if (effectSequencer_) {
 		effectSequencer_->Update(dt);
 	}
@@ -1198,7 +1332,7 @@ void GameScene::Draw3D(GameApp& app) {
 		player_->DrawShieldBloom(app);
 	}
 
-	// 隰ｨ・ｵ闔会ｽ･陞滓じ繝ｻ郢晢ｽ｢郢昴・ﾎ晉ｸｺ・ｫFilter郢ｧ蜻亥ｶ檎ｸｺ莉｣・・(郢晁・繝ｨ郢晢ｽｫ騾包ｽｻ鬮ｱ・｢陋幢ｽｴ)
+	// 敵以外のモデルにFilterを書ける (バトル画面側)
 	if (battle_.GetNowCardInputState() == BattleController::CardInputState::ChoosingEnemyTarget) {
 		highlightFilter_->Draw();
 	}
@@ -1235,7 +1369,7 @@ void GameScene::Draw3D(GameApp& app) {
 		battle_.DrawPostEffect3D(app);
 	}
 
-	// 隴崢陟募ｾ娯・郢晁侭ﾎ礼ｹ晢ｽｼ郢晄亢繝ｻ郢晏現・定怦繝ｻ竊楢ｬ鯉ｽｻ邵ｺ蜻ｻ・ｼ繝ｻD隰蜀怜愛驕ｲ蟲ｨ繝ｻ邵ｺ貅假ｽ√・繝ｻ
+	// 最後にビューポートを元に戻す（2D描画等のため）
 	app.Dx()->SetViewport(windowW, windowH);
 	app.ObjCom()->SetGraphicsPipelineState();
 
@@ -1292,9 +1426,10 @@ void GameScene::Draw2D(GameApp& app) {
 	if (fieldUi_) {
 		fieldUi_->Draw(app, battle_);
 	}
-	battle_.DrawPlayerBattleStatusUI(app, view, proj);
 
+	battle_.DrawPlayerBattleStatusUI(app, view, proj);
 	battle_.DrawEnemyBattleStatusHpTexts(view, proj);
+	battle_.DrawEnemyBattleStatusBcTexts(view, proj);
 
 	if (isBossStage_ && bossStageBannerTimer_ > 0.0f) {
 		const float alpha = bossStageBannerTimer_ < 1.0f ? bossStageBannerTimer_ : 1.0f;
@@ -1323,7 +1458,7 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 
-	battle_.DrawEnemyBattleStatusBcTexts(view, proj);
+
 
 	if (releaseDebugText_) {
 		//releaseDebugText_->Update(view, proj);
@@ -1336,7 +1471,7 @@ void GameScene::Draw2D(GameApp& app) {
 
 	drawStartFadeMask();
 
-	// 郢ｧ・ｲ郢晢ｽｼ郢晢｣ｰ驍ｨ蜈域｣｡郢晄亢繝｣郢晏干縺・ｹ昴・繝ｻ郢ｧ蜻域呵恆蝓ｼ謫・ｸｺ・ｫ隰蜀怜愛
+	// ゲーム結果ポップアップを最前面に描画
 	if (resultPopup_ && resultPopup_->IsVisible()) {
 		resultPopup_->Draw2D(app);
 	}
@@ -1380,6 +1515,8 @@ void GameScene::DrawImGui(GameApp& app) {
 	ImGui::DragFloat2("position", &position_.x);
 	ImGui::DragFloat3("scale", &scale_.x);
 
+	//playerHpText_->SetPosition(position_);
+
 	if (false && cameraAnim_) {
 		ImGui::Separator();
 		ImGui::Text("=== Editor Target ===");
@@ -1403,7 +1540,7 @@ void GameScene::DrawImGui(GameApp& app) {
 		ImGui::Checkbox("Random Camera Change", &randomCameraEnabled_);
 		ImGui::Checkbox("Same Camera Loop", &sameCameraLoopEnabled_);
 
-		// 闕ｳ・｡隴・ｽｹON邵ｺ・ｯ陋ｻ繝ｻﾂｰ郢ｧ鄙ｫ笆ｼ郢ｧ蟲ｨ・樒ｸｺ・ｮ邵ｺ・ｧ隰怜宴・ｻ謔ｶ竊鍋ｸｺ蜷ｶ・・
+		// 両方ONは分かりづらいので排他にする
 		if (sameCameraLoopEnabled_) {
 			randomCameraEnabled_ = false;
 		}
@@ -1433,19 +1570,19 @@ void GameScene::DrawImGui(GameApp& app) {
 
 	ImGui::End();
 
-	// 關謎ｹ昶斡邵ｺ・ｰ "player_fire" 郢ｧ蝣､・ｷ・ｨ鬮ｮ繝ｻ・邵ｺ貅假ｼ櫁撻・ｴ陷ｷ繝ｻ
+	// 例えば "player_fire" を編集したい場合
 	if (battleEffectsDebugVisible_) {
 		ImGui::Begin("Battle Effects", &battleEffectsDebugVisible_);
 		static std::string targetEffect = "player_fire";
 
-		// 郢ｧ・ｳ郢晢ｽｳ郢晄㈱繝ｻ郢昴・縺醍ｹｧ・ｹ邵ｺ・ｧ驍ｱ・ｨ鬮ｮ繝ｻ・ｯ・ｾ髮趣ｽ｡郢ｧ雋槭・郢ｧ鬆大ｴ帷ｸｺ蛹ｻ・臥ｹｧ蠕鯉ｽ狗ｹｧ蛹ｻ竕ｧ邵ｺ・ｫ邵ｺ蜷ｶ・狗ｸｺ・ｨ隴厄ｽｴ邵ｺ・ｫ關難ｽｿ陋ｻ・ｩ
+		// コンボボックスで編集対象を切り替えられるようにすると更に便利
 		if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
 			if (ImGui::Selectable("player_fire")) targetEffect = "player_fire";
 			if (ImGui::Selectable("sword_trail")) targetEffect = "sword_trail";
 			ImGui::EndCombo();
 		}
 
-		// 郢晄ｧｭ繝ｭ郢晢ｽｼ郢ｧ・ｸ郢晢ｽ｣郢晢ｽｼ邵ｺ荵晢ｽ芽ｬ悶・・ｮ螢ｹ・邵ｺ貅倥♀郢晁ｼ斐♂郢ｧ・ｯ郢晏現繝ｻ髫ｪ・ｭ陞ｳ螢ｹ・帝こ・ｨ鬮ｮ繝ｻ繝ｻ陷ｿ閧ｴ荳・
+		// マネージャーから指定したエフェクトの設定を編集・反映
 		particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
 		DrawParticleObjectPostEditor_();
 		ImGui::End();
@@ -1478,7 +1615,7 @@ void GameScene::DrawImGui(GameApp& app) {
 	}
 	ImGui::End();
 
-	// 郢ｧ・ｨ郢晁ｼ斐♂郢ｧ・ｯ郢晏現縺咏ｹ晢ｽｼ郢ｧ・ｱ郢晢ｽｳ郢ｧ・ｵ郢晢ｽｼ郢ｧ・ｨ郢昴・縺・ｹｧ・ｿ郢晢ｽｼ
+	// エフェクトシーケンサーエディター
 	if (effectSequencer_) {
 		Vector3 startPos = player_ ? player_->GetPos() + Vector3(0, 1.0f, 0) : Vector3{ -7.0f, 1.0f, 15.0f };
 		Vector3 targetPos = { 7.0f, 1.0f, 15.0f };
@@ -1489,7 +1626,7 @@ void GameScene::DrawImGui(GameApp& app) {
 		effectSequencer_->DrawImGuiEditor(startPos, targetPos);
 	}
 
-	// 郢ｧ・ｲ郢晢ｽｼ郢晢｣ｰ驍ｨ蜈域｣｡郢晄亢繝｣郢晏干縺・ｹ昴・繝ｻ邵ｺ・ｮImGui
+	// ゲーム結果ポップアップのImGui
 	if (resultPopup_) { resultPopup_->DrawImGui(); }
 	if (pokerHandHelpView_) { pokerHandHelpView_->DrawImGui(); }
 
@@ -1500,7 +1637,61 @@ void GameScene::DrawPlayerHudImGui_()
 {
 #ifdef USE_IMGUI
 	ImGui::Begin("Player UI Adjust", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-	battle_.DrawPlayerHudImGuiControls();
+
+	if (ImGui::CollapsingHeader("HP Gauge", ImGuiTreeNodeFlags_DefaultOpen)) {
+		battle_.DrawPlayerHudImGuiControls();
+	}
+
+	if (ImGui::CollapsingHeader("HP Number", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragFloat2("HP Number Position", &playerHpTextPosition_.x, 1.0f);
+		if (ImGui::DragInt("HP Number Font Size", &playerHpTextFontSize_, 1.0f, 8, 128)) {
+			playerHpTextFontSize_ = std::max(8, playerHpTextFontSize_);
+			if (playerHpText_) {
+				playerHpText_->SetFontSize(playerHpTextFontSize_);
+			}
+			for (auto& outlineText : playerHpOutlineTexts_) {
+				if (outlineText) {
+					outlineText->SetFontSize(playerHpTextFontSize_);
+				}
+			}
+		}
+		ImGui::ColorEdit4("HP Number Color", &playerHpTextColor_.x);
+		ImGui::Checkbox("HP Outline Enabled", &playerHpOutlineEnabled_);
+		ImGui::DragFloat("HP Outline Thickness", &playerHpOutlineThickness_, 0.1f, 0.0f, 12.0f);
+		ImGui::ColorEdit4("HP Outline Color", &playerHpOutlineColor_.x);
+	}
+
+	if (ImGui::CollapsingHeader("Defense UI", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::DragFloat2("Defense Image Position", &defenseUiPosition_.x, 1.0f);
+		ImGui::DragFloat2("Defense Image Size", &defenseUiSize_.x, 1.0f, 1.0f, 512.0f);
+		defenseUiSize_.x = std::max(1.0f, defenseUiSize_.x);
+		defenseUiSize_.y = std::max(1.0f, defenseUiSize_.y);
+		ImGui::DragFloat2("Defense Number Position", &blockTextPosition_.x, 1.0f);
+		if (ImGui::DragInt("Defense Number Font Size", &blockTextFontSize_, 1.0f, 8, 128)) {
+			blockTextFontSize_ = std::max(8, blockTextFontSize_);
+			if (blockText_) {
+				blockText_->SetFontSize(blockTextFontSize_);
+			}
+			for (auto& outlineText : blockOutlineTexts_) {
+				if (outlineText) {
+					outlineText->SetFontSize(blockTextFontSize_);
+				}
+			}
+		}
+		ImGui::ColorEdit4("Defense Number Color", &blockTextColor_.x);
+		ImGui::Checkbox("Defense Outline Enabled", &blockOutlineEnabled_);
+		ImGui::DragFloat("Defense Outline Thickness", &blockOutlineThickness_, 0.1f, 0.0f, 12.0f);
+		ImGui::ColorEdit4("Defense Outline Color", &blockOutlineColor_.x);
+	}
+
+	if (ImGui::CollapsingHeader("Powerup UI", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Powerup UI Visible", &powerupUiVisible_);
+		ImGui::DragFloat2("Powerup Image Position", &powerupUiPosition_.x, 1.0f);
+		ImGui::DragFloat2("Powerup Image Size", &powerupUiSize_.x, 1.0f, 1.0f, 512.0f);
+		powerupUiSize_.x = std::max(1.0f, powerupUiSize_.x);
+		powerupUiSize_.y = std::max(1.0f, powerupUiSize_.y);
+	}
+
 	ImGui::End();
 #endif
 }
@@ -1618,7 +1809,7 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	}
 	app.ObjCom()->SetGraphicsPipelineState();
 
-	// 郢ｧ・ｨ郢晁ｼ斐♂郢ｧ・ｯ郢晏現縺咏ｹ晢ｽｼ郢ｧ・ｱ郢晢ｽｳ郢ｧ・ｵ郢晢ｽｼ邵ｺ・ｮ陟托ｽｾ郢ｧ蜻育ｷ帝包ｽｻ
+	// エフェクトシーケンサーの弾を描画
 	if (effectSequencer_) {
 		effectSequencer_->Draw();
 		effectSequencer_->DrawPostEffect(app);
@@ -1703,7 +1894,7 @@ void GameScene::DrawParticleObjectPostEditor_()
 }
 
 //============================
-//郢ｧ・ｫ郢晢ｽ｡郢晢ｽｩ郢ｧ・｢郢昜ｹ斟鍋ｹ晢ｽｼ郢ｧ・ｷ郢晢ｽｧ郢晢ｽｳ
+//カメラアニメーション
 //============================
 
 void GameScene::ChangeRandomCamera() {
@@ -1723,8 +1914,8 @@ void GameScene::ChangeRandomCamera() {
 
 	int randomIndex = dist(gen);
 
-	// 1陋滉ｹ晢ｼ邵ｺ荵昶・邵ｺ繝ｻ竊醍ｹｧ蟲ｨ笳守ｸｺ・ｮ邵ｺ・ｾ邵ｺ・ｾ
-	// 髫阪・辟夂ｸｺ繧・ｽ狗ｸｺ・ｪ郢ｧ迚咎・邵ｺ蛟･・らｸｺ・ｮ鬨ｾ・｣驍ｯ螢ｹ・定氣莉｣・鬩包ｽｿ邵ｺ莉｣・・
+	// 1個しかないならそのまま
+	// 複数あるなら同じもの連続を少し避ける
 	if (cameraFiles_.size() > 1 && randomIndex == currentCameraIndex_) {
 		randomIndex = (randomIndex + 1) % static_cast<int>(cameraFiles_.size());
 	}
@@ -1776,7 +1967,7 @@ bool GameScene::LoadCameraByPath_(const std::string& path) {
 		currentCameraIndex_ = static_cast<int>(std::distance(cameraFiles_.begin(), it));
 	}
 
-	// 邵ｺ阮呻ｼ・ｸｺ・ｧ陷蜥ｲ蜃ｽ郢晢ｽ｢郢晢ｽｼ郢晏ｳｨ・定愾閧ｴ荳・
+	// ここで再生モードを反映
 	cameraAnim_->SetLoop(sameCameraLoopEnabled_);
 	cameraAnim_->SetPlaying(true);
 
@@ -1829,4 +2020,314 @@ AnimationEditorSession::EditorContext GameScene::BuildEditorContext_() {
 	}
 
 	return context;
+}
+namespace {
+constexpr int kGameSceneEnterStepCount = 9;
+}
+
+void GameScene::BeginEnterPreparation(GameApp& app)
+{
+	PrepareEnterReset_(app);
+	enterPreparationStep_ = 0;
+	enterPreparationComplete_ = false;
+}
+
+float GameScene::GetEnterPreparationProgress() const
+{
+	if (enterPreparationComplete_) {
+		return 1.0f;
+	}
+	return std::clamp(
+		static_cast<float>(enterPreparationStep_) / static_cast<float>(kGameSceneEnterStepCount),
+		0.0f,
+		1.0f);
+}
+
+void GameScene::PrepareEnterReset_(GameApp& app)
+{
+	isBossStage_ = false;
+	bossStageBannerTimer_ = 0.0f;
+	battleEndTimer_ = 120;
+	clearTransitionActive_ = false;
+	clearTransitionTimer_ = 0.0f;
+	clearBaseFieldCameraPos_ = {};
+	clearBaseFieldCameraRot_ = {};
+	clearBaseBattleCameraPos_ = {};
+	clearBaseBattleCameraRot_ = {};
+	app.ResetRadialBlur();
+}
+
+bool GameScene::PrepareEnterStep(GameApp& app)
+{
+	if (enterPreparationComplete_) {
+		return true;
+	}
+
+	switch (enterPreparationStep_) {
+	case 0:
+		camera_ = std::make_unique<Camera>();
+		camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+		camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+		app.ObjCom()->SetDefaultCamera(camera_.get());
+
+		animCamera_ = std::make_unique<Camera>();
+		animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
+		animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
+
+		cameraAnim_ = std::make_unique<CameraAnimator>();
+		cameraAnim_->Initialize(animCamera_.get(), app.GetInput());
+
+		ReloadCameraFileList_();
+		if (!cameraFiles_.empty()) {
+			ChangeRandomCamera();
+		}
+		break;
+
+	case 1:
+		skyDome_ = std::make_unique<Object3d>();
+		skyDome_->Initialize(app.ObjCom(), app.Dx());
+		skyDome_->SetModel("skydome/skydome.obj");
+		skyDome_->SetCamera(camera_.get());
+		skyDome_->SetEnableLighting(0);
+		skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
+		skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
+
+		battleForestProps_ = std::make_unique<PropManager>();
+		battleForestProps_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
+		stageFieldConfigPath_ = app.GetSelectedStageFieldConfigPath();
+		battleForestProps_->LoadFromJson(stageFieldConfigPath_);
+		break;
+
+	case 2: {
+		const float charZ = 15.0f;
+		player_ = std::make_unique<Player>();
+		player_->Initialize(app.ObjCom(), app.Dx(), camera_.get());
+		player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
+		player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+
+#ifndef _DEBUG
+		if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
+			struct CustomAnimationFile {
+				const char* path;
+				const char* name;
+			};
+
+			static const CustomAnimationFile kCustomAnimationFiles[] = {
+				{ "resources/CustomAnim/CustomAnim.json", "CustomAnim" },
+				{ "resources/CustomAnim/CustomAnim_attack_1.json", "CustomAnim_attack_1" },
+				{ "resources/CustomAnim/CustomAnim_attack_2.json", "CustomAnim_attack_2" },
+				{ "resources/CustomAnim/CustomAnim_attack_3.json", "CustomAnim_attack_3" },
+				{ "resources/CustomAnim/CustomAnim_attack_received_1.json", "CustomAnim_attack_received_1" },
+				{ "resources/CustomAnim/CustomAnim_attack_received_2.json", "CustomAnim_attack_received_2" },
+			};
+
+			bool loadedDefaultCustomAnim = false;
+			for (const auto& customAnimationFile : kCustomAnimationFiles) {
+				Animation animation{};
+				if (!AnimationJsonSerializer::LoadFromJson(customAnimationFile.path, animation)) {
+					continue;
+				}
+
+				player_->GetObject3d()->GetModel()->AddAnimation(customAnimationFile.name, animation);
+				if (std::string(customAnimationFile.name) == "CustomAnim") {
+					loadedDefaultCustomAnim = true;
+				}
+			}
+
+			if (loadedDefaultCustomAnim) {
+				player_->GetObject3d()->PlayAnimation("CustomAnim", true);
+			}
+		}
+#endif
+
+		animationEditTarget_ = player_ ? player_->GetObject3d() : nullptr;
+		cameraEditTarget_ = animCamera_.get();
+		break;
+	}
+
+	case 3: {
+		enemyMgr_.Initialize(app.ObjCom(), app.Dx(), camera_.get());
+		std::vector<StageEnemyConfig> stageEnemies;
+		std::string stageBgmId;
+		bool stageIsBoss = false;
+		if (LoadStageEnemyConfigs_(app.GetSelectedStageConfigPath(), stageEnemies, stageBgmId, stageIsBoss)) {
+			isBossStage_ = stageIsBoss;
+			for (const StageEnemyConfig& config : stageEnemies) {
+				enemyMgr_.SpawnWithConfig(config);
+			}
+		} else {
+			isBossStage_ = false;
+			SpawnDefaultEnemies_(enemyMgr_);
+		}
+		bossStageBannerTimer_ = isBossStage_ ? kBossStageBannerDuration : 0.0f;
+		AudioManager::GetInstance()->PlayBGM(stageBgmId.empty() ? "BGM_Stage1_5" : stageBgmId);
+
+		light_.lightingMode = 1;
+		light_.dir = { 0.3f, -1.0f, 0.2f };
+		light_.dirIntensity = 1.5f;
+		light_.dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		break;
+	}
+
+	case 4:
+		battle_.SetPlayer(player_.get());
+		battle_.SetEnemyManager(&enemyMgr_);
+		battle_.Initialize(app, camera_.get());
+		break;
+
+	case 5:
+		cardDescText_ = std::make_unique<TextSprite>();
+		cardDescText_->Initialize(app.SpriteCom(), app.Dx());
+		cardDescText_->SetPosition({ 40.0f, 620.0f });
+
+		cardDescBg_ = std::make_unique<Sprite>();
+		cardDescBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		cardDescBg_->SetPosition({ 20.0f, 60.0f });
+		cardDescBg_->SetScale({ 900.0f, 180.0f, 1.0f });
+		cardDescBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+
+		fieldUi_ = std::make_unique<FieldUi>();
+		fieldUi_->Initialize(app);
+		releaseDebugText_ = std::make_unique<TextSprite>();
+		releaseDebugText_->Initialize(app.SpriteCom(), app.Dx());
+		releaseDebugText_->SetFontSize(18);
+		releaseDebugText_->SetSize({ 1.0f, 1.0f, 1.0f });
+		releaseDebugText_->SetPosition({ 12.0f, 120.0f });
+		releaseDebugText_->SetColor({ 0.9f, 1.0f, 0.45f });
+		releaseDebugText_->SetText(L"");
+
+		TextureManager::GetInstance()->LoadTexture("resources/gradation.png");
+		trailManager_ = std::make_unique<TrailManager>();
+		trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
+		testTrail_ = trailManager_->CreateInstance();
+		testTrail_->SetIsPermanent(true);
+		player_->SetTrailInstance(testTrail_);
+		break;
+
+	case 6:
+		highlightFilter_ = std::make_unique<Sprite>();
+		highlightFilter_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		highlightFilter_->SetPosition({ 0.0f, 0.0f });
+		highlightFilter_->SetScale({ 1280.0f, 1280.0f, 1.0f });
+		highlightFilter_->SetColor({ 0.0f, 0.0f, 0.0f, 0.8f });
+
+		bossStageBannerBg_ = std::make_unique<Sprite>();
+		bossStageBannerBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		bossStageBannerBg_->SetPosition({ kBossStageBannerX, kBossStageBannerY });
+		bossStageBannerBg_->SetScale({ kBossStageBannerWidth, kBossStageBannerHeight, 1.0f });
+		bossStageBannerBg_->SetColor({ 0.18f, 0.02f, 0.02f, 0.78f });
+
+		bossStageBannerEffectOverlay_ = std::make_unique<Sprite>();
+		bossStageBannerEffectOverlay_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		bossStageBannerEffectOverlay_->SetPosition({ kBossStageBannerX - 24.0f, kBossStageBannerY - 12.0f });
+		bossStageBannerEffectOverlay_->SetScale({ kBossStageBannerWidth + 48.0f, kBossStageBannerHeight + 24.0f, 1.0f });
+		bossStageBannerEffectOverlay_->SetColor({ 1.0f, 0.02f, 0.0f, 0.18f });
+
+		bossStageBannerGlowText_ = std::make_unique<TextSprite>();
+		bossStageBannerGlowText_->Initialize(app.SpriteCom(), app.Dx());
+		bossStageBannerGlowText_->SetText(L"BOSS STAGE");
+		bossStageBannerGlowText_->SetFontSize(56);
+		bossStageBannerGlowText_->SetColor({ 1.0f, 0.18f, 0.04f });
+		bossStageBannerGlowText_->SetPosition({ kBossStageTextX, kBossStageTextY });
+		bossStageBannerGlowText_->SetSize({ 1.0f, 1.0f, 1.0f });
+
+		bossStageBannerText_ = std::make_unique<TextSprite>();
+		bossStageBannerText_->Initialize(app.SpriteCom(), app.Dx());
+		bossStageBannerText_->SetText(L"BOSS STAGE");
+		bossStageBannerText_->SetFontSize(56);
+		bossStageBannerText_->SetColor({ 1.0f, 0.78f, 0.2f });
+		bossStageBannerText_->SetPosition({ kBossStageTextX, kBossStageTextY });
+		bossStageBannerText_->SetSize({ 1.0f, 1.0f, 1.0f });
+		break;
+
+	case 7:
+		particleManager_ = ModelParticleManager::GetInstance();
+		particleManager_->ClearParticles();
+		particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
+		particleManager_->RegisterEffect("player_fire", "fire_particle.json");
+		particleManager_->RegisterEffect("fireExplosive", "fireExplosive.json");
+		particleManager_->RegisterEffect("particle_image", "0.json");
+		particleManager_->RegisterEffect("Vacuum_Fly", "Vacuum_Fly.json");
+		particleManager_->RegisterEffect("Vacuum_Hit", "Vacuum_Hit.json");
+		particleManager_->RegisterEffect("Flare_Fly", "Flare_Fly.json");
+		particleManager_->RegisterEffect("Flare_Hit", "Flare_Hit.json");
+		particleManager_->RegisterEffect("Air_Fly", "Air_Fly.json");
+		particleManager_->RegisterEffect("Air_Hit", "Air_Hit.json");
+
+		fieldParticleManager_ = std::make_unique<ModelParticleManager>();
+		fieldParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+		fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
+		battle_.SetFieldParticleManager(fieldParticleManager_.get());
+
+		particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
+		ResetParticleObjectPostParam_();
+		break;
+
+	case 8: {
+		TrailConfig config;
+		trailConfig_.maxPoints = 200;
+		trailConfig_.interpolationSteps = 8;
+		trailConfig_.startColor = { 1, 1, 1, 1 };
+		trailConfig_.endColor = { 1, 0, 0, 0.2f };
+		player_->SetTrailConfig(config);
+
+		effectSequencer_ = std::make_unique<EffectSequencer>();
+		effectSequencer_->Initialize(
+			app.ObjCom(), app.Dx(), animCamera_.get(),
+			particleManager_, trailManager_.get()
+		);
+
+		if (player_) {
+			player_->GetEffectSequencer().Initialize(
+				app.ObjCom(), app.Dx(), animCamera_.get(),
+				particleManager_, trailManager_.get()
+			);
+
+			player_->AddAttackMove({ "CustomAnim_attack_1", "attack_1.json", 0.1f });
+			player_->AddAttackMove({ "CustomAnim_attack_2", "attack_2.json", 0.15f });
+			player_->AddAttackMove({ "CustomAnim_attack_3", "attack_3.json", 0.2f });
+		}
+
+		pausingUI_ = std::make_unique<PausingUI>();
+		pausingUI_->Initialize(app);
+
+		pokerHandHelpView_ = std::make_unique<PokerHandHelpView>();
+		pokerHandHelpView_->Initialize(app.SpriteCom(), app.Dx());
+
+		startFadeMask_ = std::make_unique<Sprite>();
+		startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+		startFadeMask_->SetAnchorPoint({ 0.0f, 0.0f });
+		startFadeMask_->SetPosition({ 0.0f, 0.0f });
+		const DirectX::TexMetadata& whiteMeta =
+			TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
+		startFadeMask_->SetScale({
+			float(WinApp::kClientWidth) / float(whiteMeta.width),
+			float(WinApp::kClientHeight) / float(whiteMeta.height),
+			1.0f
+			});
+		startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+		startFadeDuration_ = kSceneStartFadeDuration;
+		startFadeTimer_ = 0.0f;
+		startFadeActive_ = true;
+
+		gameResultShown_ = false;
+		if (!resultPopup_) {
+			resultPopup_ = std::make_unique<GameResultPopup>();
+			resultPopup_->Initialize(app);
+		} else {
+			resultPopup_->Hide();
+		}
+		break;
+	}
+
+	default:
+		enterPreparationComplete_ = true;
+		return true;
+	}
+
+	++enterPreparationStep_;
+	if (enterPreparationStep_ >= kGameSceneEnterStepCount) {
+		enterPreparationComplete_ = true;
+	}
+	return enterPreparationComplete_;
 }

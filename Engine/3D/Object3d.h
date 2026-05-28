@@ -101,6 +101,7 @@ public:
 	void Update(float dt);
 
 	void Draw();
+	void WarmupDrawResources();
 
 	void SetModel(Model* model) {
 		this->model_ = model;
