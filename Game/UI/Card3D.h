@@ -57,6 +57,8 @@ public:
 
     void SetIsPreview(bool flag) { isPreview_ = flag; }
 
+    void SetShowCost(bool show) { showCost_ = show; }
+
     void SetCount(int count);
 
     void SetGlitter(float intensity);
@@ -92,7 +94,8 @@ private:
 	// 10の位の数字を描画するオブジェクトが必要かどうか
     bool hasTensDigit_ = false;
 
-    bool isPreview_;
+    bool isPreview_ = false;
+    bool showCost_ = true;
 
     int count_ = 0;
     int currentDefId_ = -1;
