@@ -1,90 +1,30 @@
 #include "TitleFallingCardEffect.h"
 
+#include "Camera.h"
+#include "Card3D.h"
+#include "CardDatabase.h"
 #include "DirectXCommon.h"
-#include "Matrix4x4.h"
-#include "Sprite.h"
-#include "SpriteCommon.h"
-#include "TextureManager.h"
+#include "Object3dCommon.h"
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
-
-#include "externals/nlohmann/json.hpp"
 
 namespace {
-constexpr std::size_t kMaxFallingCards = 32;
-constexpr std::size_t kInitialCardCount = 14;
-constexpr float kSpawnInterval = 0.18f;
+constexpr std::size_t kMaxFallingCards = 22;
+constexpr std::size_t kInitialCardCount = 10;
+constexpr float kSpawnInterval = 0.28f;
 constexpr float kDeleteMarginY = 180.0f;
 constexpr float kPi = 3.1415926535f;
-constexpr const char* kCardFrameTexture = "resources/cards/art/normalCard.png";
-constexpr const char* kWhiteTexture = "resources/ui/white.png";
-
-const char* const kCardDataJsons[] = {
-	"resources/cards/data/UtilityAttack.json",
-	"resources/cards/data/UtilitySupport.json",
-	"resources/cards/data/Poison.json",
-	"resources/cards/data/Frost.json",
-	"resources/cards/cards.json",
-};
-
-const char* const kFallbackCardTextures[] = {
-	"resources/cards/art/Attack!.png",
-	"resources/cards/art/Fire.png",
-	"resources/cards/art/Blocking.png",
-	"resources/cards/art/Heal.png",
-	"resources/cards/art/QuickDraw.png",
-	"resources/cards/art/Doping.png",
-	"resources/cards/art/ShieldBash.png",
-	"resources/cards/art/CrescentMoon.png",
-};
-
-std::string GetRankTexturePath(int digit)
-{
-	return "resources/ui/num/" + std::to_string(std::clamp(digit, 0, 9)) + ".png";
-}
-
-Vector2 ApplyLocalOffset(const Vector2& center, const Vector2& local, float rotation, float scale, float flipScale)
-{
-	const float x = local.x * scale * flipScale;
-	const float y = local.y * scale;
-	const float c = std::cos(rotation);
-	const float s = std::sin(rotation);
-	return {
-		center.x + x * c - y * s,
-		center.y + x * s + y * c
-	};
-}
-
-Vector4 GetSuitColor(int suit, float alpha)
-{
-	switch (suit % 4) {
-	case 0: return { 0.04f, 0.04f, 0.04f, alpha };
-	case 1: return { 0.95f, 0.08f, 0.08f, alpha };
-	case 2: return { 0.35f, 0.78f, 1.0f, alpha };
-	default: return { 0.42f, 0.08f, 0.62f, alpha };
-	}
-}
-
-void ConfigureSprite(Sprite* sprite, const Vector2& position, float rotation, const Vector3& scale, const Vector4& color)
-{
-	if (!sprite) {
-		return;
-	}
-
-	sprite->SetPosition(position);
-	sprite->SetRotation({ 0.0f, 0.0f, rotation });
-	sprite->SetScale(scale);
-	sprite->SetColor(color);
-}
-
-void HideSprite(Sprite* sprite)
-{
-	if (sprite) {
-		sprite->SetColor({ 1.0f, 1.0f, 1.0f, 0.0f });
-	}
-}
+constexpr float kCardWorldZ = 10.0f;
+constexpr float kCardDepthSpacing = 0.35f;
+constexpr int kSpawnPositionAttempts = 18;
+constexpr float kMinSpawnDistanceX = 300.0f;
+constexpr float kMinSpawnDistanceY = 360.0f;
+constexpr float kOverlapCheckBaseX = 330.0f;
+constexpr float kOverlapCheckBaseY = 390.0f;
+constexpr float kOverlapDepthStep = 15.0f;
+constexpr float kMaxOverlapDepthOffset = 60.0f;
+constexpr float kDepthFollowSpeed = 10.0f;
 }
 
 TitleFallingCardEffect::TitleFallingCardEffect()
@@ -94,41 +34,38 @@ TitleFallingCardEffect::TitleFallingCardEffect()
 
 TitleFallingCardEffect::~TitleFallingCardEffect() = default;
 
-void TitleFallingCardEffect::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx, float screenWidth, float screenHeight)
+void TitleFallingCardEffect::Initialize(
+	Object3dCommon* objCommon,
+	DirectXCommon* dx,
+	Camera* camera,
+	CardDatabase* cardDb,
+	float screenWidth,
+	float screenHeight)
 {
+	objCommon_ = objCommon;
+	dx_ = dx;
+	camera_ = camera;
+	cardDb_ = cardDb;
 	screenWidth_ = screenWidth;
 	screenHeight_ = screenHeight;
 
-	TextureManager::GetInstance()->LoadTexture(kCardFrameTexture);
-	TextureManager::GetInstance()->LoadTexture(kWhiteTexture);
-	for (int i = 0; i <= 9; ++i) {
-		TextureManager::GetInstance()->LoadTexture(GetRankTexturePath(i));
-	}
-	LoadCardVisuals_();
+	LoadCardModels_();
 
 	cards_.clear();
 	cards_.reserve(kMaxFallingCards);
 	for (std::size_t i = 0; i < kMaxFallingCards; ++i) {
 		FallingCard card;
-		card.frameSprite = std::make_unique<Sprite>();
-		card.frameSprite->Initialize(spriteCommon, dx, kCardFrameTexture);
-		card.frameSprite->SetAnchorPoint({ 0.5f, 0.5f });
-
-		card.artSprite = std::make_unique<Sprite>();
-		card.artSprite->Initialize(spriteCommon, dx, cardVisuals_.empty() ? kWhiteTexture : cardVisuals_.front().artTexturePath);
-		card.artSprite->SetAnchorPoint({ 0.5f, 0.5f });
-
-		for (auto& rankSprite : card.rankSprites) {
-			rankSprite = std::make_unique<Sprite>();
-			rankSprite->Initialize(spriteCommon, dx, GetRankTexturePath(0));
-			rankSprite->SetAnchorPoint({ 0.5f, 0.5f });
+		card.depthOffset = static_cast<float>(i) * kCardDepthSpacing;
+		card.model = std::make_unique<Card3D>();
+		card.model->Setup(objCommon_, dx_, camera_);
+		card.model->SetShowCost(false);
+		if (!cardModels_.empty()) {
+			const CardModelDef& modelDef = cardModels_.front();
+			if (const CardDef* def = cardDb_->Find(modelDef.defId)) {
+				card.model->SetCardData(*def, modelDef.instance);
+			}
 		}
-
-		for (auto& suitSprite : card.suitSprites) {
-			suitSprite = std::make_unique<Sprite>();
-			suitSprite->Initialize(spriteCommon, dx, kWhiteTexture);
-			suitSprite->SetAnchorPoint({ 0.5f, 0.5f });
-		}
+		card.model->SetTransform({ 0.0f, -30.0f, kCardWorldZ + card.depthOffset }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
 
 		cards_.push_back(std::move(card));
 	}
@@ -164,156 +101,71 @@ void TitleFallingCardEffect::Update(float dt)
 		card.basePosition.x += card.velocity.x * dt;
 		card.basePosition.y += card.velocity.y * dt;
 		card.rotation += card.rotationSpeed * dt;
+		card.spinRotation += card.spinSpeed * dt;
 		card.flutterPhase += card.flutterSpeed * dt;
-
-		const float flutterX = std::sin(card.flutterPhase) * card.flutterAmount;
-		const float flipScale = 0.72f + 0.28f * std::abs(std::cos(card.flutterPhase * 0.85f));
-		const float drawRotation = card.rotation + std::sin(card.flutterPhase * 0.7f) * 0.18f;
-		const Vector2 drawPosition = {
-			card.basePosition.x + flutterX,
-			card.basePosition.y
-		};
-
-		ConfigureSprite(card.frameSprite.get(), drawPosition, drawRotation, { card.scale * flipScale, card.scale, 1.0f }, { 1.0f, 1.0f, 1.0f, card.alpha });
-		ConfigureSprite(
-			card.artSprite.get(),
-			ApplyLocalOffset(drawPosition, { 0.0f, 28.0f }, drawRotation, card.scale, flipScale),
-			drawRotation,
-			{ card.scale * 0.34f * flipScale, card.scale * 0.34f, 1.0f },
-			{ 1.0f, 1.0f, 1.0f, card.alpha });
-
-		const Vector4 suitColor = GetSuitColor(card.suit, card.alpha);
-		const Vector2 rankBase = { 330.0f, -380.0f };
-		if (card.rank >= 10) {
-			card.rankSprites[0]->SetTextureFilePath(GetRankTexturePath(1));
-			card.rankSprites[1]->SetTextureFilePath(GetRankTexturePath(0));
-			ConfigureSprite(card.rankSprites[0].get(), ApplyLocalOffset(drawPosition, { rankBase.x - 34.0f, rankBase.y }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 0.62f * flipScale, card.scale * 0.62f, 1.0f }, suitColor);
-			ConfigureSprite(card.rankSprites[1].get(), ApplyLocalOffset(drawPosition, { rankBase.x + 34.0f, rankBase.y }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 0.62f * flipScale, card.scale * 0.62f, 1.0f }, suitColor);
-		} else {
-			card.rankSprites[0]->SetTextureFilePath(GetRankTexturePath(card.rank));
-			ConfigureSprite(card.rankSprites[0].get(), ApplyLocalOffset(drawPosition, rankBase, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 0.72f * flipScale, card.scale * 0.72f, 1.0f }, suitColor);
-			HideSprite(card.rankSprites[1].get());
-		}
-
-		const Vector2 suitBase = { 360.0f, -275.0f };
-		for (auto& suitSprite : card.suitSprites) {
-			HideSprite(suitSprite.get());
-		}
-
-		switch (card.suit % 4) {
-		case 1:
-			ConfigureSprite(card.suitSprites[0].get(), ApplyLocalOffset(drawPosition, { suitBase.x - 32.0f, suitBase.y - 12.0f }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 64.0f * flipScale, card.scale * 64.0f, 1.0f }, suitColor);
-			ConfigureSprite(card.suitSprites[1].get(), ApplyLocalOffset(drawPosition, { suitBase.x + 32.0f, suitBase.y - 12.0f }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 64.0f * flipScale, card.scale * 64.0f, 1.0f }, suitColor);
-			ConfigureSprite(card.suitSprites[2].get(), ApplyLocalOffset(drawPosition, { suitBase.x, suitBase.y + 32.0f }, drawRotation, card.scale, flipScale), drawRotation + kPi * 0.25f, { card.scale * 78.0f * flipScale, card.scale * 78.0f, 1.0f }, suitColor);
-			break;
-		case 3:
-			ConfigureSprite(card.suitSprites[0].get(), ApplyLocalOffset(drawPosition, { suitBase.x, suitBase.y - 30.0f }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 68.0f * flipScale, card.scale * 68.0f, 1.0f }, suitColor);
-			ConfigureSprite(card.suitSprites[1].get(), ApplyLocalOffset(drawPosition, { suitBase.x - 36.0f, suitBase.y + 14.0f }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 68.0f * flipScale, card.scale * 68.0f, 1.0f }, suitColor);
-			ConfigureSprite(card.suitSprites[2].get(), ApplyLocalOffset(drawPosition, { suitBase.x + 36.0f, suitBase.y + 14.0f }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 68.0f * flipScale, card.scale * 68.0f, 1.0f }, suitColor);
-			ConfigureSprite(card.suitSprites[3].get(), ApplyLocalOffset(drawPosition, { suitBase.x, suitBase.y + 58.0f }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 24.0f * flipScale, card.scale * 62.0f, 1.0f }, suitColor);
-			break;
-		case 0:
-			ConfigureSprite(card.suitSprites[0].get(), ApplyLocalOffset(drawPosition, { suitBase.x, suitBase.y - 12.0f }, drawRotation, card.scale, flipScale), drawRotation + kPi * 0.25f, { card.scale * 84.0f * flipScale, card.scale * 84.0f, 1.0f }, suitColor);
-			ConfigureSprite(card.suitSprites[1].get(), ApplyLocalOffset(drawPosition, { suitBase.x, suitBase.y + 54.0f }, drawRotation, card.scale, flipScale), drawRotation, { card.scale * 24.0f * flipScale, card.scale * 70.0f, 1.0f }, suitColor);
-			break;
-		default:
-			ConfigureSprite(card.suitSprites[0].get(), ApplyLocalOffset(drawPosition, suitBase, drawRotation, card.scale, flipScale), drawRotation + kPi * 0.25f, { card.scale * 94.0f * flipScale, card.scale * 94.0f, 1.0f }, suitColor);
-			break;
-		}
 
 		if (card.basePosition.y > screenHeight_ + kDeleteMarginY) {
 			card.alive = false;
 		}
 	}
+
+	ResolveCardDepth_();
+
+	for (auto& card : cards_) {
+		if (!card.alive) {
+			continue;
+		}
+
+		const float flutterX = std::sin(card.flutterPhase) * card.flutterAmount;
+		const float drawRotationZ = card.rotation + std::sin(card.flutterPhase * 0.7f) * 0.18f;
+		const float drawRotationY = card.spinRotation + std::sin(card.flutterPhase * 0.85f) * 0.22f;
+		const Vector2 drawPosition = {
+			card.basePosition.x + flutterX,
+			card.basePosition.y
+		};
+		const float worldZ = kCardWorldZ + card.depthOffset + card.overlapDepthOffset;
+		const Vector3 worldPos = ScreenToWorld_(drawPosition, worldZ);
+		const float baseDistance = (kCardWorldZ + card.depthOffset) - (camera_ ? camera_->GetTranslate().z : -40.0f);
+		const float depthDistance = worldZ - (camera_ ? camera_->GetTranslate().z : -40.0f);
+		const float depthScale = baseDistance > 0.001f ? depthDistance / baseDistance : 1.0f;
+		const Vector3 worldScale = {
+			card.scale * depthScale,
+			card.scale * depthScale,
+			card.scale * depthScale
+		};
+		card.model->SetTransform(worldPos, { 0.0f, drawRotationY, drawRotationZ }, worldScale);
+		card.model->Update(dt);
+	}
 }
 
-void TitleFallingCardEffect::Draw(const Matrix4x4& view, const Matrix4x4& proj)
+void TitleFallingCardEffect::Draw3D()
 {
 	for (auto& card : cards_) {
-		if (!card.alive || !card.frameSprite || !card.artSprite) {
+		if (!card.alive || !card.model) {
 			continue;
 		}
-		card.frameSprite->Update(view, proj);
-		card.frameSprite->Draw();
-
-		card.artSprite->Update(view, proj);
-		card.artSprite->Draw();
-
-		for (auto& rankSprite : card.rankSprites) {
-			if (rankSprite) {
-				rankSprite->Update(view, proj);
-				rankSprite->Draw();
-			}
-		}
-
-		for (auto& suitSprite : card.suitSprites) {
-			if (suitSprite) {
-				suitSprite->Update(view, proj);
-				suitSprite->Draw();
-			}
-		}
+		card.model->Draw();
 	}
 }
 
-void TitleFallingCardEffect::LoadCardVisuals_()
+void TitleFallingCardEffect::LoadCardModels_()
 {
-	cardVisuals_.clear();
-	auto* textureManager = TextureManager::GetInstance();
-
-	auto addVisual = [this, textureManager](const std::string& artTexturePath, int sourceIndex) {
-		if (artTexturePath.empty()) {
-			return;
-		}
-
-		textureManager->LoadTexture(artTexturePath);
-		if (!textureManager->HasTexture(artTexturePath)) {
-			return;
-		}
-
-		CardVisualDef visual{};
-		visual.artTexturePath = artTexturePath;
-		visual.rank = sourceIndex % 10 + 1;
-		visual.suit = sourceIndex % 4;
-		cardVisuals_.push_back(visual);
-	};
-
-	int sourceIndex = 0;
-	for (const char* jsonPath : kCardDataJsons) {
-		std::ifstream ifs(jsonPath);
-		if (!ifs.is_open()) {
-			continue;
-		}
-
-		nlohmann::json root;
-		try {
-			ifs >> root;
-		} catch (...) {
-			continue;
-		}
-
-		if (!root.contains("cards") || !root["cards"].is_array()) {
-			continue;
-		}
-
-		for (const auto& jCard : root["cards"]) {
-			const std::string artTexturePath = jCard.value("artTex", "");
-			addVisual(artTexturePath, sourceIndex++);
-		}
-	}
-
-	if (!cardVisuals_.empty()) {
+	cardModels_.clear();
+	if (!cardDb_) {
 		return;
 	}
 
-	for (const char* texturePath : kFallbackCardTextures) {
-		addVisual(texturePath, sourceIndex++);
-	}
+	for (int id = 1; id <= 40; ++id) {
+		if (!cardDb_->Find(id)) {
+			continue;
+		}
 
-	if (cardVisuals_.empty()) {
-		textureManager->LoadTexture(kWhiteTexture);
-		CardVisualDef visual{};
-		visual.artTexturePath = kWhiteTexture;
-		cardVisuals_.push_back(visual);
+		CardModelDef model{};
+		model.defId = id;
+		model.instance.defId = id;
+		model.instance.number = (id - 1) % 13 + 1;
+		model.instance.suit = static_cast<CardSuit>((id - 1) % 4);
+		cardModels_.push_back(model);
 	}
 }
 
@@ -322,33 +174,112 @@ void TitleFallingCardEffect::SpawnCard_(bool initialSpread)
 	auto it = std::find_if(cards_.begin(), cards_.end(), [](const FallingCard& card) {
 		return !card.alive;
 	});
-	if (it == cards_.end() || cardVisuals_.empty()) {
+	if (it == cards_.end() || cardModels_.empty() || !cardDb_) {
 		return;
 	}
 
-	const int visualIndex = RandomInt_(0, static_cast<int>(cardVisuals_.size()) - 1);
-	const CardVisualDef& visual = cardVisuals_[static_cast<std::size_t>(visualIndex)];
-	it->artSprite->SetTextureFilePath(visual.artTexturePath);
+	const int modelIndex = RandomInt_(0, static_cast<int>(cardModels_.size()) - 1);
+	const CardModelDef& modelDef = cardModels_[static_cast<std::size_t>(modelIndex)];
+	if (const CardDef* def = cardDb_->Find(modelDef.defId)) {
+		it->model->SetCardData(*def, modelDef.instance);
+	}
 
 	it->alive = true;
-	it->basePosition = {
-		RandomFloat_(-90.0f, screenWidth_ + 90.0f),
-		initialSpread ? RandomFloat_(-screenHeight_ * 0.85f, screenHeight_ * 0.45f) : RandomFloat_(-170.0f, -50.0f)
-	};
+	Vector2 spawnPosition{};
+	for (int attempt = 0; attempt < kSpawnPositionAttempts; ++attempt) {
+		spawnPosition = {
+			RandomFloat_(-90.0f, screenWidth_ + 90.0f),
+			initialSpread ? RandomFloat_(-screenHeight_ * 0.85f, screenHeight_ * 0.45f) : RandomFloat_(-170.0f, -50.0f)
+		};
+
+		if (IsSpawnPositionClear_(spawnPosition)) {
+			break;
+		}
+	}
+	it->basePosition = spawnPosition;
 	it->velocity = {
 		RandomFloat_(-18.0f, 18.0f),
 		RandomFloat_(70.0f, 155.0f)
 	};
 	it->rotation = RandomFloat_(-kPi, kPi);
 	it->rotationSpeed = RandomFloat_(-1.8f, 1.8f);
+	it->spinRotation = RandomFloat_(0.0f, kPi * 2.0f);
+	const float spinDirection = RandomInt_(0, 1) == 0 ? -1.0f : 1.0f;
+	it->spinSpeed = spinDirection * RandomFloat_(kPi * 0.9f, kPi * 1.8f);
 	it->flutterPhase = RandomFloat_(0.0f, kPi * 2.0f);
 	it->flutterSpeed = RandomFloat_(1.8f, 4.2f);
 	it->flutterAmount = RandomFloat_(16.0f, 46.0f);
-	it->scale = RandomFloat_(0.115f, 0.18f);
-	it->alpha = RandomFloat_(0.86f, 0.96f);
-	it->visualIndex = visualIndex;
-	it->rank = visual.rank;
-	it->suit = visual.suit;
+	it->scale = RandomFloat_(0.86f, 1.0f);//カードの大きさのばらつき
+	it->overlapDepthOffset = 0.0f;
+	it->targetOverlapDepthOffset = 0.0f;
+	it->modelIndex = modelIndex;
+	it->model->SetShowCost(false);
+	const float worldZ = kCardWorldZ + it->depthOffset;
+	it->model->SetTransform(ScreenToWorld_(it->basePosition, worldZ), { 0.0f, it->spinRotation, it->rotation }, { it->scale, it->scale, it->scale });
+}
+
+bool TitleFallingCardEffect::IsSpawnPositionClear_(const Vector2& position) const
+{
+	for (const auto& card : cards_) {
+		if (!card.alive) {
+			continue;
+		}
+
+		const float dx = std::abs(card.basePosition.x - position.x);
+		const float dy = std::abs(card.basePosition.y - position.y);
+		if (dx < kMinSpawnDistanceX && dy < kMinSpawnDistanceY) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void TitleFallingCardEffect::ResolveCardDepth_()
+{
+	for (auto& card : cards_) {
+		card.targetOverlapDepthOffset = 0.0f;
+	}
+
+	for (std::size_t i = 0; i < cards_.size(); ++i) {
+		FallingCard& a = cards_[i];
+		if (!a.alive) {
+			continue;
+		}
+
+		for (std::size_t j = i + 1; j < cards_.size(); ++j) {
+			FallingCard& b = cards_[j];
+			if (!b.alive) {
+				continue;
+			}
+
+			const float avgScale = (a.scale + b.scale) * 0.5f;
+			const float minX = kOverlapCheckBaseX * avgScale;
+			const float minY = kOverlapCheckBaseY * avgScale;
+			const float dx = b.basePosition.x - a.basePosition.x;
+			const float dy = b.basePosition.y - a.basePosition.y;
+			const float absDx = std::abs(dx);
+			const float absDy = std::abs(dy);
+
+			if (absDx >= minX || absDy >= minY) {
+				continue;
+			}
+
+			FallingCard& behind = a.basePosition.y <= b.basePosition.y ? a : b;
+			behind.targetOverlapDepthOffset = std::min(
+				behind.targetOverlapDepthOffset + kOverlapDepthStep,
+				kMaxOverlapDepthOffset);
+		}
+	}
+
+	for (auto& card : cards_) {
+		if (!card.alive) {
+			continue;
+		}
+
+		const float follow = 1.0f - std::exp(-kDepthFollowSpeed * (1.0f / 60.0f));
+		card.overlapDepthOffset += (card.targetOverlapDepthOffset - card.overlapDepthOffset) * follow;
+	}
 }
 
 std::size_t TitleFallingCardEffect::CountAlive_() const
@@ -368,4 +299,20 @@ int TitleFallingCardEffect::RandomInt_(int minValue, int maxValue)
 {
 	std::uniform_int_distribution<int> dist(minValue, maxValue);
 	return dist(randomEngine_);
+}
+
+Vector3 TitleFallingCardEffect::ScreenToWorld_(const Vector2& screenPosition, float worldZ) const
+{
+	const float distance = worldZ - (camera_ ? camera_->GetTranslate().z : -40.0f);
+	const float fovY = camera_ ? camera_->GetFovY() : 0.45f;
+	const float aspect = camera_ ? camera_->GetAspect() : (screenWidth_ / screenHeight_);
+	const float visibleHeight = 2.0f * std::tan(fovY * 0.5f) * distance;
+	const float visibleWidth = visibleHeight * aspect;
+	const Vector3 cameraPos = camera_ ? camera_->GetTranslate() : Vector3{ 0.0f, 4.0f, -40.0f };
+
+	return {
+		cameraPos.x + (screenPosition.x / screenWidth_ - 0.5f) * visibleWidth,
+		cameraPos.y + (0.5f - screenPosition.y / screenHeight_) * visibleHeight,
+		worldZ
+	};
 }

@@ -72,6 +72,7 @@ void TitleScene::OnEnter(GameApp& app) {
 	camera_ = std::make_unique<Camera>();
 	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
 	camera_->SetRotate({ 0.0f, 0.0f, 0.0f });
+	camera_->Update();
 	app.ObjCom()->SetDefaultCamera(camera_.get());
 
 	//--------------------------------------------------------
@@ -97,8 +98,10 @@ void TitleScene::OnEnter(GameApp& app) {
 
 	fallingCardEffect_ = std::make_unique<TitleFallingCardEffect>();
 	fallingCardEffect_->Initialize(
-		app.SpriteCom(),
+		app.ObjCom(),
 		app.Dx(),
+		camera_.get(),
+		app.GetCardDB(),
 		static_cast<float>(WinApp::kClientWidth),
 		static_cast<float>(WinApp::kClientHeight));
 
@@ -246,6 +249,9 @@ void TitleScene::Update(GameApp& app, float dt) {
 	if (fallingCardEffect_) {
 		fallingCardEffect_->Update(dt);
 	}
+	if (camera_) {
+		camera_->Update();
+	}
 	skyDome_->Update(dt);
 }
 
@@ -279,7 +285,9 @@ void TitleScene::Draw2D(GameApp& app) {
 	}
 
 	if (fallingCardEffect_) {
-		fallingCardEffect_->Draw(view, proj);
+		app.ObjCom()->SetGraphicsPipelineState();
+		fallingCardEffect_->Draw3D();
+		app.SpriteCom()->SetGraphicsPipelineState();
 	}
 
 	//--------------------------------------------------------

@@ -524,7 +524,7 @@ void Card3D::Draw()
 	art_->DrawWithOverrideSrv(artSrv_);
 
 	// コストとマークと数字を描画
-	if (costObj_) costObj_->Draw();
+	if (showCost_ && costObj_) costObj_->Draw();
 	if (suitObj_ && isPreview_ == false) suitObj_->Draw();
 	if (hasTensDigit_ && numberObjTens_ && isPreview_ == false) numberObjTens_->Draw();
 	if (numberObjOnes_ && isPreview_ == false) numberObjOnes_->Draw();
