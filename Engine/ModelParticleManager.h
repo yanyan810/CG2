@@ -38,6 +38,9 @@ struct ParticleEmitterConfig {
 	Vector3 position = { 0, 0, 0 };
 	float speedMin = 0.0f;
 	float speedMax = 1.0f;
+	bool useDirectionalVelocity = false;
+	Vector3 velocityMin = { -1.0f, -1.0f, -1.0f };
+	Vector3 velocityMax = { 1.0f, 1.0f, 1.0f };
 	float lifeTimeMin = 2.0f;
 	float lifeTimeMax = 3.0f;
 	Vector3 gravity = { 0.0f, -0.08f, 0.0f };
@@ -62,6 +65,7 @@ struct ParticleEmitterConfig {
 	std::string modelPath = "triangleParticle.obj";
 	std::string texturePath = "";
 	bool useJewelShader = true;
+	uint32_t blendMode = 0;       // 0: Additive, 1: Normal, 2: Opaque
 
 	// --- 新機能: エミッター形状 ---
 	EmitterShape emitterShape = EmitterShape::Point;
@@ -72,6 +76,7 @@ struct ParticleEmitterConfig {
 
 	// --- 新機能: ビルボード ---
 	bool isBillboard = false;
+	uint32_t billboardPlane = 0;  // 0: XY plane, 1: XZ plane
 
 	// JSONオブジェクトに変換する
 	nlohmann::json ToJson() const {
@@ -80,6 +85,9 @@ struct ParticleEmitterConfig {
 			{"endColor", {endColor.x, endColor.y, endColor.z, endColor.w}},
 			{"speedMin", speedMin},
 			{"speedMax", speedMax},
+			{"useDirectionalVelocity", useDirectionalVelocity},
+			{"velocityMin", {velocityMin.x, velocityMin.y, velocityMin.z}},
+			{"velocityMax", {velocityMax.x, velocityMax.y, velocityMax.z}},
 			{"lifeTimeMin", lifeTimeMin},
 			{"lifeTimeMax", lifeTimeMax},
 			{"gravity", {gravity.x, gravity.y, gravity.z}},
@@ -96,10 +104,12 @@ struct ParticleEmitterConfig {
 			{"modelPath", modelPath},
 			{"texturePath", texturePath},
 			{"useJewelShader", useJewelShader},
+			{"blendMode", blendMode},
 			{"emitterShape", static_cast<int>(emitterShape)},
 			{"shapeSize", {shapeSize.x, shapeSize.y, shapeSize.z}},
 			{"easingType", static_cast<int>(easingType)},
-			{"isBillboard", isBillboard}
+			{"isBillboard", isBillboard},
+			{"billboardPlane", billboardPlane}
 		};
 	}
 
@@ -113,6 +123,13 @@ struct ParticleEmitterConfig {
 		}
 		speedMin = j.value("speedMin", speedMin);
 		speedMax = j.value("speedMax", speedMax);
+		useDirectionalVelocity = j.value("useDirectionalVelocity", useDirectionalVelocity);
+		if (j.contains("velocityMin")) {
+			velocityMin = { j["velocityMin"][0], j["velocityMin"][1], j["velocityMin"][2] };
+		}
+		if (j.contains("velocityMax")) {
+			velocityMax = { j["velocityMax"][0], j["velocityMax"][1], j["velocityMax"][2] };
+		}
 		lifeTimeMin = j.value("lifeTimeMin", lifeTimeMin);
 		lifeTimeMax = j.value("lifeTimeMax", lifeTimeMax);
 		if (j.contains("gravity")) {
@@ -143,6 +160,7 @@ struct ParticleEmitterConfig {
 		modelPath = j.value("modelPath", modelPath);
 		texturePath = j.value("texturePath", texturePath);
 		useJewelShader = j.value("useJewelShader", useJewelShader);
+		blendMode = j.value("blendMode", blendMode);
 		if (j.contains("emitterShape")) {
 			emitterShape = static_cast<EmitterShape>(j["emitterShape"].get<int>());
 		}
@@ -153,6 +171,7 @@ struct ParticleEmitterConfig {
 			easingType = static_cast<EasingType>(j["easingType"].get<int>());
 		}
 		isBillboard = j.value("isBillboard", isBillboard);
+		billboardPlane = j.value("billboardPlane", billboardPlane);
 	}
 };
 
@@ -191,6 +210,7 @@ public:
 		// --- 新機能 ---
 		EasingType easingType = EasingType::Linear;
 		bool isBillboard = false;
+		uint32_t billboardMode = 0;
 	};
 
 	struct ModelParticleTransformationMatrix {
@@ -268,10 +288,11 @@ public:
 	// --- 変更：名前指定でパーティクルを発生させる ---
 	void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
 	void Emit(const std::string& effectName, const Vector3& position, uint32_t count, const Vector4& color);
+	void Emit(const ParticleEmitterConfig& config, const Vector3& position, uint32_t count);
 private:
 	void ApplyRenderConfig_(const ParticleEmitterConfig& config);
 	void SetRenderModel_(const std::string& modelPath);
-	void UpdateDrawVertexCount_(uint32_t vertexCount);
+	void UpdateDrawArgs_(uint32_t indexCount, uint32_t startIndex);
 	std::string ResolveRenderTexturePath_() const;
 
 	// エフェクト設定を名前で引けるようにする
@@ -290,6 +311,7 @@ private:
 	std::string currentModelPath_ = "triangleParticle.obj";
 	std::string currentTexturePath_;
 	bool currentUseJewelShader_ = true;
+	uint32_t currentBlendMode_ = 0;
 
 	// 定数バッファ関連
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
@@ -314,6 +336,7 @@ private:
 	// 間接描画用
 	Microsoft::WRL::ComPtr<ID3D12CommandSignature> commandSignature_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsUploadResource_;
 	D3D12_RESOURCE_STATES drawArgsResourceState_ = D3D12_RESOURCE_STATE_COMMON;
 	uint32_t uavIndexAliveIndices_;
 	uint32_t uavIndexDrawArgs_;

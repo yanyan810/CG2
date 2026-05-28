@@ -571,6 +571,10 @@ void GameScene::OnEnter(GameApp& app) {
 	fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
 	battle_.SetFieldParticleManager(fieldParticleManager_.get());
 
+	debugParticleManager_ = std::make_unique<ModelParticleManager>();
+	debugParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+	debugParticleManager_->RegisterEffect("debug_poison_plane", "debug_poison_plane.json");
+
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 	ResetParticleObjectPostParam_();
@@ -663,6 +667,7 @@ void GameScene::OnExit(GameApp& app) {
 	skyDome_.reset();
 	battleForestProps_.reset();
 	fieldParticleManager_.reset();
+	debugParticleManager_.reset();
 	camera_.reset();
 	if (resultPopup_) { resultPopup_->Hide(); }
 	gameResultShown_ = false;
@@ -824,6 +829,9 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 		if (particleManager_) {
 			particleManager_->Dispatch(visualDt, clearBattleCamera);
+		}
+		if (debugParticleManager_) {
+			debugParticleManager_->Dispatch(visualDt, clearBattleCamera);
 		}
 
 		app.SetRadialBlur((0.09f + (inHitStop ? 0.035f : 0.0f)) * (1.0f - t));
@@ -1148,6 +1156,9 @@ void GameScene::Update(GameApp& app, float dt) {
 			effectSequencer_->Update(dt);
 		}
 		particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+		if (debugParticleManager_) {
+			debugParticleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+		}
 		UpdateReleaseDebugText_();
 		return;
 	}
@@ -1249,6 +1260,9 @@ void GameScene::Update(GameApp& app, float dt) {
 	}
 
 	particleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+	if (debugParticleManager_) {
+		debugParticleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+	}
 	if (fieldParticleManager_) {
 		fieldParticleManager_->Dispatch(1.0f / 60.0f, camera_.get());
 	}
@@ -1325,6 +1339,10 @@ void GameScene::Draw3D(GameApp& app) {
 	}
 	if (particleManager_) {
 		particleManager_->Draw();
+		app.ObjCom()->SetGraphicsPipelineState();
+	}
+	if (debugParticleManager_) {
+		debugParticleManager_->Draw();
 		app.ObjCom()->SetGraphicsPipelineState();
 	}
 	enemyMgr_.DrawShieldBloom(app);
@@ -1576,14 +1594,80 @@ void GameScene::DrawImGui(GameApp& app) {
 		static std::string targetEffect = "player_fire";
 
 		// コンボボックスで編集対象を切り替えられるようにすると更に便利
+		auto selectEffect = [&](const char* name, const char* jsonFile) {
+			if (ImGui::Selectable(name)) {
+				targetEffect = name;
+				if (targetEffect == "debug_poison_plane" && debugParticleManager_) {
+					debugParticleManager_->LoadFromJson(jsonFile, attackEffectConfig_);
+				} else {
+					particleManager_->LoadFromJson(jsonFile, attackEffectConfig_);
+				}
+			}
+			};
 		if (ImGui::BeginCombo("Select Edit Effect", targetEffect.c_str())) {
-			if (ImGui::Selectable("player_fire")) targetEffect = "player_fire";
-			if (ImGui::Selectable("sword_trail")) targetEffect = "sword_trail";
+			selectEffect("player_fire", "fire_particle.json");
+			selectEffect("sword_trail", "sword_particle.json");
+			selectEffect("particle_image", "0.json");
+			selectEffect("debug_poison_plane", "debug_poison_plane.json");
 			ImGui::EndCombo();
 		}
 
+		const bool isDebugParticleEffect = (targetEffect == "debug_poison_plane");
+		ModelParticleManager* editParticleManager = (isDebugParticleEffect && debugParticleManager_)
+			? debugParticleManager_.get()
+			: particleManager_;
+
 		// マネージャーから指定したエフェクトの設定を編集・反映
-		particleManager_->UpdateImGui(targetEffect, attackEffectConfig_);
+		editParticleManager->UpdateImGui(targetEffect, attackEffectConfig_);
+
+		if (ImGui::CollapsingHeader("Debug Emit", ImGuiTreeNodeFlags_DefaultOpen)) {
+			static int debugEmitCount = 12;
+			static Vector3 debugEmitOffset{ 0.0f, 1.2f, 0.0f };
+			static bool debugEmitLoop = false;
+			static float debugEmitInterval = 0.25f;
+			static float debugEmitTimer = 0.0f;
+
+			ImGui::DragInt("Emit Count", &debugEmitCount, 1.0f, 1, 512);
+			ImGui::DragFloat3("Emit Offset", &debugEmitOffset.x, 0.05f);
+			ImGui::Checkbox("Loop Emit", &debugEmitLoop);
+			ImGui::DragFloat("Loop Interval", &debugEmitInterval, 0.01f, 0.03f, 5.0f);
+
+			Vector3 emitPos = player_ ? player_->GetPos() : Vector3{ -7.0f, 0.0f, 15.0f };
+			emitPos = emitPos + debugEmitOffset;
+			ImGui::Text("Emit Pos: %.2f, %.2f, %.2f", emitPos.x, emitPos.y, emitPos.z);
+
+			if (ImGui::Button("Emit At Player")) {
+				editParticleManager->Emit(attackEffectConfig_, emitPos, static_cast<uint32_t>(std::max(1, debugEmitCount)));
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Clear Particles")) {
+				editParticleManager->ClearParticles();
+			}
+
+			if (enemyMgr_.GetEnemies().empty()) {
+				ImGui::BeginDisabled();
+			}
+			if (ImGui::Button("Emit At Enemy[0]")) {
+				Vector3 enemyPos = enemyMgr_.GetEnemies().empty()
+					? emitPos
+					: enemyMgr_.GetEnemies().front().GetPos() + debugEmitOffset;
+				editParticleManager->Emit(attackEffectConfig_, enemyPos, static_cast<uint32_t>(std::max(1, debugEmitCount)));
+			}
+			if (enemyMgr_.GetEnemies().empty()) {
+				ImGui::EndDisabled();
+			}
+
+			if (debugEmitLoop) {
+				debugEmitTimer -= ImGui::GetIO().DeltaTime;
+				if (debugEmitTimer <= 0.0f) {
+					editParticleManager->Emit(attackEffectConfig_, emitPos, static_cast<uint32_t>(std::max(1, debugEmitCount)));
+					debugEmitTimer = std::max(0.03f, debugEmitInterval);
+				}
+			} else {
+				debugEmitTimer = 0.0f;
+			}
+		}
+
 		DrawParticleObjectPostEditor_();
 		ImGui::End();
 	}
@@ -1803,9 +1887,15 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 
 	if (particleObjectPostEnabled_) {
 		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
+		if (debugParticleManager_) {
+			app.DrawModelParticlesObjectPostToBloomScene(debugParticleManager_.get(), particleObjectPostParam_);
+		}
 		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	} else {
 		particleManager_->Draw();
+		if (debugParticleManager_) {
+			debugParticleManager_->Draw();
+		}
 	}
 	app.ObjCom()->SetGraphicsPipelineState();
 
@@ -2258,6 +2348,10 @@ bool GameScene::PrepareEnterStep(GameApp& app)
 		fieldParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
 		fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
 		battle_.SetFieldParticleManager(fieldParticleManager_.get());
+
+		debugParticleManager_ = std::make_unique<ModelParticleManager>();
+		debugParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+		debugParticleManager_->RegisterEffect("debug_poison_plane", "debug_poison_plane.json");
 
 		particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 		ResetParticleObjectPostParam_();
