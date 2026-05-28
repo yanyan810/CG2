@@ -13,6 +13,7 @@
 #include "TextSprite.h"
 
 #include "Logic/Button.h"
+#include "Logic/StatusMenu.h"
 
 class Card3D;
 
@@ -76,6 +77,8 @@ private:
     std::unique_ptr<TextSprite> templateTooltipText_;
 
     int cardCount_ = 40; // 総カード種類数
+
+    StatusMenu statusMenu_;
 
     void RerollDeckData(GameApp& app);
     void RebuildCardModels(GameApp& app);

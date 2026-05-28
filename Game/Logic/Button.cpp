@@ -47,6 +47,8 @@ void Button::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj) 
         text_->SetPosition({ position_.x + textOffset_.x, position_.y + textOffset_.y });
     }
 
+    text_->SetText(textString_);
+
     isMouseOver_ = bg_->IsMouseOver(mousePos);
 
     // マウスホバー・クリック判定
