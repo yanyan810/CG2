@@ -54,7 +54,13 @@ private:
 	static std::wstring Utf8ToWString_(const std::string& text);
 	static std::wstring GetIntentText_(const EnemyAction& action);
 	static std::wstring GetHpText_(const Enemy& enemy);
-	static std::wstring GetBcText_(const Enemy& enemy);
+	static void SetStatusItem_(
+		Sprite* icon,
+		TextSprite* text,
+		int value,
+		const Vector2& iconPosition,
+		const Vector2& textPosition,
+		const Vector3& textColor);
 	static Vector3 GetIntentTextColor_(const std::string& type);
 	static Vector4 GetIntentGlowColor_(const std::string& type);
 	static BloomParam MakeIntentBloomParam_(
@@ -77,5 +83,10 @@ private:
 	std::vector<std::unique_ptr<TextSprite>> intentTexts_;
 	std::vector<std::unique_ptr<TextSprite>> intentCountTexts_;
 	std::vector<std::unique_ptr<TextSprite>> hpTexts_;
-	std::vector<std::unique_ptr<TextSprite>> bcTexts_;
+	std::vector<std::unique_ptr<Sprite>> blockIcons_;
+	std::vector<std::unique_ptr<Sprite>> poisonIcons_;
+	std::vector<std::unique_ptr<Sprite>> frostIcons_;
+	std::vector<std::unique_ptr<TextSprite>> blockTexts_;
+	std::vector<std::unique_ptr<TextSprite>> poisonTexts_;
+	std::vector<std::unique_ptr<TextSprite>> frostTexts_;
 };
