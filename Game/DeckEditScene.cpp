@@ -36,14 +36,14 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	RerollDeckData(app);
 
 	saveDeckButton_ = std::make_unique<Button>();
-	saveDeckButton_->Initialize(app, L"保存して戻る", "SaveDeckAndChangeScene", { 1025.f, 600.f });
+	saveDeckButton_->Initialize(app, L"保存して戻る", "SaveDeckAndChangeScene", { 1025.f, 450.f });
 	saveDeckButton_->SetScale({ 175.f, 100.f });
 	saveDeckButton_->SetTextOffset({ 10.f,15.f });
 	saveDeckButton_->SetNormalColor({ 0.086f, 0.447f, 0.969f, 1.0f });
 	saveDeckButton_->SetHoverColor({ 0.0f, 0.149f, 0.710f, 1.0f });
 
 	nosaveButton_ = std::make_unique<Button>();
-	nosaveButton_->Initialize(app, L"保存せず戻る", "NoSaveDeckAndChangeScene", { 1025.f, 450.f });
+	nosaveButton_->Initialize(app, L"保存せず戻る", "NoSaveDeckAndChangeScene", { 1025.f, 600.f });
 	nosaveButton_->SetScale({ 175.f, 100.f });
 	nosaveButton_->SetTextOffset({ 10.f,15.f });
 	nosaveButton_->SetNormalColor({ 0.765f, 0.0f, 0.0f, 0.8f });
@@ -56,7 +56,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	warningText_->SetFontSize(24);
 	warningText_->SetSize({ 1.f, 1.f, 1.f });
 	warningText_->SetColor({ 1.0f, 0.0f, 0.0f });
-	warningText_->SetPosition({ 1000.0f, 580.0f });
+	warningText_->SetPosition({ 1000.0f, 430.0f });
 
 	countText_ = std::make_unique<TextSprite>();
 	countText_->Initialize(app.SpriteCom(), app.Dx());
@@ -286,6 +286,15 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		RequestChangeScene_("StageSelect");
 
 		return;
+	}
+
+	// デッキ枚数足りないなら強制灰色
+	if (!isDeckValid_) {
+		saveDeckButton_->SetHoverColor({ 0.2f,0.2f,0.2f,1.f });
+		saveDeckButton_->SetNormalColor({ 0.2f,0.2f,0.2f,1.f });
+	} else {
+		saveDeckButton_->SetNormalColor({ 0.086f, 0.447f, 0.969f, 1.0f });
+		saveDeckButton_->SetHoverColor({ 0.0f, 0.149f, 0.710f, 1.0f });
 	}
 
 	if (nosaveButton_->IsPressed()) {
