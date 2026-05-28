@@ -290,6 +290,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Game\TestScene.cpp" />
     <ClCompile Include="Engine\TrailInstance.cpp" />
     <ClCompile Include="Game\UI\PausingUI\PausingUI.cpp" />
+    <ClCompile Include="Game\Logic\StatusMenu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\ParticleUpdate.CS.hlsl">
@@ -496,6 +497,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Game\UI\UiLayout.h" />
     <ClInclude Include="Engine\TrailInstance.h" />
     <ClInclude Include="Game\UI\PausingUI\PausingUI.h" />
+    <ClInclude Include="Game\Logic\StatusMenu.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
