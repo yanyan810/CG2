@@ -28,6 +28,8 @@ public:
     void DrawImGui(GameApp& app) override;
     void DrawSkydome(GameApp& app) override;
 
+    static std::string returnSceneName_;
+
 private:
 
     std::unique_ptr<Camera> camera_;

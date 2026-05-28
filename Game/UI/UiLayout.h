@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <string>
 
 struct UiVec2 {
@@ -338,12 +338,24 @@ struct UiNumberLayout {
     UiNumberRelative effectValue[3];
 };
 
+struct SelectSceneLayout {
+    UiRect titleBoxRect{ 480.0f, 145.0f, 320.0f, 88.0f };
+    UiRect tutorialButtonRect{ 820.0f, 200.0f, 300.0f, 90.0f };
+    UiRect battleButtonRect{ 820.0f, 320.0f, 300.0f, 90.0f };
+    UiRect deckEditButtonRect{ 820.0f, 440.0f, 300.0f, 90.0f };
+    UiRect backButtonRect{ 150.0f, 110.0f, 180.0f, 70.0f };
+};
+
 struct StageSelectLayout {
     UiVec2 titlePos{ 470.0f, 80.0f };
 
     UiRect tutorialButtonRect{ 320.0f, 300.0f, 340.0f, 120.0f };
     UiRect battleButtonRect{ 320.0f, 500.0f, 340.0f, 120.0f };
     UiRect deckEditButtonRect{ 780.0f, 500.0f, 340.0f, 120.0f };
+
+    UiRect backButtonRect{ 24.0f, 24.0f, 140.0f, 56.0f };
+    UiRect leftArrowRect{ 120.0f, 410.0f, 80.0f, 100.0f };
+    UiRect rightArrowRect{ 1080.0f, 410.0f, 80.0f, 100.0f };
 
     UiVec2 tutorialButtonVisualPos{ 320.0f, 300.0f };
     UiVec2 battleButtonVisualPos{ 320.0f, 500.0f };

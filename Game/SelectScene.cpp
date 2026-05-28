@@ -1,14 +1,19 @@
 #include "SelectScene.h"
+#include "DeckEditScene.h"
 
 #include "AudioManager.h"
 #include "GameApp.h"
 #include "Input.h"
 #include "Matrix4x4.h"
 #include "WinApp.h"
+#include "TextureManager.h"
 
 #ifdef USE_IMGUI
 #include <imgui.h>
 #endif
+
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 bool SelectScene::PointInRect_(float mx, float my, const Rect& rect) const
 {
@@ -31,54 +36,43 @@ void SelectScene::SelectCurrent_(GameApp& app)
 		return;
 	}
 
+	if (menuItems_[selectIndex_].sceneName == "DeckEdit") {
+		DeckEditScene::returnSceneName_ = "Select";
+	}
+
 	RequestChangeScene_(menuItems_[selectIndex_].sceneName.c_str());
 }
 
 void SelectScene::OnEnter(GameApp& app)
 {
-	hoverIndex_ = -1;
+	LoadLayout_();
+	ApplyLayout_();
+
+	bg_ = std::make_unique<Sprite>();
 	selectIndex_ = 0;
+	hoverIndex_ = -1;
 
 	AudioManager::GetInstance()->PlayBGM("BGM_TitleSelect");
 
-	bg_ = std::make_unique<Sprite>();
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Select_scene.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/return.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Tutorial.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Stage_select.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Deck_editing.png");
+
 	bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	bg_->SetAnchorPoint({ 0.0f, 0.0f });
 	bg_->SetPosition({ 0.0f, 0.0f });
 	bg_->SetScale({ static_cast<float>(WinApp::kClientWidth), static_cast<float>(WinApp::kClientHeight), 1.0f });
 	bg_->SetColor({ 0.78f, 0.78f, 0.78f, 1.0f });
 
-	titleBoxBorder_ = std::make_unique<Sprite>();
-	titleBoxBorder_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	titleBoxBorder_->SetAnchorPoint({ 0.0f, 0.0f });
-
 	titleBoxBg_ = std::make_unique<Sprite>();
-	titleBoxBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	titleBoxBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/Select_scene.png");
 	titleBoxBg_->SetAnchorPoint({ 0.0f, 0.0f });
 
-	titleText_ = std::make_unique<TextSprite>();
-	titleText_->Initialize(app.SpriteCom(), app.Dx());
-	titleText_->SetFontSize(30);
-	titleText_->SetSize({ 1.0f, 1.0f, 1.0f });
-	titleText_->SetAlpha(1.0f);
-	titleText_->SetColor({ 1.0f, 1.0f, 1.0f });
-	titleText_->SetOutline(selectTextOutlineColor_, selectTextOutlineWidth_);
-
-	backButtonBorder_ = std::make_unique<Sprite>();
-	backButtonBorder_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	backButtonBorder_->SetAnchorPoint({ 0.0f, 0.0f });
-
 	backButtonBg_ = std::make_unique<Sprite>();
-	backButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	backButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/return.png");
 	backButtonBg_->SetAnchorPoint({ 0.0f, 0.0f });
-
-	backButtonText_ = std::make_unique<TextSprite>();
-	backButtonText_->Initialize(app.SpriteCom(), app.Dx());
-	backButtonText_->SetFontSize(30);
-	backButtonText_->SetSize({ 1.0f, 1.0f, 1.0f });
-	backButtonText_->SetAlpha(1.0f);
-	backButtonText_->SetColor({ 1.0f, 1.0f, 1.0f });
-	backButtonText_->SetOutline(selectTextOutlineColor_, selectTextOutlineWidth_);
 
 	descText_ = std::make_unique<TextSprite>();
 	descText_->Initialize(app.SpriteCom(), app.Dx());
@@ -101,23 +95,17 @@ void SelectScene::OnEnter(GameApp& app)
 	menuItems_[2].description = L"使用するデッキを編集します";
 	menuItems_[2].rect = { 820.0f, 440.0f, 300.0f, 90.0f };
 
-	for (auto& item : menuItems_) {
-		item.border = std::make_unique<Sprite>();
-		item.border->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-		item.border->SetAnchorPoint({ 0.0f, 0.0f });
+	menuItems_[0].bg = std::make_unique<Sprite>();
+	menuItems_[0].bg->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/Tutorial.png");
+	menuItems_[0].bg->SetAnchorPoint({ 0.0f, 0.0f });
 
-		item.bg = std::make_unique<Sprite>();
-		item.bg->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-		item.bg->SetAnchorPoint({ 0.0f, 0.0f });
+	menuItems_[1].bg = std::make_unique<Sprite>();
+	menuItems_[1].bg->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/Stage_select.png");
+	menuItems_[1].bg->SetAnchorPoint({ 0.0f, 0.0f });
 
-		item.text = std::make_unique<TextSprite>();
-		item.text->Initialize(app.SpriteCom(), app.Dx());
-		item.text->SetFontSize(28);
-		item.text->SetSize({ 1.0f, 1.0f, 1.0f });
-		item.text->SetAlpha(1.0f);
-		item.text->SetColor({ 1.0f, 1.0f, 1.0f });
-		item.text->SetOutline(selectTextOutlineColor_, selectTextOutlineWidth_);
-	}
+	menuItems_[2].bg = std::make_unique<Sprite>();
+	menuItems_[2].bg->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/Deck_editing.png");
+	menuItems_[2].bg->SetAnchorPoint({ 0.0f, 0.0f });
 }
 
 void SelectScene::OnExit(GameApp& app)
@@ -140,6 +128,8 @@ void SelectScene::OnExit(GameApp& app)
 
 void SelectScene::Update(GameApp& app, float dt)
 {
+	ApplyLayout_();
+
 	(void)dt;
 	Input* input = app.GetInput();
 	if (!input) {
@@ -151,6 +141,11 @@ void SelectScene::Update(GameApp& app, float dt)
 	POINT mouse = input->GetMousePosition();
 	const float mx = static_cast<float>(mouse.x);
 	const float my = static_cast<float>(mouse.y);
+
+	POINT mouseDelta = input->GetMouseDelta();
+	if (mouseDelta.x != 0 || mouseDelta.y != 0 || input->IsMouseTrigger(0)) {
+		isUsingMouse_ = true;
+	}
 
 	if (input->IsKeyTrigger(DIK_ESCAPE) ||
 		(PointInRect_(mx, my, backButtonRect_) && input->IsMouseTrigger(0))) {
@@ -167,8 +162,8 @@ void SelectScene::Update(GameApp& app, float dt)
 	}
 
 	if (hoverIndex_ >= 0) {
-		selectIndex_ = hoverIndex_;
 		if (input->IsMouseTrigger(0)) {
+			selectIndex_ = hoverIndex_;
 			SelectCurrent_(app);
 			return;
 		}
@@ -176,6 +171,7 @@ void SelectScene::Update(GameApp& app, float dt)
 
 	if (input->IsKeyTrigger(DIK_LEFT) || input->IsKeyTrigger(DIK_UP) ||
 		input->IsKeyTrigger(DIK_A) || input->IsKeyTrigger(DIK_W)) {
+		isUsingMouse_ = false;
 		--selectIndex_;
 		if (selectIndex_ < 0) {
 			selectIndex_ = static_cast<int>(menuItems_.size()) - 1;
@@ -185,6 +181,7 @@ void SelectScene::Update(GameApp& app, float dt)
 
 	if (input->IsKeyTrigger(DIK_RIGHT) || input->IsKeyTrigger(DIK_DOWN) ||
 		input->IsKeyTrigger(DIK_D) || input->IsKeyTrigger(DIK_S)) {
+		isUsingMouse_ = false;
 		++selectIndex_;
 		if (selectIndex_ >= static_cast<int>(menuItems_.size())) {
 			selectIndex_ = 0;
@@ -211,8 +208,8 @@ void SelectScene::Draw2D(GameApp& app)
 	);
 
 	constexpr float kBorder = 3.0f;
-	const Vector4 normalPanelColor{ 0.60f, 0.60f, 0.60f, 1.0f };
-	const Vector4 activePanelColor{ 0.70f, 0.70f, 0.70f, 1.0f };
+	const Vector4 normalPanelColor{ 0.8f, 0.8f, 0.8f, 1.0f };
+	const Vector4 activePanelColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 	const Vector4 borderColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
 	if (titleText_) {
@@ -232,27 +229,13 @@ void SelectScene::Draw2D(GameApp& app)
 		bg_->Draw();
 	}
 
-	if (titleBoxBorder_) {
-		titleBoxBorder_->SetPosition({ titleBoxRect_.x - kBorder, titleBoxRect_.y - kBorder });
-		titleBoxBorder_->SetScale({ titleBoxRect_.w + kBorder * 2.0f, titleBoxRect_.h + kBorder * 2.0f, 1.0f });
-		titleBoxBorder_->SetColor(borderColor);
-		titleBoxBorder_->Update(view, proj);
-		titleBoxBorder_->Draw();
-	}
-
 	if (titleBoxBg_) {
+		const DirectX::TexMetadata& meta = TextureManager::GetInstance()->GetMetaData(titleBoxBg_->GetTextureFilePath());
 		titleBoxBg_->SetPosition({ titleBoxRect_.x, titleBoxRect_.y });
-		titleBoxBg_->SetScale({ titleBoxRect_.w, titleBoxRect_.h, 1.0f });
+		titleBoxBg_->SetScale({ titleBoxRect_.w / static_cast<float>(meta.width), titleBoxRect_.h / static_cast<float>(meta.height), 1.0f });
 		titleBoxBg_->SetColor(normalPanelColor);
 		titleBoxBg_->Update(view, proj);
 		titleBoxBg_->Draw();
-	}
-
-	if (titleText_) {
-		titleText_->SetText(L"セレクト");
-		titleText_->SetPosition({ titleBoxRect_.x + 110.0f, titleBoxRect_.y + 28.0f });
-		titleText_->Update(view, proj);
-		titleText_->Draw();
 	}
 
 	Input* input = app.GetInput();
@@ -262,34 +245,22 @@ void SelectScene::Draw2D(GameApp& app)
 		isBackHovered = PointInRect_(static_cast<float>(mouse.x), static_cast<float>(mouse.y), backButtonRect_);
 	}
 
-	if (backButtonBorder_) {
-		backButtonBorder_->SetPosition({ backButtonRect_.x - kBorder, backButtonRect_.y - kBorder });
-		backButtonBorder_->SetScale({ backButtonRect_.w + kBorder * 2.0f, backButtonRect_.h + kBorder * 2.0f, 1.0f });
-		backButtonBorder_->SetColor(borderColor);
-		backButtonBorder_->Update(view, proj);
-		backButtonBorder_->Draw();
-	}
-
 	if (backButtonBg_) {
+		const DirectX::TexMetadata& meta = TextureManager::GetInstance()->GetMetaData(backButtonBg_->GetTextureFilePath());
 		backButtonBg_->SetPosition({ backButtonRect_.x, backButtonRect_.y });
-		backButtonBg_->SetScale({ backButtonRect_.w, backButtonRect_.h, 1.0f });
+		backButtonBg_->SetScale({ backButtonRect_.w / static_cast<float>(meta.width), backButtonRect_.h / static_cast<float>(meta.height), 1.0f });
 		backButtonBg_->SetColor(isBackHovered ? activePanelColor : normalPanelColor);
 		backButtonBg_->Update(view, proj);
 		backButtonBg_->Draw();
 	}
 
-	if (backButtonText_) {
-		backButtonText_->SetText(L"戻る");
-		backButtonText_->SetPosition({ backButtonRect_.x + 62.0f, backButtonRect_.y + 22.0f });
-		backButtonText_->Update(view, proj);
-		backButtonText_->Draw();
-	}
-
 	for (int i = 0; i < static_cast<int>(menuItems_.size()); ++i) {
 		auto& item = menuItems_[i];
-		const bool isSelected = i == selectIndex_;
-		const bool isHovered = i == hoverIndex_;
-		const float scale = (isSelected || isHovered) ? 1.03f : 1.0f;
+		const bool isHovered = (i == hoverIndex_);
+		const bool isSelected = (i == selectIndex_);
+		const bool shouldHighlight = isUsingMouse_ ? isHovered : isSelected;
+		
+		const float scale = shouldHighlight ? 1.03f : 1.0f;
 		const float scaledW = item.rect.w * scale;
 		const float scaledH = item.rect.h * scale;
 		const float offsetX = (scaledW - item.rect.w) * 0.5f;
@@ -297,18 +268,11 @@ void SelectScene::Draw2D(GameApp& app)
 		const float x = item.rect.x - offsetX;
 		const float y = item.rect.y - offsetY;
 
-		if (item.border) {
-			item.border->SetPosition({ x - kBorder, y - kBorder });
-			item.border->SetScale({ scaledW + kBorder * 2.0f, scaledH + kBorder * 2.0f, 1.0f });
-			item.border->SetColor(borderColor);
-			item.border->Update(view, proj);
-			item.border->Draw();
-		}
-
 		if (item.bg) {
+			const DirectX::TexMetadata& meta = TextureManager::GetInstance()->GetMetaData(item.bg->GetTextureFilePath());
 			item.bg->SetPosition({ x, y });
-			item.bg->SetScale({ scaledW, scaledH, 1.0f });
-			item.bg->SetColor(isSelected ? activePanelColor : normalPanelColor);
+			item.bg->SetScale({ scaledW / static_cast<float>(meta.width), scaledH / static_cast<float>(meta.height), 1.0f });
+			item.bg->SetColor(shouldHighlight ? activePanelColor : normalPanelColor);
 			item.bg->Update(view, proj);
 			item.bg->Draw();
 		}
@@ -332,7 +296,55 @@ void SelectScene::DrawImGui(GameApp& app)
 {
 #ifdef USE_IMGUI
 	(void)app;
-	ImGui::Begin("SelectScene");
+	ImGui::Begin("SelectSceneLayout");
+	
+	if (ImGui::Button("Save SelectSceneLayout")) {
+		SaveLayout_();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Load SelectSceneLayout")) {
+		LoadLayout_();
+		ApplyLayout_();
+	}
+
+	ImGui::Separator();
+	if (ImGui::TreeNode("Title Box")) {
+		float rect[4] = { layout_.titleBoxRect.x, layout_.titleBoxRect.y, layout_.titleBoxRect.w, layout_.titleBoxRect.h };
+		if (ImGui::DragFloat4("Rect##Title", rect, 1.0f)) {
+			layout_.titleBoxRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Back Button")) {
+		float rect[4] = { layout_.backButtonRect.x, layout_.backButtonRect.y, layout_.backButtonRect.w, layout_.backButtonRect.h };
+		if (ImGui::DragFloat4("Rect##Back", rect, 1.0f)) {
+			layout_.backButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Tutorial Button")) {
+		float rect[4] = { layout_.tutorialButtonRect.x, layout_.tutorialButtonRect.y, layout_.tutorialButtonRect.w, layout_.tutorialButtonRect.h };
+		if (ImGui::DragFloat4("Rect##Tutorial", rect, 1.0f)) {
+			layout_.tutorialButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Battle Button")) {
+		float rect[4] = { layout_.battleButtonRect.x, layout_.battleButtonRect.y, layout_.battleButtonRect.w, layout_.battleButtonRect.h };
+		if (ImGui::DragFloat4("Rect##Battle", rect, 1.0f)) {
+			layout_.battleButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Deck Edit Button")) {
+		float rect[4] = { layout_.deckEditButtonRect.x, layout_.deckEditButtonRect.y, layout_.deckEditButtonRect.w, layout_.deckEditButtonRect.h };
+		if (ImGui::DragFloat4("Rect##DeckEdit", rect, 1.0f)) {
+			layout_.deckEditButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	ImGui::Separator();
+
 	ImGui::Text("hoverIndex = %d", hoverIndex_);
 	ImGui::Text("selectIndex = %d", selectIndex_);
 	float outlineColor[3] = {
@@ -348,4 +360,71 @@ void SelectScene::DrawImGui(GameApp& app)
 #else
 	(void)app;
 #endif
+}
+
+void SelectScene::ApplyLayout_() {
+	titleBoxRect_ = { layout_.titleBoxRect.x, layout_.titleBoxRect.y, layout_.titleBoxRect.w, layout_.titleBoxRect.h };
+	backButtonRect_ = { layout_.backButtonRect.x, layout_.backButtonRect.y, layout_.backButtonRect.w, layout_.backButtonRect.h };
+	
+	if (menuItems_.size() >= 3) {
+		menuItems_[0].rect = { layout_.tutorialButtonRect.x, layout_.tutorialButtonRect.y, layout_.tutorialButtonRect.w, layout_.tutorialButtonRect.h };
+		menuItems_[1].rect = { layout_.battleButtonRect.x, layout_.battleButtonRect.y, layout_.battleButtonRect.w, layout_.battleButtonRect.h };
+		menuItems_[2].rect = { layout_.deckEditButtonRect.x, layout_.deckEditButtonRect.y, layout_.deckEditButtonRect.w, layout_.deckEditButtonRect.h };
+	}
+}
+
+void SelectScene::SaveLayout_() const {
+	nlohmann::json j;
+
+	j["titleBoxRect"] = { {"x", layout_.titleBoxRect.x}, {"y", layout_.titleBoxRect.y}, {"w", layout_.titleBoxRect.w}, {"h", layout_.titleBoxRect.h} };
+	j["backButtonRect"] = { {"x", layout_.backButtonRect.x}, {"y", layout_.backButtonRect.y}, {"w", layout_.backButtonRect.w}, {"h", layout_.backButtonRect.h} };
+	j["tutorialButtonRect"] = { {"x", layout_.tutorialButtonRect.x}, {"y", layout_.tutorialButtonRect.y}, {"w", layout_.tutorialButtonRect.w}, {"h", layout_.tutorialButtonRect.h} };
+	j["battleButtonRect"] = { {"x", layout_.battleButtonRect.x}, {"y", layout_.battleButtonRect.y}, {"w", layout_.battleButtonRect.w}, {"h", layout_.battleButtonRect.h} };
+	j["deckEditButtonRect"] = { {"x", layout_.deckEditButtonRect.x}, {"y", layout_.deckEditButtonRect.y}, {"w", layout_.deckEditButtonRect.w}, {"h", layout_.deckEditButtonRect.h} };
+
+	std::ofstream ofs(layoutPath_);
+	if (ofs.is_open()) {
+		ofs << j.dump(4);
+	}
+}
+
+void SelectScene::LoadLayout_() {
+	std::ifstream ifs(layoutPath_);
+	if (!ifs.is_open()) {
+		return;
+	}
+
+	nlohmann::json j;
+	ifs >> j;
+
+	if (j.contains("titleBoxRect")) {
+		layout_.titleBoxRect.x = j["titleBoxRect"].value("x", layout_.titleBoxRect.x);
+		layout_.titleBoxRect.y = j["titleBoxRect"].value("y", layout_.titleBoxRect.y);
+		layout_.titleBoxRect.w = j["titleBoxRect"].value("w", layout_.titleBoxRect.w);
+		layout_.titleBoxRect.h = j["titleBoxRect"].value("h", layout_.titleBoxRect.h);
+	}
+	if (j.contains("backButtonRect")) {
+		layout_.backButtonRect.x = j["backButtonRect"].value("x", layout_.backButtonRect.x);
+		layout_.backButtonRect.y = j["backButtonRect"].value("y", layout_.backButtonRect.y);
+		layout_.backButtonRect.w = j["backButtonRect"].value("w", layout_.backButtonRect.w);
+		layout_.backButtonRect.h = j["backButtonRect"].value("h", layout_.backButtonRect.h);
+	}
+	if (j.contains("tutorialButtonRect")) {
+		layout_.tutorialButtonRect.x = j["tutorialButtonRect"].value("x", layout_.tutorialButtonRect.x);
+		layout_.tutorialButtonRect.y = j["tutorialButtonRect"].value("y", layout_.tutorialButtonRect.y);
+		layout_.tutorialButtonRect.w = j["tutorialButtonRect"].value("w", layout_.tutorialButtonRect.w);
+		layout_.tutorialButtonRect.h = j["tutorialButtonRect"].value("h", layout_.tutorialButtonRect.h);
+	}
+	if (j.contains("battleButtonRect")) {
+		layout_.battleButtonRect.x = j["battleButtonRect"].value("x", layout_.battleButtonRect.x);
+		layout_.battleButtonRect.y = j["battleButtonRect"].value("y", layout_.battleButtonRect.y);
+		layout_.battleButtonRect.w = j["battleButtonRect"].value("w", layout_.battleButtonRect.w);
+		layout_.battleButtonRect.h = j["battleButtonRect"].value("h", layout_.battleButtonRect.h);
+	}
+	if (j.contains("deckEditButtonRect")) {
+		layout_.deckEditButtonRect.x = j["deckEditButtonRect"].value("x", layout_.deckEditButtonRect.x);
+		layout_.deckEditButtonRect.y = j["deckEditButtonRect"].value("y", layout_.deckEditButtonRect.y);
+		layout_.deckEditButtonRect.w = j["deckEditButtonRect"].value("w", layout_.deckEditButtonRect.w);
+		layout_.deckEditButtonRect.h = j["deckEditButtonRect"].value("h", layout_.deckEditButtonRect.h);
+	}
 }
