@@ -21,6 +21,7 @@ public:
 
 private:
 	void BuildStageLoadSteps_(GameApp& app);
+	void BuildStageSelectLoadSteps_(GameApp& app);
 	void BuildStageInfo_(GameApp& app);
 	void UpdateText_();
 	bool LoadCurrentStep_(GameApp& app);
