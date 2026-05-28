@@ -406,6 +406,28 @@ void Player::PlayReleaseDamageAnimation_() {
     releaseAttackAnimationPlaying_ = true;
 }
 
+void Player::PlayStatusCastAnim()
+{
+    if (!model_) {
+        return;
+    }
+
+    static const std::array<const char*, 4> kStatusCastAnimations = {
+        "CustomAnim_attack_2",
+        "CustomAnim_attack_3",
+        "CustomAnim_attack_1",
+        "CustomAnim",
+    };
+
+    for (const char* name : kStatusCastAnimations) {
+        if (HasAnimationNamed(model_.get(), name)) {
+            model_->PlayAnimation(name, false);
+            releaseAttackAnimationPlaying_ = true;
+            return;
+        }
+    }
+}
+
 void Player::Draw() {
     if (model_&&isAlive_) {
         model_->Draw();

@@ -575,6 +575,11 @@ void GameScene::OnEnter(GameApp& app) {
 	debugParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
 	debugParticleManager_->RegisterEffect("debug_poison_plane", "debug_poison_plane.json");
 
+	poisonParticleManager_ = std::make_unique<ModelParticleManager>();
+	poisonParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+	poisonParticleManager_->RegisterEffect("player_poison", "player_poison.json");
+	battle_.SetBattleParticleManager(poisonParticleManager_.get());
+
 	// 編集用変数に初期値をコピーしておく
 	particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 	ResetParticleObjectPostParam_();
@@ -645,6 +650,18 @@ void GameScene::OnExit(GameApp& app) {
 	if (particleManager_) {
 		particleManager_->ClearParticles();
 	}
+	if (fieldParticleManager_) {
+		fieldParticleManager_->ClearParticles();
+	}
+	if (debugParticleManager_) {
+		debugParticleManager_->ClearParticles();
+	}
+	if (poisonParticleManager_) {
+		poisonParticleManager_->ClearParticles();
+	}
+	if (app.Dx()) {
+		app.Dx()->ExecuteCommandListAndWait();
+	}
 	clearTransitionActive_ = false;
 	clearTransitionTimer_ = 0.0f;
 	fieldUi_.reset();
@@ -668,6 +685,7 @@ void GameScene::OnExit(GameApp& app) {
 	battleForestProps_.reset();
 	fieldParticleManager_.reset();
 	debugParticleManager_.reset();
+	poisonParticleManager_.reset();
 	camera_.reset();
 	if (resultPopup_) { resultPopup_->Hide(); }
 	gameResultShown_ = false;
@@ -832,6 +850,9 @@ void GameScene::Update(GameApp& app, float dt) {
 		}
 		if (debugParticleManager_) {
 			debugParticleManager_->Dispatch(visualDt, clearBattleCamera);
+		}
+		if (poisonParticleManager_) {
+			poisonParticleManager_->Dispatch(visualDt, clearBattleCamera);
 		}
 
 		app.SetRadialBlur((0.09f + (inHitStop ? 0.035f : 0.0f)) * (1.0f - t));
@@ -1159,6 +1180,9 @@ void GameScene::Update(GameApp& app, float dt) {
 		if (debugParticleManager_) {
 			debugParticleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
 		}
+		if (poisonParticleManager_) {
+			poisonParticleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+		}
 		UpdateReleaseDebugText_();
 		return;
 	}
@@ -1263,6 +1287,9 @@ void GameScene::Update(GameApp& app, float dt) {
 	if (debugParticleManager_) {
 		debugParticleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
 	}
+	if (poisonParticleManager_) {
+		poisonParticleManager_->Dispatch(1.0f / 60.0f, animCamera_.get());
+	}
 	if (fieldParticleManager_) {
 		fieldParticleManager_->Dispatch(1.0f / 60.0f, camera_.get());
 	}
@@ -1343,6 +1370,10 @@ void GameScene::Draw3D(GameApp& app) {
 	}
 	if (debugParticleManager_) {
 		debugParticleManager_->Draw();
+		app.ObjCom()->SetGraphicsPipelineState();
+	}
+	if (poisonParticleManager_) {
+		poisonParticleManager_->Draw();
 		app.ObjCom()->SetGraphicsPipelineState();
 	}
 	enemyMgr_.DrawShieldBloom(app);
@@ -1890,11 +1921,17 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 		if (debugParticleManager_) {
 			app.DrawModelParticlesObjectPostToBloomScene(debugParticleManager_.get(), particleObjectPostParam_);
 		}
+		if (poisonParticleManager_) {
+			app.DrawModelParticlesObjectPostToBloomScene(poisonParticleManager_.get(), particleObjectPostParam_);
+		}
 		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
 	} else {
 		particleManager_->Draw();
 		if (debugParticleManager_) {
 			debugParticleManager_->Draw();
+		}
+		if (poisonParticleManager_) {
+			poisonParticleManager_->Draw();
 		}
 	}
 	app.ObjCom()->SetGraphicsPipelineState();
@@ -2352,6 +2389,11 @@ bool GameScene::PrepareEnterStep(GameApp& app)
 		debugParticleManager_ = std::make_unique<ModelParticleManager>();
 		debugParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
 		debugParticleManager_->RegisterEffect("debug_poison_plane", "debug_poison_plane.json");
+
+		poisonParticleManager_ = std::make_unique<ModelParticleManager>();
+		poisonParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
+		poisonParticleManager_->RegisterEffect("player_poison", "player_poison.json");
+		battle_.SetBattleParticleManager(poisonParticleManager_.get());
 
 		particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);
 		ResetParticleObjectPostParam_();

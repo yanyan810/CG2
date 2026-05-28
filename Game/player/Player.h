@@ -132,6 +132,7 @@ public:
 	bool GetPoisonDrawActive() const { return poisonDrawActive_; }
 	void SetReleaseAnimationEnabled(bool enabled) { releaseAnimationEnabled_ = enabled; }
 	bool GetReleaseAnimationEnabled() const { return releaseAnimationEnabled_; }
+	void PlayStatusCastAnim();
 
 	void SetFrostBiteActive(bool active) { frostBiteActive_ = active; }
 	bool GetFrostBiteActive() const { return frostBiteActive_; }
