@@ -205,30 +205,32 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * maxInstance_);
 
     D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
-    argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW; // DrawInstanced用
+    argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED; // DrawIndexedInstanced用
 
     D3D12_COMMAND_SIGNATURE_DESC sigDesc = {};
-    sigDesc.ByteStride = sizeof(D3D12_DRAW_ARGUMENTS);
+    sigDesc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
     sigDesc.NumArgumentDescs = 1;
     sigDesc.pArgumentDescs = &argDesc;
 
     dxCommon_->GetDevice()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&commandSignature_));
     
     // 1. 本番用のUAVバッファ作成 (DEFAULTヒープ)
-    drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
     // 2. CPUから書き込むための中継用バッファ (UPLOADヒープ) を作成
-    // CreateBufferResource を使うのが正解！
-    Microsoft::WRL::ComPtr<ID3D12Resource> stagingArgs = dxCommon_->CreateBufferResource(sizeof(D3D12_DRAW_ARGUMENTS));
+    // モデル切替時にも使うため、GPU実行前に解放されないようメンバで保持する。
+    drawArgsUploadResource_ = dxCommon_->CreateBufferResource(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 
     // 3. 中継用バッファに値を Map して書き込む
-    D3D12_DRAW_ARGUMENTS* mappedArgs = nullptr;
-    stagingArgs->Map(0, nullptr, reinterpret_cast<void**>(&mappedArgs));
-    mappedArgs->VertexCountPerInstance = static_cast<UINT>(model_->GetModelData().meshes[0].vertices.size());
+    const auto& initialMesh = model_->GetModelData().meshes[0];
+    D3D12_DRAW_INDEXED_ARGUMENTS* mappedArgs = nullptr;
+    drawArgsUploadResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedArgs));
+    mappedArgs->IndexCountPerInstance = initialMesh.indexCount;
     mappedArgs->InstanceCount = 0;
-    mappedArgs->StartVertexLocation = 0;
+    mappedArgs->StartIndexLocation = initialMesh.startIndex;
+    mappedArgs->BaseVertexLocation = 0;
     mappedArgs->StartInstanceLocation = 0;
-    stagingArgs->Unmap(0, nullptr);
+    drawArgsUploadResource_->Unmap(0, nullptr);
 
     // 4. GPUコマンドで UPLOAD -> DEFAULT へコピーを実行
     TransitionResource(
@@ -236,7 +238,7 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
         drawArgsResource_.Get(),
         drawArgsResourceState_,
         D3D12_RESOURCE_STATE_COPY_DEST);
-    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, stagingArgs.Get(), 0, sizeof(D3D12_DRAW_ARGUMENTS));
+    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, drawArgsUploadResource_.Get(), 0, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 
     // 5. コピー完了を待つためのバリア (COPY_DEST -> UNORDERED_ACCESS)
     TransitionResource(
@@ -332,6 +334,21 @@ void ModelParticleManager::Emit(const std::string& effectName, const Vector3& po
     EmitBatch(particles);
 }
 
+void ModelParticleManager::Emit(const ParticleEmitterConfig& config, const Vector3& position, uint32_t count)
+{
+    ParticleEmitterConfig emitConfig = config;
+    emitConfig.position = position;
+    ApplyRenderConfig_(emitConfig);
+
+    std::vector<Particle> particles;
+    particles.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        particles.push_back(MakeParticle(emitConfig));
+    }
+
+    EmitBatch(particles);
+}
+
 void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
     if (particles.empty()) return;
 
@@ -357,7 +374,7 @@ void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
         uploadData[i].isActive = 1;
         // --- 新機能: イージングタイプとビルボードフラグを転送 ---
         uploadData[i].easingType = static_cast<uint32_t>(particles[i].easingType);
-        uploadData[i].isBillboard = particles[i].isBillboard ? 1 : 0;
+        uploadData[i].isBillboard = particles[i].isBillboard ? particles[i].billboardMode : 0;
     }
 
     // ★ 修正：Stagingバッファの「freeIndex_」番目の位置に書き込む
@@ -443,8 +460,12 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     }
 
     // 初速度と加速度
-    Vector3 dir = RandomUnitVector();
-    particle.velocity = dir * Rand(config.speedMin, config.speedMax);
+    if (config.useDirectionalVelocity) {
+        particle.velocity = Rand(config.velocityMin, config.velocityMax);
+    } else {
+        Vector3 dir = RandomUnitVector();
+        particle.velocity = dir * Rand(config.speedMin, config.speedMax);
+    }
     particle.acceleration = config.gravity;
 
     // 初期回転と回転速度
@@ -470,6 +491,7 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     // --- 新機能: イージングタイプとビルボード ---
     particle.easingType = config.easingType;
     particle.isBillboard = config.isBillboard;
+    particle.billboardMode = config.isBillboard ? (std::clamp(config.billboardPlane, 0u, 1u) + 1u) : 0u;
 
     return particle;
 }
@@ -553,6 +575,7 @@ void ModelParticleManager::ApplyRenderConfig_(const ParticleEmitterConfig& confi
     }
 
     currentUseJewelShader_ = config.useJewelShader;
+    currentBlendMode_ = std::clamp(config.blendMode, 0u, 2u);
     if (materialData_) {
         materialData_->enableLighting = currentUseJewelShader_ ? 1 : 0;
     }
@@ -575,28 +598,36 @@ void ModelParticleManager::SetRenderModel_(const std::string& modelPath)
     model_ = nextModel;
     currentModelPath_ = normalizedPath;
     if (!model_->GetModelData().meshes.empty()) {
-        UpdateDrawVertexCount_(static_cast<uint32_t>(model_->GetModelData().meshes[0].vertices.size()));
+        const auto& mesh = model_->GetModelData().meshes[0];
+        UpdateDrawArgs_(mesh.indexCount, mesh.startIndex);
     }
 }
 
-void ModelParticleManager::UpdateDrawVertexCount_(uint32_t vertexCount)
+void ModelParticleManager::UpdateDrawArgs_(uint32_t indexCount, uint32_t startIndex)
 {
-    if (!dxCommon_ || !drawArgsResource_) {
+    if (!dxCommon_ || !drawArgsResource_ || !drawArgsUploadResource_) {
         return;
     }
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> staging = dxCommon_->CreateBufferResource(sizeof(uint32_t));
-    uint32_t* mapped = nullptr;
-    staging->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
-    *mapped = vertexCount;
-    staging->Unmap(0, nullptr);
+    if (indexCount == 0) {
+        OutputDebugStringA("[ModelParticle] indexed draw skipped: model has no indices\n");
+    }
+
+    D3D12_DRAW_INDEXED_ARGUMENTS* mapped = nullptr;
+    drawArgsUploadResource_->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+    mapped->IndexCountPerInstance = indexCount;
+    mapped->InstanceCount = 0;
+    mapped->StartIndexLocation = startIndex;
+    mapped->BaseVertexLocation = 0;
+    mapped->StartInstanceLocation = 0;
+    drawArgsUploadResource_->Unmap(0, nullptr);
 
     TransitionResource(
         dxCommon_->GetCommandList(),
         drawArgsResource_.Get(),
         drawArgsResourceState_,
         D3D12_RESOURCE_STATE_COPY_DEST);
-    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, staging.Get(), 0, sizeof(uint32_t));
+    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, drawArgsUploadResource_.Get(), 0, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
     TransitionResource(
         dxCommon_->GetCommandList(),
         drawArgsResource_.Get(),
@@ -631,8 +662,9 @@ void ModelParticleManager::Draw() {
         D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
     // 1. シグネチャとPSOの設定
-    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOModelParticle().root_.GetSignature().Get());
-    commandList->SetPipelineState(dxCommon_->GetPSOModelParticle().graphicsState_.Get());
+    auto& pso = dxCommon_->GetPSOModelParticle(currentBlendMode_);
+    commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+    commandList->SetPipelineState(pso.graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // 2. 頂点バッファの設定
@@ -641,6 +673,7 @@ void ModelParticleManager::Draw() {
     }
 
     commandList->IASetVertexBuffers(0, 1, &model_->GetVBV());
+    commandList->IASetIndexBuffer(&model_->GetIBV());
 
     // --- ここからルートパラメータのセット (InitalizeForModelParticleの順番に合わせる) ---
 
@@ -688,6 +721,11 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     if (ImGui::CollapsingHeader("Spawn", ImGuiTreeNodeFlags_DefaultOpen)) {
         changed |= ImGui::DragFloat("Speed Min", &editingConfig.speedMin, 0.01f, 0.0f);
         changed |= ImGui::DragFloat("Speed Max", &editingConfig.speedMax, 0.01f, 0.0f);
+        changed |= ImGui::Checkbox("Use XYZ Velocity", &editingConfig.useDirectionalVelocity);
+        if (editingConfig.useDirectionalVelocity) {
+            changed |= ImGui::DragFloat3("Velocity Min", &editingConfig.velocityMin.x, 0.01f);
+            changed |= ImGui::DragFloat3("Velocity Max", &editingConfig.velocityMax.x, 0.01f);
+        }
         changed |= ImGui::DragFloat("Life Min", &editingConfig.lifeTimeMin, 0.01f, 0.01f);
         changed |= ImGui::DragFloat("Life Max", &editingConfig.lifeTimeMax, 0.01f, 0.01f);
         changed |= ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
@@ -740,6 +778,14 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     // --- 新機能: ビルボード ---
     ImGui::Separator();
     changed |= ImGui::Checkbox("Billboard", &editingConfig.isBillboard);
+    if (editingConfig.isBillboard) {
+        const char* billboardPlaneNames[] = { "XY Plane", "XZ Plane" };
+        int currentBillboardPlane = static_cast<int>(editingConfig.billboardPlane);
+        if (ImGui::Combo("Billboard Plane", &currentBillboardPlane, billboardPlaneNames, IM_ARRAYSIZE(billboardPlaneNames))) {
+            editingConfig.billboardPlane = static_cast<uint32_t>(std::clamp(currentBillboardPlane, 0, 1));
+            changed = true;
+        }
+    }
 
     // --- Render Settings ---
     ImGui::Separator();
@@ -813,6 +859,12 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
         }
 
         changed |= ImGui::Checkbox("Use Jewel Shader", &editingConfig.useJewelShader);
+        const char* blendModeNames[] = { "Additive", "Normal", "Opaque" };
+        int currentBlendMode = static_cast<int>(editingConfig.blendMode);
+        if (ImGui::Combo("Blend Mode", &currentBlendMode, blendModeNames, IM_ARRAYSIZE(blendModeNames))) {
+            editingConfig.blendMode = static_cast<uint32_t>(std::clamp(currentBlendMode, 0, 2));
+            changed = true;
+        }
     }
 
     editingConfig.speedMin = std::max(0.0f, editingConfig.speedMin);
@@ -821,6 +873,18 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     editingConfig.lifeTimeMax = std::max(0.01f, editingConfig.lifeTimeMax);
     if (editingConfig.speedMin > editingConfig.speedMax) {
         std::swap(editingConfig.speedMin, editingConfig.speedMax);
+        changed = true;
+    }
+    if (editingConfig.velocityMin.x > editingConfig.velocityMax.x) {
+        std::swap(editingConfig.velocityMin.x, editingConfig.velocityMax.x);
+        changed = true;
+    }
+    if (editingConfig.velocityMin.y > editingConfig.velocityMax.y) {
+        std::swap(editingConfig.velocityMin.y, editingConfig.velocityMax.y);
+        changed = true;
+    }
+    if (editingConfig.velocityMin.z > editingConfig.velocityMax.z) {
+        std::swap(editingConfig.velocityMin.z, editingConfig.velocityMax.z);
         changed = true;
     }
     if (editingConfig.lifeTimeMin > editingConfig.lifeTimeMax) {
