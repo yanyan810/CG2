@@ -36,6 +36,7 @@ class GameApp {
 public:
     enum class LoadingMode {
         BootToTitle,
+        SelectToStageSelect,
         StageToGame,
     };
 

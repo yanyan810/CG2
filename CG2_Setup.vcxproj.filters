@@ -114,6 +114,7 @@
     <ClCompile Include="Game\Tutorial\TutorialManager.cpp" />
     <ClCompile Include="Game\UI\TutorialUi.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
+    <ClCompile Include="Game\SelectScene.cpp" />
     <ClCompile Include="Game\StageSelectScene.cpp" />
     <ClCompile Include="Engine\EffectSequencer.cpp" />
     <ClCompile Include="Game\PropManager.cpp" />
@@ -244,6 +245,7 @@
     <ClInclude Include="Game\Tutorial\TutorialManager.h" />
     <ClInclude Include="Game\UI\TutorialUi.h" />
     <ClInclude Include="Game\Tutorial\TutorialScene.h" />
+    <ClInclude Include="Game\SelectScene.h" />
     <ClInclude Include="Game\StageSelectScene.h" />
     <ClInclude Include="Engine\EffectSequencer.h" />
     <ClInclude Include="Game\PropManager.h" />

@@ -8,6 +8,7 @@
 #include "GameOverScene.h"
 #include "GameClearScene.h"
 #include "TutorialScene.h"
+#include "SelectScene.h"
 #include "StageSelectScene.h"
 #include "BattleController.h"
 #include "BattleAnimeEditerScene.h"
@@ -194,6 +195,7 @@ bool GameApp::Initialize_() {
 	sceneMgr_->Register("GameLoading", [] { return std::make_unique<GameLoadingScene>();  });
 	sceneMgr_->Register("Test", [] { return std::make_unique<TestScene>();  });
 	sceneMgr_->Register("Tutorial", [] { return std::make_unique<TutorialScene>();  });
+	sceneMgr_->Register("Select", [] { return std::make_unique<SelectScene>(); });
 	sceneMgr_->Register("StageSelect", [] { return std::make_unique<StageSelectScene>(); });
 	sceneMgr_->Register("GameOver", [] { return std::make_unique<GameOverScene>();  });
 	sceneMgr_->Register("GameClear", [] { return std::make_unique<GameClearScene>();  });

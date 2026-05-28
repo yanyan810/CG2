@@ -28,6 +28,10 @@ public:
     void DrawPostEffect3D(GameApp& app) override;
     void DrawPostEffect2D(GameApp& app) override;
 
+    static void BeginStageFieldCacheLoading();
+    static bool LoadStageFieldCacheStep(GameApp& app);
+    static float GetStageFieldCacheLoadingProgress();
+
 private:
     struct Rect {
         float x;
@@ -70,6 +74,8 @@ private:
     std::vector<std::unique_ptr<TextSprite>> itemTextSprites_;
     std::unique_ptr<TextSprite> leftArrowText_;
     std::unique_ptr<TextSprite> rightArrowText_;
+    std::unique_ptr<Sprite> backButtonBg_;
+    std::unique_ptr<TextSprite> backButtonText_;
 
     std::unique_ptr<TextSprite> descTextSprite_;
 
@@ -90,8 +96,11 @@ private:
     float bossShakeTimer_ = 0.0f;
     float bossShakeDuration_ = 0.4f;
     float bossShakeMagnitude_ = 6.0f;
+    Rect backButtonRect_{ 24.0f, 24.0f, 140.0f, 56.0f };
     Rect leftArrowRect_{ 120.0f, 410.0f, 80.0f, 100.0f };
     Rect rightArrowRect_{ 1080.0f, 410.0f, 80.0f, 100.0f };
+    Vector3 textOutlineColor_{ 0.0f, 0.0f, 0.0f };
+    float textOutlineWidth_ = 3.0f;
 
 private:
 
@@ -109,5 +118,6 @@ private:
 private:
     static std::vector<std::unique_ptr<PropManager>> stageFieldPropsCache_;
     static bool stageFieldPropsCacheReady_;
+    static int stageFieldPropsCacheLoadIndex_;
 
 };

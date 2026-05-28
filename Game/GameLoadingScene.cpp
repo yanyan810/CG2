@@ -4,6 +4,7 @@
 #include "Matrix4x4.h"
 #include "ModelManager.h"
 #include "SceneManager.h"
+#include "StageSelectScene.h"
 #include "Sprite.h"
 #include "TextureManager.h"
 #include "WinApp.h"
@@ -82,6 +83,8 @@ void GameLoadingScene::OnEnter(GameApp& app)
 
 	if (mode_ == GameApp::LoadingMode::BootToTitle) {
 		app.BeginStartupLoading();
+	} else if (mode_ == GameApp::LoadingMode::SelectToStageSelect) {
+		BuildStageSelectLoadSteps_(app);
 	} else {
 		BuildStageInfo_(app);
 		BuildStageLoadSteps_(app);
@@ -426,6 +429,33 @@ bool GameLoadingScene::HandleTipInput_(GameApp& app)
 	return false;
 }
 
+void GameLoadingScene::BuildStageSelectLoadSteps_(GameApp& app)
+{
+	(void)app;
+
+	StageSelectScene::BeginStageFieldCacheLoading();
+
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/ui/white.png");
+		});
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/circle.png");
+		});
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/title_stage_select.png");
+		});
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/desc_bg.png");
+		});
+
+	GameApp* appPtr = &app;
+	for (int i = 0; i < 10; ++i) {
+		stageLoadSteps_.push_back([appPtr]() {
+			StageSelectScene::LoadStageFieldCacheStep(*appPtr);
+			});
+	}
+}
+
 void GameLoadingScene::BuildStageLoadSteps_(GameApp& app)
 {
 	std::unordered_set<std::string> seen;
@@ -510,6 +540,14 @@ void GameLoadingScene::UpdateText_()
 			text += L"/";
 			text += std::to_wstring(stageLoadSteps_.size());
 		}
+	} else if (mode_ == GameApp::LoadingMode::SelectToStageSelect) {
+		text = loadComplete_ ? L"READY" : L"LOADING STAGE SELECT" + std::wstring(static_cast<size_t>(dotCount), L'.');
+		if (!stageLoadSteps_.empty()) {
+			text += L" ";
+			text += std::to_wstring((std::min)(loadIndex_, stageLoadSteps_.size()));
+			text += L"/";
+			text += std::to_wstring(stageLoadSteps_.size());
+		}
 	}
 	loadingText_->SetText(text);
 }
@@ -582,6 +620,11 @@ void GameLoadingScene::Update(GameApp& app, float dt)
 
 	if (mode_ == GameApp::LoadingMode::BootToTitle) {
 		RequestChangeScene_("Title");
+		return;
+	}
+
+	if (mode_ == GameApp::LoadingMode::SelectToStageSelect) {
+		RequestChangeScene_("StageSelect");
 		return;
 	}
 

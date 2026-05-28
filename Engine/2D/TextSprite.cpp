@@ -72,6 +72,13 @@ void TextSprite::SetFontSize(int size)
     RebuildTexture_();
 }
 
+void TextSprite::SetOutline(const Vector3& color, float width)
+{
+    outlineColor_ = color;
+    outlineWidth_ = width;
+    outlineEnabled_ = width > 0.0f;
+}
+
 void TextSprite::InitFontSystem() {
     static bool initialized = false;
     if (initialized) return;
@@ -108,6 +115,16 @@ void TextSprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx)
     sprite_->SetPosition(position_);
     sprite_->SetScale({ 1.0f, 1.0f, 1.0f });
 
+    outlineSprites_.clear();
+    outlineSprites_.reserve(8);
+    for (int i = 0; i < 8; ++i) {
+        auto outlineSprite = std::make_unique<Sprite>();
+        outlineSprite->Initialize(spriteCommon_, dx_, textureKey_);
+        outlineSprite->SetPosition(position_);
+        outlineSprite->SetScale({ 1.0f, 1.0f, 1.0f });
+        outlineSprites_.push_back(std::move(outlineSprite));
+    }
+
 	color_ = { 1.0f, 1.0f, 1.0f };
 
     RebuildTexture_();
@@ -127,6 +144,10 @@ void TextSprite::Update(const Matrix4x4& view, const Matrix4x4& proj)
         return;
     }
 
+    lastView_ = view;
+    lastProj_ = proj;
+    hasLastMatrices_ = true;
+
     sprite_->SetPosition(position_);
     sprite_->SetScale(size_);
     sprite_->Update(view, proj);
@@ -136,6 +157,28 @@ void TextSprite::Draw()
 {
     if (!sprite_ || text_.empty()) {
         return;
+    }
+
+    if (outlineEnabled_ && outlineWidth_ > 0.0f && hasLastMatrices_ && outlineSprites_.size() >= 8) {
+        const Vector2 offsets[] = {
+            { -outlineWidth_, 0.0f },
+            { outlineWidth_, 0.0f },
+            { 0.0f, -outlineWidth_ },
+            { 0.0f, outlineWidth_ },
+            { -outlineWidth_, -outlineWidth_ },
+            { outlineWidth_, -outlineWidth_ },
+            { -outlineWidth_, outlineWidth_ },
+            { outlineWidth_, outlineWidth_ },
+        };
+
+        for (int i = 0; i < 8; ++i) {
+            Sprite* outlineSprite = outlineSprites_[i].get();
+            outlineSprite->SetPosition({ position_.x + offsets[i].x, position_.y + offsets[i].y });
+            outlineSprite->SetScale(size_);
+            outlineSprite->SetColor({ outlineColor_.x, outlineColor_.y, outlineColor_.z, alpha_ });
+            outlineSprite->Update(lastView_, lastProj_);
+            outlineSprite->Draw();
+        }
     }
 
     sprite_->SetColor({color_.x, color_.y, color_.z, alpha_ });
@@ -321,5 +364,11 @@ void TextSprite::RebuildTexture_()
     if (sprite_) {
         sprite_->SetTextureFilePath(textureKey_);
         sprite_->SetScale(size_);
+    }
+    for (auto& outlineSprite : outlineSprites_) {
+        if (outlineSprite) {
+            outlineSprite->SetTextureFilePath(textureKey_);
+            outlineSprite->SetScale(size_);
+        }
     }
 }

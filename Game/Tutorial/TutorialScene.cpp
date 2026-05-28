@@ -422,8 +422,7 @@ void TutorialScene::OnEnter(GameApp& app) {
     tutorialMenuBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
     tutorialMenuBg_->SetAnchorPoint({ 0.0f, 0.0f });
     tutorialMenuPage_ = 0;
-    tutorialMenuVisible_ = true;
-    InitializeTutorialMenu_(app);
+    tutorialMenuVisible_ = false;
 
     startFadeMask_ = std::make_unique<Sprite>();
     startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
@@ -442,6 +441,7 @@ void TutorialScene::OnEnter(GameApp& app) {
     prevEsc_ = false;
     lastTutorialStep_ = TutorialManager::TutorialStep::Intro;
     cardExplainInputBlockTimer_ = 0.0f;
+    StartTutorialChapter_(app, TutorialManager::TutorialChapter::Full);
     return;
 
     camera_ = std::make_unique<Camera>();
