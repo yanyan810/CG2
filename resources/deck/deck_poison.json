@@ -1,5 +1,6 @@
 {
   "name": "毒デッキ",
+  "description": "毒を活用するデッキ。\n敵に毒を付与して、それを利用します",
   "minCards": 40,
   "maxCards": 40,
   "maxSameCard": 4,

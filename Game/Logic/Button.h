@@ -31,6 +31,9 @@ public:
     bool IsPressed() const { return isPressed_; }
     bool IsMouseOver()const { return isMouseOver_; }
 
+    Vector2 GetPosition() { return position_; }
+    Vector2 GetScale() { return scale_; }
+
 private:
     std::unique_ptr<Sprite> bg_;
     std::unique_ptr<TextSprite> text_;

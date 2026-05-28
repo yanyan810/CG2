@@ -1,5 +1,6 @@
 {
   "name": "デフォルトデッキ",
+  "description": "バランスの良い初期デッキ。\n基本的なカードが揃っており、\n戦いやすい構成です。",
   "minCards": 40,
   "maxCards": 40,
   "maxSameCard": 4,

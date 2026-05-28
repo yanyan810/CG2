@@ -63,6 +63,7 @@ bool DeckLoader::LoadFromJson(const std::string& path, DeckDef& outDeck)
     outDeck = {};
 
     outDeck.name = root.value("name", "");
+    outDeck.description = root.value("description", "");
     outDeck.minCards = root.value("minCards", 40);
     outDeck.maxCards = root.value("maxCards", 52);
     outDeck.maxSameCard = root.value("maxSameCard", 4);
