@@ -25,7 +25,7 @@ void PausingUI::Initialize(GameApp& app) {
 	pauseButtonText_->SetPosition({ 0.f, 60.f });
 	pauseButtonText_->SetText(L"Pause");
 
-	statusMenu_.Initialize(app, { 100.f, 300.f });
+	
 }
 
 void PausingUI::Update(GameApp& app, Input* input) {
@@ -36,8 +36,7 @@ void PausingUI::Update(GameApp& app, Input* input) {
 	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
 	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
 
-	statusMenu_.Update(app, view, proj);
-
+	
 	pauseButton_->Update(view, proj);
 	pauseButtonText_->Update(view, proj);
 
@@ -83,9 +82,6 @@ void PausingUI::Draw(GameApp& app) {
 	pausingBg_->Draw();
 	currentState_->Draw(app);
 
-	statusMenu_.DrawImGui();
-
-	statusMenu_.Draw();
 }
 
 void PausingUI::ChangeState(std::unique_ptr<IPauseState> newState, GameApp& app) {
