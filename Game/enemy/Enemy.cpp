@@ -11,6 +11,7 @@
 namespace {
 	constexpr float kFacePlayerYaw = -1.5708f;
 	constexpr float kImportedEnemyYawCorrection = 1.5708f;
+	constexpr int kFrostBurstVisualThreshold = 15;
 
 	float GetEnemyYaw_(EnemyType type)
 	{
@@ -226,6 +227,30 @@ void Enemy::Update(float dt)
 	if (flashTimer_ > 0.0f) {
 		flashTimer_ -= dt;
 		model_->SetMaterialColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+	} else if (frostFlashTimer_ > 0.0f) {
+		frostFlashTimer_ -= dt;
+		const float pulse = 0.5f + 0.5f * std::sinf(frostFlashTimer_ * 42.0f);
+		model_->SetMaterialColor({
+			0.55f + pulse * 0.25f,
+			1.25f + pulse * 0.45f,
+			1.75f + pulse * 0.65f,
+			1.0f
+			});
+	} else if (badCondition_ == BadCondition::kFrost && badConditionPoint_ > 0) {
+		const float pointRate = std::clamp(static_cast<float>(badConditionPoint_) / static_cast<float>(kFrostBurstVisualThreshold), 0.0f, 1.0f);
+		const float pulse = 0.5f + 0.5f * std::sinf(shieldTimer_ * 5.5f);
+		const bool burstReady = badConditionPoint_ >= kFrostBurstVisualThreshold;
+		Vector4 frostColor{
+			0.72f - pointRate * 0.22f,
+			1.04f + pointRate * 0.32f + (burstReady ? pulse * 0.18f : 0.0f),
+			1.22f + pointRate * 0.58f + (burstReady ? pulse * 0.28f : 0.0f),
+			1.0f
+		};
+		if (isHighlighted_) {
+			frostColor.x += 0.18f;
+			frostColor.y += 0.15f;
+		}
+		model_->SetMaterialColor(frostColor);
 	} else if (isHighlighted_) {
 		model_->SetMaterialColor({ 1.5f, 1.5f, 0.5f, 1.0f });
 	} else {
