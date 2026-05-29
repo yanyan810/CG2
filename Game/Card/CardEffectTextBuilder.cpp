@@ -3,6 +3,7 @@
 #include "Poker/PokerHandEvaluator.h"
 
 #include <Windows.h>
+#include <cmath>
 
 namespace {
 	std::wstring Utf8ToWString_(const std::string& s)
@@ -45,6 +46,35 @@ namespace {
 		case PokerHandRank::RoyalStraightFlush: return L"ロイヤルストレートフラッシュ";
 		default:                                return L"";
 		}
+	}
+
+	float EffectValueFloat_(const CardEffectDef& effect)
+	{
+		if (effect.valueIsFloat) {
+			return effect.valueFloat;
+		}
+		if (effect.valueFloat != 0.0f || effect.value == 0) {
+			return effect.valueFloat;
+		}
+		return static_cast<float>(effect.value);
+	}
+
+	std::wstring FormatEffectValue_(const CardEffectDef& effect)
+	{
+		const float value = EffectValueFloat_(effect);
+		if (effect.valueIsFloat) {
+			wchar_t buffer[32]{};
+			swprintf_s(buffer, L"%.2f", value);
+			std::wstring text = buffer;
+			while (!text.empty() && text.back() == L'0') {
+				text.pop_back();
+			}
+			if (!text.empty() && text.back() == L'.') {
+				text.pop_back();
+			}
+			return text;
+		}
+		return std::to_wstring(static_cast<int>(std::lround(value)));
 	}
 }
 
@@ -102,38 +132,38 @@ std::wstring CardEffectTextBuilder::GetSubEffectConditionText(const CardSubEffec
 std::wstring CardEffectTextBuilder::GetEffectValueText(const CardEffectDef& effect)
 {
 	if (!effect.valueText.empty()) {
-		return Utf8ToWString_(effect.valueText) + L": " + std::to_wstring(effect.value);
+		return Utf8ToWString_(effect.valueText) + L": " + FormatEffectValue_(effect);
 	}
 
 	if (effect.type == "Draw") {
-		return L"ドロー: " + std::to_wstring(effect.value);
+		return L"ドロー: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Damage") {
-		return L"ダメージ: " + std::to_wstring(effect.value);
+		return L"ダメージ: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "DamageAll") {
-		return L"全体ダメージ: " + std::to_wstring(effect.value);
+		return L"全体ダメージ: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Heal") {
-		return L"回復: " + std::to_wstring(effect.value);
+		return L"回復: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Block") {
-		return L"ブロック: " + std::to_wstring(effect.value);
+		return L"ブロック: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "PowerBoost") {
-		return L"パワー: " + std::to_wstring(effect.value);
+		return L"パワー: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "EnergyCharge") {
-		return L"コスト回復: " + std::to_wstring(effect.value);
+		return L"コスト回復: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "NextTurnAtkUp") {
-		return L"次ターンATK UP: " + std::to_wstring(effect.value);
+		return L"次ターンATK UP: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "SelfDamage") {
-		return L"自傷: " + std::to_wstring(effect.value);
+		return L"自傷: " + FormatEffectValue_(effect);
 	}
 
-	return Utf8ToWString_(effect.type) + L": " + std::to_wstring(effect.value);
+	return Utf8ToWString_(effect.type) + L": " + FormatEffectValue_(effect);
 }
 
 std::wstring CardEffectTextBuilder::GetBaseEffectSummaryText(const CardDef& def)

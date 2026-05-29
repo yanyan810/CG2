@@ -23,10 +23,10 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/AbsoluteZero.png",
-      "desc": "敵全体に5ダメージ\n敵全体に凍結を2付与",
+      "desc": "敵全体に7ダメージ\n敵全体に凍結を3付与",
        "effects": [
-        { "type": "DamageAll", "value": 5 },
-        { "type": "FrostAll", "value": 2 }
+        { "type": "DamageAll", "value": 7 },
+        { "type": "FrostAll", "value": 3 }
       ]
     },
 
@@ -88,7 +88,7 @@
     {
       "id": 36,
       "name": "IceBlock",
-      "cost": 3,
+      "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/IceBlock.png",
@@ -119,9 +119,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/Niflheimr.png",
-      "desc": "敵全体に凍結を20付与する",
+      "desc": "敵単体に凍結を14付与する",
        "effects": [
-         { "type": "FrostAll", "value": 20 }
+         { "type": "Frost", "value": 14 }
       ]
     },
 
@@ -132,12 +132,12 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Frost/FrostRush.png",
-      "desc": "敵単体に2ダメージを与え、\n凍結を１付与する\nこれを２回行う",
+      "desc": "敵単体に2ダメージを与え、\n凍結を1付与する\nこれを2回行う",
        "effects": [
-         { "type": "Damage", "value": 2 },
-         { "type": "Frost", "value": 1 },
-         { "type": "Damage", "value": 2 },
-         { "type": "Frost", "value": 1 }
+         { "type": "Damage", "value": 4 },
+         { "type": "Frost", "value": 2 },
+         { "type": "Damage", "value": 4 },
+         { "type": "Frost", "value": 2 }
       ]
     },
 
@@ -150,7 +150,7 @@
       "artTex": "resources/cards/art/Frost/TripleAccel.png",
       "desc": "敵単体の凍結の\n半分の値分カードを引く",
        "effects": [
-         { "type": "FrostDraw", "value": 1 }
+         { "type": "FrostDraw", "value": 0.5 }
       ]
     }
 
