@@ -7,27 +7,55 @@
 #include "Enemy.h"
 #include "Player.h"
 
+#include <algorithm>
+#include <cmath>
+
+namespace {
+	float EffectValueFloat_(const CardEffectDef& effect)
+	{
+		if (effect.valueIsFloat) {
+			return effect.valueFloat;
+		}
+		if (effect.valueFloat != 0.0f || effect.value == 0) {
+			return effect.valueFloat;
+		}
+		return static_cast<float>(effect.value);
+	}
+
+	int EffectValueInt_(const CardEffectDef& effect)
+	{
+		return std::max(0, static_cast<int>(std::lround(EffectValueFloat_(effect))));
+	}
+
+	int ScaleEffectAmount_(int baseValue, const CardEffectDef& effect)
+	{
+		return std::max(0, static_cast<int>(std::lround(static_cast<float>(baseValue) * EffectValueFloat_(effect))));
+	}
+}
+
 void CardEffectExecutor::ApplyDraw(const Context& context, const CardEffectDef& effect)
 {
 	if (context.drawCards) {
-		context.drawCards(effect.value);
+		context.drawCards(EffectValueInt_(effect));
 	}
 }
 
 void CardEffectExecutor::ApplyBlock(const Context& context, const CardEffectDef& effect)
 {
-	if (context.player && effect.value > 0) {
+	const int value = EffectValueInt_(effect);
+	if (context.player && value > 0) {
 		const int beforeBlock = context.player->GetBlock();
-		context.player->AddBlock(effect.value);
+		context.player->AddBlock(value);
 		BattleSfxPlayer::PlayBlockGainSEIfIncreased(beforeBlock, context.player->GetBlock());
 	}
 }
 
 void CardEffectExecutor::ApplyPowerBoost(const Context& context, const CardEffectDef& effect)
 {
-	if (context.player && effect.value > 0) {
+	const int value = EffectValueInt_(effect);
+	if (context.player && value > 0) {
 		const int beforePower = context.player->GetBoostedPower();
-		context.player->PowerBoost(effect.value);
+		context.player->PowerBoost(value);
 		if (context.player->GetBoostedPower() > beforePower) {
 			BattleSfxPlayer::PlayPowerChargeSE();
 		}
@@ -36,11 +64,12 @@ void CardEffectExecutor::ApplyPowerBoost(const Context& context, const CardEffec
 
 void CardEffectExecutor::ApplyNextTurnAtkUp(const Context& context, const CardEffectDef& effect)
 {
-	if (effect.value > 0) {
+	const int value = EffectValueInt_(effect);
+	if (value > 0) {
 		BattleSfxPlayer::PlayPowerChargeSE();
 	}
 	if (context.nextTurnAtkUp) {
-		*context.nextTurnAtkUp += effect.value;
+		*context.nextTurnAtkUp += value;
 	}
 }
 
@@ -48,7 +77,7 @@ void CardEffectExecutor::ApplyHeal(const Context& context, const CardEffectDef& 
 {
 	if (context.player) {
 		int beforeHp = context.player->GetHP();
-		context.player->Heal(effect.value);
+		context.player->Heal(EffectValueInt_(effect));
 		BattleSfxPlayer::PlayHealSEIfHpIncreased(context.player, beforeHp);
 	}
 }
@@ -56,7 +85,7 @@ void CardEffectExecutor::ApplyHeal(const Context& context, const CardEffectDef& 
 void CardEffectExecutor::ApplyHealByBlock(const Context& context, const CardEffectDef& effect)
 {
 	if (context.player) {
-		int healAmount = context.player->GetBlock() * effect.value;
+		int healAmount = ScaleEffectAmount_(context.player->GetBlock(), effect);
 		int beforeHp = context.player->GetHP();
 		context.player->Heal(healAmount);
 		BattleSfxPlayer::PlayHealSEIfHpIncreased(context.player, beforeHp);
@@ -73,7 +102,7 @@ void CardEffectExecutor::ApplyHealByLowCostInHand(const Context& context, const 
 				count++;
 			}
 		}
-		int healAmount = count * effect.value;
+		int healAmount = ScaleEffectAmount_(count, effect);
 		if (healAmount > 0) {
 			int beforeHp = context.player->GetHP();
 			context.player->Heal(healAmount);
@@ -85,7 +114,7 @@ void CardEffectExecutor::ApplyHealByLowCostInHand(const Context& context, const 
 void CardEffectExecutor::ApplyVampireBuff(const Context& context, const CardEffectDef& effect)
 {
 	if (context.player) {
-		context.player->AddVampireHeal(effect.value);
+		context.player->AddVampireHeal(EffectValueInt_(effect));
 	}
 }
 
@@ -94,7 +123,7 @@ void CardEffectExecutor::ApplySelfDamage(const Context& context, const CardEffec
 	if (context.player) {
 		context.player->TriggerHitFlash(0.2f);
 		context.player->PlayDamageAnim();
-		context.player->Damage(effect.value);
+		context.player->Damage(EffectValueInt_(effect));
 	}
 }
 
@@ -104,7 +133,7 @@ void CardEffectExecutor::ApplyPoisonAmplify(const Context& context, const CardEf
 		for (auto& e : context.enemyMgr->GetEnemies()) {
 			if (e.IsAlive()) {
 				if (e.GetBC() == Enemy::BadCondition::kPoison) {
-					e.AmplifyBC(effect.value);
+					e.AmplifyBC(EffectValueFloat_(effect));
 				}
 			}
 		}
@@ -117,7 +146,7 @@ void CardEffectExecutor::ApplyPoisonDamage(const Context& context, const CardEff
 		for (auto& e : context.enemyMgr->GetEnemies()) {
 			if (e.IsAlive()) {
 				e.SetBC(Enemy::BadCondition::kPoison);
-				e.DamageBC(effect.value);
+				e.DamageBC(EffectValueInt_(effect));
 			}
 		}
 	}
@@ -129,7 +158,7 @@ void CardEffectExecutor::ApplyPoisonAll(const Context& context, const CardEffect
 		for (auto& e : context.enemyMgr->GetEnemies()) {
 			if (e.IsAlive()) {
 				e.SetBC(Enemy::BadCondition::kPoison);
-				e.AddBC(effect.value);
+				e.AddBC(EffectValueInt_(effect));
 			}
 		}
 	}
@@ -153,7 +182,7 @@ void CardEffectExecutor::ApplyPoisonDraw(const Context& context, const CardEffec
 			for (auto& e : context.enemyMgr->GetEnemies()) {
 				if (e.IsAlive()) {
 					e.SetBC(Enemy::BadCondition::kPoison);
-					e.AddBC(effect.value);
+					e.AddBC(EffectValueInt_(effect));
 				}
 			}
 		}
@@ -180,7 +209,7 @@ void CardEffectExecutor::ApplyFrostAll(const Context& context, const CardEffectD
 		for (auto& e : context.enemyMgr->GetEnemies()) {
 			if (e.IsAlive()) {
 				e.SetBC(Enemy::BadCondition::kFrost);
-				e.AddBC(effect.value);
+				e.AddBC(EffectValueInt_(effect));
 			}
 		}
 	}
@@ -198,7 +227,7 @@ void CardEffectExecutor::ApplyFrostBlock(const Context& context, const CardEffec
 		}
 	}
 
-	int blockAmount = count * effect.value;
+	int blockAmount = ScaleEffectAmount_(count, effect);
 	if (blockAmount > 0 && context.player) {
 		int beforeBlock = context.player->GetBlock();
 		context.player->AddBlock(blockAmount);
@@ -211,27 +240,27 @@ void CardEffectExecutor::ApplyFrostDamage(const Context& context, const CardEffe
 	if (context.enemyMgr) {
 		for (auto& e : context.enemyMgr->GetEnemies()) {
 			if (e.IsAlive()) {
-				e.DamageBC(effect.value);
+				e.DamageBC(EffectValueInt_(effect));
 			}
 		}
 	}
 }
 
-void CardEffectExecutor::ApplyFrostDraw(const Context& context, int targetIndex)
+void CardEffectExecutor::ApplyFrostDraw(const Context& context, const CardEffectDef& effect, int targetIndex)
 {
 	if (context.enemyMgr) {
 		if (targetIndex >= 0 && targetIndex < context.enemyMgr->GetEnemies().size()) {
 			auto& e = context.enemyMgr->GetEnemies()[targetIndex];
 			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
 				if (context.drawCards) {
-					context.drawCards(e.GetBCPoint() / 2);
+					context.drawCards(ScaleEffectAmount_(e.GetBCPoint(), effect));
 				}
 			}
 		} else {
 			for (auto& e : context.enemyMgr->GetEnemies()) {
 				if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
 					if (context.drawCards) {
-						context.drawCards(e.GetBCPoint() / 2);
+						context.drawCards(ScaleEffectAmount_(e.GetBCPoint(), effect));
 					}
 					break;
 				}
@@ -245,7 +274,7 @@ void CardEffectExecutor::ApplyFrostSubtract(const Context& context, const CardEf
 	if (context.enemyMgr) {
 		for (auto& e : context.enemyMgr->GetEnemies()) {
 			if (e.IsAlive()) {
-				e.SubtractBC(effect.value);
+				e.SubtractBC(EffectValueInt_(effect));
 			}
 		}
 	}
@@ -257,7 +286,7 @@ void CardEffectExecutor::ApplyFrostAmplify(const Context& context, const CardEff
 		for (auto& e : context.enemyMgr->GetEnemies()) {
 			if (e.IsAlive()) {
 				if (e.GetBC() == Enemy::BadCondition::kFrost) {
-					e.AmplifyBC(effect.value);
+					e.AmplifyBC(EffectValueFloat_(effect));
 				}
 			}
 		}

@@ -152,9 +152,8 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/ShieldBash.png",
-      "desc": "5ブロックを得て、\n敵単体にブロック数x1ダメージ与える",
+      "desc": "敵単体にブロック数x1ダメージ与える",
       "effects": [
-        { "type": "Block", "value": 5 },
         { "type": "DamageByBlock", "value": 1 }
       ]
      },

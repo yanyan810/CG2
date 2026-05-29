@@ -113,7 +113,7 @@ public:
 	void AddBC(int value); // 加算
 	void SubtractBC(int value); // 減算
 	void TurnEndApplyBC(); // ターン終了時に状態異常の効果を適用
-	void AmplifyBC(int value); //倍加
+	void AmplifyBC(float value); //倍加
 	void DamageBC(int count); // 状態異常ポイントに応じたダメージを与える
 	void RemoveBC(); // 状態異常の解除
 

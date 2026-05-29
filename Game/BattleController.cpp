@@ -922,15 +922,17 @@ void BattleController::ApplyPoisonEffect_(const CardEffectDef& effect, int targe
 			auto& e = enemyMgr_->GetEnemies()[targetIndex];
 			if (e.IsAlive()) {
 				e.SetBC(Enemy::BadCondition::kPoison);
-				e.AddBC(effect.value);
-				EmitPoisonAppliedEffect_(e, effect.value);
+				const int value = EffectValueInt_(effect);
+				e.AddBC(value);
+				EmitPoisonAppliedEffect_(e, value);
 			}
 		} else {
 			for (auto& e : enemyMgr_->GetEnemies()) {
 				if (e.IsAlive()) {
 					e.SetBC(Enemy::BadCondition::kPoison);
-					e.AddBC(effect.value);
-					EmitPoisonAppliedEffect_(e, effect.value);
+					const int value = EffectValueInt_(effect);
+					e.AddBC(value);
+					EmitPoisonAppliedEffect_(e, value);
 					break;
 				}
 			}
@@ -953,7 +955,7 @@ void BattleController::ApplyPoisonAllEffect_(const CardEffectDef& effect)
 	if (enemyMgr_) {
 		for (auto& e : enemyMgr_->GetEnemies()) {
 			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
-				EmitPoisonAppliedEffect_(e, effect.value);
+				EmitPoisonAppliedEffect_(e, EffectValueInt_(effect));
 			}
 		}
 	}
@@ -981,7 +983,7 @@ void BattleController::ApplyPoisonDamageEffect_(const CardEffectDef& effect)
 	if (enemyMgr_) {
 		for (auto& e : enemyMgr_->GetEnemies()) {
 			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
-				EmitPoisonAppliedEffect_(e, effect.value);
+				EmitPoisonAppliedEffect_(e, EffectValueInt_(effect));
 			}
 		}
 	}
@@ -999,7 +1001,7 @@ void BattleController::ApplyPoisonDrawEffect_(const CardEffectDef& effect)
 	if (enemyMgr_) {
 		for (auto& e : enemyMgr_->GetEnemies()) {
 			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
-				EmitPoisonAppliedEffect_(e, effect.value);
+				EmitPoisonAppliedEffect_(e, EffectValueInt_(effect));
 			}
 		}
 	}
@@ -1012,19 +1014,20 @@ void BattleController::ApplyPoisonRemoveEffect_()
 	CardEffectExecutor::ApplyPoisonRemove(context);
 }
 
-void BattleController::ApplyPoisonHealEffect_()
+void BattleController::ApplyPoisonHealEffect_(const CardEffectDef& effect)
 {
-	int healAmount = 0;
+	int poisonTotal = 0;
 
 	if (enemyMgr_) {
 		for (auto& e : enemyMgr_->GetEnemies()) {
 			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
 				e.SetBC(Enemy::BadCondition::kPoison);
-				healAmount += e.GetBCPoint();
+				poisonTotal += e.GetBCPoint();
 			}
 		}
 	}
 
+	const int healAmount = ScaleEffectAmount_(poisonTotal, effect);
 	int beforeHp = player_->GetHP();
 	player_->Heal(healAmount);
 	BattleSfxPlayer::PlayHealSEIfHpIncreased(player_, beforeHp);
@@ -1037,15 +1040,17 @@ void BattleController::ApplyFrostEffect_(const CardEffectDef& effect, int target
 			auto& e = enemyMgr_->GetEnemies()[targetIndex];
 			if (e.IsAlive()) {
 				e.SetBC(Enemy::BadCondition::kFrost);
-				e.AddBC(effect.value);
-				EmitFrostAppliedEffect_(e, effect.value);
+				const int value = EffectValueInt_(effect);
+				e.AddBC(value);
+				EmitFrostAppliedEffect_(e, value);
 			}
 		} else {
 			for (auto& e : enemyMgr_->GetEnemies()) {
 				if (e.IsAlive()) {
 					e.SetBC(Enemy::BadCondition::kFrost);
-					e.AddBC(effect.value);
-					EmitFrostAppliedEffect_(e, effect.value);
+					const int value = EffectValueInt_(effect);
+					e.AddBC(value);
+					EmitFrostAppliedEffect_(e, value);
 					break;
 				}
 			}
@@ -1061,7 +1066,7 @@ void BattleController::ApplyFrostAllEffect_(const CardEffectDef& effect)
 	if (enemyMgr_) {
 		for (auto& e : enemyMgr_->GetEnemies()) {
 			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
-				EmitFrostAppliedEffect_(e, effect.value);
+				EmitFrostAppliedEffect_(e, EffectValueInt_(effect));
 			}
 		}
 	}
@@ -1107,8 +1112,9 @@ void BattleController::ApplyFrostBiteEffect_(const CardEffectDef& effect)
 			for (auto& e : enemyMgr_->GetEnemies()) {
 				if (e.IsAlive()) {
 					e.SetBC(Enemy::BadCondition::kFrost);
-					e.AddBC(effect.value);
-					EmitFrostAppliedEffect_(e, effect.value);
+					const int value = EffectValueInt_(effect);
+					e.AddBC(value);
+					EmitFrostAppliedEffect_(e, value);
 				}
 			}
 		}
@@ -1139,14 +1145,14 @@ void BattleController::ApplyChangeSuitEffect_(const CardEffectDef& effect)
 	CardEffectExecutor::ApplyChangeSuit(effect);
 }
 
-void BattleController::ApplyFrostDrawEffect_(int targetIndex)
+void BattleController::ApplyFrostDrawEffect_(const CardEffectDef& effect, int targetIndex)
 {
 	CardEffectExecutor::Context context;
 	context.enemyMgr = enemyMgr_;
 	context.drawCards = [this](int count) {
 		DrawCards_(count);
 	};
-	CardEffectExecutor::ApplyFrostDraw(context, targetIndex);
+	CardEffectExecutor::ApplyFrostDraw(context, effect, targetIndex);
 }
 
 void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effects, int targetIndex, bool applyAttackBuff)
@@ -1202,7 +1208,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			ApplyPoisonRemoveEffect_();
 
 		} else if (effect.type == "PoisonHeal") {
-			ApplyPoisonHealEffect_();
+			ApplyPoisonHealEffect_(effect);
 
 		} else if (effect.type == "Frost") {
 			ApplyFrostEffect_(effect, targetIndex);
@@ -1226,7 +1232,7 @@ void BattleController::ApplyEffectsList_(const std::vector<CardEffectDef>& effec
 			ApplyFrostAmplifyEffect_(effect);
 
 		} else if (effect.type == "FrostDraw") {
-			ApplyFrostDrawEffect_(targetIndex);
+			ApplyFrostDrawEffect_(effect, targetIndex);
 
 		} else if (effect.type == "ChangeNumber") {
 			ApplyChangeNumberEffect_(effect);
@@ -1440,38 +1446,38 @@ std::wstring BattleController::GetSubEffectConditionText_(const CardSubEffectDef
 std::wstring BattleController::GetEffectValueText_(const CardEffectDef& effect) const
 {
 	if (!effect.valueText.empty()) {
-		return Utf8ToWString(effect.valueText) + L": " + std::to_wstring(effect.value);
+		return Utf8ToWString(effect.valueText) + L": " + FormatEffectValue_(effect);
 	}
 
 	if (effect.type == "Draw") {
-		return L"ドロー: " + std::to_wstring(effect.value);
+		return L"ドロー: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Damage") {
-		return L"ダメージ: " + std::to_wstring(effect.value);
+		return L"ダメージ: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "DamageAll") {
-		return L"全体ダメージ: " + std::to_wstring(effect.value);
+		return L"全体ダメージ: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Heal") {
-		return L"回復: " + std::to_wstring(effect.value);
+		return L"回復: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "Block") {
-		return L"ブロック: " + std::to_wstring(effect.value);
+		return L"ブロック: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "PowerBoost") {
-		return L"パワー: " + std::to_wstring(effect.value);
+		return L"パワー: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "EnergyCharge") {
-		return L"コスト回復: " + std::to_wstring(effect.value);
+		return L"コスト回復: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "NextTurnAtkUp") {
-		return L"次ターンATK UP: " + std::to_wstring(effect.value);
+		return L"次ターンATK UP: " + FormatEffectValue_(effect);
 	}
 	if (effect.type == "SelfDamage") {
-		return L"自傷: " + std::to_wstring(effect.value);
+		return L"自傷: " + FormatEffectValue_(effect);
 	}
 
-	return Utf8ToWString(effect.type) + L": " + std::to_wstring(effect.value);
+	return Utf8ToWString(effect.type) + L": " + FormatEffectValue_(effect);
 }
 
 std::wstring BattleController::GetBaseEffectSummaryText_(const CardDef& def) const
@@ -2442,13 +2448,13 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 								// 鬯ｯ・ｨ繝ｻ・ｾ髯橸ｽ｢繝ｻ・ｼ郢晢ｽｻ繝ｻ・ｸ郢晢ｽｻ繝ｻ・ｸ鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻverClock鬯ｩ蛹・ｽｽ・ｲ髯晢ｽｲ繝ｻ・ｨ驍ｵ・ｲ陝ｶ譎丞楜驛｢譎｢・ｽ・ｻ髴取ｺｷ・､繧托ｽｽ・ｸ繝ｻ・ｺ驛｢・ｧ郢晢ｽｻ繝ｻ・ｽ驍・戟謐礼ｹ晢ｽｻ繝ｻ・ｴ鬮ｯ・ｷ繝ｻ・ｷ髯具ｽｹ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・｣繝ｻ・ｰ鬯ｩ髦ｪ・・濤・ｲ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・･驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻ
 								if (effect.type == "Damage") {
 									needsTarget = true;
-									dmgVal += effect.value;
+									dmgVal += EffectValueInt_(effect);
 									hitCount++;
 								}
 								// 鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｯ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｬ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴主・讓溘・荳ｻ・ｰ・､繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ驛｢譎｢・ｽ・ｻ髣費｣ｰ繝ｻ・･郢晢ｽｻ繝ｻ・･驛｢譎｢・ｽ・ｻ髴取ｺｷ・､繧托ｽｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ驛｢譎｢・ｽ・ｻ3鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ驛｢譎｢・ｽ・ｻ驛｢譎｢・ｽ・ｻ
 								else if (effect.type == "DamageCrescent") {
 									needsTarget = true;
-									int val = effect.value;
+									int val = EffectValueInt_(effect);
 									if (playerTurnCount_ % 2 != 0) {
 										val += 3; // 鬮ｯ讒ｭ・・ｹ晢ｽｻ髴取ｺｷ・､繧托ｽｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ鬮｣繝ｻ・ｽ・ｽ郢晢ｽｻ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｽ鬮ｯ・ｷ闔ｨ螟ｲ・ｽ・｣繝ｻ・ｰ鬩幢ｽ｢隰ｨ魑ｴﾂ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｸ
 									}
@@ -3356,7 +3362,7 @@ int BattleController::GetDisplayEffectValue(const CardEffectDef& effect, bool ap
 {
 	if (!applyAttackBuff) {
 		if (effect.type == "DamageCrescent") {
-			int value = effect.value;
+			int value = EffectValueInt_(effect);
 			if (playerTurnCount_ % 2 != 0) {
 				value += 3;
 			}
@@ -3377,7 +3383,7 @@ int BattleController::GetDisplayEffectValue(const CardEffectDef& effect, bool ap
 	}
 
 	if (effect.type == "DamageCrescent") {
-		int value = effect.value;
+		int value = EffectValueInt_(effect);
 		if (playerTurnCount_ % 2 != 0) {
 			value += 3;
 		}
