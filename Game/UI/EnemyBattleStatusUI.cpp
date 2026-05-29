@@ -136,7 +136,7 @@ void EnemyBattleStatusUI::UpdateLayout(
 	displayEnemyIndices_.clear();
 	displayEnemyIndices_.reserve(std::min(enemies.size(), hpGauges_.size()));
 	for (size_t i = 0; i < enemies.size(); ++i) {
-		if (enemies[i].IsAlive()) {
+		if (enemies[i].IsAlive() || enemies[i].GetHP() <= 0) {
 			displayEnemyIndices_.push_back(i);
 		}
 	}
@@ -154,6 +154,7 @@ void EnemyBattleStatusUI::UpdateLayout(
 		if (i < displayEnemyIndices_.size()) {
 			const size_t enemyIndex = displayEnemyIndices_[i];
 			Enemy& enemy = enemies[enemyIndex];
+			const bool enemyAlive = enemy.IsAlive();
 			const float gaugeWidth = 200.0f;
 			const float posX = 1000.0f;
 			const float posY = 40.0f + (static_cast<float>(i) * kEnemyUiRowStride);
@@ -165,7 +166,7 @@ void EnemyBattleStatusUI::UpdateLayout(
 			const bool hasIntent = !nextAct.type.empty() || !nextAct.name.empty();
 			const bool acted = enemyIndex < actedByCount.size() && actedByCount[enemyIndex];
 
-			if (hasIntent) {
+			if (hasIntent && enemyAlive) {
 				if (acted) {
 					intentIcons_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
 				} else if (nextAct.type == "Attack") {
@@ -293,7 +294,7 @@ void EnemyBattleStatusUI::DrawGaugeAndIntent2D(
 		}
 
 		const size_t enemyIndex = displayEnemyIndices_[i];
-		if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+		if (enemyIndex >= enemies.size()) {
 			continue;
 		}
 
@@ -397,7 +398,7 @@ void EnemyBattleStatusUI::DrawGaugeBloom(
 		}
 
 		const size_t enemyIndex = displayEnemyIndices_[i];
-		if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+		if (enemyIndex >= enemies.size()) {
 			continue;
 		}
 

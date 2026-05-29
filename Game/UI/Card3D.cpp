@@ -485,7 +485,7 @@ void Card3D::Update(float dt)
 		numberObjTens_->Update(dt);
 	}
 
-	if (countObj_) {
+	if (countObj_ && (count_ > 0 || showZeroCount_)) {
 		std::string onesPath = "cards/models/" + std::to_string(count_) + ".obj";
 		countObj_->SetModel(onesPath.c_str());
 
@@ -529,7 +529,7 @@ void Card3D::Draw()
 	if (suitObj_ && isPreview_ == false) suitObj_->Draw();
 	if (hasTensDigit_ && numberObjTens_ && isPreview_ == false) numberObjTens_->Draw();
 	if (numberObjOnes_ && isPreview_ == false) numberObjOnes_->Draw();
-	if (countObj_ && isPreview_ == true) countObj_->Draw();
+	if (countObj_ && isPreview_ == true && (count_ > 0 || showZeroCount_)) countObj_->Draw();
 
 }
 

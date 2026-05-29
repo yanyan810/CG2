@@ -59,6 +59,8 @@ public:
 
     void SetShowCost(bool show) { showCost_ = show; }
 
+    void SetShowZeroCount(bool show) { showZeroCount_ = show; }
+
     void SetCount(int count);
 
     void SetGlitter(float intensity);
@@ -96,6 +98,7 @@ private:
 
     bool isPreview_ = false;
     bool showCost_ = true;
+    bool showZeroCount_ = true;
 
     int count_ = 0;
     int currentDefId_ = -1;

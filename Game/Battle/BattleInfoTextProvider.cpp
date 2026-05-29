@@ -132,7 +132,7 @@ std::vector<std::wstring> BattleInfoTextProvider::BuildEnemyHpTexts(EnemyManager
 
 	auto& enemies = enemyMgr->GetEnemies();
 	for (const auto& enemy : enemies) {
-		if (!enemy.IsAlive()) {
+		if (!enemy.IsAlive() && enemy.GetHP() > 0) {
 			continue;
 		}
 		std::wstring text = std::to_wstring(enemy.GetHP()) + L" / " + std::to_wstring(enemy.GetMaxHP());
@@ -153,7 +153,7 @@ std::vector<std::wstring> BattleInfoTextProvider::BuildEnemyBcTexts(EnemyManager
 
 	auto& enemies = enemyMgr->GetEnemies();
 	for (const auto& enemy : enemies) {
-		if (!enemy.IsAlive()) {
+		if (!enemy.IsAlive() && enemy.GetHP() > 0) {
 			continue;
 		}
 		const int bcPoint = enemy.GetBCPoint();
