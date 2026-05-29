@@ -19,6 +19,8 @@ public:
         Intro,
 
         UiPlayerHp,
+        UiPlayerBlock,
+        UiPlayerPowerBoost,
         UiEnemyIntentDamage,
         UiEnemyHp,
         UiEnemyNextAction,
@@ -75,7 +77,9 @@ public:
         PokerHandHelpArea,
 
         PlayerIncomingDamageArea,
-        EnemyNextActionArea
+        EnemyNextActionArea,
+        PlayerBlockArea,
+        PlayerPowerBoostArea
     };
 
 public:

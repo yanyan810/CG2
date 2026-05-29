@@ -1,4 +1,4 @@
-﻿#include "../FieldUi.h"
+#include "../FieldUi.h"
 #include "GameApp.h"
 #include "TextSprite.h"
 #include "Sprite.h"
@@ -89,6 +89,7 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		}
 
 		// 選択肢まわりの背景だけ残す
+		if (!battle.IsPokerQuickPreviewVisible()) {
 		if (pokerOptionCount_ == 3) {
 			if (pokerActivateDescBg_) {
 				pokerActivateDescBg_->SetPosition({
@@ -232,7 +233,28 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 			pokerTitleText_->Draw();
 		}
 
-		if (pokerInfoButtonBg_) {
+		// 各ボタン上の文字
+		for (int i = 0; i < pokerOptionCount_; ++i) {
+			if (pokerOptionTexts_[i]) {
+				pokerOptionTexts_[i]->Update(view, proj);
+				pokerOptionTexts_[i]->Draw();
+			}
+		}
+
+		} // end if (!IsPokerQuickPreviewVisible)
+
+		if (battle.IsPokerQuickPreviewVisible()) {
+			if (modalOverlayBg_) {
+				modalOverlayBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.7f });
+				modalOverlayBg_->Update(view, proj);
+				modalOverlayBg_->Draw();
+				modalOverlayBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.38f }); // Reset color
+			}
+		}
+
+		const bool pokerPreviewVisible = battle.IsPokerQuickPreviewVisible();
+
+		if (!pokerPreviewVisible && pokerInfoButtonBg_) {
 			pokerInfoButtonBg_->SetPosition({
 				pokerEffectLayout_.infoButtonRect.x,
 				pokerEffectLayout_.infoButtonRect.y
@@ -248,26 +270,13 @@ void FieldUi::Draw(GameApp& app, const BattleController& battle)
 		}
 
 		// 右上の「特殊効果一覧」
-		if (pokerInfoButtonText_) {
+		if (!pokerPreviewVisible && pokerInfoButtonText_) {
 			pokerInfoButtonText_->Update(view, proj);
 			pokerInfoButtonText_->Draw();
-		}
-
-		if (pokerInfoButtonText_) {
-			pokerInfoButtonText_->Update(view, proj);
-			pokerInfoButtonText_->Draw();
-		}
-
-		// 各ボタン上の文字
-		for (int i = 0; i < pokerOptionCount_; ++i) {
-			if (pokerOptionTexts_[i]) {
-				pokerOptionTexts_[i]->Update(view, proj);
-				pokerOptionTexts_[i]->Draw();
-			}
 		}
 
 		// プレビューパネル
-		if (battle.IsPokerQuickPreviewVisible()) {
+		if (pokerPreviewVisible) {
 			if (pokerPreviewBg_) {
 				pokerPreviewBg_->SetPosition({
 					pokerEffectLayout_.previewPanelBg.x,

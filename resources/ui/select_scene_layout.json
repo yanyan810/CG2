@@ -2,8 +2,8 @@
     "backButtonRect": {
         "h": 93.0,
         "w": 240.0,
-        "x": 58.0,
-        "y": 23.0
+        "x": -14.0,
+        "y": 57.0
     },
     "battleButtonRect": {
         "h": 120.0,
@@ -11,11 +11,103 @@
         "x": 476.0,
         "y": 440.0
     },
+    "bgCardLayout": {
+        "basePosX": 0.0,
+        "basePosY": 5.0,
+        "basePosZ": 10.0,
+        "colorB": 0.30000001192092896,
+        "colorG": 0.30000001192092896,
+        "colorR": 0.30000001192092896,
+        "cols": 6,
+        "rotX": 0.0,
+        "rotY": 0.0,
+        "rotZ": 0.0,
+        "scaleX": 0.25,
+        "scaleY": 0.25,
+        "scaleZ": 0.25,
+        "scrollSpeed": 1.0,
+        "spacingX": 1.5,
+        "spacingY": 2.0,
+        "spacingZ": 0.0
+    },
+    "bottomBgLayout": {
+        "baseFieldPosX": 0.0,
+        "baseFieldPosY": -9.5,
+        "baseFieldPosZ": 0.0,
+        "baseFieldRotX": 0.0,
+        "baseFieldRotY": 0.0,
+        "baseFieldRotZ": 0.0,
+        "baseFieldScaleX": 1.0,
+        "baseFieldScaleY": 1.0,
+        "baseFieldScaleZ": 1.0,
+        "buttonBgColorA": 0.5,
+        "buttonBgColorB": 1.0,
+        "buttonBgColorG": 1.0,
+        "buttonBgColorR": 1.0,
+        "buttonBgPosX": 640.0,
+        "buttonBgPosY": 600.0,
+        "buttonBgScaleX": 1280.0,
+        "buttonBgScaleY": 200.0,
+        "showBaseField": true,
+        "showButtonBg": false
+    },
     "deckEditButtonRect": {
         "h": 120.0,
         "w": 300.0,
         "x": 860.0,
         "y": 440.0
+    },
+    "deckEditTransform": {
+        "posX": 0.0,
+        "posY": 1.100000023841858,
+        "posZ": 26.100000381469727,
+        "rotX": 0.0,
+        "rotY": 3.200000047683716,
+        "rotZ": 0.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+    },
+    "fhCardLayout": {
+        "archHeight": 0.0,
+        "basePosX": -1.100000023841858,
+        "basePosY": 3.299999952316284,
+        "basePosZ": -2.0,
+        "colorB": 0.20000000298023224,
+        "colorG": 0.20000000298023224,
+        "colorR": 1.0,
+        "fanAngle": 0.0,
+        "rotX": 0.0,
+        "rotY": -0.44999998807907104,
+        "rotZ": 0.0,
+        "scaleX": 0.10000000149011612,
+        "scaleY": 0.10000000149011612,
+        "scaleZ": 0.10000000149011612,
+        "spacingX": 0.5,
+        "spacingY": 0.0,
+        "spacingZ": 0.009999999776482582
+    },
+    "stageSelectGroundTransform": {
+        "posX": -2.5999999046325684,
+        "posY": 1.399999976158142,
+        "posZ": 32.20000076293945,
+        "rotX": -0.11999999731779099,
+        "rotY": 0.07000000029802322,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+    },
+    "stageSelectTransform": {
+        "posX": -9.5,
+        "posY": 3.0999999046325684,
+        "posZ": 53.5,
+        "rotX": 0.0,
+        "rotY": 3.759999990463257,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
     },
     "titleBoxRect": {
         "h": 119.0,
@@ -28,5 +120,27 @@
         "w": 300.0,
         "x": 115.0,
         "y": 440.0
+    },
+    "tutorialFieldTransform": {
+        "posX": 0.0,
+        "posY": 1.600000023841858,
+        "posZ": 0.0,
+        "rotX": 0.0,
+        "rotY": -0.1599999964237213,
+        "rotZ": 0.0,
+        "scaleX": 0.6000000238418579,
+        "scaleY": 0.6000000238418579,
+        "scaleZ": 0.6000000238418579
+    },
+    "tutorialTransform": {
+        "posX": 2.799999952316284,
+        "posY": 1.7000000476837158,
+        "posZ": 8.699999809265137,
+        "rotX": 0.0,
+        "rotY": -1.8300000429153442,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
     }
 }

@@ -490,7 +490,8 @@ void GameApp::BuildStartupLoadSteps_()
 		"resources/ui/stage_select/button_tutorial.png",
 		"resources/ui/stage_select/button_battle.png",
 		"resources/ui/stage_select/button_deckEdit.png",
-		"resources/ui/stage_select/desc_bg.png"
+		"resources/ui/stage_select/desc_bg.png",
+		"resources/SelectScene/bord.png"
 	};
 
 	for (const std::string& path : texturePaths) {
@@ -510,7 +511,14 @@ void GameApp::BuildStartupLoadSteps_()
 		"cards/models/5.obj",
 		"cards/models/art_plane.obj",
 		"cards/models/frame.obj",
-		"triangleParticle.obj"
+		"triangleParticle.obj",
+		"SelectScene/tutorial.obj",
+		"SelectScene/stageSelect_Player.obj",
+		"SelectScene/deck_Question_Player.obj",
+		"Field/TutolialField/tutorial.obj",
+		"Field/ForestField/glassField.obj",
+		"Field/field.obj",
+		"SelectScene/deck_Question_Player.obj"
 	};
 
 	for (const std::string& path : modelPaths) {
@@ -632,6 +640,7 @@ void GameApp::WarmupAssets_() {
 	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/button_battle.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/button_deckEdit.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/desc_bg.png");
+	TextureManager::GetInstance()->LoadTexture("resources/SelectScene/bord.png");
 
 	// モデル初回読み込み
 	ModelManager::GetInstance()->LoadModel("human/walk.gltf");
@@ -648,6 +657,9 @@ void GameApp::WarmupAssets_() {
 	ModelManager::GetInstance()->LoadModel("cards/models/art_plane.obj");
 	ModelManager::GetInstance()->LoadModel("cards/models/frame.obj");
 	ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
+	ModelManager::GetInstance()->LoadModel("SelectScene/tutorial.obj");
+	ModelManager::GetInstance()->LoadModel("SelectScene/stageSelect_Player.obj");
+	ModelManager::GetInstance()->LoadModel("SelectScene/deck_Question_Player.obj");
 
 	// パーティクルの全エフェクト自動ロード
 	ParticleManager::GetInstance()->LoadAllEffects();

@@ -696,6 +696,10 @@ void FieldUi::Initialize(GameApp& app)
 	pokerTitleText_ = std::make_unique<TextSprite>();
 	pokerTitleText_->Initialize(app.SpriteCom(), app.Dx());
 
+	pokerInfoButtonBg_ = std::make_unique<Sprite>();
+	pokerInfoButtonBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	pokerInfoButtonBg_->SetColor({ 0.0f, 0.0f, 0.0f, 0.78f });
+
 	pokerInfoButtonText_ = std::make_unique<TextSprite>();
 	pokerInfoButtonText_->Initialize(app.SpriteCom(), app.Dx());
 

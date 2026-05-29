@@ -537,6 +537,8 @@ struct TutorialUiLayout {
     UiRect fieldArea;
 
     UiRect playerHpArea;
+    UiRect playerBlockArea;
+    UiRect playerPowerBoostArea;
     UiRect enemyHpArea;
     UiRect turnTextArea;
     UiRect roleTextArea;
@@ -568,7 +570,9 @@ inline TutorialUiLayout MakeDefaultTutorialUiLayout()
     l.roleTextArea = { 900.0f, 530.0f, 360.0f, 120.0f };
     l.deckCountArea = { 80.0f, 700.0f, 340.0f, 140.0f };
 
-    l .playerHpArea = { 80.0f, 30.0f, 251.0f, 29.0f };
+    l.playerHpArea = { 80.0f, 30.0f, 251.0f, 29.0f };
+    l.playerBlockArea = { 425.0f, 2.0f, 64.0f, 64.0f };
+    l.playerPowerBoostArea = { 496.0f, 8.0f, 56.0f, 56.0f };
     l.playerIncomingDamageArea = { 320.0f, 20.0f, 90.0f, 60.0f };
 
     l.enemyHpArea = { 997.0f, 30.0f, 208.0f, 31.0f };
