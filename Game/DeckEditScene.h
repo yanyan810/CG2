@@ -68,7 +68,7 @@ private:
     std::unique_ptr<Sprite> cardPreviewBg_;
     std::unique_ptr<TextSprite> cardPreviewText_;
 
-    std::unique_ptr<Sprite> selectingTemplateDeckBg_ = nullptr;
+    std::unique_ptr<Sprite> baseBg_ = nullptr;
     std::vector<std::unique_ptr<Button>> deckTemplateButtons_;
 
     bool isSelectingTemplateDeck_ = false;
