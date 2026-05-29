@@ -85,6 +85,8 @@ void GameLoadingScene::OnEnter(GameApp& app)
 		app.BeginStartupLoading();
 	} else if (mode_ == GameApp::LoadingMode::SelectToStageSelect) {
 		BuildStageSelectLoadSteps_(app);
+	} else if (mode_ == GameApp::LoadingMode::SelectToTutorial) {
+		BuildTutorialLoadSteps_(app);
 	} else {
 		BuildStageInfo_(app);
 		BuildStageLoadSteps_(app);
@@ -456,6 +458,24 @@ void GameLoadingScene::BuildStageSelectLoadSteps_(GameApp& app)
 	}
 }
 
+void GameLoadingScene::BuildTutorialLoadSteps_(GameApp& app)
+{
+	(void)app;
+
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/ui/white.png");
+		});
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/circle.png");
+		});
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Powerup_UI.png");
+		});
+	stageLoadSteps_.push_back([]() {
+		TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Defense_UI.png");
+		});
+}
+
 void GameLoadingScene::BuildStageLoadSteps_(GameApp& app)
 {
 	std::unordered_set<std::string> seen;
@@ -548,6 +568,14 @@ void GameLoadingScene::UpdateText_()
 			text += L"/";
 			text += std::to_wstring(stageLoadSteps_.size());
 		}
+	} else if (mode_ == GameApp::LoadingMode::SelectToTutorial) {
+		text = loadComplete_ ? L"READY" : L"LOADING TUTORIAL" + std::wstring(static_cast<size_t>(dotCount), L'.');
+		if (!stageLoadSteps_.empty()) {
+			text += L" ";
+			text += std::to_wstring((std::min)(loadIndex_, stageLoadSteps_.size()));
+			text += L"/";
+			text += std::to_wstring(stageLoadSteps_.size());
+		}
 	}
 	loadingText_->SetText(text);
 }
@@ -625,6 +653,11 @@ void GameLoadingScene::Update(GameApp& app, float dt)
 
 	if (mode_ == GameApp::LoadingMode::SelectToStageSelect) {
 		RequestChangeScene_("StageSelect");
+		return;
+	}
+
+	if (mode_ == GameApp::LoadingMode::SelectToTutorial) {
+		RequestChangeScene_("Tutorial");
 		return;
 	}
 

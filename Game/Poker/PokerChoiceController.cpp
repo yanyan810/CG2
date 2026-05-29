@@ -22,14 +22,14 @@ PokerChoiceController::HoverResult PokerChoiceController::ResolveActivateHover(
 		return { Choice::None, true };
 	}
 
-	if (tutorialActivateOnly) {
-		return { Choice::ActivateYes, false };
-	}
-
 	if (PointInRect_(mouseX, mouseY,
 		layout.activateYesRect.x, layout.activateYesRect.y,
 		layout.activateYesRect.w, layout.activateYesRect.h)) {
 		return { Choice::ActivateYes, false };
+	}
+
+	if (tutorialActivateOnly) {
+		return {};
 	}
 
 	if (PointInRect_(mouseX, mouseY,
@@ -96,19 +96,21 @@ PokerChoiceController::HoverResult PokerChoiceController::ResolveEffectHover(
 		return { Choice::None, true };
 	}
 
-	if (tutorialDamageOnly) {
-		return { Choice::EffectDamage, false };
-	}
-
 	if (PointInRect_(mouseX, mouseY,
 		layout.backRect.x, layout.backRect.y,
 		layout.backRect.w, layout.backRect.h)) {
+		if (tutorialDamageOnly) {
+			return {};
+		}
 		return { Choice::EffectBack, false };
 	}
 
 	if (PointInRect_(mouseX, mouseY,
 		layout.effectRects[0].x, layout.effectRects[0].y,
 		layout.effectRects[0].w, layout.effectRects[0].h)) {
+		if (tutorialDamageOnly) {
+			return {};
+		}
 		return { Choice::EffectAtkUp, false };
 	}
 
@@ -121,12 +123,18 @@ PokerChoiceController::HoverResult PokerChoiceController::ResolveEffectHover(
 	if (PointInRect_(mouseX, mouseY,
 		layout.effectRects[2].x, layout.effectRects[2].y,
 		layout.effectRects[2].w, layout.effectRects[2].h)) {
+		if (tutorialDamageOnly) {
+			return {};
+		}
 		return { Choice::EffectDraw, false };
 	}
 
 	if (PointInRect_(mouseX, mouseY,
 		layout.effectViewBoardRect.x, layout.effectViewBoardRect.y,
 		layout.effectViewBoardRect.w, layout.effectViewBoardRect.h)) {
+		if (tutorialDamageOnly) {
+			return {};
+		}
 		return { Choice::EffectViewBoard, false };
 	}
 

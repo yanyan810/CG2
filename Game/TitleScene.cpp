@@ -111,8 +111,8 @@ void TitleScene::OnEnter(GameApp& app) {
 	titleLogo_ = std::make_unique<Sprite>();
 	titleLogo_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/text/resonance_title.png");
 	titleLogo_->SetAnchorPoint({ 0.0f, 0.0f });
-	titleLogo_->SetPosition({ 150.0f, 100.0f }); // あとでImGuiで調整可能
-	titleLogo_->SetScale({ 1.0f, 1.0f, 1.0f });
+	titleLogo_->SetPosition({ -20.0f, 20.0f }); // あとでImGuiで調整可能
+	titleLogo_->SetScale({ 1.5f, 1.5f, 1.5f });
 	titleLogo_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 
 	//--------------------------------------------------------
@@ -206,7 +206,8 @@ void TitleScene::Update(GameApp& app, float dt) {
 
 		if (tutorialTrig) {
 			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			RequestChangeScene_("Tutorial");
+			app.SetLoadingMode(GameApp::LoadingMode::SelectToTutorial);
+			RequestChangeScene_("GameLoading");
 			return;
 		}
 

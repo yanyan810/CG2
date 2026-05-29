@@ -212,6 +212,14 @@ std::vector<UiRect> TutorialUi::ResolveFocusRects_(
         rects.push_back(layout_.playerHpArea);
         break;
 
+    case Focus::PlayerBlockArea:
+        rects.push_back(layout_.playerBlockArea);
+        break;
+
+    case Focus::PlayerPowerBoostArea:
+        rects.push_back(layout_.playerPowerBoostArea);
+        break;
+
     case Focus::EnemyHpArea:
         rects.push_back(layout_.enemyHpArea);
         break;
@@ -582,6 +590,8 @@ bool TutorialUi::SaveLayout(const std::string& path) const
     writeRect(j["handArea"], layout_.handArea);
     writeRect(j["fieldArea"], layout_.fieldArea);
     writeRect(j["playerHpArea"], layout_.playerHpArea);
+    writeRect(j["playerBlockArea"], layout_.playerBlockArea);
+    writeRect(j["playerPowerBoostArea"], layout_.playerPowerBoostArea);
     writeRect(j["enemyHpArea"], layout_.enemyHpArea);
     writeRect(j["turnTextArea"], layout_.turnTextArea);
     writeRect(j["roleTextArea"], layout_.roleTextArea);
@@ -673,6 +683,8 @@ bool TutorialUi::LoadLayout(const std::string& path)
     if (j.contains("handArea")) readRect(j["handArea"], layout_.handArea);
     if (j.contains("fieldArea")) readRect(j["fieldArea"], layout_.fieldArea);
     if (j.contains("playerHpArea")) readRect(j["playerHpArea"], layout_.playerHpArea);
+    if (j.contains("playerBlockArea")) readRect(j["playerBlockArea"], layout_.playerBlockArea);
+    if (j.contains("playerPowerBoostArea")) readRect(j["playerPowerBoostArea"], layout_.playerPowerBoostArea);
     if (j.contains("enemyHpArea")) readRect(j["enemyHpArea"], layout_.enemyHpArea);
     if (j.contains("turnTextArea")) readRect(j["turnTextArea"], layout_.turnTextArea);
     if (j.contains("roleTextArea")) readRect(j["roleTextArea"], layout_.roleTextArea);
@@ -781,6 +793,8 @@ void TutorialUi::DrawImGui(TutorialManager& tutorial)
     ImGui::DragFloat4("fieldArea", &layout_.fieldArea.x, 1.0f);
 
     ImGui::DragFloat4("playerHpArea", &layout_.playerHpArea.x, 1.0f);
+    ImGui::DragFloat4("playerBlockArea", &layout_.playerBlockArea.x, 1.0f);
+    ImGui::DragFloat4("playerPowerBoostArea", &layout_.playerPowerBoostArea.x, 1.0f);
     ImGui::DragFloat4("enemyHpArea", &layout_.enemyHpArea.x, 1.0f);
     ImGui::DragFloat4("turnTextArea", &layout_.turnTextArea.x, 1.0f);
     ImGui::DragFloat4("roleTextArea", &layout_.roleTextArea.x, 1.0f);

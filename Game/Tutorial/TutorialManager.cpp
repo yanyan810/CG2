@@ -42,6 +42,8 @@ std::string TutorialManager::WStringToUtf8(const std::wstring& s) {
 const char* TutorialManager::StepToKey_(TutorialStep step) {
 	switch (step) {
 	case TutorialStep::Intro: return "Intro";
+	case TutorialStep::UiPlayerBlock: return "UiPlayerBlock";
+	case TutorialStep::UiPlayerPowerBoost: return "UiPlayerPowerBoost";
 	case TutorialStep::HoverHand: return "HoverHand";
 	case TutorialStep::ExplainCardCost: return "ExplainCardCost";
 	case TutorialStep::ExplainCardSuit: return "ExplainCardSuit";
@@ -507,6 +509,14 @@ void TutorialManager::UpdateMessage_() {
 		message_ = L"左上があなたのHPです\n0になると負けになります";
 		break;
 
+	case TutorialStep::UiPlayerBlock:
+		message_ = L"HP\u306e\u6a2a\u306e\u76fe\u306f\u30d6\u30ed\u30c3\u30af\u3067\u3059\n\u6575\u304b\u3089\u53d7\u3051\u308b\u30c0\u30e1\u30fc\u30b8\u3092\u6e1b\u3089\u3057\u307e\u3059";
+		break;
+
+	case TutorialStep::UiPlayerPowerBoost:
+		message_ = L"HP\u306e\u6a2a\u306e\u5251\u306f\u653b\u6483\u529b\u30a2\u30c3\u30d7\u3067\u3059\n\u6b21\u306e\u653b\u6483\u30c0\u30e1\u30fc\u30b8\u304c\u5897\u3048\u307e\u3059";
+		break;
+
 	case TutorialStep::UiEnemyIntentDamage:
 		message_ = L"この赤い表示がある場合は予告ダメージです\n次の敵ターンで受けるダメージです";
 		break;
@@ -603,6 +613,12 @@ TutorialManager::FocusType TutorialManager::GetFocusType() const {
 	case TutorialStep::UiPlayerHp:
 		return FocusType::PlayerHpArea;
 
+	case TutorialStep::UiPlayerBlock:
+		return FocusType::PlayerBlockArea;
+
+	case TutorialStep::UiPlayerPowerBoost:
+		return FocusType::PlayerPowerBoostArea;
+
 	case TutorialStep::UiEnemyHp:
 		return FocusType::EnemyHpArea;
 
@@ -652,6 +668,8 @@ bool TutorialManager::ReloadMessages() {
 bool TutorialManager::IsUiExplanationStep() const {
 	switch (step_) {
 	case TutorialStep::UiPlayerHp:
+	case TutorialStep::UiPlayerBlock:
+	case TutorialStep::UiPlayerPowerBoost:
 	case TutorialStep::UiEnemyHp:
 	case TutorialStep::UiTurnText:
 	case TutorialStep::UiHand:

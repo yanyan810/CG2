@@ -33,6 +33,8 @@ namespace {
     constexpr TutorialManager::TutorialStep kEditableTutorialSteps[] = {
         TutorialManager::TutorialStep::Intro,
         TutorialManager::TutorialStep::UiPlayerHp,
+        TutorialManager::TutorialStep::UiPlayerBlock,
+        TutorialManager::TutorialStep::UiPlayerPowerBoost,
         TutorialManager::TutorialStep::UiEnemyIntentDamage,
         TutorialManager::TutorialStep::UiEnemyHp,
         TutorialManager::TutorialStep::UiEnemyNextAction,
@@ -437,7 +439,7 @@ void TutorialScene::OnEnter(GameApp& app) {
     state_ = State::EnterOpen;
     circle_ = 0.0f;
     softness_ = 0.6f;
-    nextSceneName_ = "StageSelect";
+    nextSceneName_ = "Select";
     prevEsc_ = false;
     lastTutorialStep_ = TutorialManager::TutorialStep::Intro;
     cardExplainInputBlockTimer_ = 0.0f;
@@ -589,7 +591,7 @@ void TutorialScene::OnEnter(GameApp& app) {
     state_ = State::EnterOpen;
     circle_ = 0.0f;
     softness_ = 0.6f;
-    nextSceneName_ = "StageSelect";
+    nextSceneName_ = "Select";
     prevEsc_ = false;
 }
 void TutorialScene::OnExit(GameApp& app) {
@@ -904,6 +906,8 @@ void TutorialScene::Update(GameApp& app, float dt) {
                 step == Step::SkipPokerContinueTurn ||
                 step == Step::EndAfterPoker ||
                 step == Step::UiPlayerHp ||
+                step == Step::UiPlayerBlock ||
+                step == Step::UiPlayerPowerBoost ||
                 step == Step::UiEnemyHp ||
                 step == Step::UiTurnText ||
                 step == Step::UiHand ||
@@ -918,8 +922,8 @@ void TutorialScene::Update(GameApp& app, float dt) {
                 step == Step::ExplainCardAll)) {
                 tutorial_->NextStep();
             } else if (nextTutorial && step == Step::Finished) {
-                ShowTutorialMenu_(0);
-                InitializeTutorialMenu_(app);
+                nextSceneName_ = "Select";
+                state_ = State::ExitClose;
                 return;
             }
         }

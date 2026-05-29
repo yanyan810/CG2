@@ -37,6 +37,7 @@ public:
     enum class LoadingMode {
         BootToTitle,
         SelectToStageSelect,
+        SelectToTutorial,
         StageToGame,
     };
 

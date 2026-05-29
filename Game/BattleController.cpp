@@ -2909,6 +2909,8 @@ void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse,
 		tutorialActivateOnly_);
 	const auto& hover = decision.hover;
 
+	pokerQuickPreviewVisible_ = hover.infoHovered;
+
 	if (hover.infoHovered) {
 		pokerMouseChoice_ = PokerMouseChoice::None;
 	} else if (hover.choice != PokerChoiceController::Choice::None) {
@@ -2917,7 +2919,6 @@ void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse,
 
 	switch (decision.action) {
 	case PokerChoiceController::ActivateAction::ToggleInfo:
-		pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
 		return;
 
 	case PokerChoiceController::ActivateAction::Activate:
@@ -2951,9 +2952,6 @@ void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse,
 		break;
 	}
 
-	if (tutorialActivateOnly_ && !hover.infoHovered) {
-		pokerMouseChoice_ = PokerMouseChoice::ActivateYes;
-	}
 }
 
 void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool nTrig)
@@ -2976,6 +2974,8 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 		tutorialDamageOnly_);
 	const auto& hover = decision.hover;
 
+	pokerQuickPreviewVisible_ = hover.infoHovered;
+
 	if (hover.infoHovered) {
 		pokerMouseChoice_ = PokerMouseChoice::None;
 	} else {
@@ -2984,7 +2984,6 @@ void BattleController::HandlePokerEffectChoice_(FieldUi& fieldUi, POINT mouse, b
 
 	switch (decision.action) {
 	case PokerChoiceController::EffectAction::ToggleInfo:
-		pokerQuickPreviewVisible_ = !pokerQuickPreviewVisible_;
 		return;
 
 	case PokerChoiceController::EffectAction::AtkUp:
