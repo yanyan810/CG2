@@ -1365,17 +1365,16 @@ void GameScene::Draw3D(GameApp& app) {
 	} else {
 		enemyMgr_.Draw();
 	}
-	if (particleManager_) {
-		particleManager_->Draw();
-		app.ObjCom()->SetGraphicsPipelineState();
+	DrawBattleModelParticles_(app);
+	if (effectSequencer_) {
+		effectSequencer_->Draw();
+		effectSequencer_->DrawPostEffect(app);
 	}
-	if (debugParticleManager_) {
-		debugParticleManager_->Draw();
-		app.ObjCom()->SetGraphicsPipelineState();
+	if (player_) {
+		player_->DrawPostEffect(app);
 	}
-	if (poisonParticleManager_) {
-		poisonParticleManager_->Draw();
-		app.ObjCom()->SetGraphicsPipelineState();
+	if (trailManager_) {
+		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());
 	}
 	enemyMgr_.DrawShieldBloom(app);
 	if (player_) {
@@ -1909,6 +1908,25 @@ void GameScene::DrawSkydome(GameApp& app)
 	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
 
+void GameScene::DrawBattleModelParticles_(GameApp& app)
+{
+	auto drawParticles = [&](ModelParticleManager* manager) {
+		if (!manager) {
+			return;
+		}
+		if (particleObjectPostEnabled_) {
+			app.DrawModelParticlesObjectPost(manager, particleObjectPostParam_);
+		} else {
+			manager->Draw();
+			app.ObjCom()->SetGraphicsPipelineState();
+		}
+	};
+
+	drawParticles(particleManager_);
+	drawParticles(debugParticleManager_.get());
+	drawParticles(poisonParticleManager_.get());
+}
+
 void GameScene::DrawPostEffect3D(GameApp& app)
 {
 	int windowW = WinApp::kClientWidth;
@@ -1916,39 +1934,7 @@ void GameScene::DrawPostEffect3D(GameApp& app)
 	int battleHeight = battle_.IsActionSequencePlaying() ? windowH : static_cast<int>(windowH * splitRatio_);
 	app.Dx()->SetViewport(0, 0, windowW, windowH);
 	app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
-
-	if (particleObjectPostEnabled_) {
-		app.DrawModelParticlesObjectPostToBloomScene(particleManager_, particleObjectPostParam_);
-		if (debugParticleManager_) {
-			app.DrawModelParticlesObjectPostToBloomScene(debugParticleManager_.get(), particleObjectPostParam_);
-		}
-		if (poisonParticleManager_) {
-			app.DrawModelParticlesObjectPostToBloomScene(poisonParticleManager_.get(), particleObjectPostParam_);
-		}
-		app.Dx()->SetScissorRect(0, 0, windowW, battleHeight);
-	} else {
-		particleManager_->Draw();
-		if (debugParticleManager_) {
-			debugParticleManager_->Draw();
-		}
-		if (poisonParticleManager_) {
-			poisonParticleManager_->Draw();
-		}
-	}
 	app.ObjCom()->SetGraphicsPipelineState();
-
-	// エフェクトシーケンサーの弾を描画
-	if (effectSequencer_) {
-		effectSequencer_->Draw();
-		effectSequencer_->DrawPostEffect(app);
-	}
-	if (player_) {
-		player_->DrawPostEffect(app);
-	}
-
-	if (trailManager_) {
-		trailManager_->DrawAll(animCamera_->GetViewProjectionMatrix());
-	}
 
 	app.Dx()->SetScissorRect(0, 0, windowW, windowH);
 }
@@ -1962,7 +1948,7 @@ void GameScene::ResetParticleObjectPostParam_()
 {
 	particleObjectPostParam_ = {};
 	particleObjectPostParam_.threshold = 0.0f;
-	particleObjectPostParam_.intensity = 1.7f;
+	particleObjectPostParam_.intensity = 1.25f;
 	particleObjectPostParam_.vignetteIntensity = 0.0f;
 	particleObjectPostParam_.vignetteScale = 0.0f;
 	particleObjectPostParam_.distortionAmount = 0.0f;

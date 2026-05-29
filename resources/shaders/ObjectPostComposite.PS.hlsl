@@ -127,7 +127,9 @@ float4 main(PSInput input) : SV_TARGET
     bloomColor.b = bloomTex.Sample(samp, uv - shift).b;
     bloomColor.a = bloomTex.Sample(samp, uv).a;
 
-    float alpha = saturate(max(objectColor.a, bloomColor.a));
+    float objectEnergy = max(max(objectColor.r, objectColor.g), objectColor.b);
+    float bloomEnergy = max(max(bloomColor.r, bloomColor.g), bloomColor.b);
+    float alpha = saturate(max(max(objectColor.a, bloomColor.a), max(objectEnergy, bloomEnergy)));
 
     if (dissolveAmount >= 0.0f)
     {
@@ -140,6 +142,8 @@ float4 main(PSInput input) : SV_TARGET
         objectColor.rgb = lerp(objectColor.rgb, dissolveEdgeColor.rgb * dissolveEdgeIntensity, edge);
         bloomColor.rgb += dissolveEdgeColor.rgb * edge * dissolveEdgeIntensity;
         alpha *= keep;
+        objectColor.rgb *= keep;
+        bloomColor.rgb *= keep;
     }
 
     if (alpha <= 0.001f)
@@ -154,5 +158,6 @@ float4 main(PSInput input) : SV_TARGET
     float dist = length((input.uv * 2.0f - 1.0f) * 0.5f);
     result *= pow(saturate(1.0f - dist * vignetteIntensity * vignetteScale), 0.8f);
 
-    return float4(result * alpha, alpha);
+    float coverage = saturate(max(alpha, max(max(result.r, result.g), result.b)));
+    return float4(result, coverage);
 }

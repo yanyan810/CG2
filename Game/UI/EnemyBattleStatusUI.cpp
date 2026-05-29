@@ -389,7 +389,7 @@ void EnemyBattleStatusUI::DrawGaugeBloom(
 {
 	const BloomParam baseParam = app.ObjectPost()->GetParam();
 	const BloomParam hpParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity);
-	const BloomParam shieldParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity * 1.15f);
+	const BloomParam shieldParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity * 0.72f);
 
 	for (size_t i = 0; i < displayEnemyIndices_.size(); ++i) {
 		if (i >= hpGauges_.size() || !hpGauges_[i]) {
@@ -413,7 +413,7 @@ void EnemyBattleStatusUI::DrawGaugeBloom(
 		Sprite::HealthGaugeParam gauge{};
 		gauge.hpColor = { 1.0f, 0.20f, 0.18f, 0.54f };
 		gauge.damageColor = { 1.0f, 0.55f, 0.08f, 0.54f };
-		gauge.shieldColor = { 0.18f, 0.48f, 1.0f, 0.48f };
+		gauge.shieldColor = { 0.15f, 0.42f, 1.0f, 0.28f };
 		gauge.bgColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 		gauge.borderColor = { 0.94f, 0.92f, 0.82f, 0.35f };
 		gauge.shadowColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -425,8 +425,8 @@ void EnemyBattleStatusUI::DrawGaugeBloom(
 		gauge.skew = 0.045f;
 		gauge.borderWidth = 0.035f;
 		gauge.blink = 0.0f;
-		gauge.glow = 0.08f;
-		gauge.alpha = 0.32f;
+		gauge.glow = 0.045f;
+		gauge.alpha = 0.24f;
 		DrawHealthGaugeBloom_(app, hpGauges_[i].get(), gauge, view, proj, shieldEnd > hpRatio ? shieldParam : hpParam, 1.01f);
 	}
 }

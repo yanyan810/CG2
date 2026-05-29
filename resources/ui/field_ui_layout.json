@@ -352,7 +352,7 @@
         "postChromAbAmount": 0.0,
         "postDistortionAmount": 0.0,
         "postEffectEnabled": true,
-        "postIntensity": 2.200000047683716,
+        "postIntensity": 1.25,
         "postNoiseIntensity": 0.0,
         "postThreshold": 0.0
     },

@@ -1441,7 +1441,7 @@ void TutorialScene::ResetParticleObjectPostParam_()
 {
     particleObjectPostParam_ = {};
     particleObjectPostParam_.threshold = 0.0f;
-    particleObjectPostParam_.intensity = 1.7f;
+    particleObjectPostParam_.intensity = 1.25f;
     particleObjectPostParam_.vignetteIntensity = 0.0f;
     particleObjectPostParam_.vignetteScale = 0.0f;
     particleObjectPostParam_.distortionAmount = 0.0f;
