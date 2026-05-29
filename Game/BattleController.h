@@ -327,6 +327,7 @@ private:
 	ModelParticleManager* fieldParticleManager_ = nullptr;
 	ModelParticleManager* battleParticleManager_ = nullptr;
 	std::vector<float> poisonIdleEffectTimers_;
+	std::vector<float> frostIdleEffectTimers_;
 
 	//キー用
 	bool prevY_ = false;
@@ -518,6 +519,9 @@ private:
 	void EmitHandCardGlitter_(float dt);
 	void EmitPoisonAppliedEffect_(Enemy& enemy, int poisonPoint);
 	void UpdatePoisonIdleEffects_(float dt);
+	void EmitFrostAppliedEffect_(Enemy& enemy, int frostPoint, bool playCastAnim = true);
+	void UpdateFrostIdleEffects_(float dt);
+	Vector3 CalcStatusEffectEmitPos_(const Enemy& enemy, float heightOffset) const;
 	uint64_t BuildHandPokerPreviewSignature_() const;
 	bool IsTutorialForcedCardActive_() const;
 	bool IsTutorialForcedCardAllowed_(int handIndex) const;

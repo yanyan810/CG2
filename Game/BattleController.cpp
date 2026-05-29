@@ -31,6 +31,7 @@
 #include "Card/CardEffectExecutor.h"
 #include "FieldUi.h"
 #include "Audio/BattleSfxPlayer.h"
+#include "Camera.h"
 #include "ModelParticleManager.h"
 #include "Poker/PokerChoiceQuery.h"
 #include "Poker/PokerChoiceController.h"
@@ -68,6 +69,9 @@ namespace {
 	float sPlayerBlockTurnDecayRate = 0.35f;
 	int sFrostBurstThreshold = 15;
 	int sFrostBurstMultiplier = 3;
+	float sStatusEffectApplyHeight = 1.35f;
+	float sStatusEffectIdleHeight = 1.28f;
+	float sStatusEffectCameraForwardOffset = 0.65f;
 
 	float EffectValueFloat_(const CardEffectDef& effect)
 	{
@@ -724,6 +728,7 @@ void BattleController::ApplyFrostBiteToEnemyIfActive_(Enemy& enemy)
 	if (player_ && player_->GetFrostBiteActive()) {
 		enemy.SetBC(Enemy::BadCondition::kFrost);
 		enemy.AddBC(1);
+		EmitFrostAppliedEffect_(enemy, 1, false);
 	}
 }
 
@@ -1033,12 +1038,14 @@ void BattleController::ApplyFrostEffect_(const CardEffectDef& effect, int target
 			if (e.IsAlive()) {
 				e.SetBC(Enemy::BadCondition::kFrost);
 				e.AddBC(effect.value);
+				EmitFrostAppliedEffect_(e, effect.value);
 			}
 		} else {
 			for (auto& e : enemyMgr_->GetEnemies()) {
 				if (e.IsAlive()) {
 					e.SetBC(Enemy::BadCondition::kFrost);
 					e.AddBC(effect.value);
+					EmitFrostAppliedEffect_(e, effect.value);
 					break;
 				}
 			}
@@ -1051,6 +1058,13 @@ void BattleController::ApplyFrostAllEffect_(const CardEffectDef& effect)
 	CardEffectExecutor::Context context;
 	context.enemyMgr = enemyMgr_;
 	CardEffectExecutor::ApplyFrostAll(context, effect);
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
+				EmitFrostAppliedEffect_(e, effect.value);
+			}
+		}
+	}
 }
 
 void BattleController::ApplyFrostBlockEffect_(const CardEffectDef& effect)
@@ -1066,6 +1080,13 @@ void BattleController::ApplyFrostDamageEffect_(const CardEffectDef& effect)
 	CardEffectExecutor::Context context;
 	context.enemyMgr = enemyMgr_;
 	CardEffectExecutor::ApplyFrostDamage(context, effect);
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
+				EmitFrostAppliedEffect_(e, e.GetBCPoint());
+			}
+		}
+	}
 }
 
 void BattleController::ApplyFrostSubtractEffect_(const CardEffectDef& effect)
@@ -1087,6 +1108,7 @@ void BattleController::ApplyFrostBiteEffect_(const CardEffectDef& effect)
 				if (e.IsAlive()) {
 					e.SetBC(Enemy::BadCondition::kFrost);
 					e.AddBC(effect.value);
+					EmitFrostAppliedEffect_(e, effect.value);
 				}
 			}
 		}
@@ -1098,6 +1120,13 @@ void BattleController::ApplyFrostAmplifyEffect_(const CardEffectDef& effect)
 	CardEffectExecutor::Context context;
 	context.enemyMgr = enemyMgr_;
 	CardEffectExecutor::ApplyFrostAmplify(context, effect);
+	if (enemyMgr_) {
+		for (auto& e : enemyMgr_->GetEnemies()) {
+			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kFrost) {
+				EmitFrostAppliedEffect_(e, e.GetBCPoint());
+			}
+		}
+	}
 }
 
 void BattleController::ApplyChangeNumberEffect_(const CardEffectDef& effect)
@@ -2769,6 +2798,7 @@ void BattleController::UpdateVisuals_(float dt)
 
 	if (actionOrEnemyAttack) {
 		UpdatePoisonIdleEffects_(dt);
+		UpdateFrostIdleEffects_(dt);
 		handView_.Update(dt);
 		if (discardView_) {
 			discardView_->Update(dt);
@@ -2779,6 +2809,7 @@ void BattleController::UpdateVisuals_(float dt)
 	}
 
 	UpdatePoisonIdleEffects_(dt);
+	UpdateFrostIdleEffects_(dt);
 
 	// 1. 鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ隘夜ｩ幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驍ｵ・ｺ陷･・ｲ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ髯具ｽｹ繝ｻ・ｻ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴乗・・ｽ・ｹ隴∵ｻ・ｱｪ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｷ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬯ｯ・ｨ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｲ鬯ｮ・ｯ繝ｻ・ｦ鬯ｲ繝ｻ・ｼ螟ｲ・ｽ・ｽ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
 	for (auto& cardView : fieldViews_) {
@@ -3258,6 +3289,17 @@ void BattleController::DrawImGui()
 	context.frostAction.burstMultiplier = &sFrostBurstMultiplier;
 
 	BattleDebugImGui::Draw(context);
+
+	if (ImGui::CollapsingHeader("Status Effect Particles")) {
+		ImGui::DragFloat("Apply Height", &sStatusEffectApplyHeight, 0.01f, -5.0f, 8.0f);
+		ImGui::DragFloat("Idle Height", &sStatusEffectIdleHeight, 0.01f, -5.0f, 8.0f);
+		ImGui::DragFloat("Camera Forward Offset", &sStatusEffectCameraForwardOffset, 0.01f, 0.0f, 5.0f);
+		if (ImGui::Button("Reset Status Effect Particles")) {
+			sStatusEffectApplyHeight = 1.35f;
+			sStatusEffectIdleHeight = 1.28f;
+			sStatusEffectCameraForwardOffset = 0.65f;
+		}
+	}
 }
 #endif
 
@@ -3361,6 +3403,23 @@ void BattleController::SpawnDamagePopup(const Vector3& pos, int damage, bool isP
 	damagePopupUi_.SpawnDamage(pos, damage, isPlayer);
 }
 
+Vector3 BattleController::CalcStatusEffectEmitPos_(const Enemy& enemy, float heightOffset) const
+{
+	Vector3 emitPos = enemy.GetPos() + Vector3{ 0.0f, heightOffset, 0.0f };
+	if (!cam_ || sStatusEffectCameraForwardOffset <= 0.0f) {
+		return emitPos;
+	}
+
+	const Matrix4x4& cameraWorld = cam_->GetWorldMatrix();
+	const Vector3 cameraPos{
+		cameraWorld.m[3][0],
+		cameraWorld.m[3][1],
+		cameraWorld.m[3][2],
+	};
+	const Vector3 towardCamera = Matrix4x4::Normalize(cameraPos - emitPos);
+	return emitPos + towardCamera * sStatusEffectCameraForwardOffset;
+}
+
 void BattleController::EmitPoisonAppliedEffect_(Enemy& enemy, int poisonPoint)
 {
 	if (!battleParticleManager_) {
@@ -3373,7 +3432,7 @@ void BattleController::EmitPoisonAppliedEffect_(Enemy& enemy, int poisonPoint)
 
 	const int point = std::max(1, poisonPoint);
 	const uint32_t emitCount = static_cast<uint32_t>(std::clamp(8 + point * 2, 10, 36));
-	Vector3 emitPos = enemy.GetPos() + Vector3{ 0.0f, 1.35f, 0.0f };
+	Vector3 emitPos = CalcStatusEffectEmitPos_(enemy, sStatusEffectApplyHeight);
 	battleParticleManager_->Emit("player_poison", emitPos, emitCount);
 }
 
@@ -3405,9 +3464,62 @@ void BattleController::UpdatePoisonIdleEffects_(float dt)
 		}
 
 		const uint32_t emitCount = static_cast<uint32_t>(std::clamp(1 + point / 4, 2, 10));
-		Vector3 emitPos = enemy.GetPos() + Vector3{ 0.0f, 1.25f, 0.0f };
+		Vector3 emitPos = CalcStatusEffectEmitPos_(enemy, sStatusEffectIdleHeight);
 		battleParticleManager_->Emit("player_poison", emitPos, emitCount);
 		poisonIdleEffectTimers_[i] = interval;
+	}
+}
+
+void BattleController::EmitFrostAppliedEffect_(Enemy& enemy, int frostPoint, bool playCastAnim)
+{
+	if (!battleParticleManager_) {
+		return;
+	}
+
+	if (playCastAnim && player_) {
+		player_->PlayStatusCastAnim();
+	}
+
+	const int point = std::max(1, frostPoint);
+	const uint32_t emitCount = static_cast<uint32_t>(std::clamp(6 + point * 2, 8, 34));
+	Vector3 emitPos = CalcStatusEffectEmitPos_(enemy, sStatusEffectApplyHeight);
+	battleParticleManager_->Emit("player_froze", emitPos, emitCount);
+}
+
+void BattleController::UpdateFrostIdleEffects_(float dt)
+{
+	if (!battleParticleManager_ || !enemyMgr_) {
+		return;
+	}
+
+	auto& enemies = enemyMgr_->GetEnemies();
+	if (frostIdleEffectTimers_.size() < enemies.size()) {
+		frostIdleEffectTimers_.resize(enemies.size(), 0.0f);
+	} else if (frostIdleEffectTimers_.size() > enemies.size()) {
+		frostIdleEffectTimers_.resize(enemies.size());
+	}
+
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		Enemy& enemy = enemies[i];
+		if (!enemy.IsAlive() || enemy.GetBC() != Enemy::BadCondition::kFrost || enemy.GetBCPoint() <= 0) {
+			frostIdleEffectTimers_[i] = 0.0f;
+			continue;
+		}
+
+		const int point = enemy.GetBCPoint();
+		const bool burstReady = point >= std::max(1, sFrostBurstThreshold);
+		const float minInterval = burstReady ? 0.14f : 0.25f;
+		const float interval = std::clamp(1.25f - static_cast<float>(point) * 0.04f, minInterval, 1.25f);
+		frostIdleEffectTimers_[i] -= dt;
+		if (frostIdleEffectTimers_[i] > 0.0f) {
+			continue;
+		}
+
+		const int baseCount = burstReady ? 4 + point / 3 : 1 + point / 4;
+		const uint32_t emitCount = static_cast<uint32_t>(std::clamp(baseCount, 2, burstReady ? 18 : 9));
+		Vector3 emitPos = CalcStatusEffectEmitPos_(enemy, sStatusEffectIdleHeight);
+		battleParticleManager_->Emit("player_froze", emitPos, emitCount);
+		frostIdleEffectTimers_[i] = interval;
 	}
 }
 
@@ -3702,13 +3814,14 @@ bool BattleController::ApplyFrostBeforeEnemyAction_(Enemy& enemy)
 		: frostPoint;
 	const int actualDamage = enemy.Damage(damage);
 
-	enemy.TriggerHitFlash(0.2f);
+	enemy.TriggerFrostFlash(burst ? 0.42f : 0.22f);
 	enemy.PlayDamageAnim();
 	if (actualDamage > 0) {
 		SpawnDamagePopup(enemy.GetPos(), actualDamage, false);
 	}
 
 	if (burst) {
+		EmitFrostAppliedEffect_(enemy, frostPoint, false);
 		enemy.RemoveBC();
 		return true;
 	}
