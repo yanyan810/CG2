@@ -110,6 +110,7 @@ void SelectScene::OnEnter(GameApp& app)
 			inst.suit = CardSuit::Spade;
 
 			card->SetIsPreview(true);
+			card->SetShowZeroCount(false);
 			card->SetCardData(*def, inst);
 			card->SetIsHand(false);
 			card->SetFrameColor({ bgCardColor_.x, bgCardColor_.y, bgCardColor_.z, 1.0f }); 
@@ -131,6 +132,7 @@ void SelectScene::OnEnter(GameApp& app)
 				inst.number = 1;
 				inst.suit = CardSuit::Spade;
 				card->SetIsPreview(true);
+				card->SetShowZeroCount(false);
 				card->SetCardData(*def, inst);
 				card->SetIsHand(false);
 				card->SetFrameColor({ fhCardColor_.x, fhCardColor_.y, fhCardColor_.z, 1.0f });
