@@ -89,11 +89,11 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	scrollY_ = kInitialScrollY;
 
 	// Templateデッキ選択時
-	selectingTemplateDeckBg_ = std::make_unique<Sprite>();
-	selectingTemplateDeckBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-	selectingTemplateDeckBg_->SetPosition({ 0.f, 0.f });
-	selectingTemplateDeckBg_->SetScale({ 1280.f, 720.f, 1.0f });
-	selectingTemplateDeckBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
+	baseBg_ = std::make_unique<Sprite>();
+	baseBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	baseBg_->SetPosition({ 0.f, 0.f });
+	baseBg_->SetScale({ 1280.f, 720.f, 1.0f });
+	baseBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
 
 
 	auto addButtonWithDesc = [&](const std::wstring& label, const std::string& path, Vector2 pos) {
@@ -169,17 +169,20 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 	POINT mouse = input->GetMousePosition();
 	Vector2 mousePos = { (float)mouse.x, (float)mouse.y };
 
+
+	Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
+
+
+	baseBg_->Update(view, proj);
+
+
 	for (auto& card : cardModels_) {
 		card->Update(dt);
 	}
 
 	if (isSelectingTemplateDeck_) {
 		input->SetWheel(0);
-
-		Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
-		Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
-
-		selectingTemplateDeckBg_->Update(view, proj);
 
 		bool isAnyButtonHovered = false;
 
@@ -450,7 +453,9 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 }
 
 void DeckEditScene::Draw3D(GameApp& app) {
+	if (baseBg_) baseBg_->Draw();
 	if (!isSelectingTemplateDeck_) {
+		
 		for (auto& card : cardModels_) {
 			card->Draw();
 		}
@@ -459,11 +464,10 @@ void DeckEditScene::Draw3D(GameApp& app) {
 
 void DeckEditScene::Draw2D(GameApp& app) {
 
+	
+
 	if (isSelectingTemplateDeck_) {
-		if (selectingTemplateDeckBg_) selectingTemplateDeckBg_->Draw();
-
 		
-
 		for (const auto& btn : deckTemplateButtons_) {
 			btn->Draw();
 		}
