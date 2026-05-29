@@ -160,6 +160,7 @@ void StatusMenu::Draw() {
 }
 
 void StatusMenu::DrawImGui() {
+#ifdef USE_IMGUI
     if (ImGui::TreeNode("Status Menu Controller")) {
         ImGui::Checkbox("Is Children Visible", &isChildrenVisible_);
         ImGui::InputInt("Active Detail Index", &activeDetailIndex_);
@@ -172,6 +173,7 @@ void StatusMenu::DrawImGui() {
         }
         ImGui::TreePop();
     }
+#endif
 }
 
 void StatusMenu::LoadDescriptions(const std::string& filePath) {
