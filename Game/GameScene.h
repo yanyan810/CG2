@@ -67,6 +67,7 @@ private:
     void DrawPlayerHudImGui_();
     void UpdateReleaseDebugText_();
     void PrepareEnterReset_(GameApp& app);
+    void DrawBattleModelParticles_(GameApp& app);
 
 private:
     std::unique_ptr<Camera> camera_;

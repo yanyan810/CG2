@@ -47,24 +47,24 @@ namespace {
 	int sFieldCardGlitterHighlightCount = 10;
 	bool sFieldFrameBloomEnabled = true;
 	float sFieldFrameBloomThreshold = 0.0f;
-	float sFieldFrameBloomIntensity = 1.4f;
+	float sFieldFrameBloomIntensity = 1.1f;
 	float sFieldFrameBloomMinPulse = 0.0f;
 	float sFieldFrameBloomChromAb = 0.0f;
 	bool sHandPokerPreviewEnabled = true;
 	float sHandCardGlitterEmitInterval = 0.12f;
 	int sHandCardGlitterCount = 3;
-	float sHandFrameBloomIntensity = 1.4f;
+	float sHandFrameBloomIntensity = 1.1f;
 	bool sEnemyIntentBloomEnabled = true;
-	float sEnemyIntentBloomIntensity = 1.8f;
+	float sEnemyIntentBloomIntensity = 1.45f;
 	float sEnemyIntentBloomMinPulse = 0.45f;
 	bool sEnemyTargetBloomEnabled = true;
-	float sEnemyTargetBloomIntensity = 2.1f;
+	float sEnemyTargetBloomIntensity = 1.65f;
 	float sEnemyTargetBloomChromAb = 0.002f;
 	bool sHpGaugeBloomEnabled = true;
-	float sHpGaugeBloomIntensity = 0.55f;
+	float sHpGaugeBloomIntensity = 0.42f;
 	float sHpGaugeBloomMinPulse = 0.65f;
 	float sHpDamageBlinkSpeed = 6.0f;
-	float sHpDamageBloomIntensity = 1.05f;
+	float sHpDamageBloomIntensity = 0.82f;
 	bool sPlayerBlockCarryOverEnabled = true;
 	float sPlayerBlockTurnDecayRate = 0.35f;
 	int sFrostBurstThreshold = 15;
@@ -1701,7 +1701,11 @@ void BattleController::RefreshAllFieldCardTransforms_(float dt)
 	}
 
 	UpdateFieldReplacePreviewEffects_();
+	UpdateFieldFrameEffects_();
+}
 
+void BattleController::UpdateFieldFrameEffects_()
+{
 	BattleFieldViewController::FrameEffectContext frameContext{};
 	frameContext.fieldViews = &fieldViews_;
 	frameContext.currentRank = currentPoker_.rank;
@@ -2799,17 +2803,25 @@ void BattleController::UpdateVisuals_(float dt)
 	if (actionOrEnemyAttack) {
 		UpdatePoisonIdleEffects_(dt);
 		UpdateFrostIdleEffects_(dt);
+		UpdateFieldFrameEffects_();
+		for (auto& cardView : fieldViews_) {
+			if (cardView) {
+				cardView->Update(dt);
+			}
+		}
 		handView_.Update(dt);
 		if (discardView_) {
 			discardView_->Update(dt);
 		}
 
 		damagePopupUi_.Update(dt);
+		UpdateEnemyStatusLayout_();
 		return;
 	}
 
 	UpdatePoisonIdleEffects_(dt);
 	UpdateFrostIdleEffects_(dt);
+	UpdateFieldFrameEffects_();
 
 	// 1. 鬩幢ｽ｢隴弱・・ｽ・ｼ隴∫ｵｶ隘夜ｩ幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｫ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驍ｵ・ｺ陷･・ｲ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驛｢譎｢・ｽ・ｻ鬮ｫ・ｴ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ驛｢譎｢・ｽ・ｻ髯具ｽｹ繝ｻ・ｻ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴乗・・ｽ・ｹ隴∵ｻ・ｱｪ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｷ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｧ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬯ｯ・ｨ繝ｻ・ｾ郢晢ｽｻ繝ｻ・ｲ鬯ｮ・ｯ繝ｻ・ｦ鬯ｲ繝ｻ・ｼ螟ｲ・ｽ・ｽ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ
 	for (auto& cardView : fieldViews_) {
@@ -2826,6 +2838,7 @@ void BattleController::UpdateVisuals_(float dt)
 		RefreshAllFieldCardTransforms_(dt);
 		// 鬩包ｽｯ繝ｻ・ｶ郢晢ｽｻ繝ｻ・ｻ Refresh~ 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬮｣蛹・ｽｽ・ｳ郢晢ｽｻ繝ｻ・ｭ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ fieldLayoutDirty_ = false; 鬩幢ｽ｢繝ｻ・ｧ髯句ｹ｢・ｽ・ｵ郢晢ｽｻ繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ霑｢證ｦ・ｽ・ｸ繝ｻ・ｺ鬮ｦ・ｮ陷ｷ・ｮ郢晢ｽｻ鬩幢ｽ｢繝ｻ・ｧ髯懶ｽ｣繝ｻ・､郢晢ｽｻ繝ｻ・｢郢晢ｽｻ繝ｻ・ｺ鬯ｮ・ｫ繝ｻ・ｱ驛｢譎｢・ｽ・ｻ
 	}
+	UpdateFieldFrameEffects_();
 
 	// 3. 鬮ｫ・ｰ郢晢ｽｻ驍・・・ｫ・ｰ郢晢ｽｻ繝ｻ・ｸ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩搾ｽｵ繝ｻ・ｲ髫ｰ逍ｲ・ｺ蛟･繝ｻ鬩搾ｽｵ繝ｻ・ｺ髯ｷ・ｷ繝ｻ・ｶ驕ｶ髮・ｽｮ螢ｽ蜑ｲ髫ｲ蟶幢ｽ･繝ｻ・ｽ・ｽ隶呵ｶ｣・ｽ・ｹ繝ｻ・ｧ髯具ｽｹ繝ｻ・ｺ髫ｲ・､陷･雜｣・ｽ・ｬ繝ｻ・ｮ髣費ｽｨ隲幢ｽｶ繝ｻ・ｽ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｹ鬩搾ｽｵ繝ｻ・ｲ鬯ｮ・ｦ繝ｻ・ｪ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｬ鬩幢ｽ｢隴寂或・ｾ・ｭ繝ｻ螳茨ｽ､・ｼ繝ｻ・ｹ隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ鬮ｮ蛹ｺ・ｨ螂・ｽｽ・ｸ陞溷･・ｽｽ・ｭ隰ｫ・ｾ繝ｻ・｣繝ｻ・ｰ鬩搾ｽｵ繝ｻ・ｺ髯ｷ莨夲ｽｽ・ｱ驕ｯ・ｶ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ髣・ｽｽ繝ｻ・ｭ陷ｴ繝ｻ・ｽ・ｽ繝ｻ・ｴ鬮ｫ・ｴ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｰ
 	UpdateHandPokerPreviewEffects_();
@@ -2864,6 +2877,18 @@ void BattleController::UpdateVisuals_(float dt)
 			}
 		}
 	}
+}
+
+void BattleController::UpdateEnemyStatusLayout_()
+{
+	if (!enemyMgr_) {
+		return;
+	}
+
+	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
+	Matrix4x4 projMat = Matrix4x4::MakeOrthographicMatrix((float)WinApp::kClientWidth, (float)WinApp::kClientHeight);
+	auto& enemies = enemyMgr_->GetEnemies();
+	enemyStatusUi_.UpdateLayout(enemies, enemyActionCountSystem_.GetCounts(), enemyActionCountSystem_.GetActedFlags(), viewMat, projMat);
 }
 
 void BattleController::HandlePokerActivateChoice_(FieldUi& fieldUi, POINT mouse, bool lTrig, bool yTrig, bool nTrig)

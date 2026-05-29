@@ -191,7 +191,7 @@ private:
 	Vector4 shieldColor_{ 1.0f, 0.72f, 0.22f, 0.72f };
 	Vector4 shieldBloomColor_{ 1.0f, 0.45f, 0.15f, 1.0f };
 	float shieldBloomScale_ = 1.0f;
-	float shieldBloomIntensity_ = 2.2f;
+	float shieldBloomIntensity_ = 1.5f;
 	float shieldBloomChromAb_ = 0.0f;
 	bool shieldBreakActive_ = false;
 	float shieldBreakTimer_ = 0.0f;

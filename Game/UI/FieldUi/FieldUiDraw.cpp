@@ -24,9 +24,17 @@ void FieldUi::DrawCostMeter_(GameApp& app, const Matrix4x4& view, const Matrix4x
 		BloomParam param = app.ObjectPost()->GetParam();
 		param.threshold = layout_.costMeter.postThreshold;
 		param.intensity = layout_.costMeter.postIntensity;
+		param.vignetteIntensity = 0.0f;
+		param.vignetteScale = 0.0f;
 		param.chromAbAmount = layout_.costMeter.postChromAbAmount;
 		param.distortionAmount = layout_.costMeter.postDistortionAmount;
 		param.noiseIntensity = layout_.costMeter.postNoiseIntensity;
+		param.scanlineIntensity = 0.0f;
+		param.curvature = 0.0f;
+		param.borderSharp = 0.0f;
+		param.glitchAmount = 0.0f;
+		param.radialBlurStrength = 0.0f;
+		param.dissolveAmount = -1.0f;
 
 		app.ObjectPost()->SetParam(param);
 		app.BeginObjectPostEffect();

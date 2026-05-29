@@ -194,7 +194,7 @@ void PlayerBattleStatusUI::DrawHpGaugeBloom(
 	Sprite::HealthGaugeParam gauge{};
 	gauge.hpColor = { 0.25f, 1.0f, 0.28f, 0.60f };
 	gauge.damageColor = { 1.0f, 0.02f, 0.02f, 0.86f };
-	gauge.shieldColor = { 0.18f, 0.48f, 1.0f, 0.62f };
+	gauge.shieldColor = { 0.15f, 0.42f, 1.0f, 0.38f };
 	gauge.bgColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 	gauge.borderColor = { 0.9f, 0.95f, 0.86f, 0.42f };
 	gauge.shadowColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -206,8 +206,8 @@ void PlayerBattleStatusUI::DrawHpGaugeBloom(
 	gauge.skew = 0.045f;
 	gauge.borderWidth = 0.018f;
 	gauge.blink = damage > 0 ? blink : 0.0f;
-	gauge.glow = 0.10f;
-	gauge.alpha = 0.38f;
+	gauge.glow = 0.07f;
+	gauge.alpha = 0.30f;
 
 	const BloomParam baseParam = app.ObjectPost()->GetParam();
 	const BloomParam bloomParam =

@@ -260,8 +260,8 @@ struct UiCostMeterLayout {
     float pipRadius = 7.5f;
     bool postEffectEnabled = true;
     float postThreshold = 0.0f;
-    float postIntensity = 1.8f;
-    float postChromAbAmount = 0.003f;
+    float postIntensity = 1.25f;
+    float postChromAbAmount = 0.0015f;
     float postDistortionAmount = 0.0f;
     float postNoiseIntensity = 0.0f;
     float filledLightIntensity = 1.65f;

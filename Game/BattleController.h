@@ -514,6 +514,8 @@ private:
 
 	void UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt);
 	void UpdateVisuals_(float dt);
+	void UpdateEnemyStatusLayout_();
+	void UpdateFieldFrameEffects_();
 	void UpdateHandPokerPreviewEffects_();
 	void UpdateFieldReplacePreviewEffects_();
 	void EmitHandCardGlitter_(float dt);
