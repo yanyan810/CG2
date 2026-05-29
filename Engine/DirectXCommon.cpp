@@ -1067,6 +1067,10 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 		// [RasterizerState] の設定
 		pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 		pso.graphicsDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		if (pso.shaderType_ == kModelParticle) {
+			// Planeや薄いメッシュのパーティクルは面の向きで欠けやすいので両面描画にする。
+			pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+		}
 
 		// [DepthStencilState] のデフォルト設定
 		pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
@@ -1081,7 +1085,17 @@ void DirectXCommon::CreateShaderCommon(PSO& pso)
 
 		// [BlendState] の設定
 		pso.graphicsDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-		if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle || pso.shaderType_ == kTrail) {
+		if (pso.shaderType_ == kModelParticle && pso.modelParticleBlendMode_ == 2) {
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = FALSE;
+		} else if (pso.shaderType_ == kModelParticle && pso.modelParticleBlendMode_ == 1) {
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pso.graphicsDesc_.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		} else if (pso.postEffectType_ == Bloom_Composite || pso.shaderType_ == kModelParticle || pso.shaderType_ == kTrail) {
 			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendEnable = TRUE;
 			pso.graphicsDesc_.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 			pso.graphicsDesc_.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -1206,6 +1220,11 @@ void DirectXCommon::CreateShader()
 	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
 	psoModelParticle_.shaderType_ = kModelParticle;
+	psoModelParticle_.modelParticleBlendMode_ = 0;
+	psoModelParticleNormal_.shaderType_ = kModelParticle;
+	psoModelParticleNormal_.modelParticleBlendMode_ = 1;
+	psoModelParticleOpaque_.shaderType_ = kModelParticle;
+	psoModelParticleOpaque_.modelParticleBlendMode_ = 2;
 	trailPSO.shaderType_ = kTrail;
 
 	computeParticlePSO.shaderType_ = kComputeParticleUpdate;
@@ -1217,6 +1236,8 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(objectCompositePSO);
 	CreateShaderCommon(downsamplePSO);
 	CreateShaderCommon(psoModelParticle_);
+	CreateShaderCommon(psoModelParticleNormal_);
+	CreateShaderCommon(psoModelParticleOpaque_);
 	CreateShaderCommon(trailPSO);
 	CreateShaderCommon(computeParticlePSO);
 }
@@ -1286,6 +1307,20 @@ void DirectXCommon::Release() {
 	}
 	psoModelParticle_.pixelShaderBlob_->Release();
 	psoModelParticle_.vertexShaderBlob_->Release();
+
+	psoModelParticleNormal_.root_.GetSignatureBlob()->Release();
+	if (psoModelParticleNormal_.root_.GetErrorBlob()) {
+		psoModelParticleNormal_.root_.GetErrorBlob()->Release();
+	}
+	psoModelParticleNormal_.pixelShaderBlob_->Release();
+	psoModelParticleNormal_.vertexShaderBlob_->Release();
+
+	psoModelParticleOpaque_.root_.GetSignatureBlob()->Release();
+	if (psoModelParticleOpaque_.root_.GetErrorBlob()) {
+		psoModelParticleOpaque_.root_.GetErrorBlob()->Release();
+	}
+	psoModelParticleOpaque_.pixelShaderBlob_->Release();
+	psoModelParticleOpaque_.vertexShaderBlob_->Release();
 
 	computeParticlePSO.root_.GetSignatureBlob()->Release();
 	if (computeParticlePSO.root_.GetErrorBlob()) {

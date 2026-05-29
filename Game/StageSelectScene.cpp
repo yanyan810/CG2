@@ -185,6 +185,18 @@ void StageSelectScene::ApplyCurrentStageToBattleItem_()
 	stageItems_[0].descText = MakeStageDescription_(currentStageId_);
 	stageItems_[0].stageId = currentStageId_;
 	stageItems_[0].stageConfigPath = MakeStageConfigPath_(currentStageId_);
+
+	std::string texturePath;
+	if (currentStageId_ <= 5) {
+		texturePath = "resources/ui/stage_select/Stages_1~5.png";
+	} else if (currentStageId_ <= 9) {
+		texturePath = "resources/ui/stage_select/Stages_6~9.png";
+	} else {
+		texturePath = "resources/ui/stage_select/Boss_stage.png";
+	}
+	if (stageItems_[0].buttonSprite) {
+		stageItems_[0].buttonSprite->SetTextureFilePath(texturePath);
+	}
 }
 
 void StageSelectScene::LoadStageFieldBackgrounds_(GameApp& app)
@@ -237,6 +249,9 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Stage_select.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text/Deck_editing.png");
 	TextureManager::GetInstance()->LoadTexture("resources/ui/text/return.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/Stages_1~5.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/Stages_6~9.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/stage_select/Boss_stage.png");
 
 	camera_ = std::make_unique<Camera>();
 	camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
@@ -296,13 +311,13 @@ void StageSelectScene::OnEnter(GameApp& app) {
 	stageItems_[0].sceneName = "Game";
 	ApplyCurrentStageToBattleItem_();
 	stageItems_[0].buttonRect = {
-	layout_.battleButtonRect.x,
-	layout_.battleButtonRect.y,
-	layout_.battleButtonRect.w,
-	layout_.battleButtonRect.h
+	layout_.stages1_5Rect.x,
+	layout_.stages1_5Rect.y,
+	layout_.stages1_5Rect.w,
+	layout_.stages1_5Rect.h
 	};
 	stageItems_[0].buttonSprite = std::make_unique<Sprite>();
-	stageItems_[0].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+	stageItems_[0].buttonSprite->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/stage_select/Stages_1~5.png");
 	stageItems_[0].buttonSprite->SetAnchorPoint({ 0.0f, 0.0f });
 	stageItems_[0].buttonSprite->SetPosition({ stageItems_[0].buttonRect.x, stageItems_[0].buttonRect.y });
 
@@ -677,10 +692,7 @@ void StageSelectScene::Draw2D(GameApp& app) {
 			});
 		stageItems_[i].buttonSprite->SetScale({ scaleX, scaleY, 1.0f });
 
-		Vector4 btnColor = { 1.0f, 1.0f, 1.0f, 0.0f }; // default invisible for non-image buttons
-		if (i == 1) {
-			btnColor = shouldHighlight ? Vector4{ 1.0f, 1.0f, 1.0f, 1.0f } : Vector4{ 0.8f, 0.8f, 0.8f, 1.0f };
-		}
+		Vector4 btnColor = shouldHighlight ? Vector4{ 1.0f, 1.0f, 1.0f, 1.0f } : Vector4{ 0.8f, 0.8f, 0.8f, 1.0f };
 		stageItems_[i].buttonSprite->SetColor(btnColor);
 
 		stageItems_[i].buttonSprite->Update(view, proj);
@@ -712,7 +724,7 @@ void StageSelectScene::Draw2D(GameApp& app) {
 		if (i == 1) {
 			textPos = { r.x + 82.0f, r.y + 40.0f };
 		} else if (stageItems_[i].stageId > 0) {
-			textPos = { r.x + 58.0f, r.y + 38.0f };
+			textPos = { r.x + layout_.battleTitleTextOffset.x, r.y + layout_.battleTitleTextOffset.y };
 		}
 		itemTextSprites_[i]->SetPosition({ textPos.x + shakeOffset.x, textPos.y + shakeOffset.y });
 		itemTextSprites_[i]->Update(view, proj);
@@ -800,8 +812,8 @@ void StageSelectScene::DrawImGui(GameApp& app) {
 	ImGui::DragFloat("tutorialDescTextScale", &layout_.tutorialDescText.scale, 0.01f, 0.1f, 5.0f);
 
 	ImGui::Separator();
-	ImGui::Text("Battle");
-	ImGui::DragFloat4("battleButtonRect", &layout_.battleButtonRect.x, 1.0f);
+	ImGui::Text("Battle Texts");
+	ImGui::DragFloat2("battleTitleTextOffset", &layout_.battleTitleTextOffset.x, 1.0f);
 	ImGui::DragFloat2("battleDescBgPos", &layout_.battleDescBgPos.x, 1.0f);
 	ImGui::DragFloat2("battleDescTextPos", &layout_.battleDescText.x, 1.0f);
 	ImGui::DragFloat("battleDescTextScale", &layout_.battleDescText.scale, 0.01f, 0.1f, 5.0f);
@@ -811,13 +823,8 @@ void StageSelectScene::DrawImGui(GameApp& app) {
 	ImGui::DragFloat2("tutorialButtonVisualPos", &layout_.tutorialButtonVisualPos.x, 1.0f);
 
 	ImGui::Text("Battle Visual");
-	ImGui::DragFloat2("battleButtonVisualPos", &layout_.battleButtonVisualPos.x, 1.0f);
-
-	ImGui::Text("Tutorial Hit");
+	ImGui::DragFloat("battleDescTextScale", &layout_.battleDescText.scale, 0.01f, 0.1f, 5.0f);
 	ImGui::DragFloat4("tutorialButtonRect", &layout_.tutorialButtonRect.x, 1.0f);
-
-	ImGui::Text("Battle Hit");
-	ImGui::DragFloat4("battleButtonRect", &layout_.battleButtonRect.x, 1.0f);
 
 	ImGui::Separator();
 	if (ImGui::Button("Save StageSelectLayout")) {
@@ -844,10 +851,24 @@ void StageSelectScene::DrawImGui(GameApp& app) {
 		}
 		ImGui::TreePop();
 	}
-	if (ImGui::TreeNode("Battle Button")) {
-		float rect[4] = { layout_.battleButtonRect.x, layout_.battleButtonRect.y, layout_.battleButtonRect.w, layout_.battleButtonRect.h };
-		if (ImGui::DragFloat4("Rect##Battle", rect, 1.0f)) {
-			layout_.battleButtonRect = { rect[0], rect[1], rect[2], rect[3] };
+	if (ImGui::TreeNode("Stages 1~5 Frame")) {
+		float rect[4] = { layout_.stages1_5Rect.x, layout_.stages1_5Rect.y, layout_.stages1_5Rect.w, layout_.stages1_5Rect.h };
+		if (ImGui::DragFloat4("Rect##Stages1_5", rect, 1.0f)) {
+			layout_.stages1_5Rect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Stages 6~9 Frame")) {
+		float rect[4] = { layout_.stages6_9Rect.x, layout_.stages6_9Rect.y, layout_.stages6_9Rect.w, layout_.stages6_9Rect.h };
+		if (ImGui::DragFloat4("Rect##Stages6_9", rect, 1.0f)) {
+			layout_.stages6_9Rect = { rect[0], rect[1], rect[2], rect[3] };
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Boss Stage Frame")) {
+		float rect[4] = { layout_.bossStageRect.x, layout_.bossStageRect.y, layout_.bossStageRect.w, layout_.bossStageRect.h };
+		if (ImGui::DragFloat4("Rect##BossStage", rect, 1.0f)) {
+			layout_.bossStageRect = { rect[0], rect[1], rect[2], rect[3] };
 		}
 		ImGui::TreePop();
 	}
@@ -935,11 +956,20 @@ void StageSelectScene::ApplyLayout_() {
 	rightArrowRect_ = { layout_.rightArrowRect.x, layout_.rightArrowRect.y, layout_.rightArrowRect.w, layout_.rightArrowRect.h };
 
 	if (stageItems_.size() >= 2) {
+		UiRect activeRect;
+		if (currentStageId_ <= 5) {
+			activeRect = layout_.stages1_5Rect;
+		} else if (currentStageId_ <= 9) {
+			activeRect = layout_.stages6_9Rect;
+		} else {
+			activeRect = layout_.bossStageRect;
+		}
+
 		stageItems_[0].buttonRect = {
-			layout_.battleButtonRect.x,
-			layout_.battleButtonRect.y,
-			layout_.battleButtonRect.w,
-			layout_.battleButtonRect.h
+			activeRect.x,
+			activeRect.y,
+			activeRect.w,
+			activeRect.h
 		};
 
 		stageItems_[1].buttonRect = {
@@ -951,7 +981,7 @@ void StageSelectScene::ApplyLayout_() {
 
 		const float descX = 420.0f;
 		const float descY = 585.0f;
-		stageItems_[0].descRect = { descX, descY, layout_.battleButtonRect.w, layout_.battleButtonRect.h };
+		stageItems_[0].descRect = { descX, descY, stageItems_[0].buttonRect.w, stageItems_[0].buttonRect.h };
 		stageItems_[1].descRect = { descX, descY, layout_.deckEditButtonRect.w, layout_.deckEditButtonRect.h };
 
 		for (auto& item : stageItems_) {
@@ -980,11 +1010,30 @@ void StageSelectScene::SaveLayout_() const {
 		{"h", layout_.tutorialButtonRect.h}
 	};
 
-	j["battleButtonRect"] = {
-		{"x", layout_.battleButtonRect.x},
-		{"y", layout_.battleButtonRect.y},
-		{"w", layout_.battleButtonRect.w},
-		{"h", layout_.battleButtonRect.h}
+	j["battleTitleTextOffset"] = {
+		{"x", layout_.battleTitleTextOffset.x},
+		{"y", layout_.battleTitleTextOffset.y}
+	};
+
+	j["stages1_5Rect"] = {
+		{"x", layout_.stages1_5Rect.x},
+		{"y", layout_.stages1_5Rect.y},
+		{"w", layout_.stages1_5Rect.w},
+		{"h", layout_.stages1_5Rect.h}
+	};
+
+	j["stages6_9Rect"] = {
+		{"x", layout_.stages6_9Rect.x},
+		{"y", layout_.stages6_9Rect.y},
+		{"w", layout_.stages6_9Rect.w},
+		{"h", layout_.stages6_9Rect.h}
+	};
+
+	j["bossStageRect"] = {
+		{"x", layout_.bossStageRect.x},
+		{"y", layout_.bossStageRect.y},
+		{"w", layout_.bossStageRect.w},
+		{"h", layout_.bossStageRect.h}
 	};
 
 	j["deckEditButtonRect"] = {
@@ -1074,11 +1123,30 @@ void StageSelectScene::LoadLayout_() {
 		layout_.tutorialButtonRect.h = j["tutorialButtonRect"].value("h", layout_.tutorialButtonRect.h);
 	}
 
-	if (j.contains("battleButtonRect")) {
-		layout_.battleButtonRect.x = j["battleButtonRect"].value("x", layout_.battleButtonRect.x);
-		layout_.battleButtonRect.y = j["battleButtonRect"].value("y", layout_.battleButtonRect.y);
-		layout_.battleButtonRect.w = j["battleButtonRect"].value("w", layout_.battleButtonRect.w);
-		layout_.battleButtonRect.h = j["battleButtonRect"].value("h", layout_.battleButtonRect.h);
+	if (j.contains("battleTitleTextOffset")) {
+		layout_.battleTitleTextOffset.x = j["battleTitleTextOffset"].value("x", layout_.battleTitleTextOffset.x);
+		layout_.battleTitleTextOffset.y = j["battleTitleTextOffset"].value("y", layout_.battleTitleTextOffset.y);
+	}
+
+	if (j.contains("stages1_5Rect")) {
+		layout_.stages1_5Rect.x = j["stages1_5Rect"].value("x", layout_.stages1_5Rect.x);
+		layout_.stages1_5Rect.y = j["stages1_5Rect"].value("y", layout_.stages1_5Rect.y);
+		layout_.stages1_5Rect.w = j["stages1_5Rect"].value("w", layout_.stages1_5Rect.w);
+		layout_.stages1_5Rect.h = j["stages1_5Rect"].value("h", layout_.stages1_5Rect.h);
+	}
+
+	if (j.contains("stages6_9Rect")) {
+		layout_.stages6_9Rect.x = j["stages6_9Rect"].value("x", layout_.stages6_9Rect.x);
+		layout_.stages6_9Rect.y = j["stages6_9Rect"].value("y", layout_.stages6_9Rect.y);
+		layout_.stages6_9Rect.w = j["stages6_9Rect"].value("w", layout_.stages6_9Rect.w);
+		layout_.stages6_9Rect.h = j["stages6_9Rect"].value("h", layout_.stages6_9Rect.h);
+	}
+
+	if (j.contains("bossStageRect")) {
+		layout_.bossStageRect.x = j["bossStageRect"].value("x", layout_.bossStageRect.x);
+		layout_.bossStageRect.y = j["bossStageRect"].value("y", layout_.bossStageRect.y);
+		layout_.bossStageRect.w = j["bossStageRect"].value("w", layout_.bossStageRect.w);
+		layout_.bossStageRect.h = j["bossStageRect"].value("h", layout_.bossStageRect.h);
 	}
 
 	if (j.contains("deckEditButtonRect")) {

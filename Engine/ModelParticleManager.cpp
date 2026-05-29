@@ -1,8 +1,10 @@
 #include "ModelParticleManager.h"
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include "Object3dCommon.h"
 #include "Matrix4x4.h"
+#include "TextureManager.h"
 #define M_PI 3.141592653589793
 
 std::mt19937 rng(std::random_device{}());
@@ -94,6 +96,16 @@ Vector4 ClampColor(const Vector4& color) {
 float RandomizedScale(float baseScale, float randomRange) {
     return std::max(0.0f, baseScale + Rand(-randomRange, randomRange));
 }
+
+std::string NormalizeModelPath_(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    constexpr const char* resourcesPrefix = "resources/";
+    if (path.rfind(resourcesPrefix, 0) == 0) {
+        path = path.substr(std::strlen(resourcesPrefix));
+    }
+    return path;
+}
 }
 
 ModelParticleManager* ModelParticleManager::GetInstance()
@@ -113,6 +125,7 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     // 1. モデルの取得（ModelManagerを使用）
     ModelManager::GetInstance()->LoadModel("triangleParticle.obj");
     model_ = ModelManager::GetInstance()->FindModel("triangleParticle.obj");
+    currentModelPath_ = "triangleParticle.obj";
 
     // 2. インスタンシング用リソースの作成
     instancingResource_ = dxCommon_->CreateUAVBufferResource(sizeof(ModelParticleTransformationMatrix) * maxInstance_, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -192,30 +205,32 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
     emitStagingResource_ = dxCommon_->CreateBufferResource(sizeof(ParticleGPU) * maxInstance_);
 
     D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
-    argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW; // DrawInstanced用
+    argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED; // DrawIndexedInstanced用
 
     D3D12_COMMAND_SIGNATURE_DESC sigDesc = {};
-    sigDesc.ByteStride = sizeof(D3D12_DRAW_ARGUMENTS);
+    sigDesc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
     sigDesc.NumArgumentDescs = 1;
     sigDesc.pArgumentDescs = &argDesc;
 
     dxCommon_->GetDevice()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&commandSignature_));
     
     // 1. 本番用のUAVバッファ作成 (DEFAULTヒープ)
-    drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    drawArgsResource_ = dxCommon_->CreateUAVBufferResource(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
     // 2. CPUから書き込むための中継用バッファ (UPLOADヒープ) を作成
-    // CreateBufferResource を使うのが正解！
-    Microsoft::WRL::ComPtr<ID3D12Resource> stagingArgs = dxCommon_->CreateBufferResource(sizeof(D3D12_DRAW_ARGUMENTS));
+    // モデル切替時にも使うため、GPU実行前に解放されないようメンバで保持する。
+    drawArgsUploadResource_ = dxCommon_->CreateBufferResource(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 
     // 3. 中継用バッファに値を Map して書き込む
-    D3D12_DRAW_ARGUMENTS* mappedArgs = nullptr;
-    stagingArgs->Map(0, nullptr, reinterpret_cast<void**>(&mappedArgs));
-    mappedArgs->VertexCountPerInstance = static_cast<UINT>(model_->GetModelData().meshes[0].vertices.size());
+    const auto& initialMesh = model_->GetModelData().meshes[0];
+    D3D12_DRAW_INDEXED_ARGUMENTS* mappedArgs = nullptr;
+    drawArgsUploadResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedArgs));
+    mappedArgs->IndexCountPerInstance = initialMesh.indexCount;
     mappedArgs->InstanceCount = 0;
-    mappedArgs->StartVertexLocation = 0;
+    mappedArgs->StartIndexLocation = initialMesh.startIndex;
+    mappedArgs->BaseVertexLocation = 0;
     mappedArgs->StartInstanceLocation = 0;
-    stagingArgs->Unmap(0, nullptr);
+    drawArgsUploadResource_->Unmap(0, nullptr);
 
     // 4. GPUコマンドで UPLOAD -> DEFAULT へコピーを実行
     TransitionResource(
@@ -223,7 +238,7 @@ void ModelParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvMa
         drawArgsResource_.Get(),
         drawArgsResourceState_,
         D3D12_RESOURCE_STATE_COPY_DEST);
-    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, stagingArgs.Get(), 0, sizeof(D3D12_DRAW_ARGUMENTS));
+    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, drawArgsUploadResource_.Get(), 0, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 
     // 5. コピー完了を待つためのバリア (COPY_DEST -> UNORDERED_ACCESS)
     TransitionResource(
@@ -262,6 +277,10 @@ void ModelParticleManager::RegisterEffect(const std::string& effectName, const s
     // --- 新機能: エフェクトごとのモデル読み込み ---
     ModelManager::GetInstance()->LoadModel(config.modelPath);
     effectModels_[effectName] = ModelManager::GetInstance()->FindModel(config.modelPath);
+    if (!config.texturePath.empty()) {
+        TextureManager::GetInstance()->LoadTexture(config.texturePath);
+    }
+    ApplyRenderConfig_(config);
 }
 
 void ModelParticleManager::Emit(const std::string& effectName, const Vector3& position, uint32_t count) {
@@ -274,6 +293,7 @@ void ModelParticleManager::Emit(const std::string& effectName, const Vector3& po
     // 設定を取り出し、座標をセット
     ParticleEmitterConfig& config = effectLibrary_[effectName];
     config.position = position;
+    ApplyRenderConfig_(config);
 
     // 今回のエミット用のリストを作成
     std::vector<Particle> particles;
@@ -303,11 +323,27 @@ void ModelParticleManager::Emit(const std::string& effectName, const Vector3& po
     config.endColor = { color.x, color.y, color.z, 0.0f };
     config.startColorRandom = { 0.05f, 0.05f, 0.05f, 0.0f };
     config.endColorRandom = { 0.04f, 0.04f, 0.04f, 0.0f };
+    ApplyRenderConfig_(config);
 
     std::vector<Particle> particles;
     particles.reserve(count);
     for (uint32_t i = 0; i < count; ++i) {
         particles.push_back(MakeParticle(config));
+    }
+
+    EmitBatch(particles);
+}
+
+void ModelParticleManager::Emit(const ParticleEmitterConfig& config, const Vector3& position, uint32_t count)
+{
+    ParticleEmitterConfig emitConfig = config;
+    emitConfig.position = position;
+    ApplyRenderConfig_(emitConfig);
+
+    std::vector<Particle> particles;
+    particles.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        particles.push_back(MakeParticle(emitConfig));
     }
 
     EmitBatch(particles);
@@ -338,7 +374,7 @@ void ModelParticleManager::EmitBatch(const std::vector<Particle>& particles) {
         uploadData[i].isActive = 1;
         // --- 新機能: イージングタイプとビルボードフラグを転送 ---
         uploadData[i].easingType = static_cast<uint32_t>(particles[i].easingType);
-        uploadData[i].isBillboard = particles[i].isBillboard ? 1 : 0;
+        uploadData[i].isBillboard = particles[i].isBillboard ? particles[i].billboardMode : 0;
     }
 
     // ★ 修正：Stagingバッファの「freeIndex_」番目の位置に書き込む
@@ -424,8 +460,12 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     }
 
     // 初速度と加速度
-    Vector3 dir = RandomUnitVector();
-    particle.velocity = dir * Rand(config.speedMin, config.speedMax);
+    if (config.useDirectionalVelocity) {
+        particle.velocity = Rand(config.velocityMin, config.velocityMax);
+    } else {
+        Vector3 dir = RandomUnitVector();
+        particle.velocity = dir * Rand(config.speedMin, config.speedMax);
+    }
     particle.acceleration = config.gravity;
 
     // 初期回転と回転速度
@@ -451,6 +491,7 @@ ModelParticleManager::Particle ModelParticleManager::MakeParticle(const Particle
     // --- 新機能: イージングタイプとビルボード ---
     particle.easingType = config.easingType;
     particle.isBillboard = config.isBillboard;
+    particle.billboardMode = config.isBillboard ? (std::clamp(config.billboardPlane, 0u, 1u) + 1u) : 0u;
 
     return particle;
 }
@@ -522,6 +563,89 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
         D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 }
 
+void ModelParticleManager::ApplyRenderConfig_(const ParticleEmitterConfig& config)
+{
+    SetRenderModel_(config.modelPath.empty() ? "triangleParticle.obj" : config.modelPath);
+
+    if (currentTexturePath_ != config.texturePath) {
+        currentTexturePath_ = config.texturePath;
+        if (!currentTexturePath_.empty()) {
+            TextureManager::GetInstance()->LoadTexture(currentTexturePath_);
+        }
+    }
+
+    currentUseJewelShader_ = config.useJewelShader;
+    currentBlendMode_ = std::clamp(config.blendMode, 0u, 2u);
+    if (materialData_) {
+        materialData_->enableLighting = currentUseJewelShader_ ? 1 : 0;
+    }
+}
+
+void ModelParticleManager::SetRenderModel_(const std::string& modelPath)
+{
+    const std::string normalizedPath = NormalizeModelPath_(modelPath);
+    if (normalizedPath.empty() || currentModelPath_ == normalizedPath) {
+        return;
+    }
+
+    ModelManager::GetInstance()->LoadModel(normalizedPath);
+    Model* nextModel = ModelManager::GetInstance()->FindModel(normalizedPath);
+    if (!nextModel) {
+        OutputDebugStringA(("[ModelParticle] model not found: " + normalizedPath + "\n").c_str());
+        return;
+    }
+
+    model_ = nextModel;
+    currentModelPath_ = normalizedPath;
+    if (!model_->GetModelData().meshes.empty()) {
+        const auto& mesh = model_->GetModelData().meshes[0];
+        UpdateDrawArgs_(mesh.indexCount, mesh.startIndex);
+    }
+}
+
+void ModelParticleManager::UpdateDrawArgs_(uint32_t indexCount, uint32_t startIndex)
+{
+    if (!dxCommon_ || !drawArgsResource_ || !drawArgsUploadResource_) {
+        return;
+    }
+
+    if (indexCount == 0) {
+        OutputDebugStringA("[ModelParticle] indexed draw skipped: model has no indices\n");
+    }
+
+    D3D12_DRAW_INDEXED_ARGUMENTS* mapped = nullptr;
+    drawArgsUploadResource_->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+    mapped->IndexCountPerInstance = indexCount;
+    mapped->InstanceCount = 0;
+    mapped->StartIndexLocation = startIndex;
+    mapped->BaseVertexLocation = 0;
+    mapped->StartInstanceLocation = 0;
+    drawArgsUploadResource_->Unmap(0, nullptr);
+
+    TransitionResource(
+        dxCommon_->GetCommandList(),
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_COPY_DEST);
+    dxCommon_->GetCommandList()->CopyBufferRegion(drawArgsResource_.Get(), 0, drawArgsUploadResource_.Get(), 0, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
+    TransitionResource(
+        dxCommon_->GetCommandList(),
+        drawArgsResource_.Get(),
+        drawArgsResourceState_,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+}
+
+std::string ModelParticleManager::ResolveRenderTexturePath_() const
+{
+    if (!currentTexturePath_.empty()) {
+        return currentTexturePath_;
+    }
+    if (model_ && !model_->GetModelData().materials.empty()) {
+        return model_->GetModelData().materials[0].textureFilePath;
+    }
+    return "";
+}
+
 void ModelParticleManager::Draw() {
 
     auto commandList = dxCommon_->GetCommandList();
@@ -538,16 +662,25 @@ void ModelParticleManager::Draw() {
         D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
     // 1. シグネチャとPSOの設定
-    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOModelParticle().root_.GetSignature().Get());
-    commandList->SetPipelineState(dxCommon_->GetPSOModelParticle().graphicsState_.Get());
+    auto& pso = dxCommon_->GetPSOModelParticle(currentBlendMode_);
+    commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
+    commandList->SetPipelineState(pso.graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // 2. 頂点バッファの設定
+    if (!model_) {
+        return;
+    }
+
     commandList->IASetVertexBuffers(0, 1, &model_->GetVBV());
+    commandList->IASetIndexBuffer(&model_->GetIBV());
 
     // --- ここからルートパラメータのセット (InitalizeForModelParticleの順番に合わせる) ---
 
     // Index 0: Material (b0) - CBV
+    if (materialData_) {
+        materialData_->enableLighting = currentUseJewelShader_ ? 1 : 0;
+    }
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     // Index 1: DirectionalLight (b1) - CBV
@@ -561,7 +694,11 @@ void ModelParticleManager::Draw() {
     commandList->SetGraphicsRootDescriptorTable(3, srvManager_->GetGPUDescriptionHandle(srvIndex_));
 
     // Index 4: Texture (t0) - DescriptorTable
-	commandList->SetGraphicsRootDescriptorTable(4, TextureManager::GetInstance()->GetSrvHandleGPU(model_->GetModelData().materials[0].textureFilePath)); // 0番目のマテリアルのSRVをセット
+    const std::string texturePath = ResolveRenderTexturePath_();
+    if (!texturePath.empty()) {
+        TextureManager::GetInstance()->LoadTexture(texturePath);
+    }
+	commandList->SetGraphicsRootDescriptorTable(4, TextureManager::GetInstance()->GetSrvHandleGPU(texturePath));
     
     commandList->ExecuteIndirect(
         commandSignature_.Get(),
@@ -576,6 +713,7 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     ImGui::Begin("37 Particle Editor");
 
     ImGui::Text("Editing: %s", effectName.c_str());
+    ApplyRenderConfig_(editingConfig);
 
     // 値が変更されたかどうかをチェックするフラグ
     bool changed = false;
@@ -583,6 +721,11 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     if (ImGui::CollapsingHeader("Spawn", ImGuiTreeNodeFlags_DefaultOpen)) {
         changed |= ImGui::DragFloat("Speed Min", &editingConfig.speedMin, 0.01f, 0.0f);
         changed |= ImGui::DragFloat("Speed Max", &editingConfig.speedMax, 0.01f, 0.0f);
+        changed |= ImGui::Checkbox("Use XYZ Velocity", &editingConfig.useDirectionalVelocity);
+        if (editingConfig.useDirectionalVelocity) {
+            changed |= ImGui::DragFloat3("Velocity Min", &editingConfig.velocityMin.x, 0.01f);
+            changed |= ImGui::DragFloat3("Velocity Max", &editingConfig.velocityMax.x, 0.01f);
+        }
         changed |= ImGui::DragFloat("Life Min", &editingConfig.lifeTimeMin, 0.01f, 0.01f);
         changed |= ImGui::DragFloat("Life Max", &editingConfig.lifeTimeMax, 0.01f, 0.01f);
         changed |= ImGui::DragFloat3("Gravity", &editingConfig.gravity.x, 0.01f);
@@ -635,16 +778,93 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     // --- 新機能: ビルボード ---
     ImGui::Separator();
     changed |= ImGui::Checkbox("Billboard", &editingConfig.isBillboard);
-
-    // --- 新機能: モデルパス ---
-    ImGui::Separator();
-    static char modelPathBuf[128] = "";
-    if (modelPathBuf[0] == '\0') {
-        strncpy_s(modelPathBuf, editingConfig.modelPath.c_str(), sizeof(modelPathBuf) - 1);
+    if (editingConfig.isBillboard) {
+        const char* billboardPlaneNames[] = { "XY Plane", "XZ Plane" };
+        int currentBillboardPlane = static_cast<int>(editingConfig.billboardPlane);
+        if (ImGui::Combo("Billboard Plane", &currentBillboardPlane, billboardPlaneNames, IM_ARRAYSIZE(billboardPlaneNames))) {
+            editingConfig.billboardPlane = static_cast<uint32_t>(std::clamp(currentBillboardPlane, 0, 1));
+            changed = true;
+        }
     }
-    if (ImGui::InputText("Model Path", modelPathBuf, IM_ARRAYSIZE(modelPathBuf))) {
-        editingConfig.modelPath = modelPathBuf;
-        changed = true;
+
+    // --- Render Settings ---
+    ImGui::Separator();
+    if (ImGui::CollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
+        std::vector<std::string> modelPaths;
+        std::vector<std::string> texturePaths;
+        namespace fs = std::filesystem;
+        if (fs::exists("resources")) {
+            for (const auto& entry : fs::recursive_directory_iterator("resources")) {
+                if (!entry.is_regular_file()) {
+                    continue;
+                }
+
+                const fs::path path = entry.path();
+                const std::string ext = path.extension().string();
+                if (ext == ".obj") {
+                    modelPaths.push_back(fs::relative(path, "resources").generic_string());
+                } else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg") {
+                    texturePaths.push_back(path.generic_string());
+                }
+            }
+            std::sort(modelPaths.begin(), modelPaths.end());
+            std::sort(texturePaths.begin(), texturePaths.end());
+        }
+
+        if (ImGui::BeginCombo("Model", editingConfig.modelPath.c_str())) {
+            for (const auto& path : modelPaths) {
+                const bool selected = editingConfig.modelPath == path;
+                if (ImGui::Selectable(path.c_str(), selected)) {
+                    editingConfig.modelPath = path;
+                    changed = true;
+                }
+                if (selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        char modelPathBuf[256]{};
+        strncpy_s(modelPathBuf, editingConfig.modelPath.c_str(), sizeof(modelPathBuf) - 1);
+        if (ImGui::InputText("Model Path", modelPathBuf, IM_ARRAYSIZE(modelPathBuf))) {
+            editingConfig.modelPath = modelPathBuf;
+            changed = true;
+        }
+
+        const std::string texturePreview = editingConfig.texturePath.empty() ? "None (model/default)" : editingConfig.texturePath;
+        if (ImGui::BeginCombo("Texture Override", texturePreview.c_str())) {
+            if (ImGui::Selectable("None (model/default)", editingConfig.texturePath.empty())) {
+                editingConfig.texturePath.clear();
+                changed = true;
+            }
+            for (const auto& path : texturePaths) {
+                const bool selected = editingConfig.texturePath == path;
+                if (ImGui::Selectable(path.c_str(), selected)) {
+                    editingConfig.texturePath = path;
+                    changed = true;
+                }
+                if (selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        char texturePathBuf[256]{};
+        strncpy_s(texturePathBuf, editingConfig.texturePath.c_str(), sizeof(texturePathBuf) - 1);
+        if (ImGui::InputText("Texture Path", texturePathBuf, IM_ARRAYSIZE(texturePathBuf))) {
+            editingConfig.texturePath = texturePathBuf;
+            changed = true;
+        }
+
+        changed |= ImGui::Checkbox("Use Jewel Shader", &editingConfig.useJewelShader);
+        const char* blendModeNames[] = { "Additive", "Normal", "Opaque" };
+        int currentBlendMode = static_cast<int>(editingConfig.blendMode);
+        if (ImGui::Combo("Blend Mode", &currentBlendMode, blendModeNames, IM_ARRAYSIZE(blendModeNames))) {
+            editingConfig.blendMode = static_cast<uint32_t>(std::clamp(currentBlendMode, 0, 2));
+            changed = true;
+        }
     }
 
     editingConfig.speedMin = std::max(0.0f, editingConfig.speedMin);
@@ -653,6 +873,18 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     editingConfig.lifeTimeMax = std::max(0.01f, editingConfig.lifeTimeMax);
     if (editingConfig.speedMin > editingConfig.speedMax) {
         std::swap(editingConfig.speedMin, editingConfig.speedMax);
+        changed = true;
+    }
+    if (editingConfig.velocityMin.x > editingConfig.velocityMax.x) {
+        std::swap(editingConfig.velocityMin.x, editingConfig.velocityMax.x);
+        changed = true;
+    }
+    if (editingConfig.velocityMin.y > editingConfig.velocityMax.y) {
+        std::swap(editingConfig.velocityMin.y, editingConfig.velocityMax.y);
+        changed = true;
+    }
+    if (editingConfig.velocityMin.z > editingConfig.velocityMax.z) {
+        std::swap(editingConfig.velocityMin.z, editingConfig.velocityMax.z);
         changed = true;
     }
     if (editingConfig.lifeTimeMin > editingConfig.lifeTimeMax) {
@@ -667,6 +899,7 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
     // ★ リアルタイム反映：値が変わったら即座に Library を上書き
     if (changed) {
         effectLibrary_[effectName] = editingConfig;
+        ApplyRenderConfig_(editingConfig);
     }
 
     ImGui::Separator();
@@ -681,12 +914,14 @@ void ModelParticleManager::UpdateImGui(const std::string& effectName, ParticleEm
         SaveToJson(filename, editingConfig);
         // 保存時にも確実に最新を反映
         effectLibrary_[effectName] = editingConfig;
+        ApplyRenderConfig_(editingConfig);
     }
 
     if (ImGui::Button("Load from JSON")) {
         LoadFromJson(filename, editingConfig);
         // ロードしたら Library も更新
         effectLibrary_[effectName] = editingConfig;
+        ApplyRenderConfig_(editingConfig);
     }
 
     ImGui::End();

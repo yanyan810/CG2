@@ -47,6 +47,7 @@ public:
 		std::wstring vsFilePath_;
 		std::wstring psFilePath_;
 		PostEffectType postEffectType_;
+		uint32_t modelParticleBlendMode_ = 0;
 		D3D12_INPUT_ELEMENT_DESC elementDescs_[3] = {};
 		D3D12_INPUT_LAYOUT_DESC layout_{};
 
@@ -59,6 +60,13 @@ public:
 
 	PSO& GetPSOComputeParticle() { return computeParticlePSO; }
 	PSO& GetPSOModelParticle() { return psoModelParticle_; }
+	PSO& GetPSOModelParticle(uint32_t blendMode) {
+		switch (blendMode) {
+		case 1: return psoModelParticleNormal_;
+		case 2: return psoModelParticleOpaque_;
+		default: return psoModelParticle_;
+		}
+	}
 	PSO& GetPSOTrail() { return trailPSO; }
 
 	PSO& GetPSOEffect(PostEffectType effect) {
@@ -272,6 +280,8 @@ private:
 	float fps_ = 0.0f;
 
 	PSO psoModelParticle_;
+	PSO psoModelParticleNormal_;
+	PSO psoModelParticleOpaque_;
 	PSO bloomPSO;
 	PSO downsamplePSO;
 	PSO blurHPSO;

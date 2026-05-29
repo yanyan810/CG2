@@ -1,0 +1,72 @@
+{
+    "angularVelocityMax": [
+        0.0,
+        0.0,
+        1.2
+    ],
+    "angularVelocityMin": [
+        0.0,
+        0.0,
+        -1.2
+    ],
+    "easingType": 2,
+    "emitterShape": 1,
+    "endColor": [
+        0.35,
+        1.0,
+        0.2,
+        0.0
+    ],
+    "endColorRandom": [
+        0.05,
+        0.05,
+        0.02,
+        0.0
+    ],
+    "endScale": 0.15,
+    "endScaleRandom": 0.05,
+    "gravity": [
+        0.0,
+        0.18,
+        0.0
+    ],
+    "initialRotateMax": [
+        0.0,
+        0.0,
+        3.14
+    ],
+    "initialRotateMin": [
+        0.0,
+        0.0,
+        -3.14
+    ],
+    "isBillboard": true,
+    "lifeTimeMax": 1.6,
+    "lifeTimeMin": 0.9,
+    "blendMode": 2,
+    "billboardPlane": 1,
+    "modelPath": "poisonPlane.obj",
+    "shapeSize": [
+        0.55,
+        0.25,
+        0.55
+    ],
+    "speedMax": 0.55,
+    "speedMin": 0.08,
+    "startColor": [
+        0.55,
+        1.0,
+        0.35,
+        0.82
+    ],
+    "startColorRandom": [
+        0.08,
+        0.0,
+        0.05,
+        0.08
+    ],
+    "startScale": 0.35,
+    "startScaleRandom": 0.12,
+    "texturePath": "resources/ui/gauge/Poison_UI.png",
+    "useJewelShader": false
+}

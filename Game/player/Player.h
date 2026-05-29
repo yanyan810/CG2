@@ -68,7 +68,11 @@ public:
 
 	int GetBoostedPower() { return boostedPower_; }
 	void PowerBoost(int value) { boostedPower_ += value; }
-	void ResetPowerBoost() { boostedPower_ = 0; }
+	void ResetPowerBoost() {
+		boostedPower_ = 0;
+		powerBoostEffectBonus_ = 0;
+	}
+	void SetPowerBoostEffectBonus(int value) { powerBoostEffectBonus_ = value; }
 
 	void Heal(int value) {
 		hp_ += value;
@@ -128,6 +132,7 @@ public:
 	bool GetPoisonDrawActive() const { return poisonDrawActive_; }
 	void SetReleaseAnimationEnabled(bool enabled) { releaseAnimationEnabled_ = enabled; }
 	bool GetReleaseAnimationEnabled() const { return releaseAnimationEnabled_; }
+	void PlayStatusCastAnim();
 
 	void SetFrostBiteActive(bool active) { frostBiteActive_ = active; }
 	bool GetFrostBiteActive() const { return frostBiteActive_; }
@@ -158,6 +163,7 @@ private:
 	int block_ = 0;
 
 	int boostedPower_ = 0;
+	int powerBoostEffectBonus_ = 0;
 
 	// 攻撃時に回復する量
 	int vampireHeal_ = 0;

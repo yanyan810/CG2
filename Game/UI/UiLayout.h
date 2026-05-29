@@ -357,6 +357,12 @@ struct StageSelectLayout {
     UiRect leftArrowRect{ 120.0f, 410.0f, 80.0f, 100.0f };
     UiRect rightArrowRect{ 1080.0f, 410.0f, 80.0f, 100.0f };
 
+    UiRect stages1_5Rect{ 320.0f, 200.0f, 400.0f, 100.0f };
+    UiRect stages6_9Rect{ 320.0f, 200.0f, 400.0f, 100.0f };
+    UiRect bossStageRect{ 320.0f, 200.0f, 400.0f, 100.0f };
+
+    UiVec2 battleTitleTextOffset{ 58.0f, 38.0f };
+
     UiVec2 tutorialButtonVisualPos{ 320.0f, 300.0f };
     UiVec2 battleButtonVisualPos{ 320.0f, 500.0f };
 	UiVec2 deckEditButtonVisualPos{ 580.0f, 500.0f };

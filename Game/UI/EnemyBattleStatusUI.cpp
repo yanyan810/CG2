@@ -2,15 +2,26 @@
 
 #include "Enemy.h"
 #include "GameApp.h"
+#include "TextureManager.h"
 #include "WinApp.h"
 
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
 
+namespace {
+	constexpr float kEnemyUiRowStride = 45.0f;
+	constexpr Vector2 kStatusIconTextureSize{ 64.0f, 64.0f };
+	constexpr Vector2 kStatusIconSize{ 26.0f, 26.0f };
+}
+
 void EnemyBattleStatusUI::Initialize(GameApp& app, size_t maxEnemies)
 {
 	Clear();
+
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Defense_UI.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Poison_UI.png");
+	TextureManager::GetInstance()->LoadTexture("resources/ui/gauge/Froze_UI.png");
 
 	for (size_t i = 0; i < maxEnemies; ++i) {
 		auto gauge = std::make_unique<Sprite>();
@@ -50,14 +61,35 @@ void EnemyBattleStatusUI::Initialize(GameApp& app, size_t maxEnemies)
 		auto hpText = std::make_unique<TextSprite>();
 		hpText->Initialize(app.SpriteCom(), app.Dx());
 		hpText->SetSize({ 1.0f, 1.0f, 1.0f });
-		hpText->SetPosition({ 1000.0f, 40.0f + (static_cast<float>(i) * 30.0f) });
+		hpText->SetPosition({ 1000.0f, 40.0f + (static_cast<float>(i) * kEnemyUiRowStride) });
 		hpTexts_.push_back(std::move(hpText));
 
-		auto bcText = std::make_unique<TextSprite>();
-		bcText->Initialize(app.SpriteCom(), app.Dx());
-		bcText->SetSize({ 1.0f, 1.0f, 1.0f });
-		bcText->SetColor({ 0.5f, 0.0f, 0.5f });
-		bcTexts_.push_back(std::move(bcText));
+		auto makeStatusIcon = [&](const char* texturePath) {
+			auto icon = std::make_unique<Sprite>();
+			icon->Initialize(app.SpriteCom(), app.Dx(), texturePath);
+			icon->SetScale({ 0.0f, 0.0f, 1.0f });
+			icon->SetPosition({ 0.0f, 0.0f });
+			icon->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+			return icon;
+			};
+		auto makeStatusText = [&]() {
+			auto text = std::make_unique<TextSprite>();
+			text->Initialize(app.SpriteCom(), app.Dx());
+			text->SetText(L"");
+			text->SetFontSize(24);
+			text->SetSize({ 0.72f, 0.72f, 1.0f });
+			text->SetAlpha(1.0f);
+			text->SetColor({ 1.0f, 1.0f, 1.0f });
+			text->SetPosition({ 0.0f, 0.0f });
+			return text;
+			};
+
+		blockIcons_.push_back(makeStatusIcon("resources/ui/gauge/Defense_UI.png"));
+		poisonIcons_.push_back(makeStatusIcon("resources/ui/gauge/Poison_UI.png"));
+		frostIcons_.push_back(makeStatusIcon("resources/ui/gauge/Froze_UI.png"));
+		blockTexts_.push_back(makeStatusText());
+		poisonTexts_.push_back(makeStatusText());
+		frostTexts_.push_back(makeStatusText());
 	}
 
 	Matrix4x4 viewMat = Matrix4x4::MakeIdentity4x4();
@@ -70,7 +102,12 @@ void EnemyBattleStatusUI::Initialize(GameApp& app, size_t maxEnemies)
 	for (auto& text : intentTexts_) { if (text) text->Update(viewMat, projMat); }
 	for (auto& text : intentCountTexts_) { if (text) text->Update(viewMat, projMat); }
 	for (auto& text : hpTexts_) { if (text) text->Update(viewMat, projMat); }
-	for (auto& text : bcTexts_) { if (text) text->Update(viewMat, projMat); }
+	for (auto& icon : blockIcons_) { if (icon) icon->Update(viewMat, projMat); }
+	for (auto& icon : poisonIcons_) { if (icon) icon->Update(viewMat, projMat); }
+	for (auto& icon : frostIcons_) { if (icon) icon->Update(viewMat, projMat); }
+	for (auto& text : blockTexts_) { if (text) text->Update(viewMat, projMat); }
+	for (auto& text : poisonTexts_) { if (text) text->Update(viewMat, projMat); }
+	for (auto& text : frostTexts_) { if (text) text->Update(viewMat, projMat); }
 }
 
 void EnemyBattleStatusUI::Clear()
@@ -80,7 +117,13 @@ void EnemyBattleStatusUI::Clear()
 	intentTexts_.clear();
 	intentCountTexts_.clear();
 	hpTexts_.clear();
-	bcTexts_.clear();
+	blockIcons_.clear();
+	poisonIcons_.clear();
+	frostIcons_.clear();
+	blockTexts_.clear();
+	poisonTexts_.clear();
+	frostTexts_.clear();
+	displayEnemyIndices_.clear();
 }
 
 void EnemyBattleStatusUI::UpdateLayout(
@@ -90,18 +133,37 @@ void EnemyBattleStatusUI::UpdateLayout(
 	const Matrix4x4& view,
 	const Matrix4x4& proj)
 {
+	displayEnemyIndices_.clear();
+	displayEnemyIndices_.reserve(std::min(enemies.size(), hpGauges_.size()));
+	for (size_t i = 0; i < enemies.size(); ++i) {
+		if (enemies[i].IsAlive()) {
+			displayEnemyIndices_.push_back(i);
+		}
+	}
+	std::sort(
+		displayEnemyIndices_.begin(),
+		displayEnemyIndices_.end(),
+		[&](size_t lhs, size_t rhs) {
+			return enemies[lhs].GetPos().z > enemies[rhs].GetPos().z;
+		});
+	if (displayEnemyIndices_.size() > hpGauges_.size()) {
+		displayEnemyIndices_.resize(hpGauges_.size());
+	}
+
 	for (size_t i = 0; i < hpGauges_.size(); ++i) {
-		if (i < enemies.size() && enemies[i].IsAlive()) {
+		if (i < displayEnemyIndices_.size()) {
+			const size_t enemyIndex = displayEnemyIndices_[i];
+			Enemy& enemy = enemies[enemyIndex];
 			const float gaugeWidth = 200.0f;
 			const float posX = 1000.0f;
-			const float posY = 40.0f + (static_cast<float>(i) * 30.0f);
+			const float posY = 40.0f + (static_cast<float>(i) * kEnemyUiRowStride);
 
 			hpGauges_[i]->SetScale({ gaugeWidth, 15.0f, 1.0f });
 			hpGauges_[i]->SetPosition({ posX, posY });
 
-			EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
+			EnemyAction nextAct = enemy.GetBossAI().GetNextAction();
 			const bool hasIntent = !nextAct.type.empty() || !nextAct.name.empty();
-			const bool acted = i < actedByCount.size() && actedByCount[i];
+			const bool acted = enemyIndex < actedByCount.size() && actedByCount[enemyIndex];
 
 			if (hasIntent) {
 				if (acted) {
@@ -126,7 +188,7 @@ void EnemyBattleStatusUI::UpdateLayout(
 				}
 
 				if (i < intentCountTexts_.size() && intentCountTexts_[i]) {
-					const int count = i < actionCounts.size() ? actionCounts[i] : 0;
+					const int count = enemyIndex < actionCounts.size() ? actionCounts[enemyIndex] : 0;
 					if (!acted && count > 0) {
 						intentCountTexts_[i]->SetText(std::to_wstring(count));
 						intentCountTexts_[i]->SetColor({ 0.0f, 0.0f, 0.0f });
@@ -160,23 +222,46 @@ void EnemyBattleStatusUI::UpdateLayout(
 		}
 	}
 
-	size_t visibleRow = 0;
-	for (const auto& enemy : enemies) {
-		if (!enemy.IsAlive() || visibleRow >= hpTexts_.size()) {
-			continue;
-		}
-		hpTexts_[visibleRow]->SetText(GetHpText_(enemy));
-		hpTexts_[visibleRow]->SetPosition({ 1025.0f, 10.0f + (static_cast<float>(visibleRow) * 30.0f) });
-		bcTexts_[visibleRow]->SetText(GetBcText_(enemy));
-		bcTexts_[visibleRow]->SetPosition({ 1200.0f, 10.0f + (static_cast<float>(visibleRow) * 30.0f) });
-		++visibleRow;
+	const size_t rowCount = std::min(displayEnemyIndices_.size(), hpTexts_.size());
+	for (size_t i = 0; i < rowCount; ++i) {
+		const auto& enemy = enemies[displayEnemyIndices_[i]];
+		const float rowY = static_cast<float>(i) * kEnemyUiRowStride;
+		hpTexts_[i]->SetText(GetHpText_(enemy));
+		hpTexts_[i]->SetPosition({ 1025.0f, 10.0f + rowY });
+
+		const int poisonPoint = enemy.GetBC() == Enemy::BadCondition::kPoison ? enemy.GetBCPoint() : 0;
+		const int frostPoint = enemy.GetBC() == Enemy::BadCondition::kFrost ? enemy.GetBCPoint() : 0;
+		const float statusY = 58.0f + rowY;
+		SetStatusItem_(
+			blockIcons_[i].get(),
+			blockTexts_[i].get(),
+			enemy.GetBlock(),
+			{ 1002.0f, statusY },
+			{ 1026.0f, statusY - 8.0f },
+			{ 1.0f, 1.0f, 1.0f });
+		SetStatusItem_(
+			poisonIcons_[i].get(),
+			poisonTexts_[i].get(),
+			poisonPoint,
+			{ 1064.0f, statusY },
+			{ 1088.0f, statusY - 8.0f },
+			{ 0.72f, 1.0f, 0.42f });
+		SetStatusItem_(
+			frostIcons_[i].get(),
+			frostTexts_[i].get(),
+			frostPoint,
+			{ 1126.0f, statusY },
+			{ 1150.0f, statusY - 8.0f },
+			{ 0.55f, 0.92f, 1.0f });
 	}
-	for (size_t i = visibleRow; i < hpTexts_.size(); ++i) {
+	for (size_t i = rowCount; i < hpTexts_.size(); ++i) {
 		if (hpTexts_[i]) {
 			hpTexts_[i]->SetText(L"");
 		}
-		if (i < bcTexts_.size() && bcTexts_[i]) {
-			bcTexts_[i]->SetText(L"");
+		if (i < blockIcons_.size()) {
+			SetStatusItem_(blockIcons_[i].get(), blockTexts_[i].get(), 0, {}, {}, {});
+			SetStatusItem_(poisonIcons_[i].get(), poisonTexts_[i].get(), 0, {}, {}, {});
+			SetStatusItem_(frostIcons_[i].get(), frostTexts_[i].get(), 0, {}, {}, {});
 		}
 	}
 
@@ -185,7 +270,12 @@ void EnemyBattleStatusUI::UpdateLayout(
 	for (auto& text : intentTexts_) { if (text) text->Update(view, proj); }
 	for (auto& text : intentCountTexts_) { if (text) text->Update(view, proj); }
 	for (auto& text : hpTexts_) { if (text) text->Update(view, proj); }
-	for (auto& text : bcTexts_) { if (text) text->Update(view, proj); }
+	for (auto& icon : blockIcons_) { if (icon) icon->Update(view, proj); }
+	for (auto& icon : poisonIcons_) { if (icon) icon->Update(view, proj); }
+	for (auto& icon : frostIcons_) { if (icon) icon->Update(view, proj); }
+	for (auto& text : blockTexts_) { if (text) text->Update(view, proj); }
+	for (auto& text : poisonTexts_) { if (text) text->Update(view, proj); }
+	for (auto& text : frostTexts_) { if (text) text->Update(view, proj); }
 }
 
 void EnemyBattleStatusUI::DrawGaugeAndIntent2D(
@@ -197,15 +287,21 @@ void EnemyBattleStatusUI::DrawGaugeAndIntent2D(
 	const Matrix4x4& proj,
 	const EnemyBloomSettings& bloomSettings)
 {
-	for (size_t i = 0; i < hpGauges_.size(); ++i) {
-		if (i >= enemies.size() || !hpGauges_[i] || !enemies[i].IsAlive()) {
+	for (size_t i = 0; i < displayEnemyIndices_.size(); ++i) {
+		if (i >= hpGauges_.size() || !hpGauges_[i]) {
 			continue;
 		}
 
-		const float maxHp = static_cast<float>(std::max(1, enemies[i].GetMaxHP()));
-		const float hpRatio = std::clamp(static_cast<float>(enemies[i].GetHP()) / maxHp, 0.0f, 1.0f);
+		const size_t enemyIndex = displayEnemyIndices_[i];
+		if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+			continue;
+		}
+
+		const Enemy& enemy = enemies[enemyIndex];
+		const float maxHp = static_cast<float>(std::max(1, enemy.GetMaxHP()));
+		const float hpRatio = std::clamp(static_cast<float>(enemy.GetHP()) / maxHp, 0.0f, 1.0f);
 		const float shieldEnd = std::clamp(
-			hpRatio + static_cast<float>(std::max(0, enemies[i].GetBlock())) / maxHp,
+			hpRatio + static_cast<float>(std::max(0, enemy.GetBlock())) / maxHp,
 			0.0f,
 			1.0f
 		);
@@ -232,16 +328,20 @@ void EnemyBattleStatusUI::DrawGaugeAndIntent2D(
 	}
 
 	if (bloomSettings.intentEnabled) {
-		for (size_t i = 0; i < intentIcons_.size(); ++i) {
-			if (i >= enemies.size() || !intentIcons_[i] || !enemies[i].IsAlive()) {
+		for (size_t i = 0; i < displayEnemyIndices_.size(); ++i) {
+			if (i >= intentIcons_.size() || !intentIcons_[i]) {
 				continue;
 			}
-			const bool acted = i < actedByCount.size() && actedByCount[i];
+			const size_t enemyIndex = displayEnemyIndices_[i];
+			if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+				continue;
+			}
+			const bool acted = enemyIndex < actedByCount.size() && actedByCount[enemyIndex];
 			if (acted) {
 				continue;
 			}
 
-			const EnemyAction nextAct = enemies[i].GetBossAI().GetNextAction();
+			const EnemyAction nextAct = enemies[enemyIndex].GetBossAI().GetNextAction();
 			if (nextAct.type.empty() && nextAct.name.empty()) {
 				continue;
 			}
@@ -291,15 +391,21 @@ void EnemyBattleStatusUI::DrawGaugeBloom(
 	const BloomParam hpParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity);
 	const BloomParam shieldParam = MakeHpGaugeBloomParam_(baseParam, baseIntensity * 1.15f);
 
-	for (size_t i = 0; i < hpGauges_.size(); ++i) {
-		if (i >= enemies.size() || !hpGauges_[i] || !enemies[i].IsAlive()) {
+	for (size_t i = 0; i < displayEnemyIndices_.size(); ++i) {
+		if (i >= hpGauges_.size() || !hpGauges_[i]) {
 			continue;
 		}
 
-		const float maxHp = static_cast<float>(std::max(1, enemies[i].GetMaxHP()));
-		const float hpRatio = std::clamp(static_cast<float>(enemies[i].GetHP()) / maxHp, 0.0f, 1.0f);
+		const size_t enemyIndex = displayEnemyIndices_[i];
+		if (enemyIndex >= enemies.size() || !enemies[enemyIndex].IsAlive()) {
+			continue;
+		}
+
+		const Enemy& enemy = enemies[enemyIndex];
+		const float maxHp = static_cast<float>(std::max(1, enemy.GetMaxHP()));
+		const float hpRatio = std::clamp(static_cast<float>(enemy.GetHP()) / maxHp, 0.0f, 1.0f);
 		const float shieldEnd = std::clamp(
-			hpRatio + static_cast<float>(std::max(0, enemies[i].GetBlock())) / maxHp,
+			hpRatio + static_cast<float>(std::max(0, enemy.GetBlock())) / maxHp,
 			0.0f,
 			1.0f
 		);
@@ -338,12 +444,64 @@ void EnemyBattleStatusUI::DrawHpTexts2D(const Matrix4x4& view, const Matrix4x4& 
 
 void EnemyBattleStatusUI::DrawBcTexts2D(const Matrix4x4& view, const Matrix4x4& proj)
 {
-	for (auto& text : bcTexts_) {
-		if (!text) {
-			continue;
+	auto drawIcon = [&](std::vector<std::unique_ptr<Sprite>>& icons) {
+		for (auto& icon : icons) {
+			if (!icon) {
+				continue;
+			}
+			icon->Update(view, proj);
+			icon->Draw();
 		}
-		text->Update(view, proj);
-		text->Draw();
+		};
+	auto drawText = [&](std::vector<std::unique_ptr<TextSprite>>& texts) {
+		for (auto& text : texts) {
+			if (!text) {
+				continue;
+			}
+			text->Update(view, proj);
+			text->Draw();
+		}
+		};
+
+	drawIcon(blockIcons_);
+	drawIcon(poisonIcons_);
+	drawIcon(frostIcons_);
+	drawText(blockTexts_);
+	drawText(poisonTexts_);
+	drawText(frostTexts_);
+}
+
+void EnemyBattleStatusUI::SetStatusItem_(
+	Sprite* icon,
+	TextSprite* text,
+	int value,
+	const Vector2& iconPosition,
+	const Vector2& textPosition,
+	const Vector3& textColor)
+{
+	if (icon) {
+		if (value > 0) {
+			icon->SetPosition(iconPosition);
+			icon->SetScale({
+				kStatusIconSize.x / kStatusIconTextureSize.x,
+				kStatusIconSize.y / kStatusIconTextureSize.y,
+				1.0f
+				});
+			icon->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+		} else {
+			icon->SetScale({ 0.0f, 0.0f, 1.0f });
+		}
+	}
+
+	if (text) {
+		if (value > 0) {
+			text->SetText(std::to_wstring(value));
+			text->SetPosition(textPosition);
+			text->SetColor(textColor);
+			text->SetAlpha(1.0f);
+		} else {
+			text->SetText(L"");
+		}
 	}
 }
 
@@ -389,17 +547,7 @@ std::wstring EnemyBattleStatusUI::GetIntentText_(const EnemyAction& action)
 
 std::wstring EnemyBattleStatusUI::GetHpText_(const Enemy& enemy)
 {
-	std::wstring text = std::to_wstring(enemy.GetHP()) + L" / " + std::to_wstring(enemy.GetMaxHP());
-	if (enemy.GetBlock() > 0) {
-		text += L"  B " + std::to_wstring(enemy.GetBlock());
-	}
-	return text;
-}
-
-std::wstring EnemyBattleStatusUI::GetBcText_(const Enemy& enemy)
-{
-	const int bcPoint = enemy.GetBCPoint();
-	return bcPoint == 0 ? L"" : std::to_wstring(bcPoint);
+	return std::to_wstring(enemy.GetHP()) + L" / " + std::to_wstring(enemy.GetMaxHP());
 }
 
 Vector3 EnemyBattleStatusUI::GetIntentTextColor_(const std::string& type)

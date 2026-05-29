@@ -112,26 +112,60 @@ float ApplyEasing(float t, uint easingType)
     return t; // Linear
 }
 
-// --- 新機能: ビルボード行列生成 ---
-float4x4 MakeBillboardMatrix(float3 scale, float3 position, float3 cameraPos)
+float3 GetSafeCameraForward(float3 position, float3 cameraPos)
 {
-    float3 forward = normalize(cameraPos - position);
-    
-    // forward がほぼ上方向の場合の対策
-    float3 up = float3(0, 1, 0);
-    if (abs(dot(forward, up)) > 0.999)
+    float3 toCamera = cameraPos - position;
+    if (length(toCamera) < 0.0001f)
     {
-        up = float3(0, 0, 1);
+        return float3(0, 0, 1);
+    }
+    return normalize(toCamera);
+}
+
+void GetBillboardBasis(float3 position, float3 cameraPos, out float3 right, out float3 up, out float3 forward)
+{
+    forward = GetSafeCameraForward(position, cameraPos);
+    
+    float3 worldUp = float3(0, 1, 0);
+    if (abs(dot(forward, worldUp)) > 0.999)
+    {
+        worldUp = float3(0, 0, 1);
     }
     
-    float3 right = normalize(cross(up, forward));
+    right = normalize(cross(worldUp, forward));
     up = cross(forward, right);
+}
+
+// --- 新機能: ビルボード行列生成 ---
+float4x4 MakeBillboardMatrixXY(float3 scale, float3 position, float3 cameraPos)
+{
+    float3 right;
+    float3 up;
+    float3 forward;
+    GetBillboardBasis(position, cameraPos, right, up, forward);
     
     float4x4 billboard =
     {
         right.x * scale.x,   right.y * scale.x,   right.z * scale.x,   0,
         up.x * scale.y,      up.y * scale.y,      up.z * scale.y,      0,
         forward.x * scale.z, forward.y * scale.z, forward.z * scale.z, 0,
+        position.x,          position.y,          position.z,          1
+    };
+    return billboard;
+}
+
+float4x4 MakeBillboardMatrixXZ(float3 scale, float3 position, float3 cameraPos)
+{
+    float3 right;
+    float3 up;
+    float3 forward;
+    GetBillboardBasis(position, cameraPos, right, up, forward);
+    
+    float4x4 billboard =
+    {
+        right.x * scale.x,   right.y * scale.x,   right.z * scale.x,   0,
+        forward.x * scale.y, forward.y * scale.y, forward.z * scale.y, 0,
+        up.x * scale.z,      up.y * scale.z,      up.z * scale.z,      0,
         position.x,          position.y,          position.z,          1
     };
     return billboard;
@@ -196,7 +230,15 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float4x4 world;
     if (p.isBillboard == 1)
     {
-        world = MakeBillboardMatrix(
+        world = MakeBillboardMatrixXY(
+            float3(currentScale, currentScale, currentScale),
+            p.position,
+            gScene.cameraPosition
+        );
+    }
+    else if (p.isBillboard == 2)
+    {
+        world = MakeBillboardMatrixXZ(
             float3(currentScale, currentScale, currentScale),
             p.position,
             gScene.cameraPosition

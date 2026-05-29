@@ -173,6 +173,8 @@ private:
 
     ModelParticleManager* particleManager_;
     std::unique_ptr<ModelParticleManager> fieldParticleManager_;
+    std::unique_ptr<ModelParticleManager> debugParticleManager_;
+    std::unique_ptr<ModelParticleManager> poisonParticleManager_;
     bool particleObjectPostEnabled_ = true;
     BloomParam particleObjectPostParam_{};
 
