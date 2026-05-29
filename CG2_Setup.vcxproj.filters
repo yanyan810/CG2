@@ -132,8 +132,9 @@
     <ClCompile Include="Game\Poker\PokerChoiceQuery.cpp" />
     <ClCompile Include="Game\Poker\PokerChoiceController.cpp" />
     <ClCompile Include="Game\GameResultPopup.cpp" />
-    <ClCompile Include="Game\Logic\Button.cpp" />
+    <ClCompile Include="Game\Logic\DebugButton.cpp" />
     <ClCompile Include="Game\Logic\StatusMenu.cpp" />
+    <ClCompile Include="Game\Logic\Button.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\3D\AnimationEditorPose.h" />
@@ -265,8 +266,9 @@
     <ClInclude Include="Game\Poker\PokerChoiceQuery.h" />
     <ClInclude Include="Game\Poker\PokerChoiceController.h" />
     <ClInclude Include="Game\GameResultPopup.h" />
-    <ClInclude Include="Game\Logic\Button.h" />
+    <ClInclude Include="Game\Logic\DebugButton.h" />
     <ClInclude Include="Game\Logic\StatusMenu.h" />
+    <ClInclude Include="Game\Logic\Button.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli" />
