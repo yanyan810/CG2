@@ -147,6 +147,7 @@ void Card3D::Setup(
 		countObj_->SetCamera(cam);
 		countObj_->SetEnableLighting(0);
 		countObj_->SetMaterialColor(kCostNumberColor);
+		countObj_->SetMaterialColor({ 1.f,1.f,1.f,1.f });
 	}
 
 }

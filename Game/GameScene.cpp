@@ -578,6 +578,7 @@ void GameScene::OnEnter(GameApp& app) {
 	poisonParticleManager_ = std::make_unique<ModelParticleManager>();
 	poisonParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
 	poisonParticleManager_->RegisterEffect("player_poison", "player_poison.json");
+	poisonParticleManager_->RegisterEffect("player_froze", "player_froze.json");
 	battle_.SetBattleParticleManager(poisonParticleManager_.get());
 
 	// 編集用変数に初期値をコピーしておく
@@ -2393,6 +2394,7 @@ bool GameScene::PrepareEnterStep(GameApp& app)
 		poisonParticleManager_ = std::make_unique<ModelParticleManager>();
 		poisonParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
 		poisonParticleManager_->RegisterEffect("player_poison", "player_poison.json");
+		poisonParticleManager_->RegisterEffect("player_froze", "player_froze.json");
 		battle_.SetBattleParticleManager(poisonParticleManager_.get());
 
 		particleManager_->LoadFromJson("fire_particle.json", attackEffectConfig_);

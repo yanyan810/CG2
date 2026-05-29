@@ -82,7 +82,8 @@ public:
 	BossAI& GetBossAI() { return ai_; }
 	void SetLighting(const LightingParam& p);
 
-	void TriggerHitFlash(float sec) { flashTimer_ = sec; }
+	void TriggerHitFlash(float sec) { flashTimer_ = sec; frostFlashTimer_ = 0.0f; }
+	void TriggerFrostFlash(float sec) { frostFlashTimer_ = sec; flashTimer_ = 0.0f; }
 	void PlayAttackAnim(const Vector3& targetPos);
 	void PlayDamageAnim();
 
@@ -162,6 +163,7 @@ private:
 	Vector3 targetPos_{};
 
 	float flashTimer_ = 0.0f;
+	float frostFlashTimer_ = 0.0f;
 
 	int badConditionPoint_ = 0;
 	BadCondition badCondition_ = BadCondition::kNone;

@@ -5,6 +5,8 @@
 #include "Sprite.h"
 #include "TextSprite.h"
 
+#include "../../Logic/StatusMenu.h"
+
 class GameApp;
 class Input;
 
@@ -43,6 +45,9 @@ private:
 
 	std::unique_ptr<Sprite> pauseButton_;
 	std::unique_ptr<TextSprite> pauseButtonText_;
+
+    // 状態異常に関する情報
+    StatusMenu statusMenu_;
 
 
 };
