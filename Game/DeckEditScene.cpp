@@ -96,9 +96,16 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	baseBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.f });
 
 
-	auto addButtonWithDesc = [&](const std::wstring& label, const std::string& path, Vector2 pos) {
-		auto btn = std::make_unique<DebugButton>();
-		btn->Initialize(app, label, path, pos);
+	auto addButtonWithDesc = [&](const std::string& path, const std::string& frameTexPath, Vector2 pos) {
+		auto btn = std::make_unique<Button>();
+
+		// テキスト引数を無くし、直接枠の画像を指定して初期化
+		btn->Initialize(app, path, pos, "resources/ui/white.png", frameTexPath);
+
+		if (path == "CUSTOM_EDIT") {
+			btn->SetBgScale({ 205.f,82.f });
+		}
+
 		deckTemplateButtons_.push_back(std::move(btn));
 
 		// カスタム進むボタンなどの特殊な文字列以外はJSONとしてロード
@@ -127,11 +134,10 @@ void DeckEditScene::OnEnter(GameApp& app) {
 		};
 
 	// ラベル、ファイルパス（兼識別名）、座標
-	Vector2 tempDeckBtnBasePos = { 480.f,150.f };
-	addButtonWithDesc(L"デフォルトデッキ", "resources/deck/deck_default.json", { tempDeckBtnBasePos.x, tempDeckBtnBasePos.y });
-	addButtonWithDesc(L"毒デッキ", "resources/deck/deck_poison.json", { tempDeckBtnBasePos.x, tempDeckBtnBasePos.y + 150.f });
-	addButtonWithDesc(L"凍結デッキ", "resources/deck/deck_frost.json", { tempDeckBtnBasePos.x, tempDeckBtnBasePos.y + 300.f });
-	addButtonWithDesc(L"選択せず進む", "CUSTOM_EDIT", { 50.f,  50.f });
+	addButtonWithDesc("resources/deck/deck_default.json", "resources/ui/text/DeckSelectButtonDefault.png", { 480.f, 150.f });
+	addButtonWithDesc("resources/deck/deck_poison.json", "resources/ui/text/DeckSelectButtonPoison.png", { 480.f, 300.f });
+	addButtonWithDesc("resources/deck/deck_frost.json", "resources/ui/text/DeckSelectButtonFrost.png", { 480.f, 450.f });
+	addButtonWithDesc("CUSTOM_EDIT", "resources/ui/text/DeckSelectButtonNone.png", { 50.f, 50.f });
 
 
 	// --- ツールチップUIの初期化 ---
@@ -204,7 +210,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 
 					// ボタンの座標とサイズを取得して、右隣に固定する
 					Vector2 btnPos = btn->GetPosition();
-					Vector2 btnSize = btn->GetScale(); // ボタンの横幅・縦幅
+					Vector2 btnSize = btn->GetBGScale(); // ボタンの横幅・縦幅
 
 					// ボタンの左端(btnPos.x) + 横幅(btnSize.x) + 少しの隙間(20px)
 					Vector2 popupPos = { btnPos.x + btnSize.x + 20.f, btnPos.y };

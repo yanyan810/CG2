@@ -12,6 +12,7 @@
 #include "Sprite.h"
 #include "TextSprite.h"
 
+#include "Logic/Button.h"
 #include "Logic/DebugButton.h"
 
 #include "Logic/StatusMenu.h"
@@ -70,7 +71,7 @@ private:
     std::unique_ptr<TextSprite> cardPreviewText_;
 
     std::unique_ptr<Sprite> baseBg_ = nullptr;
-    std::vector<std::unique_ptr<DebugButton>> deckTemplateButtons_;
+    std::vector<std::unique_ptr<Button>> deckTemplateButtons_;
 
     bool isSelectingTemplateDeck_ = false;
 

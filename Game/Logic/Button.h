@@ -14,7 +14,6 @@ public:
     void Initialize(GameApp& app,
         const std::string& name,
         const Vector2& position,
-        const Vector2& scale = { 320.f, 60.f },
         const std::string& bgPath = "resources/ui/white.png",
         const std::string& framePath = "resources/ui/frame.png");
 
@@ -24,7 +23,8 @@ public:
 
     // セッター・ゲッター
     void SetPosition(const Vector2& position);
-    void SetScale(const Vector2& scale);
+    void SetFrameScale(const Vector2& scale);
+    void SetBgScale(const Vector2& scale);
 
     // 背景色・枠色のコントロール
     void SetNormalColor(const Vector4& normalColor) { normalColor_ = normalColor; }
@@ -36,19 +36,21 @@ public:
     bool IsMouseOver() const { return isMouseOver_; }
 
     Vector2 GetPosition() const { return position_; }
-    Vector2 GetScale() const { return scale_; }
+    Vector2 GetFrameScale() const { return frameScale_; }
+    Vector2 GetBGScale() const { return bgScale_; }
 
 private:
     std::string name_;
     Vector2 position_{ 0.f, 0.f };
-    Vector2 scale_{ 1.f, 1.f };
+    Vector2 frameScale_{ 1.f, 1.f };
+    Vector2 bgScale_{ 1.f, 1.f };
 
     // --- 枠と背景の2つのスプライトで構成 ---
     std::unique_ptr<Sprite> bg_;
     std::unique_ptr<Sprite> frame_;
 
-    Vector4 normalColor_{ 0.3f, 0.3f, 0.3f, 1.0f };
-    Vector4 hoverColor_{ 0.2f, 0.5f, 0.4f, 1.0f };
+    Vector4 normalColor_{ 0.3f, 0.3f, 0.3f, 0.5f };
+    Vector4 hoverColor_{ 0.2f, 0.5f, 0.4f, 0.5f };
     Vector4 frameColor_{ 1.0f, 1.0f, 1.0f, 1.0f };
 
     bool isPressed_ = false;
