@@ -93,7 +93,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	baseBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
 	baseBg_->SetPosition({ 0.f, 0.f });
 	baseBg_->SetScale({ 1280.f, 720.f, 1.0f });
-	baseBg_->SetColor({ 0.1f, 0.1f, 0.1f, 1.f });
+	baseBg_->SetColor({ 0.2f, 0.2f, 0.2f, 1.f });
 
 
 	auto addButtonWithDesc = [&](const std::wstring& label, const std::string& path, Vector2 pos) {
