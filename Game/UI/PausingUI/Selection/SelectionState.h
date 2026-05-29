@@ -1,7 +1,7 @@
 #pragma once
 #include "../IPauseState.h"
 
-#include "../../../Logic/Button.h"
+#include "../../../Logic/DebugButton.h"
 
 class GameApp;
 
@@ -18,6 +18,6 @@ private:
 
 	std::unique_ptr<TextSprite> title_;
 
-	std::vector<std::unique_ptr<Button>> buttons_;
+	std::vector<std::unique_ptr<DebugButton>> buttons_;
 
 };
