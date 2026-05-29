@@ -8,34 +8,42 @@
 using json = nlohmann::json;
 
 void StatusMenu::Initialize(GameApp& app, const Vector2& basePosition) {
-    // 1. 親ボタン「状態異常->」の初期化
-    parentButton_.Initialize(app, L"状態異常▶", "ParentStatus", basePosition, { 250.f, 50.f });
+    // 1. 親ボタンの初期化
+    // ※引数から L"状態異常▶" を削除し、代わりに画像パスを指定します。
+    // ※第4, 第5引数を省略した場合は Button.h のデフォルト（white.png / frame.png）が使われます。
+    parentButton_[0].Initialize(app, "ParentStatus", basePosition, "resources/ui/white.png", "resources/ui/text/BadCondition_1.png");
+    parentButton_[0].SetBgScale({205.f,83.f});
 
-    // 2. 子ボタンの初期化（ひとまず親の下に並べる）
-    // ボタンの高さ(50.f) + 隙間(5.f) を考慮して Y 座標をずらす
-    Vector2 poisonPos = { basePosition.x + 30.f, basePosition.y + 55.f }; // 少し右にインデント
-    poisonButton_.Initialize(app, L"毒", "SubPoison", poisonPos, { 200.f, 45.f });
-    // さらにその下
-    Vector2 freezePos = { basePosition.x + 30.f, basePosition.y + 105.f };
-    freezeButton_.Initialize(app, L"凍結", "SubFreeze", freezePos, { 200.f, 45.f });
+    parentButton_[1].Initialize(app, "ParentStatus", basePosition, "resources/ui/white.png", "resources/ui/text/BadCondition_2.png");
+    parentButton_[1].SetBgScale({205.f,83.f});
+
+    // 2. 子ボタンの初期化
+    Vector2 poisonPos = { basePosition.x + 30.f, basePosition.y + 1000.f };
+    poisonButton_.Initialize(app, "SubPoison", poisonPos, "resources/ui/white.png", "resources/ui/text/BadConditionPoison.png");
+    poisonButton_.SetBgScale({ 136.f,50.f });
+
+    Vector2 freezePos = { basePosition.x + 30.f, basePosition.y + 1500.f };
+    freezeButton_.Initialize(app, "SubFreeze", freezePos, "resources/ui/white.png", "resources/ui/text/BadConditionFrozen.png");
+    freezeButton_.SetBgScale({ 136.f,50.f });
+
+    // 205,85
 
     // 3. 詳細テキストの初期化
     detailText_ = std::make_unique<TextSprite>();
     detailText_->Initialize(app.SpriteCom(), app.Dx());
     detailText_->SetFontSize(24);
-    detailText_->SetSize({1.f, 1.f, 1.f});
-    // 詳細テキストの表示位置（子ボタンのさらに右側など）
+    detailText_->SetSize({ 1.f, 1.f, 1.f });
     detailText_->SetPosition({ basePosition.x + 250.f, basePosition.y + 55.f });
+
 
     LoadDescriptions("resources/cards/BadConditionDesc.json");
 }
-
 void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj) {
     // --- 1. 親ボタンの更新 ---
-    parentButton_.Update(app, view, proj);
+    parentButton_[isChildrenVisible_].Update(app, view, proj);
 
     // 親ボタンが押されたら子ボタンの表示/非表示を切り替える
-    if (parentButton_.IsPressed()) {
+    if (parentButton_[isChildrenVisible_].IsPressed()) {
         isChildrenVisible_ = !isChildrenVisible_;
 
         // メニューを閉じた時は詳細テキストも消す
@@ -44,23 +52,23 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
         }
     }
 
-    if (isChildrenVisible_) {
-        // 開いているときは「状態異常▼」にする
-        parentButton_.SetTextString(L"状態異常▼");
-    } else {
-        // 閉じているときは「状態異常->」に戻す
-        parentButton_.SetTextString(L"状態異常▶");
-    }
+    //if (isChildrenVisible_) {
+    //    // 開いているときは「状態異常▼」にする
+    //    parentButton_.SetTextString(L"状態異常▼");
+    //} else {
+    //    // 閉じているときは「状態異常->」に戻す
+    //    parentButton_.SetTextString(L"状態異常▶");
+    //}
 
     // --- 2. 子ボタンの更新（展開時のみ） ---
     if (isChildrenVisible_) {
-        Vector2 parentPos = parentButton_.GetPosition();
+        Vector2 parentPos = parentButton_[isChildrenVisible_].GetPosition();
 
         // 最初の位置計算（現在の activeDetailIndex_ に基づく）
-        Vector2 poisonPos = { parentPos.x + 30.f, parentPos.y + 55.f };
+        Vector2 poisonPos = { parentPos.x + 30.f, parentPos.y + 80.f };
         poisonButton_.SetPosition(poisonPos);
 
-        float freezeYOffset = 105.f;
+        float freezeYOffset = 130.f;
         if (activeDetailIndex_ == 1) {
             freezeYOffset += 90.f;
         }
@@ -139,12 +147,12 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
         detailText_->Update(view, proj);
     }
 
-    parentButton_.Update(app, view, proj);
+    parentButton_[isChildrenVisible_].Update(app, view, proj);
 
 }
 void StatusMenu::Draw() {
     // 親ボタンは常に描画
-    parentButton_.Draw();
+    parentButton_[isChildrenVisible_].Draw();
 
     // 子ボタンが展開されている場合のみ描画
     if (isChildrenVisible_) {
