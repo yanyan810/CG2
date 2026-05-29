@@ -2,6 +2,9 @@
 #include "../IPauseState.h"
 
 #include "../../../Logic/DebugButton.h"
+#include "../../../Logic/Button.h"
+
+#include "../../../Logic/StatusMenu.h"
 
 class GameApp;
 
@@ -18,6 +21,9 @@ private:
 
 	std::unique_ptr<TextSprite> title_;
 
-	std::vector<std::unique_ptr<DebugButton>> buttons_;
+	std::vector<std::unique_ptr<Button>> buttons_;
+
+	// 状態異常に関する情報
+	StatusMenu statusMenu_;
 
 };
