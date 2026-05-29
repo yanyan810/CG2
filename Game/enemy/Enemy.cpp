@@ -790,8 +790,8 @@ void Enemy::SubtractBC(int value) {
 	SetBC(badConditionPoint_ - value);
 }
 
-void  Enemy::AmplifyBC(int value) {
-	SetBC(badConditionPoint_ * value);
+void  Enemy::AmplifyBC(float value) {
+	SetBC(static_cast<int>(std::lround(static_cast<float>(badConditionPoint_) * value)));
 }
 
 // 状態異常ダメージの適用

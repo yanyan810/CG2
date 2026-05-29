@@ -467,7 +467,7 @@ private:
 	void ApplyPoisonDamageEffect_(const CardEffectDef& effect);
 	void ApplyPoisonDrawEffect_(const CardEffectDef& effect);
 	void ApplyPoisonRemoveEffect_();
-	void ApplyPoisonHealEffect_();
+	void ApplyPoisonHealEffect_(const CardEffectDef& effect);
 	void ApplyFrostEffect_(const CardEffectDef& effect, int targetIndex);
 	void ApplyFrostAllEffect_(const CardEffectDef& effect);
 	void ApplyFrostBlockEffect_(const CardEffectDef& effect);
@@ -475,7 +475,7 @@ private:
 	void ApplyFrostSubtractEffect_(const CardEffectDef& effect);
 	void ApplyFrostBiteEffect_(const CardEffectDef& effect);
 	void ApplyFrostAmplifyEffect_(const CardEffectDef& effect);
-	void ApplyFrostDrawEffect_(int targetIndex);
+	void ApplyFrostDrawEffect_(const CardEffectDef& effect, int targetIndex);
 	void ApplyChangeNumberEffect_(const CardEffectDef& effect);
 	void ApplyChangeSuitEffect_(const CardEffectDef& effect);
 	void TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank);

@@ -36,7 +36,7 @@ public:
 	static void ApplyFrostAll(const Context& context, const CardEffectDef& effect);
 	static void ApplyFrostBlock(const Context& context, const CardEffectDef& effect);
 	static void ApplyFrostDamage(const Context& context, const CardEffectDef& effect);
-	static void ApplyFrostDraw(const Context& context, int targetIndex);
+	static void ApplyFrostDraw(const Context& context, const CardEffectDef& effect, int targetIndex);
 	static void ApplyFrostSubtract(const Context& context, const CardEffectDef& effect);
 	static void ApplyFrostAmplify(const Context& context, const CardEffectDef& effect);
 	static void ApplyChangeNumber(const CardEffectDef& effect);
