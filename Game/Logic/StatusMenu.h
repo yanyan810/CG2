@@ -1,5 +1,5 @@
 #pragma once
-#include "Button.h"
+#include "DebugButton.h"
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -27,11 +27,11 @@ public:
 
 private:
     // メイン（親）ボタン
-    Button parentButton_;
+    DebugButton parentButton_;
 
     // 子ボタン（毒、凍結）
-    Button poisonButton_;
-    Button freezeButton_;
+    DebugButton poisonButton_;
+    DebugButton freezeButton_;
 
     // 表示・選択状態を管理するフラグ
     bool isChildrenVisible_ = false; // 子ボタンを表示しているか

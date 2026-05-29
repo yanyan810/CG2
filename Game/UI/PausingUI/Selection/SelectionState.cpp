@@ -16,7 +16,7 @@ void SelectionState::Initialize(GameApp& app) {
 	title_->SetText(L"ポーズ中");
 
 	// 再開ボタン
-	auto resumeBtn = std::make_unique<Button>();
+	auto resumeBtn = std::make_unique<DebugButton>();
 	resumeBtn->Initialize(app, L"再開", "ResumeButton", { 530, 210.f });
 	resumeBtn->SetScale({ 200.f,60.f });
 	resumeBtn->SetNormalColor({ 0.1f, 0.1f, 0.1f, 0.9f });
@@ -24,7 +24,7 @@ void SelectionState::Initialize(GameApp& app) {
 	buttons_.push_back(std::move(resumeBtn));
 
 	// 再開ボタン
-	auto giveUpBtn = std::make_unique<Button>();
+	auto giveUpBtn = std::make_unique<DebugButton>();
 	giveUpBtn->Initialize(app, L"降参", "GiveUpButton", { 530, 320.f });
 	giveUpBtn->SetScale({ 200.f,60.f });
 	giveUpBtn->SetNormalColor({ 0.1f, 0.1f, 0.1f, 0.9f });

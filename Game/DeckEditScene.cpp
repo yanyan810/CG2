@@ -36,14 +36,14 @@ void DeckEditScene::OnEnter(GameApp& app) {
 	// 1. GameAppから CardInstance型でデッキを取得
 	RerollDeckData(app);
 
-	saveDeckButton_ = std::make_unique<Button>();
+	saveDeckButton_ = std::make_unique<DebugButton>();
 	saveDeckButton_->Initialize(app, L"保存して戻る", "SaveDeckAndChangeScene", { 1025.f, 450.f });
 	saveDeckButton_->SetScale({ 175.f, 100.f });
 	saveDeckButton_->SetTextOffset({ 10.f,15.f });
 	saveDeckButton_->SetNormalColor({ 0.086f, 0.447f, 0.969f, 1.0f });
 	saveDeckButton_->SetHoverColor({ 0.0f, 0.149f, 0.710f, 1.0f });
 
-	nosaveButton_ = std::make_unique<Button>();
+	nosaveButton_ = std::make_unique<DebugButton>();
 	nosaveButton_->Initialize(app, L"保存せず戻る", "NoSaveDeckAndChangeScene", { 1025.f, 600.f });
 	nosaveButton_->SetScale({ 175.f, 100.f });
 	nosaveButton_->SetTextOffset({ 10.f,15.f });
@@ -97,7 +97,7 @@ void DeckEditScene::OnEnter(GameApp& app) {
 
 
 	auto addButtonWithDesc = [&](const std::wstring& label, const std::string& path, Vector2 pos) {
-		auto btn = std::make_unique<Button>();
+		auto btn = std::make_unique<DebugButton>();
 		btn->Initialize(app, label, path, pos);
 		deckTemplateButtons_.push_back(std::move(btn));
 

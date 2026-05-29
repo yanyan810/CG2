@@ -2,115 +2,84 @@
 #include "GameApp.h"
 #include "imgui.h"
 
-void Button::Initialize(GameApp& app, const std::wstring& text, const std::string& name, const Vector2& position, const Vector2& scale) {
+void Button::Initialize(GameApp& app, const std::string& name, const Vector2& position, const Vector2& scale, const std::string& bgPath, const std::string& framePath) {
     name_ = name;
     isPressed_ = false;
-
-    // メンバ変数への初期値キャッシュ（ImGuiで編集可能にするため）
     position_ = position;
     scale_ = scale;
-    textOffset_ = { 55.f, 0.f };
-    normalColor_ = { 0.3f, 0.3f, 0.3f, 1.0f };
-    hoverColor_ = { 0.2f, 0.5f, 0.4f, 1.0f };
-    textString_ = text;
 
-    // 背景
+    // 背景スプライトの生成
     bg_ = std::make_unique<Sprite>();
-    bg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    bg_->SetName(name);
-    bg_->SetPosition({ position_.x, position_.y });
+    bg_->Initialize(app.SpriteCom(), app.Dx(), bgPath);
+    bg_->SetName(name + "_bg");
+    bg_->SetPosition(position_);
     bg_->SetScale({ scale_.x, scale_.y, 1.0f });
     bg_->SetColor(normalColor_);
 
-    // テキスト
-    text_ = std::make_unique<TextSprite>();
-    text_->Initialize(app.SpriteCom(), app.Dx());
-    text_->SetFontSize(30);
-    text_->SetSize({ 1.f, 1.f, 1.f });
-    text_->SetPosition({ position_.x + textOffset_.x, position_.y + textOffset_.y });
-    text_->SetText(textString_);
+    // 枠（兼 文字）スプライトの生成
+    frame_ = std::make_unique<Sprite>();
+    frame_->Initialize(app.SpriteCom(), app.Dx(), framePath);
+    frame_->SetName(name + "_frame");
+    frame_->SetPosition(position_);
+    frame_->SetScale({ scale_.x, scale_.y, 1.0f });
+    frame_->SetColor(frameColor_);
+}
+
+void Button::SetPosition(const Vector2& position) {
+    position_ = position;
+    if (bg_) bg_->SetPosition(position_);
+    if (frame_) frame_->SetPosition(position_);
+}
+
+void Button::SetScale(const Vector2& scale) {
+    scale_ = scale;
+    if (bg_) bg_->SetScale({ scale_.x, scale_.y, 1.0f });
+    if (frame_) frame_->SetScale({ scale_.x, scale_.y, 1.0f });
+}
+
+void Button::SetFrameColor(const Vector4& frameColor) {
+    frameColor_ = frameColor;
+    if (frame_) frame_->SetColor(frameColor_);
 }
 
 void Button::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj) {
-    isPressed_ = false; // 毎フレームリセット
     Input* input = app.GetInput();
     POINT mouse = input->GetMousePosition();
-    Vector2 mousePos = { (float)mouse.x, (float)mouse.y };
 
-    // ImGuiからの編集を反映するために毎フレーム座標を再設定
-    if (bg_) {
-        bg_->SetPosition(position_);
-        Vector3 currentScale = { scale_.x,scale_.y ,1.f };
-        bg_->SetScale(currentScale);
-    }
-    if (text_) {
-        text_->SetPosition({ position_.x + textOffset_.x, position_.y + textOffset_.y });
-    }
+    // マウスオーバー判定 (AABB)
+    isMouseOver_ = (mouse.x >= position_.x && mouse.x <= position_.x + scale_.x &&
+        mouse.y >= position_.y && mouse.y <= position_.y + scale_.y);
 
-    text_->SetText(textString_);
-
-    isMouseOver_ = bg_->IsMouseOver(mousePos);
-
-    // マウスホバー・クリック判定
-    if (bg_ &&isMouseOver_) {
-        // マウスホバー時のエフェクト
-        bg_->SetColor(hoverColor_);
-
-        // 左クリックされたらフラグを立てる
-        if (input->IsMouseTrigger(0)) {
-            isPressed_ = true;
-        }
+    if (isMouseOver_) {
+        if (bg_) bg_->SetColor(hoverColor_);
+        isPressed_ = input->IsMouseTrigger(0);
     } else {
-        // 通常時の色
         if (bg_) bg_->SetColor(normalColor_);
+        isPressed_ = false;
     }
 
     // 行列更新
-    if (bg_)   bg_->Update(view, proj);
-    if (text_) text_->Update(view, proj);
+    if (bg_) bg_->Update(view, proj);
+    if (frame_) frame_->Update(view, proj);
 }
 
 void Button::Draw() {
-    if (bg_)   bg_->Draw();
-    if (text_) text_->Draw();
+    // 背景を下に、文字入りの枠を上に描画
+    if (bg_) bg_->Draw();
+    if (frame_) frame_->Draw();
 }
 
-// ★ 追加：DrawImGuiの実装
 void Button::DrawImGui() {
-    // ボタン個別の識別名でツリーを展開
     std::string label = "Button: " + name_;
     if (ImGui::TreeNode(label.c_str())) {
-
-        // 1. 座標の調整
+        // 座標調整
         if (ImGui::DragFloat2("Position", &position_.x, 1.0f)) {
-            if (bg_) bg_->SetPosition(position_);
+            SetPosition(position_);
         }
-
-        // 2. スケールの調整
-        if (bg_) {
-            Vector3 scale = bg_->GetScale();
-            if (ImGui::DragFloat2("Scale", &scale.x, 1.0f, 0.0f, 2000.0f)) {
-                bg_->SetScale(scale);
-            }
+        // スケール調整
+        if (ImGui::DragFloat2("Scale", &scale_.x, 1.0f, 0.0f, 2000.0f)) {
+            SetScale(scale_);
         }
-
-        // 3. テキストオフセットの調整
-        ImGui::DragFloat2("Text Offset", &textOffset_.x, 1.0f);
-
-        // 4. カラーの調整
-        ImGui::ColorEdit4("Normal Color", &normalColor_.x);
-        ImGui::ColorEdit4("Hover Color", &hoverColor_.x);
-
-        // 5. テキスト情報（閲覧・簡易変更用）
-        // ※std::wstringのImGui直接編集は少し複雑になるため、現在は確認用として配置
-        // 必要に応じてTextSpriteのfontSize変更などをここに生やすことも可能です
-        if (text_) {
-            ImGui::Text("Text: [WString Active]");
-        }
-
-        // 6. デバッグ状態表示
-        ImGui::Text("IsPressed: %s", isPressed_ ? "TRUE" : "FALSE");
-
         ImGui::TreePop();
     }
 }
