@@ -221,6 +221,8 @@ void StageSelectScene::LoadStageFieldBackgrounds_(GameApp& app)
 	for (auto& props : stageFieldPropsCache_) {
 		if (props) {
 			props->SetCamera(camera_.get());
+			props->Update(0.0f);
+			props->WarmupDrawResources();
 		}
 	}
 }
@@ -232,6 +234,11 @@ void StageSelectScene::UpdateStageFieldBackground_()
 	if (currentStageId_ >= 1 &&
 		currentStageId_ < static_cast<int>(stageFieldPropsCache_.size())) {
 		stageFieldProps_ = stageFieldPropsCache_[currentStageId_].get();
+	}
+	if (stageFieldProps_ && camera_) {
+		stageFieldProps_->SetCamera(camera_.get());
+		stageFieldProps_->Update(0.0f);
+		stageFieldProps_->WarmupDrawResources();
 	}
 }
 
