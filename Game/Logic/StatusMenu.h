@@ -1,6 +1,6 @@
 // StatusMenu.h
 #pragma once
-#include "Button.h" // ★ DebugButton.h から変更
+#include "Button.h"
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -20,7 +20,6 @@ public:
     void DrawImGui();
 
 private:
-    // ★ 型を DebugButton から Button に変更
     Button parentButton_[2];
     Button poisonButton_;
     Button freezeButton_;
