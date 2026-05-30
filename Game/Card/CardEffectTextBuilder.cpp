@@ -162,6 +162,51 @@ std::wstring CardEffectTextBuilder::GetEffectValueText(const CardEffectDef& effe
 	if (effect.type == "SelfDamage") {
 		return L"自傷: " + FormatEffectValue_(effect);
 	}
+	if (effect.type == "Poison") {
+		return L"敵単体に毒付与: " + FormatEffectValue_(effect);
+	}
+	if (effect.type == "PoisonAll") {
+		return L"敵全体に毒付与: " + FormatEffectValue_(effect);
+	}
+	if (effect.type == "PoisonAmplify") {
+		return L"敵全体の毒増幅: x" + FormatEffectValue_(effect);
+	}
+	if (effect.type == "PoisonDamage") {
+		return L"敵全体に毒ダメージ: " + FormatEffectValue_(effect) + L"回";
+	}
+	if (effect.type == "PoisonDraw") {
+		return L"毒付与時にドロー: " + FormatEffectValue_(effect) + L"枚";
+	}
+	if (effect.type == "PoisonHeal") {
+		return L"毒の合計値に応じて回復: x" + FormatEffectValue_(effect);
+	}
+	if (effect.type == "PoisonRemove") {
+		return L"敵全体の毒を解除";
+	}
+	if (effect.type == "Frost") {
+		return L"敵単体に凍結付与: " + FormatEffectValue_(effect);
+	}
+	if (effect.type == "FrostAll") {
+		return L"敵全体に凍結付与: " + FormatEffectValue_(effect);
+	}
+	if (effect.type == "FrostAmplify") {
+		return L"敵全体の凍結増幅: x" + FormatEffectValue_(effect);
+	}
+	if (effect.type == "FrostBlock") {
+		return L"凍結の合計値に応じてブロック: x" + FormatEffectValue_(effect);
+	}
+	if (effect.type == "FrostDamage") {
+		return L"敵全体に凍結ダメージ: " + FormatEffectValue_(effect) + L"回";
+	}
+	if (effect.type == "FrostSubtract") {
+		return L"敵全体の凍結減少: " + FormatEffectValue_(effect);
+	}
+	if (effect.type == "FrostBite") {
+		return L"ダメージ時に凍結付与: " + FormatEffectValue_(effect);
+	}
+	if (effect.type == "FrostDraw") {
+		return L"凍結値に応じてドロー: x" + FormatEffectValue_(effect);
+	}
 
 	return Utf8ToWString_(effect.type) + L": " + FormatEffectValue_(effect);
 }

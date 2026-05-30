@@ -1368,57 +1368,57 @@ BattleController::PokerBonus BattleController::GetPokerBonus_(PokerHandRank rank
 
 	switch (rank) {
 	case PokerHandRank::OnePair:
-		b.atkUp = 3;
-		b.drawCount = 2;
-		b.damage = 55;
+		b.atkUp = 2;
+		b.drawCount = 1;
+		b.damage = 20;
 		break;
 
 	case PokerHandRank::TwoPair:
-		b.atkUp = 5;
-		b.drawCount = 3;
-		b.damage = 65;
+		b.atkUp = 3;
+		b.drawCount = 2;
+		b.damage = 40;
 		break;
 
 	case PokerHandRank::ThreeOfAKind:
-		b.atkUp = 10;
-		b.drawCount = 3;
-		b.damage = 80;
+		b.atkUp = 7;
+		b.drawCount = 4;
+		b.damage = 60;
 		break;
 
 	case PokerHandRank::Straight:
-		b.atkUp = 15;
-		b.drawCount = 4;
-		b.damage = 95;
+		b.atkUp = 10;
+		b.drawCount = 5;
+		b.damage = 75;
 		break;
 
 	case PokerHandRank::Flush:
-		b.atkUp = 20;
-		b.drawCount = 4;
-		b.damage = 105;
+		b.atkUp = 15;
+		b.drawCount = 6;
+		b.damage = 85;
 		break;
 
 	case PokerHandRank::FullHouse:
-		b.atkUp = 25;
-		b.drawCount = 5;
-		b.damage = 120;
+		b.atkUp = 20;
+		b.drawCount = 7;
+		b.damage = 100;
 		break;
 
 	case PokerHandRank::FourOfAKind:
-		b.atkUp = 30;
-		b.drawCount = 5;
-		b.damage = 135;
+		b.atkUp = 25;
+		b.drawCount = 8;
+		b.damage = 115;
 		break;
 
 	case PokerHandRank::StraightFlush:
-		b.atkUp = 40;
-		b.drawCount = 6;
-		b.damage = 160;
+		b.atkUp = 35;
+		b.drawCount = 9;
+		b.damage = 140;
 		break;
 
 	case PokerHandRank::RoyalStraightFlush:
-		b.atkUp = 60;
-		b.drawCount = 7;
-		b.damage = 200;
+		b.atkUp = 100;
+		b.drawCount = 15;
+		b.damage = 500;
 		break;
 
 	default:
@@ -1445,39 +1445,7 @@ std::wstring BattleController::GetSubEffectConditionText_(const CardSubEffectDef
 
 std::wstring BattleController::GetEffectValueText_(const CardEffectDef& effect) const
 {
-	if (!effect.valueText.empty()) {
-		return Utf8ToWString(effect.valueText) + L": " + FormatEffectValue_(effect);
-	}
-
-	if (effect.type == "Draw") {
-		return L"ドロー: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "Damage") {
-		return L"ダメージ: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "DamageAll") {
-		return L"全体ダメージ: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "Heal") {
-		return L"回復: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "Block") {
-		return L"ブロック: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "PowerBoost") {
-		return L"パワー: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "EnergyCharge") {
-		return L"コスト回復: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "NextTurnAtkUp") {
-		return L"次ターンATK UP: " + FormatEffectValue_(effect);
-	}
-	if (effect.type == "SelfDamage") {
-		return L"自傷: " + FormatEffectValue_(effect);
-	}
-
-	return Utf8ToWString(effect.type) + L": " + FormatEffectValue_(effect);
+	return CardEffectTextBuilder::GetEffectValueText(effect);
 }
 
 std::wstring BattleController::GetBaseEffectSummaryText_(const CardDef& def) const
@@ -1530,6 +1498,18 @@ std::vector<std::wstring> BattleController::CollectSubEffectPreviewLines_(
 					line += L"パワーを" + FormatEffectValue_(effect) + L"獲得";
 				} else if (effect.type == "EnergyCharge") {
 					line += L"コストを" + FormatEffectValue_(effect) + L"回復";
+				} else if (effect.type == "Poison") {
+					line += L"敵単体に毒を" + FormatEffectValue_(effect) + L"付与";
+				} else if (effect.type == "PoisonAll") {
+					line += L"敵全体に毒を" + FormatEffectValue_(effect) + L"付与";
+				} else if (effect.type == "PoisonAmplify") {
+					line += L"敵全体の毒を" + FormatEffectValue_(effect) + L"倍にする";
+				} else if (effect.type == "Frost") {
+					line += L"敵単体に凍結を" + FormatEffectValue_(effect) + L"付与";
+				} else if (effect.type == "FrostAll") {
+					line += L"敵全体に凍結を" + FormatEffectValue_(effect) + L"付与";
+				} else if (effect.type == "FrostAmplify") {
+					line += L"敵全体の凍結を" + FormatEffectValue_(effect) + L"倍にする";
 				} else {
 					line += Utf8ToWString(effect.type) + L" : " + FormatEffectValue_(effect);
 				}

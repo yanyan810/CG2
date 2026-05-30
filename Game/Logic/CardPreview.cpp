@@ -3,8 +3,7 @@
 #include<Windows.h>
 
 #include"CardDef.h"
-
-#include <cmath>
+#include"CardEffectTextBuilder.h"
 
 std::wstring Utf8ToWString(const std::string& s) {
 	if (s.empty()) {
@@ -152,63 +151,5 @@ std::wstring CardPreview::GetSubEffectConditionText(const CardSubEffectDef& sub)
 
 std::wstring CardPreview::GetEffectValueText(const CardEffectDef& effect)
 {
-	auto effectValueFloat = [](const CardEffectDef& e) {
-		if (e.valueIsFloat) {
-			return e.valueFloat;
-		}
-		if (e.valueFloat != 0.0f || e.value == 0) {
-			return e.valueFloat;
-		}
-		return static_cast<float>(e.value);
-	};
-	auto formatEffectValue = [&](const CardEffectDef& e) {
-		const float value = effectValueFloat(e);
-		if (e.valueIsFloat) {
-			wchar_t buffer[32]{};
-			swprintf_s(buffer, L"%.2f", value);
-			std::wstring text = buffer;
-			while (!text.empty() && text.back() == L'0') {
-				text.pop_back();
-			}
-			if (!text.empty() && text.back() == L'.') {
-				text.pop_back();
-			}
-			return text;
-		}
-		return std::to_wstring(static_cast<int>(std::lround(value)));
-	};
-
-	if (!effect.valueText.empty()) {
-		return Utf8ToWString(effect.valueText) + L": " + formatEffectValue(effect);
-	}
-
-	if (effect.type == "Draw") {
-		return L"ドロー: " + formatEffectValue(effect);
-	}
-	if (effect.type == "Damage") {
-		return L"ダメージ: " + formatEffectValue(effect);
-	}
-	if (effect.type == "DamageAll") {
-		return L"全体ダメージ: " + formatEffectValue(effect);
-	}
-	if (effect.type == "Heal") {
-		return L"回復: " + formatEffectValue(effect);
-	}
-	if (effect.type == "Block") {
-		return L"ブロック: " + formatEffectValue(effect);
-	}
-	if (effect.type == "PowerBoost") {
-		return L"パワー: " + formatEffectValue(effect);
-	}
-	if (effect.type == "EnergyCharge") {
-		return L"コスト回復: " + formatEffectValue(effect);
-	}
-	if (effect.type == "NextTurnAtkUp") {
-		return L"次ターンATK UP: " + formatEffectValue(effect);
-	}
-	if (effect.type == "SelfDamage") {
-		return L"自傷: " + formatEffectValue(effect);
-	}
-
-	return Utf8ToWString(effect.type) + L": " + formatEffectValue(effect);
+	return CardEffectTextBuilder::GetEffectValueText(effect);
 }
