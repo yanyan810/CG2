@@ -3,21 +3,18 @@
 #include "GameApp.h"
 #include <fstream>
 #include <codecvt>
-#include <nlohmann/json.hpp> // ★JSONライブラリをインクルード
+#include <algorithm>
+#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
 void StatusMenu::Initialize(GameApp& app, const Vector2& basePosition) {
-    // 1. 親ボタンの初期化
-    // ※引数から L"状態異常▶" を削除し、代わりに画像パスを指定します。
-    // ※第4, 第5引数を省略した場合は Button.h のデフォルト（white.png / frame.png）が使われます。
     parentButton_[0].Initialize(app, "ParentStatus", basePosition, "resources/ui/white.png", "resources/ui/text/BadCondition_1.png");
     parentButton_[0].SetBgScale({205.f,83.f});
 
     parentButton_[1].Initialize(app, "ParentStatus", basePosition, "resources/ui/white.png", "resources/ui/text/BadCondition_2.png");
     parentButton_[1].SetBgScale({205.f,83.f});
 
-    // 2. 子ボタンの初期化
     Vector2 poisonPos = { basePosition.x + 30.f, basePosition.y + 1000.f };
     poisonButton_.Initialize(app, "SubPoison", poisonPos, "resources/ui/white.png", "resources/ui/text/BadConditionPoison.png");
     poisonButton_.SetBgScale({ 136.f,50.f });
@@ -28,7 +25,6 @@ void StatusMenu::Initialize(GameApp& app, const Vector2& basePosition) {
 
     // 205,85
 
-    // 3. 詳細テキストの初期化
     detailText_ = std::make_unique<TextSprite>();
     detailText_->Initialize(app.SpriteCom(), app.Dx());
     detailText_->SetFontSize(24);
@@ -39,32 +35,23 @@ void StatusMenu::Initialize(GameApp& app, const Vector2& basePosition) {
     LoadDescriptions("resources/cards/BadConditionDesc.json");
 }
 void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj) {
-    // --- 1. 親ボタンの更新 ---
     parentButton_[isChildrenVisible_].Update(app, view, proj);
 
-    // 親ボタンが押されたら子ボタンの表示/非表示を切り替える
     if (parentButton_[isChildrenVisible_].IsPressed()) {
         isChildrenVisible_ = !isChildrenVisible_;
 
-        // メニューを閉じた時は詳細テキストも消す
         if (!isChildrenVisible_) {
             activeDetailIndex_ = 0;
         }
     }
 
     //if (isChildrenVisible_) {
-    //    // 開いているときは「状態異常▼」にする
-    //    parentButton_.SetTextString(L"状態異常▼");
     //} else {
-    //    // 閉じているときは「状態異常->」に戻す
-    //    parentButton_.SetTextString(L"状態異常▶");
     //}
 
-    // --- 2. 子ボタンの更新（展開時のみ） ---
     if (isChildrenVisible_) {
         Vector2 parentPos = parentButton_[isChildrenVisible_].GetPosition();
 
-        // 最初の位置計算（現在の activeDetailIndex_ に基づく）
         Vector2 poisonPos = { parentPos.x + 30.f, parentPos.y + 80.f };
         poisonButton_.SetPosition(poisonPos);
 
@@ -75,12 +62,10 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
         Vector2 freezePos = { parentPos.x + 30.f, parentPos.y + freezeYOffset };
         freezeButton_.SetPosition(freezePos);
 
-        // 各ボタンの当たり判定・内部更新
         poisonButton_.Update(app, view, proj);
         freezeButton_.Update(app, view, proj);
 
-        // --- クリック判定 ---
-        bool stateChanged = false; // ★状態が変わったかどうかのフラグ
+        bool stateChanged = false;
 
         if (poisonButton_.IsPressed()) {
             activeDetailIndex_ = (activeDetailIndex_ == 1) ? 0 : 1;
@@ -92,22 +77,17 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
             stateChanged = true;
         }
 
-        // ★追加：もしボタンが押されて状態が変わったなら、
-        // 1フレーム待たずに「その場で即座に」凍結ボタンの座標を再計算して上書きする！
         if (stateChanged) {
-            // カウントを一旦リセット
             currentNewLineCount_ = 0;
 
             if (activeDetailIndex_ != 0) {
                 auto it = descriptions_.find(activeDetailIndex_);
                 if (it != descriptions_.end()) {
                     const std::wstring& text = it->second;
-                    // ★文字列内の L'\n' の数をカウントする
                     currentNewLineCount_ = (int)std::count(text.begin(), text.end(), L'\n');
                 }
             }
 
-            // 確定した新しい改行数で、即座に凍結ボタンの位置を再計算して上書き
             freezeYOffset = 105.f;
             if (activeDetailIndex_ == 1) {
                 freezeYOffset += 35.f + (currentNewLineCount_ * 30.f);
@@ -116,21 +96,18 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
             freezePos = { parentPos.x + 30.f, parentPos.y + freezeYOffset };
             freezeButton_.SetPosition(freezePos);
 
-            // 行列を強制再更新
             freezeButton_.Update(app, view, proj);
         }
     }
 
     if (activeDetailIndex_ != 0) {
-        // マップから現在のID（1か2）の説明文を検索して取得
         auto it = descriptions_.find(activeDetailIndex_);
         if (it != descriptions_.end()) {
-            detailText_->SetText(it->second); // ファイルから読み込んだ文章をセット
+            detailText_->SetText(it->second);
         } else {
-            detailText_->SetText(L"説明がありません。");
+            detailText_->SetText(L"\u8aac\u660e\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
         }
 
-        // 表示座標の調整
         if (activeDetailIndex_ == 1) {
             Vector2 poisonPos = poisonButton_.GetPosition();
             detailText_->SetPosition({ poisonPos.x + 15.f, poisonPos.y + 45.f });
@@ -151,10 +128,8 @@ void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& pr
 
 }
 void StatusMenu::Draw() {
-    // 親ボタンは常に描画
     parentButton_[isChildrenVisible_].Draw();
 
-    // 子ボタンが展開されている場合のみ描画
     if (isChildrenVisible_) {
         poisonButton_.Draw();
         freezeButton_.Draw();
@@ -173,8 +148,7 @@ void StatusMenu::DrawImGui() {
         ImGui::Checkbox("Is Children Visible", &isChildrenVisible_);
         ImGui::InputInt("Active Detail Index", &activeDetailIndex_);
 
-        // 各ボタンのImGuiもネストして呼び出せるようにする
-        parentButton_.DrawImGui();
+        parentButton_[isChildrenVisible_ ? 1 : 0].DrawImGui();
         if (isChildrenVisible_) {
             poisonButton_.DrawImGui();
             freezeButton_.DrawImGui();
@@ -187,36 +161,27 @@ void StatusMenu::DrawImGui() {
 void StatusMenu::LoadDescriptions(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        // ファイルが開けなかった場合の保険
         return;
     }
 
-    // 1. ファイルの中身を丸ごとJSONオブジェクトに読み込む（BOMも自動で処理されます）
     json j;
     try {
         file >> j;
     }
     catch (const json::parse_error& e) {
-        // JSONの文法エラー（カンマの付け忘れなど）があった場合のデバッグ用
         OutputDebugStringA(e.what());
         return;
     }
 
-    // UTF-8 から wstring への変換コンバーター
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 
-    // 2. 配列形式のJSONをループで回してマップに格納する
     for (const auto& item : j) {
-        // "id" 項目から数値を取得
         int id = item["id"].get<int>();
 
-        // "description" 項目から文字列を取得
         std::string descriptionStr = item["description"].get<std::string>();
 
-        // C++の TextSprite で扱えるように wstring に変換
         std::wstring wDescription = converter.from_bytes(descriptionStr);
 
-        // マップ（descriptions_）に保存
         descriptions_[id] = wDescription;
     }
 }

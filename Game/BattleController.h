@@ -50,9 +50,9 @@ public:
 	enum class PokerChoiceState
 	{
 		None,
-		WaitingActivateChoice, // 発動する/しない
-		WaitingEffectChoice,   // 発動すると決めた後、どの効果か選ぶ
-		ViewingBoardFromPokerUi // 場を見る専用
+		WaitingActivateChoice,
+		WaitingEffectChoice,
+		ViewingBoardFromPokerUi
 	};
 
 	struct PokerBonus {
@@ -74,7 +74,6 @@ public:
 		ReturnFromBoard,
 	};
 
-	//チュートリアル用
 	enum class PokerTutorialResult
 	{
 		None = 0,
@@ -113,7 +112,6 @@ public:
 	std::wstring GetOperationUiText() const;
 	bool ShouldShowOperationUi() const;
 
-	//ゾーンごとのカード枚数表示用
 	std::wstring GetZoneCountUiText() const;
 	int GetDeckCount() const { return static_cast<int>(deckZone_.GetDeckCount()); }
 	int GetHandCount() const { return static_cast<int>(deckZone_.GetHandCount()); }
@@ -130,7 +128,6 @@ public:
 	std::wstring GetPlayerPowerBoostText()const;
 	std::wstring GetPlayerBlockText()const;
 
-	//マウス選択関連
 	int GetPokerMouseChoiceIndex() const;
 	bool IsWaitingActivateChoice() const;
 	bool IsWaitingEffectChoice() const;
@@ -138,7 +135,6 @@ public:
 
 	bool IsAllEnemiesDead() const;
 
-	// カード効果の値を、現在のバトル状況を考慮して計算する関数
 	int GetDisplayEffectValue(const CardEffectDef& effect, bool applyAttackBuff = true) const;
 
 #ifdef USE_IMGUI
@@ -146,7 +142,6 @@ public:
 	void DrawPlayerHudImGuiControls();
 #endif
 
-	//役
 	using PokerHandRank = ::PokerHandRank;
 	using PokerHandResult = ::PokerHandResult;
 
@@ -183,10 +178,8 @@ public:
 
 	PokerHandRank GetCurrentPokerRankForUi() const { return currentPoker_.rank; }
 
-	//先読み関数
 	void Preload(GameApp& app);
 
-	//ポーカーのサブ効果のUI
 	bool IsPokerQuickPreviewVisible() const { return pokerQuickPreviewVisible_; }
 	std::wstring GetPokerQuickPreviewText() const { return GetPokerEffectPreviewText(); }
 	void SetPokerQuickPreviewVisible(bool visible);
@@ -202,7 +195,6 @@ public:
 		PokerHandRank rank
 	) const;
 
-	//デバッグ用パワーアップ
 	void SetDebugPreviewBuffEnabled(bool enabled) { useDebugPreviewBuff_ = enabled; }
 
 	void Finalize() {
@@ -240,7 +232,6 @@ public:
 public:
 
 	//=====================
-	// チュートリアル用
 	//=====================
 	bool IsPokerReady() const { return currentPoker_.rank != PokerHandRank::None; }
 	bool IsCardPreviewing() const { return cardState_ == CardInputState::Preview; }
@@ -257,18 +248,15 @@ public:
 
 	bool IsTutorialPokerTargetCancelLocked() const { return tutorialLockPokerTargetingCancel_; }
 
-	// チュートリアルで、カードのドラッグやプレビューを一切できなくする（カードをクリックして効果を発動するだけの段階などで使う）
 	void SetTutorialInputLocked(bool locked) { tutorialInputLocked_ = locked; }
 	bool IsTutorialInputLocked() const { return tutorialInputLocked_; }
 
-	// チュートリアルでターン終了ボタンを押せなくする
 	void SetTutorialEndTurnLocked(bool locked) { tutorialEndTurnLocked_ = locked; }
 	bool IsTutorialEndTurnLocked() const { return tutorialEndTurnLocked_; }
 
 
 private:
 	//=====================
-	// チュートリアル用
 	//=====================
 	std::vector<CardInstance> tutorialOpeningHand_;
 	bool useTutorialOpeningHand_ = false;
@@ -329,7 +317,6 @@ private:
 	std::vector<float> poisonIdleEffectTimers_;
 	std::vector<float> frostIdleEffectTimers_;
 
-	//キー用
 	bool prevY_ = false;
 	bool prevN_ = false;
 	bool prev1_ = false;
@@ -339,11 +326,10 @@ private:
 	bool prevL_ = false;
 	bool prevR_ = false;
 
-	//ポーカー選択UI用
 	bool pokerChoiceJustOpened_ = false;
 
-	int nextTurnAtkUp_ = 0;      // 次の自分ターン開始時に受け取る予約分
-	int currentTurnAtkUp_ = 0;   // 今の自分ターン中だけ有効なATK UP
+	int nextTurnAtkUp_ = 0;
+	int currentTurnAtkUp_ = 0;
 	int currentEnemyIndex_ = 0;
 	int pendingDamage_ = 0;
 	bool isPokerDamageTargeting_ = false;
@@ -351,15 +337,12 @@ private:
 	Player* player_ = nullptr;
 	EnemyManager* enemyMgr_ = nullptr;
 
-	//タブを押しているとき様
 	bool operationUiVisible_ = false;
 
-	//場のカード入れ替え用
 	int fieldReplaceHoverIndex_ = -1;
 	int prevFieldReplaceHoverIndex_ = -1;
 	bool fieldLayoutDirty_ = true;
 
-	//エンドボタン用
 	bool endTurnButtonHovered_ = false;
 
 	std::unique_ptr<Object3d> costLabel_;
@@ -378,19 +361,15 @@ private:
 
 	DamagePopupUI damagePopupUi_;
 
-	//先読み変数
 	bool assetsPreloaded_ = false;
 	bool cardDbLoaded_ = false;
 
-	//先読み用のデッキ（カードDBとモデルを先に読み込むため）
 	std::vector<CardInstance> prebuiltDeck_;
 
-	//デルタタイム
 	float deltaTime_ = 0.0f;
 
 	bool pokerQuickPreviewVisible_ = false;
 
-	//デバッグ用パワーアップ
 	int debugPreviewPowerBoost_ = 0;
 	int debugPreviewCurrentTurnAtkUp_ = 0;
 	int debugPreviewNextTurnAtkUp_ = 0;
@@ -481,17 +460,13 @@ private:
 	void TriggerSubEffectsForField_(SubEffectTrigger trigger, PokerHandRank rank);
 	void TriggerSubEffectsForCard_(const CardInstance& card, SubEffectTrigger trigger, PokerHandRank rank);
 
-	//墓地用
 	void RebuildDiscardView_();
 
-	//デッキシャッフル用
 	void ShuffleDeck_();
 
-	//コスト描画用
 	void RebuildCostView_(float dt);
 	void UpdateCostViewTransform_(float dt);
 
-	//役に応じた強調表示マスクを取得
 	std::array<bool, 5> GetPokerHighlightMask_() const;
 
 	void PreloadCardAssets_();

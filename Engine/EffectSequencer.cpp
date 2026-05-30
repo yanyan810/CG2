@@ -1,4 +1,4 @@
-﻿#include "EffectSequencer.h"
+#include "EffectSequencer.h"
 #include "Object3d.h"
 #include "Object3dCommon.h"
 #include "DirectXCommon.h"
@@ -149,7 +149,6 @@ void ProjectileProfile::FromJson(const nlohmann::json& j)
 }
 
 // =============================================
-// 繝倥Ν繝代・髢｢謨ｰ
 // =============================================
 
 Vector3 EffectSequencer::LerpVec3(const Vector3& a, const Vector3& b, float t) {
@@ -161,7 +160,6 @@ Vector3 EffectSequencer::LerpVec3(const Vector3& a, const Vector3& b, float t) {
 }
 
 // =============================================
-// 蛻晄悄蛹・
 // =============================================
 
 void EffectSequencer::Initialize(
@@ -179,16 +177,13 @@ void EffectSequencer::Initialize(
 
 	state_ = State::Idle;
 
-	// 繧ｨ繝・ぅ繧ｿ繝ｼ逕ｨ縺ｮ蛻晄悄繝励Ο繝輔ぃ繧､繝ｫ繧偵そ繝・ヨ
 	editingProfile_ = EffectProfile{};
 }
 
 // =============================================
-// 逋ｺ蟆・
 // =============================================
 
 void EffectSequencer::Fire(const EffectProfile& profile, const Vector3& startPos, const Vector3& targetPos) {
-	// 譌｢縺ｫ螳溯｡御ｸｭ縺ｪ繧牙・縺ｫ繝ｪ繧ｻ繝・ヨ
 	if (state_ != State::Idle && state_ != State::Finished) {
 		Reset();
 	}
@@ -204,14 +199,12 @@ void EffectSequencer::Fire(const EffectProfile& profile, const Vector3& startPos
 }
 
 // =============================================
-// 豈弱ヵ繝ｬ繝ｼ繝譖ｴ譁ｰ
 // =============================================
 
 void EffectSequencer::Update(float dt) {
 	switch (state_) {
 	case State::Idle:
 	case State::Finished:
-		// 菴輔ｂ縺励↑縺・
 		break;
 	case State::Firing:
 		UpdateFiring(dt);
@@ -226,11 +219,9 @@ void EffectSequencer::Update(float dt) {
 }
 
 // =============================================
-// 繧ｹ繝・・繝亥挨蜃ｦ逅・
 // =============================================
 
 void EffectSequencer::UpdateFiring(float dt) {
-	// --- 蠑ｾ繧ｪ繝悶ず繧ｧ繧ｯ繝医・逕滓・ ---
 	projectile_.reset();
 	projectilePieces_.clear();
 	projectilePieceRotations_.clear();
@@ -255,7 +246,6 @@ void EffectSequencer::UpdateFiring(float dt) {
 		projectilePieceRotations_.push_back(piece.rot);
 	}
 
-	// --- 霆瑚ｷ｡縺ｮ逕滓・ ---
 	if (profile_.enableTrail && trailMgr_) {
 		trail_ = trailMgr_->CreateInstance();
 		if (trail_) {
@@ -272,33 +262,26 @@ void EffectSequencer::UpdateFiring(float dt) {
 		}
 	}
 
-	// 蜊ｳ蠎ｧ縺ｫFlying縺ｸ驕ｷ遘ｻ
 	state_ = State::Flying;
 
-	// 1繝輔Ξ繝ｼ繝逶ｮ縺ｮUpdate繧ょｮ溯｡・
 	UpdateFlying(dt);
 }
 
 void EffectSequencer::UpdateFlying(float dt) {
 	elapsedTime_ += dt;
 
-	// 豁｣隕丞喧譎る俣 t (0.0 ~ 1.0)
 	float duration = (std::max)(profile_.duration, 0.001f);
 	float t = elapsedTime_ / duration;
 	t = (std::min)(t, 1.0f);
 
-	// EaseInOut・・moothStep・峨↓繧医ｋ貊代ｉ縺九↑陬憺俣
 	float eased = t * t * (3.0f - 2.0f * t);
 
-	// 蠑ｾ縺ｮ菴咲ｽｮ繧呈峩譁ｰ
 	currentPos_ = LerpVec3(startPos_, targetPos_, eased);
 
-	// 蠑ｾ縺ｮ蝗櫁ｻ｢
 	projectileRotation_.x += profile_.projectile.rotationSpeed.x * dt;
 	projectileRotation_.y += profile_.projectile.rotationSpeed.y * dt;
 	projectileRotation_.z += profile_.projectile.rotationSpeed.z * dt;
 
-	// Object3d 縺ｮ譖ｴ譁ｰ
 	for (size_t i = 0; i < projectilePieces_.size() && i < activeProjectilePieces_.size(); ++i) {
 		auto& object = projectilePieces_[i];
 		const auto& piece = activeProjectilePieces_[i];
@@ -318,12 +301,10 @@ void EffectSequencer::UpdateFlying(float dt) {
 		object->Update(dt);
 	}
 
-	// 鬟帷ｿ斐ヱ繝ｼ繝・ぅ繧ｯ繝ｫ縺ｮ逋ｺ逕・
 	if (particleMgr_ && !profile_.flyParticle.empty()) {
 		particleMgr_->Emit(profile_.flyParticle, currentPos_, profile_.flyParticleCount);
 	}
 
-	// 霆瑚ｷ｡縺ｮ譖ｴ譁ｰ・医が繝輔そ繝・ヨ莉倥″・・
 	if (trail_ && trail_->IsActive()) {
 		Vector3 tipPos = {
 			currentPos_.x + profile_.trail.tipOffset.x,
@@ -345,13 +326,10 @@ void EffectSequencer::UpdateFlying(float dt) {
 		trail_->Update(dt, tipPos, basePos, trailConfig);
 	}
 
-	// 繧ｿ繝ｼ繧ｲ繝・ヨ蛻ｰ驕泌愛螳・
 	if (t >= 1.0f) {
-		// 竊・Hit 繧ｹ繝・・繝医∈
 		state_ = State::Hit;
-		elapsedTime_ = 0.0f; // 繝偵ャ繝医ち繧､繝槭・繧偵Μ繧ｻ繝・ヨ
+		elapsedTime_ = 0.0f;
 
-		// 蠑ｾ繧帝撼陦ｨ遉ｺ
 		for (auto& object : projectilePieces_) {
 			if (!object) {
 				continue;
@@ -360,17 +338,14 @@ void EffectSequencer::UpdateFlying(float dt) {
 			object->Update(0.0f);
 		}
 
-		// 霆瑚ｷ｡繧貞●豁｢・域ｶ亥喧繝｢繝ｼ繝会ｼ・
 		if (trail_) {
 			trail_->SetActive(false);
 		}
 
-		// 繝偵ャ繝医ヱ繝ｼ繝・ぅ繧ｯ繝ｫ縺ｮ逋ｺ逕・
 		if (particleMgr_ && !profile_.hitParticle.empty()) {
 			particleMgr_->Emit(profile_.hitParticle, targetPos_, profile_.hitParticleCount);
 		}
 
-		// 繧ｳ繝ｼ繝ｫ繝舌ャ繧ｯ蜻ｼ縺ｳ蜃ｺ縺・
 		if (onHitCallback_) {
 			onHitCallback_();
 		}
@@ -380,27 +355,21 @@ void EffectSequencer::UpdateFlying(float dt) {
 void EffectSequencer::UpdateHit(float dt) {
 	elapsedTime_ += dt;
 
-	// 霆瑚ｷ｡縺ｮ豸亥喧繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ
 	if (trail_) {
-		// TrailInstance 縺ｯ SetActive(false) 蠕後↓閾ｪ蜍輔〒豸亥喧縺輔ｌ繧・
-		// 霑ｽ蜉縺ｮ豸亥喧縺ｯ荳崎ｦ・ｼ・railManager::Update 縺悟・逅・☆繧具ｼ・
 	}
 
-	// 繝偵ャ繝域ｼ泌・邨ゆｺ・愛螳・
 	if (elapsedTime_ >= profile_.hitDuration) {
 		state_ = State::Finished;
 
-		// 繧ｯ繝ｪ繝ｼ繝ｳ繧｢繝・・
 		projectile_.reset();
 		projectilePieces_.clear();
 		projectilePieceRotations_.clear();
 		activeProjectilePieces_.clear();
-		trail_ = nullptr; // TrailManager縺梧園譛峨＠縺ｦ縺・ｋ縺ｮ縺ｧ隗｣謾ｾ縺ｯ縺励↑縺・
+		trail_ = nullptr;
 	}
 }
 
 // =============================================
-// 謠冗判
 // =============================================
 
 void EffectSequencer::Draw() {
@@ -432,7 +401,6 @@ void EffectSequencer::DrawPostEffect(GameApp& app) {
 }
 
 // =============================================
-// 繝ｪ繧ｻ繝・ヨ
 // =============================================
 
 void EffectSequencer::Reset() {
@@ -453,7 +421,6 @@ void EffectSequencer::Reset() {
 }
 
 // =============================================
-// JSON 菫晏ｭ・隱ｭ縺ｿ霎ｼ縺ｿ
 // =============================================
 
 void EffectSequencer::SaveProfile(const std::string& path, const EffectProfile& profile) {
@@ -492,20 +459,17 @@ bool EffectSequencer::LoadProfileCached(const std::string& path, EffectProfile& 
 }
 
 // =============================================
-// ImGui 繧ｨ繝・ぅ繧ｿ繝ｼ
 // =============================================
 
 #ifdef USE_IMGUI
 void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vector3& defaultTargetPos) {
 	ImGui::Begin("Attack Effect Editor");
 
-	// --- 繝・く繧ｹ繝医ヰ繝・ヵ繧｡・・tatic縺ｧ菫晄戟・・---
 	static char modelBuf[256] = "";
 	static char flyBuf[128] = "";
 	static char hitBuf[128] = "";
 	static bool needsSync = true;
 
-	// 蛻晏屓 or Load蠕後↓繝舌ャ繝輔ぃ繧貞酔譛・
 	if (needsSync) {
 		snprintf(modelBuf, sizeof(modelBuf), "%s", editingProfile_.projectile.modelPath.c_str());
 		snprintf(flyBuf, sizeof(flyBuf), "%s", editingProfile_.flyParticle.c_str());
@@ -513,12 +477,10 @@ void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vect
 		needsSync = false;
 	}
 
-	// --- 繧ｹ繝・・繝郁｡ｨ遉ｺ ---
 	const char* stateNames[] = { "Idle", "Firing", "Flying", "Hit", "Finished" };
 	ImGui::Text("State: %s", stateNames[static_cast<int>(state_)]);
 	ImGui::Separator();
 
-	// --- 繝励Ο繝輔ぃ繧､繝ｫ邱ｨ髮・---
 	if (ImGui::CollapsingHeader("Projectile", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::InputText("Model Path", modelBuf, sizeof(modelBuf))) {
 			editingProfile_.projectile.modelPath = modelBuf;
@@ -641,7 +603,6 @@ void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vect
 
 	ImGui::Separator();
 
-	// --- 繝・せ繝育匱蟆・・繧ｿ繝ｳ ---
 	if (ImGui::Button("Test Fire!")) {
 		Fire(editingProfile_, defaultStartPos, defaultTargetPos);
 	}
@@ -652,7 +613,6 @@ void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vect
 
 	ImGui::Separator();
 
-	// --- 繝輔ぃ繧､繝ｫ謫堺ｽ・---
 	ImGui::InputText("Filename", profileFilename_, sizeof(profileFilename_));
 
 	if (ImGui::Button("Save to JSON")) {
@@ -661,7 +621,6 @@ void EffectSequencer::DrawImGuiEditor(const Vector3& defaultStartPos, const Vect
 	ImGui::SameLine();
 	if (ImGui::Button("Load from JSON")) {
 		if (LoadProfile(profileFilename_, editingProfile_)) {
-			// Load謌仙粥譎ゅ↓繝舌ャ繝輔ぃ繧貞・蜷梧悄
 			needsSync = true;
 		}
 	}
