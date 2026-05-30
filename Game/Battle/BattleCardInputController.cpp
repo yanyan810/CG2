@@ -1,6 +1,33 @@
 #include "BattleCardInputController.h"
 
+#include "Card/CardDef.h"
 #include "UI/HandView3D.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace {
+    float EffectValueFloat(const CardEffectDef& effect)
+    {
+        if (effect.valueIsFloat) {
+            return effect.valueFloat;
+        }
+        if (effect.valueFloat != 0.0f || effect.value == 0) {
+            return effect.valueFloat;
+        }
+        return static_cast<float>(effect.value);
+    }
+
+    int EffectValueInt(const CardEffectDef& effect)
+    {
+        return std::max(0, static_cast<int>(std::lround(EffectValueFloat(effect))));
+    }
+
+    int ScaleEffectAmount(int baseValue, const CardEffectDef& effect)
+    {
+        return std::max(0, static_cast<int>(std::lround(static_cast<float>(baseValue) * EffectValueFloat(effect))));
+    }
+}
 
 int BattleCardInputController::PickHandIndexByMouse(
     const HandView3D& handView,
@@ -93,4 +120,43 @@ BattleCardInputController::TargetDecision BattleCardInputController::ResolveEnem
         decision.action = TargetAction::Confirm;
     }
     return decision;
+}
+
+BattleCardInputController::TargetRequirement BattleCardInputController::AnalyzeTargetRequirement(
+    const CardDef& def,
+    int playerBlock,
+    int attackBuff,
+    int playerTurnCount)
+{
+    TargetRequirement requirement{};
+    int baseDamage = 0;
+    int hitCount = 0;
+
+    for (const auto& effect : def.effects) {
+        if (effect.type == "Damage") {
+            requirement.needsTarget = true;
+            baseDamage += EffectValueInt(effect);
+            hitCount++;
+        } else if (effect.type == "DamageCrescent") {
+            requirement.needsTarget = true;
+            int value = EffectValueInt(effect);
+            if (playerTurnCount % 2 != 0) {
+                value += 3;
+            }
+            baseDamage += value;
+            hitCount++;
+        } else if (effect.type == "DamageByBlock") {
+            requirement.needsTarget = true;
+            baseDamage += ScaleEffectAmount(playerBlock, effect);
+            hitCount++;
+        } else if (effect.type == "Poison" || effect.type == "Frost") {
+            requirement.needsTarget = true;
+            hitCount++;
+        } else if (effect.type == "FrostDraw") {
+            requirement.needsTarget = true;
+        }
+    }
+
+    requirement.pendingDamage = baseDamage + (attackBuff * hitCount);
+    return requirement;
 }

@@ -2,6 +2,7 @@
 
 class HandView3D;
 class Matrix4x4;
+struct CardDef;
 
 class BattleCardInputController {
 public:
@@ -56,6 +57,11 @@ public:
         bool cancelRequested = false;
     };
 
+    struct TargetRequirement {
+        bool needsTarget = false;
+        int pendingDamage = 0;
+    };
+
     static int PickHandIndexByMouse(
         const HandView3D& handView,
         const Matrix4x4& viewProjection,
@@ -78,4 +84,9 @@ public:
         bool leftTriggered,
         bool rightTriggered,
         bool cancelLocked);
+    static TargetRequirement AnalyzeTargetRequirement(
+        const CardDef& def,
+        int playerBlock,
+        int attackBuff,
+        int playerTurnCount);
 };
