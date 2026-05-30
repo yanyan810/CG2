@@ -31,7 +31,8 @@ void SelectionState::Initialize(GameApp& app) {
 	// 1. Button として生成
 	auto giveUpBtn = std::make_unique<Button>();
 	// 2. 引数から L"降参" を削除
-	giveUpBtn->Initialize(app, "GiveUpButton", { 490.f,400.f }, "resources/ui/white.png", "resources/ui/text/Surrender.png");
+	std::string giveUpTexture = isTutorialMode_ ? "resources/ui/text/tutorial_Finish.png" : "resources/ui/text/Surrender.png";
+	giveUpBtn->Initialize(app, "GiveUpButton", { 490.f,400.f }, "resources/ui/white.png", giveUpTexture);
 	// 3. SetScale から SetBgScale へ変更
 	giveUpBtn->SetFrameScale({ 1.f,1.f });
 	giveUpBtn->SetBgScale({ 288.f, 99.f });

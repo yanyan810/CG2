@@ -112,6 +112,8 @@ void PlayerBattleStatusUI::SetTexts(
 }
 
 void PlayerBattleStatusUI::DrawHpGauge(
+	const Matrix4x4& view,
+	const Matrix4x4& proj,
 	int hp,
 	int maxHp,
 	int block,
@@ -155,6 +157,7 @@ void PlayerBattleStatusUI::DrawHpGauge(
 	param.blink = damage > 0 ? blink : 0.0f;
 	param.glow = 0.04f;
 	param.alpha = 1.0f;
+	hpGauge_->Update(view, proj);
 	hpGauge_->SetHealthGaugeParam(param);
 	hpGauge_->DrawHealthGauge();
 }

@@ -183,6 +183,8 @@ void BattleRenderView::Draw2D(const Draw2DContext& context)
 	DrawHpGaugeBloom(context, view, proj);
 	if (context.player) {
 		context.playerStatusUi->DrawHpGauge(
+			view,
+			proj,
 			context.player->GetHP(),
 			context.player->GetMaxHP(),
 			context.player->GetBlock(),

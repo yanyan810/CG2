@@ -881,7 +881,7 @@ void GameScene::Update(GameApp& app, float dt) {
 		if (battleEndTimer_ <= 0) {
 			app.ResetRadialBlur();
 			AudioManager::GetInstance()->StopBGM();
-			RequestChangeScene_("Title");
+			RequestChangeScene_("StageSelect");
 		}
 		return;
 	}
@@ -1450,7 +1450,7 @@ void GameScene::Draw2D(GameApp& app) {
 	}
 
 	if (battle_.IsActionSequencePlaying()) {
-		battle_.Draw2D(app);
+		battle_.Draw2D(app, startFadeActive_);
 		if (releaseDebugText_) {
 		//	releaseDebugText_->Update(view, proj);
 		//	releaseDebugText_->Draw();
@@ -1468,7 +1468,7 @@ void GameScene::Draw2D(GameApp& app) {
 		showDescBg = (def != nullptr) || battle_.ShouldShowOperationUi();
 	}
 
-	battle_.Draw2D(app);
+	battle_.Draw2D(app, startFadeActive_);
 
 	highlightFilter_->Update(view, proj);
 
@@ -1518,12 +1518,15 @@ void GameScene::Draw2D(GameApp& app) {
 		pokerHandHelpView_->Draw(view, proj);
 	}
 
-	drawStartFadeMask();
+	
 
 	// ゲーム結果ポップアップを最前面に描画
 	if (resultPopup_ && resultPopup_->IsVisible()) {
 		resultPopup_->Draw2D(app);
 	}
+
+	drawStartFadeMask();
+
 }
 
 void GameScene::DrawImGui(GameApp& app) {

@@ -141,7 +141,7 @@ void BattleController::DrawPreviewCard3D(GameApp& app) {
 	handView_.DrawPreviewCard();
 }
 
-void BattleController::Draw2D(GameApp& app)
+void BattleController::Draw2D(GameApp& app, bool suppressHpGaugeBloom)
 {
 	BattleRenderView::Draw2DContext context{};
 	context.app = &app;
@@ -154,7 +154,7 @@ void BattleController::Draw2D(GameApp& app)
 	context.incomingDamage = std::max(0, CalcTotalIncomingDamage());
 	context.time = sPokerGlowRainbowTime;
 	context.hpDamageBlinkSpeed = sHpDamageBlinkSpeed;
-	context.hpGaugeBloomEnabled = sHpGaugeBloomEnabled;
+	context.hpGaugeBloomEnabled = sHpGaugeBloomEnabled && !suppressHpGaugeBloom;
 	context.hpGaugeBloomIntensity = sHpGaugeBloomIntensity;
 	context.hpDamageBloomIntensity = sHpDamageBloomIntensity;
 	context.enemyIntentBloomEnabled = sEnemyIntentBloomEnabled;

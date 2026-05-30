@@ -55,7 +55,7 @@ void TutorialUi::Initialize(GameApp& app)
     for (auto& panel : spotlightPanels_) {
         panel = std::make_unique<Sprite>();
         panel->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-        panel->SetColor({ 0.0f, 0.0f, 0.0f, 0.58f });
+        panel->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
         panel->SetPosition({ 0.0f, 0.0f });
         panel->SetScale({ 0.0f, 0.0f, 1.0f });
     }
@@ -334,7 +334,7 @@ void TutorialUi::Update(GameApp& app,
             }
             spotlightPanels_[i]->SetPosition({ panels[i].x, panels[i].y });
             spotlightPanels_[i]->SetScale({ panels[i].w, panels[i].h, 1.0f });
-            spotlightPanels_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 0.58f });
+            spotlightPanels_[i]->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
         }
     } else {
         for (auto& panel : spotlightPanels_) {

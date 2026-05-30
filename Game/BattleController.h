@@ -93,7 +93,7 @@ public:
 	void DrawCardArea3D(GameApp& app);
 	void DrawBattleOverlay3D(GameApp& app);
 	void DrawPreviewCard3D(GameApp& app);
-	void Draw2D(GameApp& app);
+	void Draw2D(GameApp& app, bool suppressHpGaugeBloom = false);
 	void DrawPlayerBattleStatusUI(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj);
 	void DrawEnemyBattleStatusHpTexts(const Matrix4x4& view, const Matrix4x4& proj);
 	void DrawEnemyBattleStatusBcTexts(const Matrix4x4& view, const Matrix4x4& proj);

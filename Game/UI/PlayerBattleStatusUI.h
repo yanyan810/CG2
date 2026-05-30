@@ -16,6 +16,8 @@ public:
 	void Initialize(GameApp& app);
 	void SetTexts(const std::wstring& hpText, const std::wstring& blockText, const std::wstring& powerBoostText);
 	void DrawHpGauge(
+		const Matrix4x4& view,
+		const Matrix4x4& proj,
 		int hp,
 		int maxHp,
 		int block,

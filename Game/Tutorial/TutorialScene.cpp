@@ -6,6 +6,7 @@
 #include "AudioManager.h"
 #include <algorithm>
 #include <cstring>
+#include "AnimationJsonSerializer.h"
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -132,7 +133,7 @@ void TutorialScene::ShowTutorialMenu_(int page)
 
 void TutorialScene::ReturnToTitle_()
 {
-    nextSceneName_ = "Title";
+    nextSceneName_ = "Select";
     state_ = State::ExitClose;
 }
 
@@ -297,8 +298,88 @@ void TutorialScene::InitializeTutorialContent_(GameApp& app)
     player_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
     player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
     player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
+
+#ifndef _DEBUG
+	if (player_ && player_->GetObject3d() && player_->GetObject3d()->GetModel()) {
+		struct CustomAnimationFile {
+			const char* path;
+			const char* name;
+		};
+
+		static const CustomAnimationFile kCustomAnimationFiles[] = {
+			{ "resources/CustomAnim/CustomAnim.json", "CustomAnim" },
+			{ "resources/CustomAnim/CustomAnim_attack_1.json", "CustomAnim_attack_1" },
+			{ "resources/CustomAnim/CustomAnim_attack_2.json", "CustomAnim_attack_2" },
+			{ "resources/CustomAnim/CustomAnim_attack_3.json", "CustomAnim_attack_3" },
+			{ "resources/CustomAnim/CustomAnim_attack_received_1.json", "CustomAnim_attack_received_1" },
+			{ "resources/CustomAnim/CustomAnim_attack_received_2.json", "CustomAnim_attack_received_2" },
+		};
+
+		bool loadedDefaultCustomAnim = false;
+		for (const auto& customAnimationFile : kCustomAnimationFiles) {
+			Animation animation{};
+			if (!AnimationJsonSerializer::LoadFromJson(customAnimationFile.path, animation)) {
+				continue;
+			}
+
+			player_->GetObject3d()->GetModel()->AddAnimation(customAnimationFile.name, animation);
+			if (std::string(customAnimationFile.name) == "CustomAnim") {
+				loadedDefaultCustomAnim = true;
+			}
+		}
+
+		if (loadedDefaultCustomAnim) {
+			player_->GetObject3d()->PlayAnimation("CustomAnim", true);
+		}
+	}
+#endif
+
     particleManager_ = ModelParticleManager::GetInstance();
     particleManager_->ClearParticles();
+
+    trailManager_ = std::make_unique<TrailManager>();
+    trailManager_->Initialize(app.Dx(), app.ObjCom(), "resources/gradation.png");
+    testTrail_ = trailManager_->CreateInstance();
+    testTrail_->SetIsPermanent(true);
+    player_->SetTrailInstance(testTrail_);
+
+    TrailConfig config;
+    trailConfig_.maxPoints = 200;
+    trailConfig_.interpolationSteps = 8;
+    trailConfig_.startColor = { 1, 1, 1, 1 };
+    trailConfig_.endColor = { 1, 0, 0, 0.2f };
+    player_->SetTrailConfig(config);
+
+    particleManager_->RegisterEffect("sword_trail", "sword_particle.json");
+    particleManager_->RegisterEffect("player_fire", "fire_particle.json");
+    particleManager_->RegisterEffect("fireExplosive", "fireExplosive.json");
+    particleManager_->RegisterEffect("particle_image", "0.json");
+	
+    particleManager_->RegisterEffect("Vacuum_Fly", "Vacuum_Fly.json");
+    particleManager_->RegisterEffect("Vacuum_Hit", "Vacuum_Hit.json");
+	
+    particleManager_->RegisterEffect("Flare_Fly", "Flare_Fly.json");
+    particleManager_->RegisterEffect("Flare_Hit", "Flare_Hit.json");
+	
+    particleManager_->RegisterEffect("Air_Fly", "Air_Fly.json");
+    particleManager_->RegisterEffect("Air_Hit", "Air_Hit.json");
+
+    effectSequencer_ = std::make_unique<EffectSequencer>();
+    effectSequencer_->Initialize(
+        app.ObjCom(), app.Dx(), animCamera_.get(),
+        particleManager_, trailManager_.get()
+    );
+
+    if (player_) {
+        player_->GetEffectSequencer().Initialize(
+            app.ObjCom(), app.Dx(), animCamera_.get(),
+            particleManager_, trailManager_.get()
+        );
+
+        player_->AddAttackMove({ "CustomAnim_attack_1", "attack_1.json", 0.1f });
+        player_->AddAttackMove({ "CustomAnim_attack_2", "attack_2.json", 0.15f });
+        player_->AddAttackMove({ "CustomAnim_attack_3", "attack_3.json", 0.2f });
+    }
 
     enemyMgr_.Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
     enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 15.0f });
@@ -1082,32 +1163,38 @@ void TutorialScene::Draw2D(GameApp& app) {
         0, 100
     );
 
-    if (tutorialMenuVisible_) {
-        DrawTutorialMenu_(app);
+    auto drawMasks = [&]() {
         app.SpriteCom()->DrawCircleMask(circle_, softness_);
         if (startFadeActive_ && startFadeMask_) {
             app.SpriteCom()->SetGraphicsPipelineState();
             startFadeMask_->Update(view, proj);
             startFadeMask_->Draw();
         }
+    };
+
+    if (tutorialMenuVisible_) {
+        DrawTutorialMenu_(app);
+        drawMasks();
+        return;
+    }
+
+    if (pausingUI_) {
+        pausingUI_->Draw(app);
+    }
+
+    if (pausingUI_ && pausingUI_->GetIsPaused()) {
+        drawMasks();
         return;
     }
 
     if (battle_.IsActionSequencePlaying()) {
-        battle_.Draw2D(app);
-        if (pausingUI_) {
-            pausingUI_->Draw(app);
-        }
-        app.SpriteCom()->DrawCircleMask(circle_, softness_);
-        if (startFadeActive_ && startFadeMask_) {
-            app.SpriteCom()->SetGraphicsPipelineState();
-            startFadeMask_->Update(view, proj);
-            startFadeMask_->Draw();
-        }
+        battle_.Draw2D(app, true);
+        drawMasks();
         return;
     }
 
-    battle_.Draw2D(app);
+    const bool tutorialMaskActive = tutorial_ && tutorial_->IsActive();
+    battle_.Draw2D(app, tutorialMaskActive);
 
     if (fieldUi_) {
         fieldUi_->Draw(app, battle_);
@@ -1218,17 +1305,7 @@ void TutorialScene::Draw2D(GameApp& app) {
         pokerHandHelpView_->Draw(view, proj);
     }
 
-    if (pausingUI_) {
-        pausingUI_->Draw(app);
-    }
-
-    app.SpriteCom()->DrawCircleMask(circle_, softness_);
-
-    if (startFadeActive_ && startFadeMask_) {
-        app.SpriteCom()->SetGraphicsPipelineState();
-        startFadeMask_->Update(view, proj);
-        startFadeMask_->Draw();
-    }
+    drawMasks();
 }
 
 void TutorialScene::DrawImGui(GameApp& app) {
