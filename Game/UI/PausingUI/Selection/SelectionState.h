@@ -10,6 +10,7 @@ class GameApp;
 
 class SelectionState : public IPauseState {
 public:
+	SelectionState(bool isTutorialMode = false) : isTutorialMode_(isTutorialMode) {}
 
 	void Initialize(GameApp& app) override;
 
@@ -18,6 +19,7 @@ public:
 	void Draw(GameApp& app) override;
 
 private:
+	bool isTutorialMode_ = false;
 
 	std::unique_ptr<TextSprite> title_;
 

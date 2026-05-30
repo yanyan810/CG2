@@ -57,7 +57,7 @@ void PausingUI::Update(GameApp& app, Input* input) {
 		if (isPaused_) {
 			AudioManager::GetInstance()->PlaySE("SE_Pop");
 			// ポーズ開始時に初期ステートへ
-			ChangeState(std::make_unique<SelectionState>(), app);
+			ChangeState(std::make_unique<SelectionState>(tutorialExitMode_), app);
 		}
 	}
 

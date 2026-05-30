@@ -63,7 +63,7 @@ void GiveUpConfirmState::Update(PausingUI* context, GameApp& app, Input* input) 
 					pushedYes_ = true;
                 } else if (name == "No") {
                     // メインメニュー（Selection）へ戻る
-                    context->ChangeState(std::make_unique<SelectionState>(), app);
+                    context->ChangeState(std::make_unique<SelectionState>(context->IsTutorialExitMode()), app);
                 }
             }
         } else {

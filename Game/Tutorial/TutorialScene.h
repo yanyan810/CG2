@@ -20,6 +20,8 @@
 #include "UI/PokerHandHelpView.h"
 #include "UI/PausingUI/PausingUI.h"
 #include "PropManager.h"
+#include "TrailManager.h"
+#include "EffectSequencer.h"
 
 class GameApp;
 class TextSprite;
@@ -91,6 +93,11 @@ private:
     std::unique_ptr<ModelParticleManager> fieldParticleManager_;
     bool particleObjectPostEnabled_ = true;
     BloomParam particleObjectPostParam_{};
+
+    std::unique_ptr<TrailManager> trailManager_;
+    TrailInstance* testTrail_ = nullptr;
+    TrailConfig trailConfig_;
+    std::unique_ptr<EffectSequencer> effectSequencer_;
 
     std::unique_ptr<TutorialManager> tutorial_;
     std::unique_ptr<TutorialUi> tutorialUi_;
