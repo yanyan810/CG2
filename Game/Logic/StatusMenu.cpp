@@ -174,7 +174,7 @@ void StatusMenu::DrawImGui() {
         ImGui::InputInt("Active Detail Index", &activeDetailIndex_);
 
         // 各ボタンのImGuiもネストして呼び出せるようにする
-        parentButton_.DrawImGui();
+        parentButton_[isChildrenVisible_].DrawImGui();
         if (isChildrenVisible_) {
             poisonButton_.DrawImGui();
             freezeButton_.DrawImGui();
