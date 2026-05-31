@@ -237,12 +237,16 @@ BattleFieldViewController::ReplacePreviewResult BattleFieldViewController::Build
 	}
 
 	if (context.hoverIndex >= 0 && context.hoverIndex < 5) {
-		result.active[context.hoverIndex] = true;
+		if (ranks[context.hoverIndex] >= context.currentRank) {
+			result.active[context.hoverIndex] = true;
+		}
 		return result;
 	}
 
 	for (int replaceIndex = 0; replaceIndex < 5; ++replaceIndex) {
-		if (ranks[replaceIndex] == bestRank && bestRank != PokerHandRank::None) {
+		if (ranks[replaceIndex] == bestRank &&
+			bestRank != PokerHandRank::None &&
+			bestRank >= context.currentRank) {
 			result.active[replaceIndex] = true;
 		}
 	}

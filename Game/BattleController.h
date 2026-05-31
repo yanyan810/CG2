@@ -495,6 +495,7 @@ private:
 	void UpdateFieldReplacePreviewEffects_();
 	void EmitHandCardGlitter_(float dt);
 	void EmitPoisonAppliedEffect_(Enemy& enemy, int poisonPoint);
+	void PlayPoisonDamageFeedback_(Enemy& enemy, int actualDamage);
 	void UpdatePoisonIdleEffects_(float dt);
 	void EmitFrostAppliedEffect_(Enemy& enemy, int frostPoint, bool playCastAnim = true);
 	void UpdateFrostIdleEffects_(float dt);
