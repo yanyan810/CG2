@@ -4,19 +4,21 @@
   "minCards": 40,
   "maxCards": 40,
   "maxSameCard": 4,
-  "cards": [
-    { "id": 1, "count": 1 },
-    { "id": 2, "count": 1 },
-    { "id": 3, "count": 1 },
-    { "id": 4, "count": 1 },
-    { "id": 6, "count": 4 },
-    { "id": 8, "count": 4 },
-    { "id": 9, "count": 4 },
-    { "id": 10, "count": 4 },
-    { "id": 11, "count": 4 },
-    { "id": 12, "count": 4 },
-    { "id": 13, "count": 4 },
-    { "id": 17, "count": 4 },
-    { "id": 20, "count": 4 }
+  "cards": [ 
+    { "id": 1, "count": 4 },
+    { "id": 2, "count": 3 },
+    { "id": 3, "count": 3 },
+    { "id": 4, "count": 3 },
+    { "id": 6, "count": 3 },
+    { "id": 7, "count": 2 },
+    { "id": 8, "count": 2 },
+    { "id": 9, "count": 3 },
+    { "id": 10, "count": 2 },
+    { "id": 11, "count": 3 },
+    { "id": 12, "count": 3 },
+    { "id": 13, "count": 3 },
+    { "id": 14, "count": 2 },
+    { "id": 16, "count": 2 },
+    { "id": 20, "count": 2 }
   ]
 }
