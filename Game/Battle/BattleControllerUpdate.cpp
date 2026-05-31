@@ -250,7 +250,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 	if (turn_ == TurnState::Player) {
 
-		if (cardState_ != CardInputState::ChoosingFieldReplace) {
+		if (cardState_ != CardInputState::ChoosingFieldReplace && cardState_ != CardInputState::Idle) {
 			fieldReplaceHoverIndex_ = -1;
 			prevFieldReplaceHoverIndex_ = -1;
 		}
@@ -271,7 +271,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 
 	if (turn_ == TurnState::Player) {
 
-		if (cardState_ != CardInputState::ChoosingFieldReplace) {
+		if (cardState_ != CardInputState::ChoosingFieldReplace && cardState_ != CardInputState::Idle) {
 			fieldReplaceHoverIndex_ = -1;
 			prevFieldReplaceHoverIndex_ = -1;
 		}
@@ -312,6 +312,20 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 			case CardInputState::Idle:
 				handView_.SetDrag(-1, 0, 0, false);
 				handView_.SetPreviewIndex(-1);
+
+				// 手札がホバーされていない場合のみ、フィールドのカードホバーを判定
+				if (handView_.GetHoverIndex() == -1) {
+					int newFieldHover = PickFieldIndexByMouse_(mouse.x, mouse.y);
+					if (newFieldHover != fieldReplaceHoverIndex_) {
+						fieldReplaceHoverIndex_ = newFieldHover;
+						fieldLayoutDirty_ = true;
+					}
+				} else {
+					if (fieldReplaceHoverIndex_ != -1) {
+						fieldReplaceHoverIndex_ = -1;
+						fieldLayoutDirty_ = true;
+					}
+				}
 
 				if (lTrig) {
 					int idx = BattleCardInputController::PickHandIndexByMouse(handView_, cam_->GetViewProjectionMatrix(), mouse.x, mouse.y, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight);

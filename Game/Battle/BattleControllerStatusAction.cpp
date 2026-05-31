@@ -201,6 +201,10 @@ const CardDef* BattleController::GetPreviewCardDef() const
 		if (handHover >= 0 && handHover < static_cast<int>(deckZone_.GetHandCount())) {
 			return db_.Find(deckZone_.GetHand()[handHover].defId);
 		}
+		if (fieldReplaceHoverIndex_ >= 0 &&
+			fieldReplaceHoverIndex_ < static_cast<int>(field_.size())) {
+			return db_.Find(field_[fieldReplaceHoverIndex_].defId);
+		}
 	}
 
 	if (cardState_ == CardInputState::ChoosingFieldReplace) {

@@ -159,9 +159,7 @@ bool BattleFieldViewController::RefreshFieldCardTransforms(const TransformContex
 
 	bool layoutDirty = false;
 	for (int i = 0; i < static_cast<int>(context.fieldViews->size()); ++i) {
-		const bool hovered =
-			(context.choosingFieldReplace && i == context.hoverIndex) ||
-			(context.viewingBoardFromPokerUi && i == context.hoverIndex);
+		const bool hovered = (i == context.hoverIndex);
 
 		if (UpdateFieldCardTransform(*context.fieldViews, context.layout, i, hovered, dt)) {
 			layoutDirty = true;
