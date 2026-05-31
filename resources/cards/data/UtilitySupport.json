@@ -79,7 +79,7 @@
             "rank": "OnePair"
           },
           "effects": [
-            { "type": "Draw", "value": 2 }
+            { "type": "Draw", "value": 1 }
           ]
         }
       ]
