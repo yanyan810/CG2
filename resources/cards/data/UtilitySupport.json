@@ -147,9 +147,9 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Vampire.png",
-      "desc": "このターン中\nダメージを与えるたびに5回復\n(複数回ダメージでも1回のみ)",
+      "desc": "このターン中\nダメージを与えるたび\n体力を3回復する\n(多段、全体攻撃では複数回発動)",
       "effects": [
-        { "type": "VampireBuff", "value": 5 }
+        { "type": "VampireBuff", "value": 3 }
       ]
     },
 
