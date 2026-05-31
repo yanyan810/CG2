@@ -22,7 +22,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/HardPoisonBottle!.png",
-      "desc": "敵全体に毒を3付与",
+      "desc": "敵全体に毒を5付与",
       "effects": [
         { "type": "PoisonAll", "value": 5 }
       ],
@@ -59,7 +59,7 @@
     {
       "id": 24,
       "name": "Flowers",
-      "cost": 5,
+      "cost": 4,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/Flowers.png",
@@ -92,7 +92,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonFollowUp.png",
-      "desc": "敵全体に毒ダメージを1度与える",
+      "desc": "敵全体に毒ダメージを\n1度与える",
        "effects": [
         { "type": "PoisonDamage", "value": 1 }
       ],
@@ -119,7 +119,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PoisonDraw.png",
-      "desc": "このターン中、\n「毒を付与するたびにカードを１枚引く」\nを得る\nすでに付与されているなら\n敵全体に毒を１付与",
+      "desc": "このターン中、\n「毒を付与するたびに\nカードを１枚引く」\nを得る\nすでに付与されているなら\n敵全体に毒を１付与",
        "effects": [
         { "type": "PoisonDraw", "value": 1 }
       ]
@@ -133,10 +133,10 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/TheRodOfAsclepius.png",
-      "desc": "敵全体に毒ダメージを1回与える\nそのあと、敵全体の毒を解除し、\nその値の合計値x0.5分体力を回復する",
+      "desc": "敵全体に毒ダメージを1回与え\n敵全体の毒を解除し、\nその合計値分体力を回復する",
        "effects": [
         { "type": "PoisonDamage", "value": 1 },
-        { "type": "PoisonHeal", "value": 0.5 },
+        { "type": "PoisonHeal", "value": 1 },
         { "type": "PoisonRemove", "value": 1 }
       ],
       "subEffects": [
@@ -163,8 +163,8 @@
       "artTex": "resources/cards/art/Poison/PoisonKnife.png",
       "desc": "敵単体に5ダメージを与え、\n毒を10付与",
        "effects": [
-        { "type": "DamageAll", "value": 5 },
-        { "type": "PoisonAll", "value": 10 }
+        { "type": "Damage", "value": 5 },
+        { "type": "Poison", "value": 10 }
       ]
     },
 
@@ -176,7 +176,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/FriendlyPoison.png",
-      "desc": "敵全体の毒の値の合計値X0.5分体力を回復する",
+      "desc": "敵全体の毒の値の\n合計値X0.5分体力を回復する",
        "effects": [
         { "type": "PoisonHeal", "value": 0.5 }
       ]
@@ -186,7 +186,7 @@
     {
       "id": 30,
       "name": "PainAmplification",
-      "cost": 4,
+      "cost": 3,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Poison/PainAmplification.png",

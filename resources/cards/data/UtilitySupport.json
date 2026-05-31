@@ -115,13 +115,13 @@
     {
       "id": 17,
       "name": "Convert",
-      "cost": 3,
+      "cost": 2,
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/Convert.png",
-      "desc": "シールドの値分X1体力を回復",
+      "desc": "シールドの値X0.5分\n体力を回復",
       "effects": [
-        { "type": "HealByBlock", "value": 1 }
+        { "type": "HealByBlock", "value": 0.5 }
       ]
     },
 
@@ -133,7 +133,7 @@
       "frameModel": "cards/models/frame.obj",
       "artModel": "cards/models/art_plane.obj",
       "artTex": "resources/cards/art/Utility/LowCostRecovery.png",
-      "desc": "手札にある1コストのカードx3回復",
+      "desc": "手札にある\n1コストのカードx3分回復",
       "effects": [
         { "type": "HealByLowCostInHand", "value": 3 }
       ]
