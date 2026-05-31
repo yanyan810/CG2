@@ -315,9 +315,21 @@ void BattleController::ApplyPoisonDamageEffect_(const CardEffectDef& effect)
 {
 	CardEffectExecutor::Context context;
 	context.enemyMgr = enemyMgr_;
+	std::vector<int> hpBefore;
+	if (enemyMgr_) {
+		hpBefore.reserve(enemyMgr_->GetEnemies().size());
+		for (const auto& e : enemyMgr_->GetEnemies()) {
+			hpBefore.push_back(e.GetHP());
+		}
+	}
 	CardEffectExecutor::ApplyPoisonDamage(context, effect);
 	if (enemyMgr_) {
-		for (auto& e : enemyMgr_->GetEnemies()) {
+		auto& enemies = enemyMgr_->GetEnemies();
+		for (size_t i = 0; i < enemies.size(); ++i) {
+			auto& e = enemies[i];
+			if (i < hpBefore.size() && hpBefore[i] > 0) {
+				PlayPoisonDamageFeedback_(e, std::max(0, hpBefore[i] - e.GetHP()));
+			}
 			if (e.IsAlive() && e.GetBC() == Enemy::BadCondition::kPoison) {
 				EmitPoisonAppliedEffect_(e, EffectValueInt_(effect));
 			}

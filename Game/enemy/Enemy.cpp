@@ -805,14 +805,15 @@ void  Enemy::RemoveBC() {
 }
 
 // ターン終了時の状態異常ダメージ処理　いったんあとで
-void Enemy::TurnEndApplyBC() {
+int Enemy::TurnEndApplyBC() {
+	int actualDamage = 0;
 
 	// 毒のポイントを半減（切り上げ）
 	switch (badCondition_)
 	{
 	case BadCondition::kPoison:
 
-		Damage(badConditionPoint_);
+		actualDamage = Damage(badConditionPoint_);
 		badConditionPoint_ = (badConditionPoint_ + 1) / 2;
 
 		break;
@@ -827,4 +828,5 @@ void Enemy::TurnEndApplyBC() {
 		badCondition_ = BadCondition::kNone;
 	}
 
+	return actualDamage;
 }

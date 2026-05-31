@@ -85,6 +85,16 @@ void BattleController::EmitPoisonAppliedEffect_(Enemy& enemy, int poisonPoint)
 	battleParticleManager_->Emit("player_poison", emitPos, emitCount);
 }
 
+void BattleController::PlayPoisonDamageFeedback_(Enemy& enemy, int actualDamage)
+{
+	enemy.TriggerHitFlash(0.22f);
+	enemy.PlayDamageAnim();
+	if (actualDamage > 0) {
+		SpawnDamagePopup(enemy.GetPos(), actualDamage, false);
+	}
+	BattleSfxPlayer::PlaySE("SE_PoisonDamage");
+}
+
 void BattleController::UpdatePoisonIdleEffects_(float dt)
 {
 	if (!battleParticleManager_ || !enemyMgr_) {

@@ -168,6 +168,7 @@ void BattleController::UpdateFieldReplacePreviewEffects_()
 	context.choosingFieldReplace = cardState_ == CardInputState::ChoosingFieldReplace;
 	context.hasPendingCard = hasPendingCard_;
 	context.hoverIndex = fieldReplaceHoverIndex_;
+	context.currentRank = currentPoker_.rank;
 
 	const BattleFieldViewController::ReplacePreviewResult result =
 		BattleFieldViewController::BuildFieldReplacePreview(context);

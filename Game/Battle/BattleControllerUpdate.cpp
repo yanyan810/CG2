@@ -652,9 +652,13 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 					if (enemyMgr_) {
 						for (auto& enemy : enemyMgr_->GetEnemies()) {
 							if (enemy.IsAlive()) {
-								enemy.TurnEndApplyBC();
-
-								// SpawnDamagePopup(enemy.GetPos(), effect.value, false); 
+								const bool hasPoison =
+									enemy.GetBC() == Enemy::BadCondition::kPoison &&
+									enemy.GetBCPoint() > 0;
+								const int actualDamage = enemy.TurnEndApplyBC();
+								if (hasPoison) {
+									PlayPoisonDamageFeedback_(enemy, actualDamage);
+								}
 							}
 						}
 					}

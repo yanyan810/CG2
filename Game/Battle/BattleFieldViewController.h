@@ -50,6 +50,7 @@ public:
 		bool choosingFieldReplace = false;
 		bool hasPendingCard = false;
 		int hoverIndex = -1;
+		PokerHandRank currentRank = PokerHandRank::None;
 	};
 
 	struct ReplacePreviewResult {
