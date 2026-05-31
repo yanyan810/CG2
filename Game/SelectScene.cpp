@@ -349,6 +349,13 @@ void SelectScene::Update(GameApp& app, float dt)
 		return;
 	}
 
+#ifdef _DEBUG
+	if (input->IsKeyTrigger(DIK_F)) {
+		RequestChangeScene_("FieldEditer");
+		return;
+	}
+#endif
+
 	hoverIndex_ = -1;
 
 	POINT mouse = input->GetMousePosition();

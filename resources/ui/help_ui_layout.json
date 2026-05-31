@@ -1,0 +1,47 @@
+{
+    "backButtonFrameOffset": {
+        "x": -37.0,
+        "y": -8.0
+    },
+    "backButtonFrameSize": {
+        "x": 241.0,
+        "y": 95.0
+    },
+    "backButtonRect": {
+        "h": 78.0,
+        "w": 153.0,
+        "x": 44.0,
+        "y": 32.0
+    },
+    "descTextOffset": {
+        "x": 20.0,
+        "y": 20.0
+    },
+    "descTextSize": 28.0,
+    "itemButtonBgScale": {
+        "x": 250.0,
+        "y": 60.0
+    },
+    "itemButtonStart": {
+        "x": 50.0,
+        "y": 150.0
+    },
+    "itemButtonStepY": 80.0,
+    "itemButtonTextOffset": {
+        "x": 15.0,
+        "y": 15.0
+    },
+    "itemButtonTextSize": 24.0,
+    "photoBgRect": {
+        "h": 400.0,
+        "w": 850.0,
+        "x": 350.0,
+        "y": 50.0
+    },
+    "textBgRect": {
+        "h": 180.0,
+        "w": 850.0,
+        "x": 350.0,
+        "y": 480.0
+    }
+}

@@ -25,6 +25,11 @@ public:
     void SetPosition(const Vector2& position);
     void SetFrameScale(const Vector2& scale);
     void SetBgScale(const Vector2& scale);
+    void SetFrameOffset(const Vector2& offset);
+
+    // ピクセル単位でサイズを直接指定するメソッド
+    void SetFrameSize(const Vector2& pixelSize);
+    void SetBgSize(const Vector2& pixelSize);
 
     // 背景色・枠色のコントロール
     void SetNormalColor(const Vector4& normalColor) { normalColor_ = normalColor; }
@@ -44,6 +49,7 @@ private:
     Vector2 position_{ 0.f, 0.f };
     Vector2 frameScale_{ 1.f, 1.f };
     Vector2 bgScale_{ 1.f, 1.f };
+    Vector2 frameOffset_{ 0.f, 0.f };
 
     // --- 枠と背景の2つのスプライトで構成 ---
     std::unique_ptr<Sprite> bg_;

@@ -34,6 +34,15 @@ void StatusMenu::Initialize(GameApp& app, const Vector2& basePosition) {
 
     LoadDescriptions("resources/cards/BadConditionDesc.json");
 }
+
+void StatusMenu::SetPosition(const Vector2& pos) {
+    parentButton_[0].SetPosition(pos);
+    parentButton_[1].SetPosition(pos);
+    if (detailText_) {
+        detailText_->SetPosition({ pos.x + 250.f, pos.y + 55.f });
+    }
+}
+
 void StatusMenu::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj) {
     parentButton_[isChildrenVisible_].Update(app, view, proj);
 

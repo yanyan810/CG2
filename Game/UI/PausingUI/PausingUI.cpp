@@ -84,6 +84,12 @@ void PausingUI::Draw(GameApp& app) {
 
 }
 
+void PausingUI::DrawImGui() {
+    if (isPaused_ && currentState_) {
+        currentState_->DrawImGui();
+    }
+}
+
 void PausingUI::ChangeState(std::unique_ptr<IPauseState> newState, GameApp& app) {
 	currentState_ = std::move(newState);
 	currentState_->Initialize(app);

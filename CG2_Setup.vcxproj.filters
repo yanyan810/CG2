@@ -117,8 +117,15 @@
     <ClCompile Include="Game\TestScene.cpp" />
     <ClCompile Include="Engine\TrailInstance.cpp" />
     <ClCompile Include="Game\UI\PausingUI\PausingUI.cpp" />
-    <ClCompile Include="Game\UI\PausingUI\Selection\SelectionState.cpp" />
-    <ClCompile Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.cpp" />
+    <ClCompile Include="Game\UI\PausingUI\Selection\SelectionState.cpp">
+      <Filter>Game\UI\PausingUI\Selection</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.cpp">
+      <Filter>Game\UI\PausingUI\GiveUp</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\UI\PausingUI\Help\HelpState.cpp">
+      <Filter>Game\UI\PausingUI\Help</Filter>
+    </ClCompile>
     <ClCompile Include="Game\Tutorial\TutorialManager.cpp" />
     <ClCompile Include="Game\UI\TutorialUi.cpp" />
     <ClCompile Include="Game\Tutorial\TutorialScene.cpp" />
@@ -252,8 +259,15 @@
     <ClInclude Include="Engine\TrailInstance.h" />
     <ClInclude Include="Game\UI\PausingUI\PausingUI.h" />
     <ClInclude Include="Game\UI\PausingUI\IPauseState.h" />
-    <ClInclude Include="Game\UI\PausingUI\Selection\SelectionState.h" />
-    <ClInclude Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.h" />
+    <ClInclude Include="Game\UI\PausingUI\Selection\SelectionState.h">
+      <Filter>Game\UI\PausingUI\Selection</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\UI\PausingUI\GiveUp\GiveUpConfirmState.h">
+      <Filter>Game\UI\PausingUI\GiveUp</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\UI\PausingUI\Help\HelpState.h">
+      <Filter>Game\UI\PausingUI\Help</Filter>
+    </ClInclude>
     <ClInclude Include="Game\Tutorial\TutorialManager.h" />
     <ClInclude Include="Game\UI\TutorialUi.h" />
     <ClInclude Include="Game\Tutorial\TutorialScene.h" />

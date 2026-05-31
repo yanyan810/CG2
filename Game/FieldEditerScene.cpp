@@ -39,6 +39,9 @@ void FieldEditerScene::OnEnter(GameApp& app)
 	} else {
 		resultPopup_->Hide();
 	}
+
+	pausingUI_ = std::make_unique<PausingUI>();
+	pausingUI_->Initialize(app);
 }
 
 void FieldEditerScene::OnExit(GameApp& app)
@@ -66,6 +69,13 @@ void FieldEditerScene::Update(GameApp& app, float dt)
 
 	if (!input_) { return; }
 
+	if (pausingUI_) {
+		pausingUI_->Update(app, input_);
+		if (pausingUI_->GetIsPaused()) {
+			return;
+		}
+	}
+
 	if (previewDirty_) {
 		RebuildPreview_();
 	}
@@ -89,6 +99,10 @@ void FieldEditerScene::Draw2D(GameApp& app)
 	// リザルトポップアップを最前面に描画
 	if (resultPopup_ && resultPopup_->IsVisible()) {
 		resultPopup_->Draw2D(app);
+	}
+
+	if (pausingUI_) {
+		pausingUI_->Draw(app);
 	}
 }
 
@@ -153,6 +167,8 @@ void FieldEditerScene::DrawImGui(GameApp& app)
 
 	// リザルトポップアップのImGui（レイアウト調整・保存）
 	if (resultPopup_) { resultPopup_->DrawImGui(); }
+
+	if (pausingUI_) { pausingUI_->DrawImGui(); }
 
 	battle_.DrawFieldSceneEditerImGui();
 #endif

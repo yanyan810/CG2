@@ -5,6 +5,7 @@
 #include "Camera.h"
 #include "Object3d.h"
 #include "GameResultPopup.h"
+#include "UI/PausingUI/PausingUI.h"
 #include <memory>
 
 class GameApp;
@@ -47,4 +48,6 @@ private:
 	float splitRatio_          = 0.465f;  // GameScene::splitRatio_ と合わせる
 	float fieldCameraZoom_     = 1.0f;    // GameScene::fieldCameraZoom_
 	float fieldCameraRotXOffset_ = 0.08f; // GameScene::fieldCameraRotXOffset_
+
+    std::unique_ptr<PausingUI> pausingUI_;
 };

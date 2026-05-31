@@ -55,6 +55,7 @@ bool TextSprite::LoadPrivateFont_()
 
 void TextSprite::SetFontFilePath(const std::wstring& path)
 {
+    if (fontFilePath_ == path) return;
     fontFilePath_ = path;
     privateFontLoaded_ = false;
     RebuildTexture_();
@@ -62,12 +63,14 @@ void TextSprite::SetFontFilePath(const std::wstring& path)
 
 void TextSprite::SetFontFaceName(const std::wstring& faceName)
 {
+    if (fontFaceName_ == faceName) return;
     fontFaceName_ = faceName;
     RebuildTexture_();
 }
 
 void TextSprite::SetFontSize(int size)
 {
+    if (fontSize_ == size) return;
     fontSize_ = size;
     RebuildTexture_();
 }
@@ -116,14 +119,6 @@ void TextSprite::Initialize(SpriteCommon* spriteCommon, DirectXCommon* dx)
     sprite_->SetScale({ 1.0f, 1.0f, 1.0f });
 
     outlineSprites_.clear();
-    outlineSprites_.reserve(8);
-    for (int i = 0; i < 8; ++i) {
-        auto outlineSprite = std::make_unique<Sprite>();
-        outlineSprite->Initialize(spriteCommon_, dx_, textureKey_);
-        outlineSprite->SetPosition(position_);
-        outlineSprite->SetScale({ 1.0f, 1.0f, 1.0f });
-        outlineSprites_.push_back(std::move(outlineSprite));
-    }
 
 	color_ = { 1.0f, 1.0f, 1.0f };
 
@@ -159,7 +154,19 @@ void TextSprite::Draw()
         return;
     }
 
-    if (outlineEnabled_ && outlineWidth_ > 0.0f && hasLastMatrices_ && outlineSprites_.size() >= 8) {
+    if (outlineEnabled_ && outlineWidth_ > 0.0f && hasLastMatrices_) {
+        // 必要になったタイミングでアウトライン用スプライトを生成
+        if (outlineSprites_.empty()) {
+            outlineSprites_.reserve(8);
+            for (int i = 0; i < 8; ++i) {
+                auto outlineSprite = std::make_unique<Sprite>();
+                outlineSprite->Initialize(spriteCommon_, dx_, textureKey_);
+                outlineSprite->SetPosition(position_);
+                outlineSprite->SetScale({ 1.0f, 1.0f, 1.0f });
+                outlineSprites_.push_back(std::move(outlineSprite));
+            }
+        }
+
         const Vector2 offsets[] = {
             { -outlineWidth_, 0.0f },
             { outlineWidth_, 0.0f },

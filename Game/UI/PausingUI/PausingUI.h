@@ -14,7 +14,7 @@ public:
     void Initialize(GameApp& app);
     void Update(GameApp& app, Input* input);
     void Draw(GameApp& app);
-    //void DrawImGui();
+    void DrawImGui();
 
     // 状態遷移用メソッド
     void ChangeState(std::unique_ptr<IPauseState> newState, GameApp& app);

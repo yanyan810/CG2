@@ -15,6 +15,7 @@ public:
     ~StatusMenu() = default;
 
     void Initialize(GameApp& app, const Vector2& basePosition);
+    void SetPosition(const Vector2& pos);
     void Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj);
     void Draw();
     void DrawImGui();
