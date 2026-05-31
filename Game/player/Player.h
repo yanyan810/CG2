@@ -50,6 +50,7 @@ public:
 	// エネミー（弾など）から参照される互換性用の関数群
 	// ===============================================
 	Vector3 GetWorldPos() const { return pos_; }
+	Vector3 GetVisualPos() const;
 	AABB GetBodyAABB() const { return body_; }
 	void Damage(int damage); 
 	void TriggerHitFlash(float sec) { flashTimer_ = sec; }
@@ -73,6 +74,7 @@ public:
 		powerBoostEffectBonus_ = 0;
 	}
 	void SetPowerBoostEffectBonus(int value) { powerBoostEffectBonus_ = value; }
+	void SetPowerBoostEffectEnabled(bool enabled) { powerBoostEffectEnabled_ = enabled; }
 
 	void Heal(int value) {
 		hp_ += value;

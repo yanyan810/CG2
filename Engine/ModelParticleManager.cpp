@@ -529,6 +529,7 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
     // 1. 定数バッファの更新
     computeConfigData_->deltaTime = deltaTime;
     computeConfigData_->maxParticles = maxInstance_;
+    computeConfigData_->playerDelta = playerDelta_;
     computeSceneData_->viewProjection = camera->GetViewMatrix() * camera->GetProjectionMatrix();
     // --- 新機能: ビルボード用カメラ位置 ---
     computeSceneData_->cameraPosition = camera->GetTranslate();
@@ -561,6 +562,9 @@ void ModelParticleManager::Dispatch(float deltaTime, Camera* camera)
         drawArgsResource_.Get(),
         drawArgsResourceState_,
         D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+    // 次フレームのためにプレイヤー移動差分をリセット
+    playerDelta_ = { 0.0f, 0.0f, 0.0f };
 }
 
 void ModelParticleManager::ApplyRenderConfig_(const ParticleEmitterConfig& config)

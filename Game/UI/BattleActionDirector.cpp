@@ -27,6 +27,7 @@
 #include "Object3d.h"
 #include "Model.h"
 #include "Card3D.h"
+#include "ModelParticleManager.h"
 
 namespace {
     struct CachedAnimation {
@@ -364,6 +365,7 @@ void BattleActionDirector::RestoreOriginalState_() {
     }
 
     if (player_) {
+        player_->SetPowerBoostEffectEnabled(true);
         player_->SetSpawnPos(originalPlayerPos_);
         player_->SetRotation(originalPlayerRot_);
         if (player_->GetObject3d()) {
@@ -409,13 +411,23 @@ void BattleActionDirector::StartActionInternal_(Player* player, Enemy* target, c
     duration_ = profile_.attackWaitDuration; 
 
     // Initial Placement
+    ModelParticleManager::GetInstance()->ClearParticles();
     if (player_) {
+        player_->SetPowerBoostEffectEnabled(false);
+
+        // 演出開始時のワープ移動差分をパーティクルマネージャーに通知
+        Vector3 warpDelta = profile_.playerPos - originalPlayerPos_;
+        ModelParticleManager::GetInstance()->SetPlayerDelta(warpDelta);
+
         player_->SetSpawnPos(profile_.playerPos);
         player_->SetRotation(profile_.playerRot);  // Blender の向きを反映
         if (player_->GetObject3d()) {
             player_->GetObject3d()->SetTranslate(profile_.playerPos);
             player_->GetObject3d()->SetRotate(profile_.playerRot);
+            player_->GetObject3d()->Update(0.0f); // ワープ後の姿勢を行列に反映
         }
+        // ワープ後の初期見かけ座標を記憶
+        visualPlayerPos_ = player_->GetVisualPos();
     }
     if (target_) target_->SetPosition(profile_.enemyPos);
 
@@ -556,6 +568,15 @@ bool BattleActionDirector::Update(float dt, Input* input) {
         return false;
     }
 
+    // 演出中のプレイヤーの見かけ上の移動差分を計算してパーティクルに適用
+    if (player_) {
+        Vector3 currentVisualPos = player_->GetVisualPos();
+        Vector3 delta = currentVisualPos - visualPlayerPos_;
+        visualPlayerPos_ = currentVisualPos;
+
+        ModelParticleManager::GetInstance()->SetPlayerDelta(delta);
+    }
+
     // ★マウス左クリックでスキップ（Cutin以外のフェーズで有効）
     if (skipEnabled_ && !debugPaused_ && input && input->IsMouseTrigger(0)) {
         if (phase_ != ActionPhase::Cutin) {
@@ -650,6 +671,13 @@ bool BattleActionDirector::Update(float dt, Input* input) {
 
         if (!debugPaused_ && timer_ >= duration_) {
             phase_ = ActionPhase::Idle;
+
+            if (player_) {
+                // 演出終了時のワープ移動差分をパーティクルマネージャーに通知
+                Vector3 warpDelta = originalPlayerPos_ - player_->GetVisualPos();
+                ModelParticleManager::GetInstance()->SetPlayerDelta(warpDelta);
+            }
+
             RestoreOriginalState_();
             cardMotionVisible_ = false;
             // ★ cardMotionCard_ と cardMotionKeyframes_ はキャッシュとして保持する

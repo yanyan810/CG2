@@ -184,4 +184,7 @@ private:
     // Card3D再利用キャッシュ（Initializeは最初の1回だけ）
     int cachedCardDefId_ = -1;       // 前回のCardDef::id
     CardInstance cachedCardInst_{};  // 前回のCardInstance
+
+    // プレイヤーの見かけ上の移動差分計算用
+    Vector3 visualPlayerPos_{};
 };
