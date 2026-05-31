@@ -477,5 +477,9 @@ void TestScene::DrawImGui(GameApp& app) {
         targetEnemy = &enemyMgr_.GetEnemies().front();
     }
     actionDirector_.DrawImGuiEditor(camera_.get(), player_.get(), targetEnemy);
+
+    if (pausingUI_) {
+        pausingUI_->DrawImGui();
+    }
 #endif
 }

@@ -14,6 +14,7 @@ public:
     virtual void Initialize(GameApp& app) = 0;
     virtual void Update(PausingUI* context, GameApp& app, Input* input) = 0;
     virtual void Draw(GameApp& app) = 0;
+    virtual void DrawImGui() {}
 
 protected:
     // この状態が管理するスプライトリスト

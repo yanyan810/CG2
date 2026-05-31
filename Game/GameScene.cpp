@@ -1748,6 +1748,9 @@ void GameScene::DrawImGui(GameApp& app) {
 	if (resultPopup_) { resultPopup_->DrawImGui(); }
 	if (pokerHandHelpView_) { pokerHandHelpView_->DrawImGui(); }
 
+	if (pausingUI_) {
+		pausingUI_->DrawImGui();
+	}
 #endif
 }
 

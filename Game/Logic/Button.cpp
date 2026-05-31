@@ -19,19 +19,26 @@ void Button::Initialize(GameApp& app, const std::string& name, const Vector2& po
 	frame_->SetPosition(position_);
 	frame_->SetScale({ frameScale_.x, frameScale_.y, 1.0f });
 
-	// 2. 背景スプライトを、枠と同じサイズで生成
+	// 2. 背景スプライトを生成
 	bg_ = std::make_unique<Sprite>();
 	bg_->Initialize(app.SpriteCom(), app.Dx(), bgPath);
 	bg_->SetName(name + "_bg");
 	bg_->SetPosition(position_);
-	bg_->SetScale({ bgScale_.x, bgScale_.y, 1.0f });
 	bg_->SetColor(normalColor_);
+
+	SetBgScale(bgScale_);
+	SetFrameScale(frameScale_);
 }
 
 void Button::SetPosition(const Vector2& position) {
 	position_ = position;
 	if (bg_) bg_->SetPosition(position_);
-	if (frame_) frame_->SetPosition(position_);
+	if (frame_) frame_->SetPosition({ position_.x + frameOffset_.x, position_.y + frameOffset_.y });
+}
+
+void Button::SetFrameOffset(const Vector2& offset) {
+	frameOffset_ = offset;
+	if (frame_) frame_->SetPosition({ position_.x + frameOffset_.x, position_.y + frameOffset_.y });
 }
 
 void Button::SetFrameScale(const Vector2& scale) {
@@ -41,7 +48,32 @@ void Button::SetFrameScale(const Vector2& scale) {
 
 void Button::SetBgScale(const Vector2& scale) {
 	bgScale_ = scale;
-	if (bg_) bg_->SetScale({ bgScale_.x, bgScale_.y, 1.0f });
+	if (bg_) {
+		Vector2 texSize = bg_->GetTextureCutSize();
+		if (texSize.x > 0 && texSize.y > 0) {
+			bg_->SetScale({ bgScale_.x / texSize.x, bgScale_.y / texSize.y, 1.0f });
+		}
+	}
+}
+
+void Button::SetFrameSize(const Vector2& pixelSize) {
+	if (frame_) {
+		Vector2 texSize = frame_->GetTextureCutSize();
+		if (texSize.x > 0 && texSize.y > 0) {
+			frameScale_ = { pixelSize.x / texSize.x, pixelSize.y / texSize.y };
+			frame_->SetScale({ frameScale_.x, frameScale_.y, 1.0f });
+		}
+	}
+}
+
+void Button::SetBgSize(const Vector2& pixelSize) {
+	bgScale_ = pixelSize;
+	if (bg_) {
+		Vector2 texSize = bg_->GetTextureCutSize();
+		if (texSize.x > 0 && texSize.y > 0) {
+			bg_->SetScale({ bgScale_.x / texSize.x, bgScale_.y / texSize.y, 1.0f });
+		}
+	}
 }
 
 void Button::SetFrameColor(const Vector4& frameColor) {
@@ -53,9 +85,16 @@ void Button::Update(GameApp& app, const Matrix4x4& view, const Matrix4x4& proj) 
 	Input* input = app.GetInput();
 	POINT mouse = input->GetMousePosition();
 
+	Vector2 mousePos = { static_cast<float>(mouse.x), static_cast<float>(mouse.y) };
+
 	// マウスオーバー判定 (AABB)
-	isMouseOver_ = (mouse.x >= position_.x && mouse.x <= position_.x + bgScale_.x &&
-		mouse.y >= position_.y && mouse.y <= position_.y + bgScale_.y);
+	if (bg_) {
+		isMouseOver_ = bg_->IsMouseOver(mousePos);
+	} else if (frame_) {
+		isMouseOver_ = frame_->IsMouseOver(mousePos);
+	} else {
+		isMouseOver_ = false;
+	}
 
 	if (isMouseOver_) {
 		if (bg_) bg_->SetColor(hoverColor_);

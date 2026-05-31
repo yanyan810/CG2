@@ -526,6 +526,22 @@ void GameApp::BuildStartupLoadSteps_()
 	}
 
 	startupLoadSteps_.push_back([]() {
+		std::ifstream file("resources/ui/help_items.json");
+		if (file.is_open()) {
+			try {
+				nlohmann::json root;
+				file >> root;
+				for (const auto& item : root) {
+					std::string path = item.value("imagePath", "");
+					if (!path.empty()) {
+						TextureManager::GetInstance()->LoadTexture(path);
+					}
+				}
+			} catch (...) {}
+		}
+	});
+
+	startupLoadSteps_.push_back([]() {
 		ParticleManager::GetInstance()->LoadAllEffects();
 		});
 	startupLoadSteps_.push_back([this]() {

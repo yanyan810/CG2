@@ -573,3 +573,43 @@ inline TutorialUiLayout MakeDefaultTutorialUiLayout()
     l.enemyNextActionArea = { 930.0f, 18.0f, 80.0f, 70.0f };
     return l;
 }
+
+struct HelpUiLayout {
+    UiRect backButtonRect{ 50.0f, 50.0f, 160.0f, 50.0f };
+    UiVec2 backButtonFrameSize{ 160.0f, 50.0f };
+    UiVec2 backButtonFrameOffset{ 0.0f, 0.0f };
+
+    UiVec2 itemButtonStart{ 50.0f, 150.0f };
+    float itemButtonStepY = 80.0f;
+    UiVec2 itemButtonBgScale{ 250.0f, 60.0f };
+    UiVec2 itemButtonTextOffset{ 15.0f, 15.0f };
+    float itemButtonTextSize = 24.0f;
+
+    UiRect photoBgRect{ 350.0f, 50.0f, 850.0f, 400.0f };
+    UiRect textBgRect{ 350.0f, 480.0f, 850.0f, 180.0f };
+    
+    UiVec2 descTextOffset{ 20.0f, 20.0f };
+    float descTextSize = 28.0f;
+};
+
+struct SelectionUiLayout {
+    UiVec2 titlePos{ 550.0f, 100.0f };
+    float titleSize = 50.0f;
+
+    UiVec2 resumeBtnPos{ 490.0f, 250.0f };
+    UiVec2 resumeBtnBgSize{ 288.0f, 99.0f };
+    UiVec2 resumeBtnFrameSize{ 288.0f, 99.0f };
+    UiVec2 resumeBtnFrameOffset{ 0.0f, 0.0f };
+
+    UiVec2 helpBtnPos{ 490.0f, 370.0f };
+    UiVec2 helpBtnBgSize{ 288.0f, 99.0f };
+    UiVec2 helpBtnFrameSize{ 288.0f, 99.0f };
+    UiVec2 helpBtnFrameOffset{ 0.0f, 0.0f };
+
+    UiVec2 giveUpBtnPos{ 490.0f, 490.0f };
+    UiVec2 giveUpBtnBgSize{ 288.0f, 99.0f };
+    UiVec2 giveUpBtnFrameSize{ 288.0f, 99.0f };
+    UiVec2 giveUpBtnFrameOffset{ 0.0f, 0.0f };
+
+    UiVec2 statusMenuPos{ 100.0f, 300.0f };
+};

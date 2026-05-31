@@ -1,0 +1,165 @@
+[
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+        "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "緑色のバーがプレイヤーのHPです。\nHPが0になると敗北になります。\n赤い部分は次に受けるダメージです。",
+        "title": "プレイヤーの表示"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+      "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+
+        "text": "盾のマークがブロックです。\n敵から受けるダメージを防ぎます。\nターン終了時に0になります。",
+        "title": "ブロック"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "剣のマークがATKです。\nカードの攻撃力に加算されます。\nターン終了時に0になります。",
+        "title": "ATK"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "赤いバーが敵のHPです。\n敵HPの横の数字は行動までの残り枚数です。\n0になると敵が行動します。",
+        "title": "敵の表示"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "場に5枚カードを出すと役が成立します。\n現在の役は中央で確認できます。",
+        "title": "役"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "右下に手札・デッキ・墓地の枚数が表示されています。",
+        "title": "枚数表示"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "左下のボタンから役一覧を確認できます。",
+        "title": "役確認"
+    },
+    {
+        "imagePath": "resources/ui/help/help_card.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "カードにはコスト・マーク・数字があります。\nマークと数字を組み合わせてポーカー役を作ります。",
+        "title": "カードの構成"
+    },
+    {
+        "imagePath": "resources/ui/help/help_card.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "左上の数字がコストです。\nコストが足りないカードは使用できません。",
+        "title": "コスト"
+    },
+    {
+        "imagePath": "resources/ui/help/help_card.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "カードをクリックし、上へドラッグして離すと使用できます。",
+        "title": "手札の使い方"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "場に5枚のカードを出すと役が成立します。\nターン開始時、役に応じた特殊効果が発動できます。",
+        "title": "ポーカー役"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Resonance.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "役が成立すると特殊効果を選択できます。\nATKUP・ダメージ・ドローから1つ選びます。",
+        "title": "特殊効果"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Resonance.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "次のターン最初に攻撃するカードの攻撃力が上昇します。",
+        "title": "ATKUP"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Resonance.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "選択した敵1体に直接ダメージを与えます。",
+        "title": "ダメージ"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Resonance.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "表示されている枚数分カードを引きます。",
+        "title": "ドロー"
+    },
+    {
+        "imagePath": "resources/ui/help/help_enemyConnect.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "敵選択画面が表示されたら攻撃したい敵を左クリックしてください。",
+        "title": "敵の選択"
+    },
+    {
+        "imagePath": "resources/ui/help/help_Common.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "右側の青いボタンを押すとターン終了です。",
+        "title": "ターン終了"
+    },
+    {
+        "imagePath": "resources/ui/help/help_card.png",
+          "imagePosX": 762.0,
+        "imagePosY": 243.0,
+        "imageScaleX": 0.6000000238418579,
+        "imageScaleY": 0.6000000238418579,
+        "text": "一部のカードは特殊な能力を持っています。\n効果はカードごとに異なります。",
+        "title": "カードの特殊効果"
+    }
+]

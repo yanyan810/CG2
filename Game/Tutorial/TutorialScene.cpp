@@ -1295,6 +1295,10 @@ void TutorialScene::DrawImGui(GameApp& app) {
         pokerHandHelpView_->DrawImGui();
     }
 
+    if (pausingUI_) {
+        pausingUI_->DrawImGui();
+    }
+
 #else
     (void)app;
 #endif

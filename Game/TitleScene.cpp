@@ -159,6 +159,13 @@ void TitleScene::Update(GameApp& app, float dt) {
 		return;
 	}
 
+#ifdef _DEBUG
+	if (input->IsKeyTrigger(DIK_F)) {
+		RequestChangeScene_("FieldEditer");
+		return;
+	}
+#endif
+
 
 	//--------------------------------------------------------
 	// クリックの瞬間 (左または右)
