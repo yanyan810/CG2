@@ -44,6 +44,7 @@ void SceneManager::Update(GameApp& app, float dt) {
     if (pendingPreparedScene_) {
         ChangeToPrepared(app, pendingPreparedName_, std::move(pendingPreparedScene_));
         pendingPreparedName_.clear();
+        current_->Update(app, 0.0f);
         return;
     }
 
@@ -51,6 +52,7 @@ void SceneManager::Update(GameApp& app, float dt) {
     if (next && next[0] != '\0') {
         current_->ClearRequestedScene_();
         Change(app, next);
+        current_->Update(app, 0.0f);
     }
 }
 
