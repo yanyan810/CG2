@@ -173,11 +173,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 		isInsideWindow = true;
 	}
 
-	bool tutorialTrig = input->IsKeyTrigger(DIK_T);
-	bool deckEditTrig = input->IsKeyTrigger(DIK_D);
-	bool objectPostTestTrig = input->IsKeyTrigger(DIK_O);
-	bool animeEditorTrig = input->IsKeyTrigger(DIK_A);
-	bool fieldEditorTrig = input->IsKeyTrigger(DIK_F);
+
 
 	if (!clickDissolveDone_) {
 		openingDissolveTimer_ += dt;
@@ -204,33 +200,7 @@ void TitleScene::Update(GameApp& app, float dt) {
 			state_ = State::ExitClose;
 		}
 
-		if (tutorialTrig) {
-			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			app.SetLoadingMode(GameApp::LoadingMode::SelectToTutorial);
-			RequestChangeScene_("GameLoading");
-			return;
-		}
 
-		if (deckEditTrig) {
-			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			RequestChangeScene_("DeckEdit");
-			return;
-		}
-
-		if (objectPostTestTrig) {
-			RequestChangeScene_("Test");
-			return;
-		}
-
-		if (animeEditorTrig) {
-			RequestChangeScene_("BattleAnimeEditer");
-			return;
-		}
-
-		if (fieldEditorTrig) {
-			RequestChangeScene_("FieldEditer");
-			return;
-		}
 
 		break;
 

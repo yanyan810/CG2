@@ -183,12 +183,7 @@ void GameOverScene::Update(GameApp& app, float dt) {
 
         const Input* input = app.GetInput();
 
-        if (input && (input->IsKeyPressed(DIK_LEFT) || input->IsKeyPressed(DIK_A))) {
-            select_ = Select::Retry;
-        }
-        if (input && (input->IsKeyPressed(DIK_RIGHT) || input->IsKeyPressed(DIK_D))) {
-            select_ = Select::Title;
-        }
+
 
         if (input) {
             const POINT mousePos = input->GetMousePosition();

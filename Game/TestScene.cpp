@@ -185,10 +185,11 @@ void TestScene::OnEnter(GameApp& app) {
     postParam.chromAbAmount = 0.02f;
     postParam.distortionAmount = 0.004f;
     postParam.noiseIntensity = 0.02f;
-    postParam.scanlineIntensity = 0.0f;
     postParam.glitchAmount = 0.0f;
     postParam.dissolveAmount = -1.0f;
 
+    pausingUI_ = std::make_unique<PausingUI>();
+    pausingUI_->Initialize(app);
 }
 
 void TestScene::OnExit(GameApp& /*app*/) {
@@ -210,6 +211,17 @@ void TestScene::OnExit(GameApp& /*app*/) {
 void TestScene::Update(GameApp& app, float dt) {
     if (!input_) return;
 
+    if (pausingUI_) {
+        pausingUI_->Update(app, input_);
+        if (pausingUI_->GetIsSceneChangeRequested()) {
+            RequestChangeScene_("Title");
+            return;
+        }
+        if (pausingUI_->GetIsPaused()) {
+            return;
+        }
+    }
+
     camera_->Update();
 
     ground_->Update(dt);
@@ -222,12 +234,7 @@ void TestScene::Update(GameApp& app, float dt) {
         normalCube_->Update(dt);
     }
 
-    // ★ 特定のタイミングでパーティクルを発生させるテスト（スペースキー）
-    if (input_->IsKeyTrigger(DIK_SPACE)) {
-        // LoadAllEffects() によって自動ロードされたエフェクトをファイル名(拡張子なし)で呼び出す
-        // 例: test_particles.json -> "test_particles"
-        ParticleManager::GetInstance()->EmitEffect("test_particles", { 0.0f, 0.0f, 5.0f });
-    }
+
     if (postCube_) {
         postCube_->SetRotate({ demoTimer_ * 0.5f, demoTimer_ * 1.2f, 0.0f });
         postCube_->Update(dt);
@@ -458,7 +465,9 @@ void TestScene::Draw2D(GameApp& app) {
         playTxst_->Draw();
     }
 
-    actionDirector_.Draw2D();
+    if (pausingUI_) {
+        pausingUI_->Draw(app);
+    }
 }
 
 void TestScene::DrawImGui(GameApp& app) {

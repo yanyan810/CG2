@@ -462,15 +462,9 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		isUsingMouse_ = true;
 	}
 
-	if (input->IsKeyTrigger(DIK_A)) {
-		RequestChangeScene_("BattleAnimeEditer");
-		return;
-	}
-
 	hoverIndex_ = -1;
 
-	if (input->IsKeyTrigger(DIK_ESCAPE) ||
-		(PointInRect_(mx, my, backButtonRect_) && input->IsMouseTrigger(0))) {
+	if (PointInRect_(mx, my, backButtonRect_) && input->IsMouseTrigger(0)) {
 		AudioManager::GetInstance()->PlaySE("SE_Tap");
 		RequestChangeScene_("Select");
 		return;
@@ -504,44 +498,7 @@ void StageSelectScene::Update(GameApp& app, float dt) {
 		}
 	}
 
-	// キーボード操作
-	if (input->IsKeyTrigger(DIK_UP) || input->IsKeyTrigger(DIK_W)) {
-		isUsingMouse_ = false;
-		selectIndex_--;
-		if (selectIndex_ < 0) {
-			selectIndex_ = static_cast<int>(stageItems_.size()) - 1;
-		}
-	}
 
-	if (input->IsKeyTrigger(DIK_DOWN) || input->IsKeyTrigger(DIK_S)) {
-		isUsingMouse_ = false;
-		selectIndex_++;
-		if (selectIndex_ >= static_cast<int>(stageItems_.size())) {
-			selectIndex_ = 0;
-		}
-	}
-
-	if (input->IsKeyTrigger(DIK_LEFT) || input->IsKeyTrigger(DIK_A)) {
-		if (currentStageId_ > 1) {
-			isUsingMouse_ = false;
-			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			ChangeStage_(-1);
-		}
-	}
-
-	if (input->IsKeyTrigger(DIK_RIGHT) || input->IsKeyTrigger(DIK_D)) {
-		if (currentStageId_ < 10) {
-			isUsingMouse_ = false;
-			AudioManager::GetInstance()->PlaySE("SE_Tap");
-			ChangeStage_(1);
-		}
-	}
-
-	if (input->IsKeyTrigger(DIK_RETURN) || input->IsKeyTrigger(DIK_SPACE)) {
-		AudioManager::GetInstance()->PlaySE("SE_Tap");
-		SelectStageItem_(app, stageItems_[selectIndex_]);
-		return;
-	}
 
 	const int showIndex = isUsingMouse_ ? hoverIndex_ : selectIndex_;
 	if (showIndex >= 0 && showIndex < static_cast<int>(stageItems_.size())) {

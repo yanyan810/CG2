@@ -188,15 +188,6 @@ void TutorialScene::UpdateTutorialMenu_(GameApp& app)
     const float my = static_cast<float>(mouse.y);
     const bool click = input->IsMouseTrigger(0);
 
-    if (input->IsKeyTrigger(DIK_ESCAPE)) {
-        if (tutorialMenuPage_ == 0) {
-            ReturnToTitle_();
-        } else {
-            ReturnToTutorialMenu_(app);
-        }
-        return;
-    }
-
     for (auto& button : tutorialMenuButtons_) {
         button.hovered =
             mx >= button.rect.x && mx <= button.rect.x + button.rect.w &&
@@ -243,8 +234,6 @@ void TutorialScene::DrawTutorialMenu_(GameApp& app)
 
     for (auto& button : tutorialMenuButtons_) {
         if (button.bg) {
-            button.bg->SetPosition({ button.rect.x, button.rect.y });
-            button.bg->SetScale({ button.rect.w, button.rect.h, 1.0f });
             button.bg->SetColor(button.nextPage == -2
                 ? Vector4{ 0.92f, 0.92f, 0.92f, 0.95f }
                 : button.hovered
@@ -472,7 +461,7 @@ void TutorialScene::InitializeTutorialContent_(GameApp& app)
         outlineText = std::make_unique<TextSprite>();
         outlineText->Initialize(app.SpriteCom(), app.Dx());
         outlineText->SetFontSize(kBlockTextFontSize);
-        outlineText->SetSize({ 1.0f, 1.0f, 0.5f });
+        outlineText->SetSize({ 1.f, 1.f, 0.5f });
     }
 
     highlightFilter_ = std::make_unique<Sprite>();
@@ -525,155 +514,6 @@ void TutorialScene::OnEnter(GameApp& app) {
     lastTutorialStep_ = TutorialManager::TutorialStep::Intro;
     cardExplainInputBlockTimer_ = 0.0f;
     StartTutorialChapter_(app, TutorialManager::TutorialChapter::Full);
-    return;
-
-    camera_ = std::make_unique<Camera>();
-    camera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
-    camera_->SetRotate({ 0.15f, 0.0f, 0.0f });
-    app.ObjCom()->SetDefaultCamera(camera_.get());
-
-    animCamera_ = std::make_unique<Camera>();
-    animCamera_->SetTranslate({ 0.0f, 4.0f, -40.0f });
-    animCamera_->SetRotate({ 0.15f, 0.0f, 0.0f });
-
-    cameraAnim_ = std::make_unique<CameraAnimator>();
-    cameraAnim_->Initialize(animCamera_.get(), app.GetInput());
-
-    skyDome_ = std::make_unique<Object3d>();
-    skyDome_->Initialize(app.ObjCom(), app.Dx());
-    skyDome_->SetModel("skydome/skydome.obj");
-    skyDome_->SetCamera(animCamera_.get());
-    skyDome_->SetEnableLighting(0);
-    skyDome_->SetTranslate({ 0.0f, 0.0f, 0.0f });
-    skyDome_->SetScale({ 100.0f, 100.0f, 100.0f });
-
-    tutorialFieldProps_ = std::make_unique<PropManager>();
-    tutorialFieldProps_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
-    tutorialFieldProps_->LoadFromJson(kTutorialFieldConfigPath);
-
-    const float charZ = 15.0f;
-
-    player_ = std::make_unique<Player>();
-    player_->Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
-    player_->SetSpawnPos({ -7.0f, 0.0f, charZ });
-    player_->SetRotation({ 0.0f, 1.5708f, 0.0f });
-    particleManager_ = ModelParticleManager::GetInstance();
-    particleManager_->ClearParticles();
-
-    enemyMgr_.Initialize(app.ObjCom(), app.Dx(), animCamera_.get());
-    enemyMgr_.Spawn(EnemyType::Slime, { 7.0f, 0.0f, 15.0f });
-
-    auto MakeTutorialCard = [](int defId, int number, CardSuit suit) {
-        CardInstance c{};
-        c.defId = defId;
-        c.number = number;
-        c.suit = suit;
-        return c;
-        };
-
-    std::vector<CardInstance> openingHand = {
-        MakeTutorialCard(1, 7, CardSuit::Spade),
-        MakeTutorialCard(2, 7, CardSuit::Heart),
-        MakeTutorialCard(3, 3, CardSuit::Diamond),
-        MakeTutorialCard(9, 7, CardSuit::Club),
-        MakeTutorialCard(13, 13, CardSuit::Spade),
-    };
-
-    battle_.SetPlayer(player_.get());
-    battle_.SetEnemyManager(&enemyMgr_);
-    battle_.SetTutorialOpeningHand(openingHand);
-    battle_.Initialize(app, camera_.get());
-
-    fieldParticleManager_ = std::make_unique<ModelParticleManager>();
-    fieldParticleManager_->Initialize(app.Dx(), app.Srv(), 20000);
-    fieldParticleManager_->RegisterEffect("card_glitter", "card_glitter.json");
-    battle_.SetFieldParticleManager(fieldParticleManager_.get());
-    ResetParticleObjectPostParam_();
-
-    if (Enemy* enemy = enemyMgr_.GetEnemy(0)) {
-        enemy->SetMaxHp(141, true);
-    }
-
-
-    fieldUi_ = std::make_unique<FieldUi>();
-    fieldUi_->Initialize(app);
-
-    // プレイヤーHP数字
-    playerHpText_ = std::make_unique<TextSprite>();
-    playerHpText_->Initialize(app.SpriteCom(), app.Dx());
-    playerHpText_->SetSize({ 1.0f, 1.0f, 1.0f });
-    playerHpText_->SetPosition({ 140.0f, 12.5f });
-
-    // 敵HP数字
-    for (int i = 0; i < 3; i++) {
-        auto text = std::make_unique<TextSprite>();
-        text->Initialize(app.SpriteCom(), app.Dx());
-        text->SetSize({ 1.0f, 1.0f, 1.0f });
-        text->SetPosition({ 1000.0f, 40.0f + (i * 30.0f) });
-        enemyHpTexts_.push_back(std::move(text));
-    }
-
-    // パワーブースト
-    powerBoostBg_ = std::make_unique<Sprite>();
-    powerBoostBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    powerBoostBg_->SetPosition({ 95.0f, 60.0f });
-    powerBoostBg_->SetScale({ 32.0f, 32.0f, 1.0f });
-    powerBoostBg_->SetColor({ 1.0f, 0.0f, 0.0f, 0.5f });
-
-    powerBoostText_ = std::make_unique<TextSprite>();
-    powerBoostText_->Initialize(app.SpriteCom(), app.Dx());
-    powerBoostText_->SetSize({ 1.f, 1.f, 0.5f });
-    powerBoostText_->SetPosition({ 88.f, 40.f });
-
-    // ブロック
-    blockBg_ = std::make_unique<Sprite>();
-    blockBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    blockBg_->SetPosition({ 145.0f, 60.0f });
-    blockBg_->SetScale({ 32.0f, 32.0f, 1.0f });
-    blockBg_->SetColor({ 0.0f, 0.0f, 1.0f, 0.5f });
-
-    blockText_ = std::make_unique<TextSprite>();
-    blockText_->Initialize(app.SpriteCom(), app.Dx());
-    blockText_->SetSize({ 1.f, 1.f, 0.5f });
-    blockText_->SetPosition({ 138.f, 40.f });
-
-    tutorial_ = std::make_unique<TutorialManager>();
-    tutorial_->Initialize();
-
-    tutorialUi_ = std::make_unique<TutorialUi>();
-    tutorialUi_->Initialize(app);
-    tutorialMenuBg_ = std::make_unique<Sprite>();
-    tutorialMenuBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    tutorialMenuBg_->SetAnchorPoint({ 0.0f, 0.0f });
-    tutorialMenuPage_ = 0;
-    tutorialMenuVisible_ = true;
-    InitializeTutorialMenu_(app);
-
-    pokerHandHelpView_ = std::make_unique<PokerHandHelpView>();
-    pokerHandHelpView_->Initialize(app.SpriteCom(), app.Dx());
-
-    startFadeMask_ = std::make_unique<Sprite>();
-    startFadeMask_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
-    startFadeMask_->SetAnchorPoint({ 0.0f, 0.0f });
-    startFadeMask_->SetPosition({ 0.0f, 0.0f });
-    const DirectX::TexMetadata& whiteMeta =
-        TextureManager::GetInstance()->GetMetaData("resources/ui/white.png");
-    startFadeMask_->SetScale({
-        float(WinApp::kClientWidth) / float(whiteMeta.width),
-        float(WinApp::kClientHeight) / float(whiteMeta.height),
-        1.0f
-        });
-    startFadeMask_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
-    startFadeDuration_ = kSceneStartFadeDuration;
-    startFadeTimer_ = 0.0f;
-    startFadeActive_ = true;
-
-    // 円マスク開始設定
-    state_ = State::EnterOpen;
-    circle_ = 0.0f;
-    softness_ = 0.6f;
-    nextSceneName_ = "Select";
-    prevEsc_ = false;
 }
 void TutorialScene::OnExit(GameApp& app) {
     (void)app;
@@ -757,11 +597,6 @@ void TutorialScene::Update(GameApp& app, float dt) {
     case State::Idle:
     default:
         break;
-    }
-
-    if (!tutorialMenuVisible_ && input->IsKeyTrigger(DIK_ESCAPE)) {
-        ReturnToTutorialMenu_(app);
-        return;
     }
 
     if (tutorialMenuVisible_) {
@@ -961,10 +796,6 @@ void TutorialScene::Update(GameApp& app, float dt) {
 
     if (tutorial_) {
         bool nextTutorial = false;
-
-        if (input->IsKeyTrigger(DIK_N)) {
-            nextTutorial = true;
-        }
 
         const bool blockTutorialClick =
             battle_.HasPokerChoiceUi() ||
@@ -1188,13 +1019,12 @@ void TutorialScene::Draw2D(GameApp& app) {
     }
 
     if (battle_.IsActionSequencePlaying()) {
-        battle_.Draw2D(app, true);
+        battle_.Draw2D(app, startFadeActive_);
         drawMasks();
         return;
     }
 
-    const bool tutorialMaskActive = tutorial_ && tutorial_->IsActive();
-    battle_.Draw2D(app, tutorialMaskActive);
+    battle_.Draw2D(app, startFadeActive_);
 
     if (fieldUi_) {
         fieldUi_->Draw(app, battle_);

@@ -52,11 +52,7 @@ void PlayerCombo::UpdateBuf_(float dt) {
 }
 
 int PlayerCombo::ReadDirY_(const Input& in) const {
-	// 押しっぱなし方向を読む（攻撃開始時に固定する）
-	// ↑ or W : +1
-	if (in.IsKeyPressed(DIK_UP) || in.IsKeyPressed(DIK_W))   return +1;
-	// ↓ or S : -1（※今は使ってないけど残してOK）
-	if (in.IsKeyPressed(DIK_DOWN) || in.IsKeyPressed(DIK_S)) return -1;
+	(void)in;
 	return 0;
 }
 
@@ -209,11 +205,9 @@ void PlayerCombo::Update(float dt,
 
 	// I/O をバッファへ
 	if (!attacking_) {
-		if (in.IsKeyTrigger(DIK_I)) { OutputDebugStringA("[Trigger] I\n"); Push_(AttackBtn::Weak); }
-		if (in.IsKeyTrigger(DIK_O)) { OutputDebugStringA("[Trigger] O\n"); Push_(AttackBtn::Strong); }
+
 	} else {
 		// 事故防止：攻撃中に押されても捨てる（必要なら）
-		// if (in.IsKeyTrigger(DIK_I) || in.IsKeyTrigger(DIK_O)) OutputDebugStringA("[Trigger ignored]\n");
 	}
 
 
