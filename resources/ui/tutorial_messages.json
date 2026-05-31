@@ -15,6 +15,7 @@
     "SkipPokerContinueTurn": "今回は発動しないを選びました\nこの場合 特殊効果は使わず\nそのまま自分のターンを続けます",
     "SkipPokerEndTurn": "発動しなかった場合は\n次の自分のターンになるまで\n特殊効果は使えません\nターン終了してみましょう",
     "SkipPokerWaitEnemyTurn": "今は敵のターンです\n次の自分のターンになるまで\n特殊効果は再発動できません",
+    "UiDeckCount": "右下は残り枚数の表示です\n残りが少ないと選択肢も減ります",
     "UiEnemyNextAction": "この赤い四角は敵の行動です\nカードを使用するたび\n数字が減っていき\n0になったら行動してきます",
     "ViewingBoardFromPoker": "場のカードを確認できます\n戻ると選択に戻ります",
     "WaitEnemyTurn": "今は敵のターンです\n次の自分のターンを待ちましょう"

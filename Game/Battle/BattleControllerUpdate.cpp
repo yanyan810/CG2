@@ -161,8 +161,8 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		return;
 	}
 
-	bool yTrig = input->IsKeyTrigger(DIK_Y);
-	bool nTrig = input->IsKeyTrigger(DIK_N);
+	bool yTrig = false;
+	bool nTrig = false;
 
 	POINT mouse = input->GetMousePosition();
 
@@ -207,10 +207,7 @@ void BattleController::UpdateLogic_(GameApp& app, FieldUi& fieldUi, float dt)
 		return;
 	}
 
-	bool enterTrig = input->IsKeyTrigger(DIK_RETURN);
-	if (tutorialInputLocked_) {
-		enterTrig = false;
-	}
+
 
 	operationUiVisible_ = !tutorialInputLocked_ && input->IsKeyPressed(DIK_TAB);
 

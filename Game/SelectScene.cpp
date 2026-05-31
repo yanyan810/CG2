@@ -360,8 +360,7 @@ void SelectScene::Update(GameApp& app, float dt)
 		isUsingMouse_ = true;
 	}
 
-	if (input->IsKeyTrigger(DIK_ESCAPE) ||
-		(PointInRect_(mx, my, backButtonRect_) && input->IsMouseTrigger(0))) {
+	if (PointInRect_(mx, my, backButtonRect_) && input->IsMouseTrigger(0)) {
 		AudioManager::GetInstance()->PlaySE("SE_Tap");
 		RequestChangeScene_("Title");
 		return;
@@ -388,30 +387,7 @@ void SelectScene::Update(GameApp& app, float dt)
 		}
 	}
 
-	if (input->IsKeyTrigger(DIK_LEFT) || input->IsKeyTrigger(DIK_UP) ||
-		input->IsKeyTrigger(DIK_A) || input->IsKeyTrigger(DIK_W)) {
-		isUsingMouse_ = false;
-		--selectIndex_;
-		if (selectIndex_ < 0) {
-			selectIndex_ = static_cast<int>(menuItems_.size()) - 1;
-		}
-		AudioManager::GetInstance()->PlaySE("SE_Tap");
-	}
 
-	if (input->IsKeyTrigger(DIK_RIGHT) || input->IsKeyTrigger(DIK_DOWN) ||
-		input->IsKeyTrigger(DIK_D) || input->IsKeyTrigger(DIK_S)) {
-		isUsingMouse_ = false;
-		++selectIndex_;
-		if (selectIndex_ >= static_cast<int>(menuItems_.size())) {
-			selectIndex_ = 0;
-		}
-		AudioManager::GetInstance()->PlaySE("SE_Tap");
-	}
-
-	if (input->IsKeyTrigger(DIK_RETURN) || input->IsKeyTrigger(DIK_SPACE)) {
-		SelectCurrent_(app);
-		return;
-	}
 }
 
 void SelectScene::Draw3D(GameApp& app)

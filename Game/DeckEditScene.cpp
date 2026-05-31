@@ -435,27 +435,7 @@ void DeckEditScene::Update(GameApp& app, float dt) {
 		isHoverd_ = false;
 	}
 
-	//================
-	//Dキーを押したとき
-	//================
-	bool deckEditTrig = input->IsKeyTrigger(DIK_D);
 
-	if (deckEditTrig && totalCount_ == 40) {
-		std::vector<int> finalDeck;
-		finalDeck.reserve(40);
-		for (auto const& [id, count] : editingDeck_) {
-			for (int j = 0; j < count; ++j) {
-				finalDeck.push_back(id);
-			}
-		}
-
-		app.SetDeckInstancesFromId(finalDeck);
-
-		AudioManager::GetInstance()->PlaySE("SE_Tap");
-		RequestChangeScene_("Game");
-
-		return;
-	}
 }
 
 void DeckEditScene::Draw3D(GameApp& app) {
