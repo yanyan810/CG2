@@ -684,8 +684,12 @@ bool BattleController::DrawOne_()
 
 void BattleController::DrawTurnStartCards_()
 {
+	constexpr std::size_t kMaxHandCount = 10;
 	const int drawCount = (playerTurnCount_ == 1) ? 5 : 3;
 	for (int i = 0; i < drawCount; ++i) {
+		if (deckZone_.GetHandCount() >= kMaxHandCount) {
+			break;
+		}
 		if (!DrawOne_()) {
 			break;
 		}
