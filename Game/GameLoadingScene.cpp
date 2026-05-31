@@ -405,14 +405,7 @@ bool GameLoadingScene::HandleTipInput_(GameApp& app)
 		return false;
 	}
 
-	if (input->IsKeyTrigger(DIK_LEFT) || input->IsKeyTrigger(DIK_A)) {
-		ChangeTip_(-1);
-		return true;
-	}
-	if (input->IsKeyTrigger(DIK_RIGHT) || input->IsKeyTrigger(DIK_D)) {
-		ChangeTip_(1);
-		return true;
-	}
+
 
 	if (!input->IsMouseTrigger(0)) {
 		return false;
@@ -673,9 +666,7 @@ void GameLoadingScene::Update(GameApp& app, float dt)
 
 	Input* input = app.GetInput();
 	const bool startRequested =
-		input && ((input->IsMouseTrigger(0) && !tipInputConsumed) ||
-			input->IsKeyTrigger(DIK_RETURN) ||
-			input->IsKeyTrigger(DIK_SPACE));
+		input && (input->IsMouseTrigger(0) && !tipInputConsumed);
 	if (startRequested) {
 		app.Scenes().RequestPreparedChange("Game", std::move(preparedGameScene_));
 	}

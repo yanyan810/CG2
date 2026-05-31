@@ -21,6 +21,7 @@ class Player;
 
 #include "Enemy.h" // ← EnemyManager を使うなら
 #include "UI/BattleActionDirector.h"
+#include "UI/PausingUI/PausingUI.h"
 
 class TestScene : public IScene {
 public:
@@ -40,6 +41,7 @@ private:
 
     bool prevEsc_ = false;
 
+    std::unique_ptr<PausingUI> pausingUI_;
     std::unique_ptr<Sprite> playTxst_;
 
     bool reachedEdge_ = false; // TestScene メンバ
