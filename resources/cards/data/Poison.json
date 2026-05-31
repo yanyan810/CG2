@@ -28,7 +28,7 @@
       ],
        "subEffects": [
         {
-          "trigger": "OnTurnStartWithPoker",
+          "trigger": "OnPokerSkillActivated",
           "condition": {
             "type": "AtLeastRank",
             "rank": "OnePair"
@@ -74,11 +74,11 @@
           "trigger": "OnTurnStartWithPoker",
           "condition": {
             "type": "AtLeastRank",
-            "rank": "Flush"
+            "rank": "StraightFamily"
           },
           "effects": [
-           { "type": "Heal", "value": 15 },
-           { "type": "Poison", "value": 10 }
+           { "type": "Heal", "value": 5 },
+           { "type": "Poison", "value": 5 }
           ]
         }
       ]
@@ -98,7 +98,7 @@
       ],
        "subEffects": [
         {
-          "trigger": "OnTurnStartWithPoker",
+          "trigger": "OnPokerSkillActivated",
           "condition": {
             "type": "AtLeastRank",
             "rank": "FullHouse"

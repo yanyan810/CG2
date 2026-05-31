@@ -95,6 +95,18 @@
       "desc": "敵全体の凍結の値x1.5分\nブロックを得る",
        "effects": [
          { "type": "FrostBlock", "value": 1.5 }
+      ],
+       "subEffects": [
+        {
+          "trigger": "OnTurnStartWithPoker",
+          "condition": {
+            "type": "AtLeastRank",
+            "rank": "StraightFamily"
+          },
+          "effects": [
+           { "type": "FrostBlock", "value": 0.25 }
+          ]
+        }
       ]
     },
 
