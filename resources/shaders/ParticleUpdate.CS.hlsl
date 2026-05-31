@@ -40,6 +40,8 @@ struct GlobalConfig
 {
     float deltaTime;
     uint maxParticles;
+    float3 playerDelta;
+    float padding; // 16byte align
 };
 struct SceneConfig
 {
@@ -196,8 +198,20 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     // 4. 物理挙動の計算
     float rawT = p.currentTime / p.lifeTime;
+
+    // 追従フラグ（0x100）のデコード
+    bool followPlayer = (p.easingType & 0x100) != 0;
+    uint easingType = p.easingType & 0x0F;
+
+    if (followPlayer)
+    {
+        // プレイヤーの移動差分を適用
+        p.position += gConfig.playerDelta;
+        p.acceleration.xz += gConfig.playerDelta.xz;
+    }
+
     // --- 新機能: イージング適用 ---
-    float t = ApplyEasing(rawT, p.easingType);
+    float t = ApplyEasing(rawT, easingType);
     if (abs(p.vortexAngularSpeed) > 0.0001f)
     {
         float2 center = p.acceleration.xz;

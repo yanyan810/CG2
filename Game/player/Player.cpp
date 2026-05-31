@@ -9,6 +9,7 @@
 #include <cmath>
 #include <random>
 #include <vector>
+#include <fstream>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -252,6 +253,8 @@ void Player::PlayDamageAnim() {
 }
 
 void Player::Update(float dt) {
+    Vector3 prevVisualPos = GetVisualPos();
+
     // 動き（アニメーション）の計算
     if (animState_ != AnimState::Idle) {
         animTimer_ += dt;
@@ -345,6 +348,11 @@ void Player::Update(float dt) {
     body_.min = { pos_.x - 1.0f, pos_.y, pos_.z - 1.0f };
     body_.max = { pos_.x + 1.0f, pos_.y + 2.0f, pos_.z + 1.0f };
     
+    // プレイヤー移動差分の計算とパーティクルマネージャーへの通知
+    Vector3 delta = GetVisualPos() - prevVisualPos;
+    if (particleManager_) {
+        particleManager_->SetPlayerDelta(delta);
+    }
 }
 
 void Player::PlayReleaseIdleAnimation_() {
@@ -972,7 +980,7 @@ void Player::EmitPowerBoostParticles_(uint32_t count) {
             powerBoostEndColor_.w
         };
         particle.color = particle.startColor;
-        particle.easingType = EasingType::EaseOut;
+        particle.easingType = static_cast<EasingType>(static_cast<uint32_t>(EasingType::EaseOut) | 0x100);
         particle.isBillboard = powerBoostBillboard_;
         particles.push_back(particle);
     }
@@ -1011,4 +1019,29 @@ Vector3 Player::GetWeaponBasePos() {
         sinf(angle) * length
     };
     return Matrix4x4::TransformPos(localBase, model_->GetWorldMatrix());
+}
+
+Vector3 Player::GetVisualPos() const {
+    if (model_) {
+        auto* skel = model_->GetSkeleton();
+        if (skel) {
+            for (const auto& joint : skel->joints) {
+                const std::string& name = joint.name;
+                if (name.find("root") != std::string::npos ||
+                    name.find("Root") != std::string::npos ||
+                    name.find("hip") != std::string::npos ||
+                    name.find("Hip") != std::string::npos ||
+                    name.find("spine") != std::string::npos ||
+                    name.find("Spine") != std::string::npos ||
+                    name.find("\xE3\x83\x9C\xE3\x83\xBC\xE3\x83\xB3") != std::string::npos || // UTF-8 "ボーン"
+                    name.find("\x8C\x8B\x81\x5B\x93\xF3") != std::string::npos)              // SJIS "ボーン"
+                {
+                    Matrix4x4 mat = model_->GetJointWorldMatrix(name);
+                    return { mat.m[3][0], mat.m[3][1], mat.m[3][2] };
+                }
+            }
+        }
+        return model_->GetTranslate();
+    }
+    return pos_;
 }

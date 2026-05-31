@@ -248,12 +248,14 @@ public:
 		float padding; // 16byte アラインメント用（重要）
 	};
 
-	struct GlobalConfig
+	struct alignas(16) GlobalConfig
 	{
 		float deltaTime;
 		uint32_t maxParticles;
+		float pad1[2]; // HLSL定数バッファのfloat4境界アラインメント用パディング (8 bytes)
+		Vector3 playerDelta;
+		float pad2;    // 全体を32バイト(16の倍数)にするためのパディング (4 bytes)
 	};
-
 	struct SceneConfig
 	{
 		Matrix4x4 viewProjection;
@@ -289,6 +291,10 @@ public:
 	void Emit(const std::string& effectName, const Vector3& position, uint32_t count);
 	void Emit(const std::string& effectName, const Vector3& position, uint32_t count, const Vector4& color);
 	void Emit(const ParticleEmitterConfig& config, const Vector3& position, uint32_t count);
+
+	// --- プレイヤー追従用 ---
+	void SetPlayerDelta(const Vector3& delta) { playerDelta_ += delta; }
+
 private:
 	void ApplyRenderConfig_(const ParticleEmitterConfig& config);
 	void SetRenderModel_(const std::string& modelPath);
@@ -328,9 +334,9 @@ private:
 
 	// Compute関連
 	Microsoft::WRL::ComPtr<ID3D12Resource> computeConfigResource_;
-	GlobalConfig* computeConfigData_;
+	GlobalConfig* computeConfigData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> computeSceneResource_;
-	SceneConfig* computeSceneData_;
+	SceneConfig* computeSceneData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> emitStagingResource_;
 
 	// 間接描画用
@@ -345,5 +351,8 @@ private:
 
 	uint32_t freeIndex_ = 0;
 	uint32_t maxInstance_ = kMaxInstance;
+
+	// --- プレイヤー追従用 ---
+	Vector3 playerDelta_{ 0.0f, 0.0f, 0.0f };
 	
 };
