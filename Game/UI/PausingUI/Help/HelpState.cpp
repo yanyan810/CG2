@@ -1,5 +1,6 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include "HelpState.h"
+#include "Sprite.h"
 #include "GameApp.h"
 #include "../PausingUI.h"
 #include "AudioManager.h"
@@ -27,6 +28,7 @@ void HelpState::Initialize(GameApp& app) {
 
     // 選択可能な画像リストを構築（初回の1回だけスキャンする）
     static std::vector<std::string> s_cachedImages;
+    // Scrollbar UI elements will be initialized after image scan
     if (s_cachedImages.empty()) {
         try {
             for (const auto& entry : std::filesystem::recursive_directory_iterator("resources")) {
@@ -39,6 +41,15 @@ void HelpState::Initialize(GameApp& app) {
         } catch (...) {}
     }
     availableImages_ = s_cachedImages;
+
+    // Initialize scrollbar sprites (using white texture)
+    scrollBarBg_ = std::make_unique<Sprite>();
+    scrollBarBg_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    scrollBarBg_->SetColor({ 0.2f, 0.2f, 0.2f, 0.5f });
+
+    scrollBarHandle_ = std::make_unique<Sprite>();
+    scrollBarHandle_->Initialize(app.SpriteCom(), app.Dx(), "resources/ui/white.png");
+    scrollBarHandle_->SetColor({ 0.8f, 0.8f, 0.8f, 0.8f });
 
     // JSONからヘルプ項目を読み込む
     std::ifstream ifs("resources/ui/help_items.json");
@@ -125,12 +136,41 @@ void HelpState::Update(PausingUI* context, GameApp& app, Input* input) {
     Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
     Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
 
-    // スクロール処理
+    // スクロール処理（ホイール）
     int wheel = input->GetWheel();
     if (wheel != 0) {
         float scrollSpeed = 0.5f;
         scrollY_ -= (static_cast<float>(wheel) / 120.0f) * 60.0f * scrollSpeed;
         scrollY_ = std::clamp(scrollY_, 0.0f, maxScrollY_);
+    }
+
+    // クリックでスクロールバーを操作
+    // UI座標系はピクセルベースで左上が (0,0)
+    POINT mousePos = input->GetMousePosition();
+    float barX = layout_.itemButtonStart.x + layout_.itemButtonBgScale.x + 5.0f;
+    const float trackStartY = 100.0f;
+    const float trackHeight = 550.0f; // 650 - 100
+    // トラック領域にマウスがあるか判定
+    bool overTrack = (mousePos.x >= barX && mousePos.x <= barX + 5.0f &&
+                     mousePos.y >= trackStartY && mousePos.y <= trackStartY + trackHeight);
+    
+    // Start dragging when mouse is pressed on track
+    if (overTrack && input->IsMousePressed(0) && !isScrolling_) {
+        isScrolling_ = true;
+        scrollStartY_ = static_cast<float>(mousePos.y);
+        scrollStartPos_ = scrollY_;
+    }
+
+    // End dragging when mouse button is released
+    if (isScrolling_ && input->IsMouseReleased(0)) {
+        isScrolling_ = false;
+    }
+
+    // While dragging, update scroll position based on mouse movement
+    if (isScrolling_) {
+        float deltaY = static_cast<float>(mousePos.y) - scrollStartY_;
+        float perc = deltaY / trackHeight;
+        scrollY_ = std::clamp(scrollStartPos_ + perc * maxScrollY_, 0.0f, maxScrollY_);
     }
 
     // ボタンの位置をスクロールに合わせて更新
@@ -176,6 +216,9 @@ void HelpState::Update(PausingUI* context, GameApp& app, Input* input) {
 }
 
 void HelpState::Draw(GameApp& app) {
+    // Prepare view and projection matrices for UI drawing
+    Matrix4x4 view = Matrix4x4::MakeIdentity4x4();
+    Matrix4x4 proj = Matrix4x4::MakeOrthographicMatrix(0, 0, (float)WinApp::kClientWidth, (float)WinApp::kClientHeight, 0, 100);
     for (size_t i = 0; i < itemButtons_.size(); ++i) {
         float yPos = itemButtons_[i]->GetPosition().y;
         if (yPos > 100.0f && yPos < 650.0f) {
@@ -188,6 +231,34 @@ void HelpState::Draw(GameApp& app) {
     photoBg_->Draw();
     textBg_->Draw();
     descText_->Draw();
+
+    // Draw scroll bar (track and knob)
+    // Define visual area for scrolling (same as item button area)
+    const float trackStartY = 100.0f;
+    const float trackEndY = 650.0f;
+    const float trackHeight = trackEndY - trackStartY;
+    // Compute total height of items
+    float totalHeight = static_cast<float>(helpItems_.size()) * layout_.itemButtonStepY;
+    // Visible portion height (fixed to 500 as used in maxScrollY calculation)
+    const float visibleHeight = 500.0f;
+    // Proportion of visible area to total height
+    float proportion = (totalHeight > 0.0f) ? std::min(1.0f, visibleHeight / totalHeight) : 1.0f;
+    float handleHeight = trackHeight * proportion;
+    float handlePosY = trackStartY;
+    if (maxScrollY_ > 0.0f) {
+        handlePosY += (scrollY_ / maxScrollY_) * (trackHeight - handleHeight);
+    }
+    // Position the bar on the right side of the item list
+    float barX = layout_.itemButtonStart.x + layout_.itemButtonBgScale.x + 5.0f;
+    scrollBarBg_->SetPosition({ barX, trackStartY });
+    scrollBarBg_->SetScale({ 5.0f, trackHeight, 1.0f });
+    scrollBarBg_->Update(view, proj);
+    scrollBarBg_->Draw();
+
+    scrollBarHandle_->SetPosition({ barX, handlePosY });
+    scrollBarHandle_->SetScale({ 5.0f, handleHeight, 1.0f });
+    scrollBarHandle_->Update(view, proj);
+    scrollBarHandle_->Draw();
 }
 
 void HelpState::ApplyLayout_() {

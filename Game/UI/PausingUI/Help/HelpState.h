@@ -39,6 +39,14 @@ private:
     std::vector<HelpItem> helpItems_;
     int selectedIndex_ = 0;
     std::vector<std::string> availableImages_;
+    // Scrollbar UI elements
+    std::unique_ptr<Sprite> scrollBarBg_; // background track
+    std::unique_ptr<Sprite> scrollBarHandle_; // draggable knob
+
+    // Dragging state for scrollbar
+    bool isScrolling_ = false;          // true while mouse button held on track
+    float scrollStartY_ = 0.0f;          // mouse Y at drag start
+    float scrollStartPos_ = 0.0f;        // scrollY_ at drag start
 
     float scrollY_ = 0.0f;
     float maxScrollY_ = 0.0f;
